@@ -19,14 +19,27 @@ configure_file(
     ${CMAKE_CURRENT_BINARY_DIR}/res/shaders/fragment_shader.frag
     COPYONLY
 )
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/res/textures/test_sprite.png
+    ${CMAKE_CURRENT_BINARY_DIR}/res/textures/test_sprite.png
+    COPYONLY
+)
 
 add_subdirectory(external/glfw)
 add_subdirectory(external/glad)
 
 add_executable(${PROJECT_NAME} 
     src/main.cpp 
+    src/stb_image.cpp
     src/shaders/ShaderProgram.h 
     src/shaders/ShaderProgram.cpp
+    src/textures/Texture2D.h
+    src/textures/Texture2D.cpp
+)
+
+target_include_directories(${PROJECT_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/external
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE glfw glad)

@@ -19,6 +19,7 @@ public:
 	bool loadShaders(const std::string& vertexPath, const std::string& fragmentPath);
 	void use() const;
 	void deleteProgram();
+	unsigned int getId() const { return m_id; }
 
 private:
 	GLuint m_id;

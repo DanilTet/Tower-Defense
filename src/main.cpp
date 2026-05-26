@@ -2,6 +2,7 @@
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include "shaders/ShaderProgram.h"
+#include "textures/Texture2D.h"
 
 int windowWidth = 640;
 int windowHeight = 480;
@@ -77,6 +78,17 @@ int main(void)
         return -1;
     }
 
+    Texture2D testTexture;
+    if (!testTexture.load("res/textures/test_sprite.png")) {
+        std::cerr << "Failed to load test texture!" << std::endl;
+        glfwTerminate();
+        return -1;
+    }
+
+    shaderProgram.use();
+    int textureLocation = glGetUniformLocation(shaderProgram.getId(), "u_texture");
+    glUniform1i(textureLocation, 0);
+
 	unsigned int VAO, VBO, EBO;
 	glGenVertexArrays(1, &VAO);
 	glGenBuffers(1, &VBO);
@@ -106,11 +118,14 @@ int main(void)
         glClear(GL_COLOR_BUFFER_BIT);
         
 		shaderProgram.use(); // мои четенькие шейдеры
+        testTexture.bind(0);
 		glBindVertexArray(VAO);
 
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
         glBindVertexArray(0);
+
+        testTexture.unbind();
 
         /* Swap front and back buffers */
         glfwSwapBuffers(window);
