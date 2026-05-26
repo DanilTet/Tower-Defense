@@ -1,8 +1,7 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <iostream>
-#include "shaders/ShaderProgram.h"
-#include "textures/Texture2D.h"
+#include "resources/ResourceManager.h"
 
 int windowWidth = 640;
 int windowHeight = 480;
@@ -71,22 +70,20 @@ int main(void)
 
     glClearColor(1, 1, 0, 1);
 
-    ShaderProgram shaderProgram;
-    if (!shaderProgram.loadShaders("res/shaders/vertex_shader.vert", "res/shaders/fragment_shader.frag")) {
-        std::cerr << "Failed to load/compile shaders!" << std::endl;
+    if(!ResourceManager::loadShader("spriteShader", "res/shaders/vertex_shader.vert", "res/shaders/fragment_shader.frag")){
+		std::cout << "Failed to load shaders" << std::endl;
+        glfwTerminate();
+		return -1;
+    }
+    if(!ResourceManager::loadTexture("towerTexture", "res/textures/test_sprite.png")){
+        std::cerr << "Failed to load texture via ResourceManager!" << std::endl;
         glfwTerminate();
         return -1;
     }
 
-    Texture2D testTexture;
-    if (!testTexture.load("res/textures/test_sprite.png")) {
-        std::cerr << "Failed to load test texture!" << std::endl;
-        glfwTerminate();
-        return -1;
-    }
-
-    shaderProgram.use();
-    int textureLocation = glGetUniformLocation(shaderProgram.getId(), "u_texture");
+    ShaderProgram* shader = ResourceManager::getShader("spriteShader");
+    shader->use();
+    int textureLocation = glGetUniformLocation(shader->getId(), "u_texture");
     glUniform1i(textureLocation, 0);
 
 	unsigned int VAO, VBO, EBO;
@@ -117,15 +114,14 @@ int main(void)
         /* Render here */
         glClear(GL_COLOR_BUFFER_BIT);
         
-		shaderProgram.use(); // мои четенькие шейдеры
-        testTexture.bind(0);
-		glBindVertexArray(VAO);
+		ResourceManager::getShader("spriteShader")->use();
+		ResourceManager::getTexture("towerTexture")->bind(0);
 
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-
+        glBindVertexArray(VAO);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);;
         glBindVertexArray(0);
 
-        testTexture.unbind();
+		ResourceManager::getTexture("towerTexture")->unbind();
 
         /* Swap front and back buffers */
         glfwSwapBuffers(window);
@@ -138,7 +134,7 @@ int main(void)
     glDeleteBuffers(1, &VBO);
     glDeleteBuffers(1, &EBO);
 
-    shaderProgram.deleteProgram();
+    ResourceManager::clear();
     glfwTerminate();
     return 0;
 }

@@ -3,6 +3,9 @@ cmake_minimum_required(VERSION 4.3.2 FATAL_ERROR)
 set(PROJECT_NAME TD)
 project(${PROJECT_NAME})
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
@@ -35,6 +38,8 @@ add_executable(${PROJECT_NAME}
     src/shaders/ShaderProgram.cpp
     src/textures/Texture2D.h
     src/textures/Texture2D.cpp
+    src/resources/ResourceManager.h
+    src/resources/ResourceManager.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
