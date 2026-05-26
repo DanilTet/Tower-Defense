@@ -1,6 +1,7 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <iostream>
+#include "ShaderProgram.h"
 
 int windowWidth = 640;
 int windowHeight = 480;
@@ -16,24 +17,6 @@ GLfloat color[] = {
     0.0f, 1.0f, 0.0f,
     0.0f, 0.0f, 1.0f
 };
-
-const char* vertexShader =
-"#version 460\n"
-"layout(location = 0) in vec3 vertex_position;"
-"layout(location = 1) in vec3 vertex_color;"
-"out vec3 color;"
-"void main() {"
-"   color = vertex_color;"
-"   gl_Position = vec4(vertex_position, 1.0);"
-"}";
-
-const char* fragmentShader =
-"#version 460\n"
-"in vec3 color;"
-"out vec4 frag_color;"
-"void main() {"
-"   frag_color = vec4(color, 1.0);"
-"}";
 
 void glfwWindowSizeCallback(GLFWwindow* window, int width, int height)
 {
@@ -87,23 +70,14 @@ int main(void)
 	std::cout << "OpenGL version: " << glGetString(GL_VERSION) << std::endl;
 	std::cout << "OpenGL " << GLVersion.major << "." << GLVersion.minor << std::endl;
 
-    glClearColor(0, 1, 0, 1);
+    glClearColor(1, 1, 0, 1);
 
-	GLuint vs = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(vs, 1, &vertexShader, nullptr);
-	glCompileShader(vs);
-
-    GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fs, 1, &fragmentShader, nullptr);
-    glCompileShader(fs);
-
-    GLuint shader_program = glCreateProgram();
-	glAttachShader(shader_program, vs);
-    glAttachShader(shader_program, fs);
-    glLinkProgram(shader_program);
-
-	glDeleteShader(vs);
-	glDeleteShader(fs);
+    ShaderProgram shaderProgram;
+    if (!shaderProgram.loadShaders("res/shaders/vertex_shader.vert", "res/shaders/fragment_shader.frag")) {
+        std::cerr << "Failed to load/compile shaders!" << std::endl;
+        glfwTerminate();
+        return -1;
+    }
 
 	GLuint points_vbo = 0;
     glGenBuffers(1, &points_vbo);
@@ -133,7 +107,7 @@ int main(void)
         /* Render here */
         glClear(GL_COLOR_BUFFER_BIT);
         
-		glUseProgram(shader_program);
+        shaderProgram.use();
 		glBindVertexArray(vao);
 		glDrawArrays(GL_TRIANGLES, 0, 3);
 
@@ -145,6 +119,7 @@ int main(void)
         glfwPollEvents();
     }
 
+    shaderProgram.deleteProgram();
     glfwTerminate();
     return 0;
 }
