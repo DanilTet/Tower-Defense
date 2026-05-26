@@ -25,8 +25,8 @@ add_subdirectory(external/glad)
 
 add_executable(${PROJECT_NAME} 
     src/main.cpp 
-    src/ShaderProgram.h 
-    src/ShaderProgram.cpp
+    src/shaders/ShaderProgram.h 
+    src/shaders/ShaderProgram.cpp
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE glfw glad)
