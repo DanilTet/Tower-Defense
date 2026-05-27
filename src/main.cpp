@@ -6,6 +6,7 @@
 #include <memory>
 #include "resources/ResourceManager.h"
 #include "renderer/SpriteRenderer.h"
+#include "game/Grid.h"
 
 int windowWidth = 640;
 int windowHeight = 480;
@@ -99,18 +100,44 @@ int main(void)
     int textureLocation = glGetUniformLocation(shader->getId(), "u_texture");
     glUniform1i(textureLocation, 0);
 
+    // делаем переменные которые будем использовать для управления временем
+	double lastFrame = glfwGetTime(); // время начала предыдущего кадра
+    float deltaTime = 0.0f; // время между кадрами
+
+    float towerRotation = 45.0f; // тест поворота башни
+
+	// Создаем игровую сетку и загружаем текстуру для клеток
+    Grid gameGrid(10, 7, 64.0f);
+    Texture2D* cellTex = ResourceManager::getTexture("towerTexture");
+    std::shared_ptr<Texture2D> cellTexturePtr(cellTex, [](Texture2D*) {});
+
+
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window))
     {
+        // Считаем время вот эту дельту
+        double currentFrame = glfwGetTime();
+        deltaTime = static_cast<float>(currentFrame - lastFrame);
+        lastFrame = currentFrame;
+
+        if (deltaTime > 0.1f) {
+            deltaTime = 0.1f;
+        }
+        
+        towerRotation += 90.0f * deltaTime;
+        if (towerRotation >= 360.0f) {
+            towerRotation -= 360;
+        }
+
         /* Render here */
         glClear(GL_COLOR_BUFFER_BIT);
         
 		Texture2D* texture = ResourceManager::getTexture("towerTexture");
 		std::shared_ptr<Texture2D> texturePtr(texture, [](Texture2D*) {});
-
+        gameGrid.draw(renderer.get(), cellTexturePtr);
         renderer->drawSprite(texturePtr, glm::vec2(100.0f, 100.0f), glm::vec2(64.0f, 64.0f), 0.0f);
 
-        renderer->drawSprite(texturePtr, glm::vec2(250.0f, 100.0f), glm::vec2(48.0f, 48.0f), 45.0f, glm::vec3(1.0f, 0.3f, 0.3f));
+        renderer->drawSprite(texturePtr, glm::vec2(250.0f, 100.0f), glm::vec2(48.0f, 48.0f), towerRotation, glm::vec3(1.0f, 0.3f, 0.3f));
 
         /* Swap front and back buffers */
         glfwSwapBuffers(window);
