@@ -14,6 +14,19 @@ int windowHeight = 480;
 std::unique_ptr<SpriteRenderer> renderer;
 std::unique_ptr<Grid> gameGrid;
 
+bool loadGameAssets() {
+	if (!ResourceManager::loadShader("spriteShader", "res/shaders/vertex_shader.vert", "res/shaders/fragment_shader.frag")) {
+		std::cout << "Failed to load shaders" << std::endl;
+		return false;
+	}
+	if (!ResourceManager::loadTexture("towerTexture", "res/textures/test_sprite.png")) {
+		std::cerr << "Failed to load texture via ResourceManager!" << std::endl;
+		return false;
+	}
+	return true;
+}
+
+
 void glfwWindowSizeCallback(GLFWwindow* window, int width, int height)
 {
 	windowWidth = width;
@@ -27,7 +40,7 @@ void glfwWindowSizeCallback(GLFWwindow* window, int width, int height)
         renderer->setProjection(projection);
     }
 
-    if (gameGrid) {
+    if (gameGrid != nullptr) {
         gameGrid->updateCellSize(windowWidth, windowHeight);
     }
 }
@@ -80,16 +93,10 @@ int main(void)
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    if(!ResourceManager::loadShader("spriteShader", "res/shaders/vertex_shader.vert", "res/shaders/fragment_shader.frag")){
-		std::cout << "Failed to load shaders" << std::endl;
-        glfwTerminate();
+	if (!loadGameAssets()) {
+		std::cout << "Failed to load game assets" << std::endl;
 		return -1;
-    }
-    if(!ResourceManager::loadTexture("towerTexture", "res/textures/test_sprite.png")){
-        std::cerr << "Failed to load texture via ResourceManager!" << std::endl;
-        glfwTerminate();
-        return -1;
-    }
+	}
 
     ShaderProgram* shader = ResourceManager::getShader("spriteShader");
     std::shared_ptr<ShaderProgram> shaderPtr(shader, [](ShaderProgram*) {});
@@ -109,12 +116,6 @@ int main(void)
 	double lastFrame = glfwGetTime(); // время начала предыдущего кадра
     float deltaTime = 0.0f; // время между кадрами
 
-    float towerRotation = 45.0f; // тест поворота башни
-
-	// для чела который будет рисовать башню в центре окна
-    float posX = (windowWidth / 2.0f) - (500.0f / 2.0f);
-    float posY = (windowHeight / 2.0f) - (500.0f / 2.0f);
-
 	// Создаем игровую сетку и загружаем текстуру для клеток
     gameGrid = std::make_unique<Grid>(10, 7, 64.0f);
     gameGrid->updateCellSize(windowWidth, windowHeight);
@@ -122,6 +123,9 @@ int main(void)
     Texture2D* cellTex = ResourceManager::getTexture("towerTexture");
     std::shared_ptr<Texture2D> cellTexturePtr(cellTex, [](Texture2D*) {});
 
+	static bool mousePressedLastFrame = false; // для отслеживания состояния кнопки мыши
+    glm::vec2 myGridOffset = glm::vec2(100.0f, 100.0f);
+	
 
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window))
@@ -134,23 +138,32 @@ int main(void)
         if (deltaTime > 0.1f) {
             deltaTime = 0.1f;
         }
-        
-        towerRotation += 90.0f * deltaTime;
-        if (towerRotation >= 360.0f) {
-            towerRotation -= 360;
+
+		//обработка кликов мыши для установки башни
+        int mouseState = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
+
+        if (mouseState == GLFW_PRESS && !mousePressedLastFrame)
+        {
+            mousePressedLastFrame = true;
+            double mouseX, mouseY;
+            glfwGetCursorPos(window, &mouseX, &mouseY);
+
+            glm::ivec2 clickedCell = gameGrid->pixelToGrid(glm::vec2(mouseX, mouseY), myGridOffset);
+
+            if (gameGrid->canBuildAt(clickedCell.x, clickedCell.y)) {
+                gameGrid->setCellType(clickedCell.x, clickedCell.y, CellType::Tower);
+                std::cout << "Поставили башню в ячейку: " << clickedCell.x << ", " << clickedCell.y << std::endl;
+            }
+        }
+        else if (mouseState == GLFW_RELEASE)
+        {
+            mousePressedLastFrame = false;
         }
 
         /* Render here */
         glClear(GL_COLOR_BUFFER_BIT);
-        
-		Texture2D* texture = ResourceManager::getTexture("towerTexture");
-		std::shared_ptr<Texture2D> texturePtr(texture, [](Texture2D*) {});
 
-		gameGrid->draw(renderer.get(), cellTexturePtr); // рисуем сетку
-
-        renderer->drawSprite(texturePtr, glm::vec2(100.0f, 100.0f), glm::vec2(64.0f, 64.0f), 0.0f);
-
-        renderer->drawSprite(texturePtr, glm::vec2(posX, posY), glm::vec2(500.0f, 500.0f), towerRotation, glm::vec3(1.0f, 0.3f, 0.3f));
+        gameGrid->draw(renderer.get(), cellTexturePtr, myGridOffset, { 1.0f, 1.0f, 1.0f }); // рисуем сетку
 
         /* Swap front and back buffers */
         glfwSwapBuffers(window);

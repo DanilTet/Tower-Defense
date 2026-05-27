@@ -27,12 +27,15 @@ public:
 	Grid(int width, int height, float cellSize);
 
 	glm::vec2 gridToPixel(int gridX, int gridY) const; // тут получаем левый верхний угол клетки
-	glm::ivec2 pixelToGrid(glm::vec2 pixelPos) const; // получаем кординаты мыши и возращаем индекс клетки в масиве
+	glm::ivec2 pixelToGrid(glm::vec2 pixelPos, glm::vec2 gridOffset = glm::vec2(0.0f, 0.0f)) const; // получаем кординаты мыши и возращаем индекс клетки в масиве
 
 	bool canBuildAt(int gridX, int gridY) const; // проверяем можно ли построить башню на этой клетке
 	void setCellType(int gridX, int gridY, CellType type); // устанавливаем тип клетки
 
-	void draw(SpriteRenderer* renderer, std::shared_ptr<Texture2D> cellTexture); // рисуем сетку
+	void draw(SpriteRenderer* renderer,
+		std::shared_ptr<Texture2D> cellTexture,
+		glm::vec2 gridOffset = glm::vec2(0.0f, 0.0f),
+		glm::vec3 color = glm::vec3(1.0f, 1.0f, 1.0f)); // рисуем сетку
 
 	void updateCellSize(int windowWidth, int windowHeight); // обновляем размер клеток при изменении размера окна, чтобы сетка всегда занимала все окно
 	float getCellSize() const { return m_cellSize; } // получаем размер клетки
