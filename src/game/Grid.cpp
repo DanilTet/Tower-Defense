@@ -42,3 +42,15 @@ void Grid::draw(SpriteRenderer* renderer, std::shared_ptr<Texture2D> cellTexture
 		}
 	}
 }
+
+void Grid::updateCellSize(int windowWidth, int windowHeight) {
+	float sizeX = static_cast<float>(windowWidth) / m_width;
+	float sizeY = static_cast<float>(windowHeight) / m_height;
+
+	if (sizeX < sizeY) {
+		m_cellSize = sizeX;
+	}
+	else {
+		m_cellSize = sizeY;
+	}
+}

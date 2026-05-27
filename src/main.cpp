@@ -12,6 +12,7 @@ int windowWidth = 640;
 int windowHeight = 480;
 
 std::unique_ptr<SpriteRenderer> renderer;
+std::unique_ptr<Grid> gameGrid;
 
 void glfwWindowSizeCallback(GLFWwindow* window, int width, int height)
 {
@@ -24,6 +25,10 @@ void glfwWindowSizeCallback(GLFWwindow* window, int width, int height)
             static_cast<float>(windowHeight), 0.0f,
             -1.0f, 1.0f);
         renderer->setProjection(projection);
+    }
+
+    if (gameGrid) {
+        gameGrid->updateCellSize(windowWidth, windowHeight);
     }
 }
 
@@ -106,8 +111,14 @@ int main(void)
 
     float towerRotation = 45.0f; // тест поворота башни
 
+	// для чела который будет рисовать башню в центре окна
+    float posX = (windowWidth / 2.0f) - (500.0f / 2.0f);
+    float posY = (windowHeight / 2.0f) - (500.0f / 2.0f);
+
 	// Создаем игровую сетку и загружаем текстуру для клеток
-    Grid gameGrid(10, 7, 64.0f);
+    gameGrid = std::make_unique<Grid>(10, 7, 64.0f);
+    gameGrid->updateCellSize(windowWidth, windowHeight);
+
     Texture2D* cellTex = ResourceManager::getTexture("towerTexture");
     std::shared_ptr<Texture2D> cellTexturePtr(cellTex, [](Texture2D*) {});
 
@@ -134,10 +145,12 @@ int main(void)
         
 		Texture2D* texture = ResourceManager::getTexture("towerTexture");
 		std::shared_ptr<Texture2D> texturePtr(texture, [](Texture2D*) {});
-        gameGrid.draw(renderer.get(), cellTexturePtr);
+
+		gameGrid->draw(renderer.get(), cellTexturePtr); // рисуем сетку
+
         renderer->drawSprite(texturePtr, glm::vec2(100.0f, 100.0f), glm::vec2(64.0f, 64.0f), 0.0f);
 
-        renderer->drawSprite(texturePtr, glm::vec2(250.0f, 100.0f), glm::vec2(48.0f, 48.0f), towerRotation, glm::vec3(1.0f, 0.3f, 0.3f));
+        renderer->drawSprite(texturePtr, glm::vec2(posX, posY), glm::vec2(500.0f, 500.0f), towerRotation, glm::vec3(1.0f, 0.3f, 0.3f));
 
         /* Swap front and back buffers */
         glfwSwapBuffers(window);
@@ -147,6 +160,7 @@ int main(void)
     }
 
     renderer.reset();
+    gameGrid.reset();
 
     ResourceManager::clear();
     glfwTerminate();
