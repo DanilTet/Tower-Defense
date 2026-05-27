@@ -44,6 +44,8 @@ add_executable(${PROJECT_NAME}
     src/renderer/SpriteRenderer.cpp
     src/game/Grid.h
     src/game/Grid.cpp
+    src/game/Game.h
+    src/game/Game.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE

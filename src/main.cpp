@@ -1,31 +1,14 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
 #include <memory>
 #include "resources/ResourceManager.h"
-#include "renderer/SpriteRenderer.h"
-#include "game/Grid.h"
+#include "game/Game.h"
 
 int windowWidth = 640;
 int windowHeight = 480;
 
-std::unique_ptr<SpriteRenderer> renderer;
-std::unique_ptr<Grid> gameGrid;
-
-bool loadGameAssets() {
-	if (!ResourceManager::loadShader("spriteShader", "res/shaders/vertex_shader.vert", "res/shaders/fragment_shader.frag")) {
-		std::cout << "Failed to load shaders" << std::endl;
-		return false;
-	}
-	if (!ResourceManager::loadTexture("towerTexture", "res/textures/test_sprite.png")) {
-		std::cerr << "Failed to load texture via ResourceManager!" << std::endl;
-		return false;
-	}
-	return true;
-}
-
+std::unique_ptr<Game> TowerDefenseGame;
 
 void glfwWindowSizeCallback(GLFWwindow* window, int width, int height)
 {
@@ -33,16 +16,9 @@ void glfwWindowSizeCallback(GLFWwindow* window, int width, int height)
 	windowHeight = height;
 	glViewport(0, 0, windowWidth, windowHeight);
 
-    if (renderer) {
-        glm::mat4 projection = glm::ortho(0.0f, static_cast<float>(windowWidth),
-            static_cast<float>(windowHeight), 0.0f,
-            -1.0f, 1.0f);
-        renderer->setProjection(projection);
-    }
-
-    if (gameGrid != nullptr) {
-        gameGrid->updateCellSize(windowWidth, windowHeight);
-    }
+	if (TowerDefenseGame) {
+        TowerDefenseGame->resize(width, height);
+	}
 }
 
 void glfwKeyCallback(GLFWwindow* window, int key, int scancode, int action, int mode) {
@@ -89,43 +65,16 @@ int main(void)
 	std::cout << "OpenGL " << GLVersion.major << "." << GLVersion.minor << std::endl;
 
     glClearColor(0.15f, 0.15f, 0.15f, 1.0f);
-
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-	if (!loadGameAssets()) {
-		std::cout << "Failed to load game assets" << std::endl;
-		return -1;
-	}
-
-    ShaderProgram* shader = ResourceManager::getShader("spriteShader");
-    std::shared_ptr<ShaderProgram> shaderPtr(shader, [](ShaderProgram*) {});
-
-    renderer = std::make_unique<SpriteRenderer>(shaderPtr);
-
-    glm::mat4 projection = glm::ortho(0.0f, static_cast<float>(windowWidth),
-        static_cast<float>(windowHeight), 0.0f,
-        -1.0f, 1.0f);
-    renderer->setProjection(projection);
-
-    shader->use();
-    int textureLocation = glGetUniformLocation(shader->getId(), "u_texture");
-    glUniform1i(textureLocation, 0);
+	//создание и инициализация игры
+    TowerDefenseGame = std::make_unique<Game>(windowWidth, windowHeight);
+    TowerDefenseGame->init();
 
     // делаем переменные которые будем использовать для управления временем
 	double lastFrame = glfwGetTime(); // время начала предыдущего кадра
     float deltaTime = 0.0f; // время между кадрами
-
-	// Создаем игровую сетку и загружаем текстуру для клеток
-    gameGrid = std::make_unique<Grid>(10, 7, 64.0f);
-    gameGrid->updateCellSize(windowWidth, windowHeight);
-
-    Texture2D* cellTex = ResourceManager::getTexture("towerTexture");
-    std::shared_ptr<Texture2D> cellTexturePtr(cellTex, [](Texture2D*) {});
-
-	static bool mousePressedLastFrame = false; // для отслеживания состояния кнопки мыши
-    glm::vec2 myGridOffset = glm::vec2(100.0f, 100.0f);
-	
 
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window))
@@ -139,41 +88,25 @@ int main(void)
             deltaTime = 0.1f;
         }
 
-		//обработка кликов мыши для установки башни
-        int mouseState = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
+        /* Poll for and process events */
+        glfwPollEvents();
 
-        if (mouseState == GLFW_PRESS && !mousePressedLastFrame)
-        {
-            mousePressedLastFrame = true;
-            double mouseX, mouseY;
-            glfwGetCursorPos(window, &mouseX, &mouseY);
+        TowerDefenseGame->processInput(window, deltaTime);
 
-            glm::ivec2 clickedCell = gameGrid->pixelToGrid(glm::vec2(mouseX, mouseY), myGridOffset);
-
-            if (gameGrid->canBuildAt(clickedCell.x, clickedCell.y)) {
-                gameGrid->setCellType(clickedCell.x, clickedCell.y, CellType::Tower);
-                std::cout << "Поставили башню в ячейку: " << clickedCell.x << ", " << clickedCell.y << std::endl;
-            }
-        }
-        else if (mouseState == GLFW_RELEASE)
-        {
-            mousePressedLastFrame = false;
-        }
-
+        TowerDefenseGame->update(deltaTime);
+        
         /* Render here */
         glClear(GL_COLOR_BUFFER_BIT);
-
-        gameGrid->draw(renderer.get(), cellTexturePtr, myGridOffset, { 1.0f, 1.0f, 1.0f }); // рисуем сетку
+        TowerDefenseGame->render();
 
         /* Swap front and back buffers */
         glfwSwapBuffers(window);
 
-        /* Poll for and process events */
-        glfwPollEvents();
+        
     }
 
-    renderer.reset();
-    gameGrid.reset();
+    TowerDefenseGame.reset();
+    ResourceManager::clear();
 
     ResourceManager::clear();
     glfwTerminate();
