@@ -40,6 +40,8 @@ add_executable(${PROJECT_NAME}
     src/textures/Texture2D.cpp
     src/resources/ResourceManager.h
     src/resources/ResourceManager.cpp
+    src/renderer/SpriteRenderer.h
+    src/renderer/SpriteRenderer.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE

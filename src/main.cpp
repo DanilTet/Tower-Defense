@@ -1,28 +1,29 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
+#include <memory>
 #include "resources/ResourceManager.h"
+#include "renderer/SpriteRenderer.h"
 
 int windowWidth = 640;
 int windowHeight = 480;
 
-float vertices[] = {
-    0.5f,    0.5f,    1.0f, 1.0f,
-    0.5f,    -0.5f,   1.0f, 0.0f,
-    -0.5f,   -0.5f,   0.0f, 0.0f,
-    -0.5f,   0.5f,    0.0f, 1.0f
-};
-
-unsigned int indices[] = {
-	0, 1, 3,
-	1, 2, 3
-};
+std::unique_ptr<SpriteRenderer> renderer;
 
 void glfwWindowSizeCallback(GLFWwindow* window, int width, int height)
 {
 	windowWidth = width;
 	windowHeight = height;
 	glViewport(0, 0, windowWidth, windowHeight);
+
+    if (renderer) {
+        glm::mat4 projection = glm::ortho(0.0f, static_cast<float>(windowWidth),
+            static_cast<float>(windowHeight), 0.0f,
+            -1.0f, 1.0f);
+        renderer->setProjection(projection);
+    }
 }
 
 void glfwKeyCallback(GLFWwindow* window, int key, int scancode, int action, int mode) {
@@ -68,7 +69,10 @@ int main(void)
 	std::cout << "OpenGL version: " << glGetString(GL_VERSION) << std::endl;
 	std::cout << "OpenGL " << GLVersion.major << "." << GLVersion.minor << std::endl;
 
-    glClearColor(1, 1, 0, 1);
+    glClearColor(0.15f, 0.15f, 0.15f, 1.0f);
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     if(!ResourceManager::loadShader("spriteShader", "res/shaders/vertex_shader.vert", "res/shaders/fragment_shader.frag")){
 		std::cout << "Failed to load shaders" << std::endl;
@@ -82,31 +86,18 @@ int main(void)
     }
 
     ShaderProgram* shader = ResourceManager::getShader("spriteShader");
+    std::shared_ptr<ShaderProgram> shaderPtr(shader, [](ShaderProgram*) {});
+
+    renderer = std::make_unique<SpriteRenderer>(shaderPtr);
+
+    glm::mat4 projection = glm::ortho(0.0f, static_cast<float>(windowWidth),
+        static_cast<float>(windowHeight), 0.0f,
+        -1.0f, 1.0f);
+    renderer->setProjection(projection);
+
     shader->use();
     int textureLocation = glGetUniformLocation(shader->getId(), "u_texture");
     glUniform1i(textureLocation, 0);
-
-	unsigned int VAO, VBO, EBO;
-	glGenVertexArrays(1, &VAO);
-	glGenBuffers(1, &VBO);
-	glGenBuffers(1, &EBO);
-
-	glBindVertexArray(VAO);
-
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
-
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
-
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindVertexArray(0);
 
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window))
@@ -114,14 +105,12 @@ int main(void)
         /* Render here */
         glClear(GL_COLOR_BUFFER_BIT);
         
-		ResourceManager::getShader("spriteShader")->use();
-		ResourceManager::getTexture("towerTexture")->bind(0);
+		Texture2D* texture = ResourceManager::getTexture("towerTexture");
+		std::shared_ptr<Texture2D> texturePtr(texture, [](Texture2D*) {});
 
-        glBindVertexArray(VAO);
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);;
-        glBindVertexArray(0);
+        renderer->drawSprite(texturePtr, glm::vec2(100.0f, 100.0f), glm::vec2(64.0f, 64.0f), 0.0f);
 
-		ResourceManager::getTexture("towerTexture")->unbind();
+        renderer->drawSprite(texturePtr, glm::vec2(250.0f, 100.0f), glm::vec2(48.0f, 48.0f), 45.0f, glm::vec3(1.0f, 0.3f, 0.3f));
 
         /* Swap front and back buffers */
         glfwSwapBuffers(window);
@@ -130,9 +119,7 @@ int main(void)
         glfwPollEvents();
     }
 
-    glDeleteVertexArrays(1, &VAO);
-    glDeleteBuffers(1, &VBO);
-    glDeleteBuffers(1, &EBO);
+    renderer.reset();
 
     ResourceManager::clear();
     glfwTerminate();
