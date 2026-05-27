@@ -35,5 +35,5 @@ public:
 	void draw(SpriteRenderer* renderer, std::shared_ptr<Texture2D> cellTexture); // рисуем сетку
 
 	void updateCellSize(int windowWidth, int windowHeight); // обновляем размер клеток при изменении размера окна, чтобы сетка всегда занимала все окно
-	float getCellSize() const { return m_cellSize; }
+	float getCellSize() const { return m_cellSize; } // получаем размер клетки
 };
