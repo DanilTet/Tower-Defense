@@ -37,7 +37,7 @@ Texture2D& Texture2D::operator=(Texture2D&& other) noexcept {
 }
 
 bool Texture2D::load(const std::string& path) {
-    stbi_set_flip_vertically_on_load(true);
+    stbi_set_flip_vertically_on_load(false);
 
     int channels;
     unsigned char* data = stbi_load(path.c_str(), &m_width, &m_height, &channels, 0);
