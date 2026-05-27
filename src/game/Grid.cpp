@@ -2,6 +2,7 @@
 #include "renderer/SpriteRenderer.h"
 #include "textures/Texture2D.h"
 #include "resources/ResourceManager.h"
+#include "Enemy.h"
 
 Grid::Grid(int width, int height, float cellSize){
 	m_width = width;

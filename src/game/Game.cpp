@@ -4,6 +4,8 @@
 #include "textures/Texture2D.h"
 #include <glm/gtc/matrix_transform.hpp>
 #include "Grid.h"
+#include "Enemy.h"
+#include <vector>
 #include <iostream>
 
 Game::Game(int width, int height)
@@ -36,6 +38,12 @@ void Game::init() {
 
     Texture2D* cellTex = ResourceManager::getTexture("towerTexture");
     m_cellTexture = std::shared_ptr<Texture2D>(cellTex, [](Texture2D*) {});
+
+    //Движение врага
+    std::vector<glm::ivec2> testPath = {
+        {0, 0}, {3, 0}, {3, 3}, {6, 3}, {6, 6}, {9, 6}
+	}; // маршрут врага по клеткам сетки
+    m_testEnemy = std::make_unique<Enemy>(testPath, *m_gameGrid, 120.0f); // спавн врага
 }
 
 void Game::processInput(GLFWwindow* window, float dt) {
@@ -59,11 +67,17 @@ void Game::processInput(GLFWwindow* window, float dt) {
 }
 
 void Game::update(float dt) {
-
+    if (m_testEnemy) {
+        m_testEnemy->update(dt, *m_gameGrid);
+    }
 }
 
 void Game::render() {
     m_gameGrid->draw(m_renderer.get(), m_cellTexture, m_gridOffset, { 1.0f, 1.0f, 1.0f });
+
+    if (m_testEnemy) {
+        m_testEnemy->render(m_renderer.get(), m_cellTexture, m_gridOffset);
+    }
 }
 
 void Game::resize(int width, int height) {

@@ -8,6 +8,7 @@
 class SpriteRenderer;
 class Grid;
 class Texture2D;
+class Enemy;
 
 class Game {
 public:
@@ -24,9 +25,9 @@ public:
 
 private:
     std::unique_ptr<SpriteRenderer> m_renderer;
-    std::unique_ptr<Grid>           m_gameGrid;
-    std::shared_ptr<Texture2D>      m_cellTexture;
-
+    std::unique_ptr<Grid> m_gameGrid;
+    std::shared_ptr<Texture2D> m_cellTexture;
+    std::unique_ptr<Enemy> m_testEnemy;
     glm::vec2 m_gridOffset;
     bool      m_mousePressedLastFrame;
 };
