@@ -4,8 +4,8 @@
 #include "Grid.h"
 #include <iostream>
 
-Enemy::Enemy(std::vector<glm::ivec2> gridPath, const Grid& grid, float speed)
-    : m_path(std::move(gridPath)), m_currentWayPoint(0), m_speed(speed), m_reachedEnd(false)
+Enemy::Enemy(const std::vector<glm::ivec2>& gridPath, const Grid& grid, float speed)
+    : m_path(gridPath), m_currentWayPoint(0), m_speed(speed), m_reachedEnd(false)
 {
     if (!m_path.empty()) {
         m_pixelPos = grid.gridToPixel(m_path[0].x, m_path[0].y);

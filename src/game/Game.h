@@ -29,5 +29,11 @@ private:
     std::shared_ptr<Texture2D> m_cellTexture;
     std::unique_ptr<Enemy> m_testEnemy;
     glm::vec2 m_gridOffset;
-    bool      m_mousePressedLastFrame;
+    bool m_mousePressedLastFrame;
+
+
+	// Движение врага и спавн
+	std::vector<glm::ivec2> m_levelPath; // маршрут врага по клеткам сетки
+	std::vector<std::unique_ptr<Enemy>> m_enemies; // вектор для хранения всех врагов на уровне
+	void spawnEnemy(float speed = 100.0f); // функция для спавна врага
 };

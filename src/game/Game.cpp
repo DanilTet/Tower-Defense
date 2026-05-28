@@ -40,10 +40,11 @@ void Game::init() {
     m_cellTexture = std::shared_ptr<Texture2D>(cellTex, [](Texture2D*) {});
 
     //Движение врага
-    std::vector<glm::ivec2> testPath = {
-        {0, 0}, {3, 0}, {3, 3}, {6, 3}, {6, 6}, {9, 6}
-	}; // маршрут врага по клеткам сетки
-    m_testEnemy = std::make_unique<Enemy>(testPath, *m_gameGrid, 120.0f); // спавн врага
+    m_levelPath = { {0, 0}, {3, 0}, {3, 3}, {6, 3}, {6, 6}, {9, 6} }; // маршрут врага по клеткам сетки
+    
+    spawnEnemy(100.0f); // спавн врага
+    spawnEnemy(90.0f);
+    spawnEnemy(42.0f);
 }
 
 void Game::processInput(GLFWwindow* window, float dt) {
@@ -64,19 +65,39 @@ void Game::processInput(GLFWwindow* window, float dt) {
     else if (mouseState == GLFW_RELEASE) {
         m_mousePressedLastFrame = false;
     }
-}
 
-void Game::update(float dt) {
-    if (m_testEnemy) {
-        m_testEnemy->update(dt, *m_gameGrid);
+    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
+        spawnEnemy(130.0f);
     }
 }
 
+void Game::update(float dt) {
+	// Обновляем всех врагов
+    for (const auto& enemy : m_enemies) {
+        if (enemy) {
+            enemy->update(dt, *m_gameGrid);
+        }
+    }
+
+	// Удаляем врагов, которые достигли конца пути
+    m_enemies.erase(
+        std::remove_if(m_enemies.begin(), m_enemies.end(),
+            [](const std::unique_ptr<Enemy>& enemy) {
+                return enemy->isReachedEnd();
+            }),
+        m_enemies.end()
+    );
+}
+
 void Game::render() {
+	// Рисуем сетку
     m_gameGrid->draw(m_renderer.get(), m_cellTexture, m_gridOffset, { 1.0f, 1.0f, 1.0f });
 
-    if (m_testEnemy) {
-        m_testEnemy->render(m_renderer.get(), m_cellTexture, m_gridOffset);
+	// Рисуем всех врагов
+    for (const auto& enemy : m_enemies) {
+        if (enemy) {
+            enemy->render(m_renderer.get(), m_cellTexture, m_gridOffset);
+        }
     }
 }
 
@@ -90,4 +111,10 @@ void Game::resize(int width, int height) {
     if (m_gameGrid) {
         m_gameGrid->updateCellSize(width, height);
     }
+}
+
+// функция для спавна врага (принимает скорость)
+void Game::spawnEnemy(float speed) {
+	auto newEnemy = std::make_unique<Enemy>(m_levelPath, *m_gameGrid, speed); // спавн нового врага
+    m_enemies.push_back(std::move(newEnemy));
 }
