@@ -70,14 +70,9 @@ void Grid::draw(SpriteRenderer* renderer,
 			glm::vec2 pixelPos = gridToPixel(x, y);
 
 			// если ячейка пустая в масиве
-			if (m_grid[y][x] == CellType::Empty) {
+			if (m_grid[y][x] == CellType::Empty || m_grid[y][x] == CellType::Tower) {
 				// Рисуем обычную стандартную плитку
 				renderer->drawSprite(grassTexture, pixelPos, size, 0.0f, color);
-			}
-			// если ячейка с башней в масиве
-			else if (m_grid[y][x] == CellType::Tower) {
-				// рисует туже текстуру но надо починить и загрузить другой спрайт
-				renderer->drawSprite(towerTexture, pixelPos, size, 0.0f, { 1.0f, 1.0f, 1.0f });
 			}
 		}
 	}

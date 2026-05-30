@@ -36,11 +36,12 @@ private:
 
 	//float m_splashDamage;
 
+	float m_shotTimer;
 	Enemy* m_currentTarget;
 
 public:
 
-	static TowerStats getStatsfromTowerType(TowerStats type) {
+	static TowerStats getStatsfromTowerType(TowerType type) {
 		switch (type) {
 			case TowerType::Basic:
 				return { 200.0f, 1.0f, 10 };
@@ -55,8 +56,8 @@ public:
 	Tower(int gridX, int gridY, TowerType type);
 
 	//обновление логики
-	void update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies);
+	void update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies, const Grid& grid);
 
 	// отрисовка
-	void render(SpriteRenderer* renderer, std::shared_ptr<Texture2D>, const Grid& grid);
+	void render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture, const Grid& grid);
 };

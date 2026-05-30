@@ -5,6 +5,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include "Grid.h"
 #include "Enemy.h"
+#include "Tower.h"
 #include <vector>
 #include <iostream>
 
@@ -56,7 +57,7 @@ void Game::init() {
     glUniform1i(glGetUniformLocation(shader->getId(), "u_texture"), 0);
 
 	// Создаем сетку 10 на 7 клеток, каждая клетка 64 пикселя в размере
-    m_gameGrid = std::make_unique<Grid>(10, 5, 64.0f, glm::vec2(20.0f, 20.0f));
+    m_gameGrid = std::make_unique<Grid>(10, 7, 64.0f, glm::vec2(20.0f, 20.0f));
 
 	// Обновляем размер клеток сетки, чтобы она всегда занимала все окно, даже при изменении размера окна
     m_gameGrid->updateCellSize(this->width, this->height);
@@ -96,6 +97,9 @@ void Game::processInput(GLFWwindow* window, float dt) {
         if (m_gameGrid->canBuildAt(clickedCell.x, clickedCell.y)) {
             // Если можно — принудительно меняем тип этой ячейки на Tower
             m_gameGrid->setCellType(clickedCell.x, clickedCell.y, CellType::Tower);
+            // створюємо об'єкт башні
+            auto newTower = std::make_unique<Tower>(clickedCell.x, clickedCell.y, TowerType::Basic);
+            m_towers.push_back(std::move(newTower));
             // Выводим отладочный лог в консоль
             std::cout << "Поставили башню в ячейку: " << clickedCell.x << ", " << clickedCell.y << std::endl;
         }
@@ -113,6 +117,12 @@ void Game::processInput(GLFWwindow* window, float dt) {
 
 // Обновление игровой логики вызывается каждый кадр, после обработки ввода
 void Game::update(float dt) {
+    // Пробегаемся по всему вектору активных башен на карте
+    for (const auto& tower : m_towers) {
+        if (tower) {
+            tower->update(dt, m_enemies, *m_gameGrid);
+        }
+    }
     // Пробегаемся по всему вектору активных врагов на карте
     for (const auto& enemy : m_enemies) {
         if (enemy) { // Если указатель на врага живой
@@ -140,6 +150,12 @@ void Game::render() {
     for (const auto& enemy : m_enemies) {
         if (enemy) { // Если враг существует
             enemy->render(m_renderer.get(), m_cellTexture, m_gameGrid->getOffset(), *m_gameGrid); // Вызываем его метод отрисовки
+        }
+    }
+    // Пробегаемся по вектору активных башен и рисуем каждого поверх сетки
+    for (const auto& tower : m_towers) {
+        if (tower) {
+            tower->render(m_renderer.get(), m_cellTexture, *m_gameGrid);
         }
     }
 }

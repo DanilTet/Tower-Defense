@@ -12,6 +12,7 @@ class SpriteRenderer;
 class Grid;
 class Texture2D;
 class Enemy;
+class Tower;
 
 class Game {
 public:
@@ -39,4 +40,6 @@ private:
 	std::vector<glm::ivec2> m_levelPath; // маршрут врага по клеткам сетки
 	std::vector<std::unique_ptr<Enemy>> m_enemies; // вектор для хранения всех врагов на уровне
 	void spawnEnemy(EnemyType type); // функция для спавна врага
+
+	std::vector<std::unique_ptr<Tower>> m_towers;// БАШНИ
 };

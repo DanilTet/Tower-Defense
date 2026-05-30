@@ -54,6 +54,9 @@ public:
 	void update(float dt, const Grid& grid);
 
 	void render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture, glm::vec2 gridOffset, const Grid& grid);
-
+	glm::vec2 getPixelPos() const { return m_pixelPos; }
 	bool isReachedEnd() const { return m_reachedEnd; }
+	void takeDamage(int damage) {
+		m_health -= damage;
+	}
 };

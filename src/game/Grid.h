@@ -3,6 +3,7 @@
 #include <memory>
 #include <glm/glm.hpp>
 #include "Enemy.h"
+#include "Tower.h"
 
 enum class CellType {
 	Empty,
@@ -24,6 +25,7 @@ private:
 	glm::vec2 m_offset; // ссув поля
 
 	std::vector<std::vector<CellType>> m_grid; // 2D вектор для хранения типа каждой клетки
+	//std::vector<std::unique_ptr<Tower>> m_towers; // 2D вектор для хранения башен
 
 public:
 	Grid(int width, int height, float cellSize, glm::vec2 offset = glm::vec2(0.0f, 0.0f));
