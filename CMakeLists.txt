@@ -48,6 +48,8 @@ add_executable(${PROJECT_NAME}
     src/game/Game.cpp
     src/game/Enemy.h
     src/game/Enemy.cpp
+    src/game/Tower.h
+    src/game/Tower.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE

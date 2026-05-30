@@ -5,11 +5,11 @@
 #include "Enemy.h"
 
 // конструктор создает пустую сетку заданого размера
-Grid::Grid(int width, int height, float cellSize){
+Grid::Grid(int width, int height, float cellSize, glm::vec2 offset){
 	m_width = width; // Запоминаем количество клеток по горизонтали
 	m_height = height; // Запоминаем количество клеток по вертикали
 	m_cellSize = cellSize; // Задаем стартовый размер одной клетки в пикселях
-
+	m_offset = offset; // запоминаем ссув
 	// Двумерный вектор для хранения типа каждой клетки, изначально все клетки пустые
 	m_grid.resize(m_height, std::vector<CellType>(m_width, CellType::Empty));
 }
@@ -17,14 +17,14 @@ Grid::Grid(int width, int height, float cellSize){
 // Перевод из индексов клетки в пиксели экрана
 glm::vec2 Grid::gridToPixel(int gridX, int gridY) const {
 	// умножаем индекс строки и столбца на размер клетки в пикселях
-	return glm::vec2(gridX * m_cellSize, gridY * m_cellSize);
+	return glm::vec2(gridX * m_cellSize, gridY * m_cellSize) + m_offset;
 }
 
 // Перевод из пикселей экрана в индексы клетки сетки (х,у)
-glm::ivec2 Grid::pixelToGrid(glm::vec2 pixelPos, glm::vec2 gridOffset) const {
+glm::ivec2 Grid::pixelToGrid(glm::vec2 pixelPos) const {
 	// Считаем смещение сетки. чтобы получить координаты относительно сетки
-	float localX = pixelPos.x - gridOffset.x;
-	float localY = pixelPos.y - gridOffset.y;
+	float localX = pixelPos.x - m_offset.x;
+	float localY = pixelPos.y - m_offset.y;
 
 	// Делим локальные координаты на размер клетки, чтобы получить индексы строки и столбца
 	int gridX = static_cast<int>(localX / m_cellSize);
@@ -58,7 +58,6 @@ void Grid::setCellType(int gridX, int gridY, CellType type) {
 void Grid::draw(SpriteRenderer* renderer,
 	std::shared_ptr<Texture2D> grassTexture,
 	std::shared_ptr<Texture2D> towerTexture,
-	glm::vec2 gridOffset,
 	glm::vec3 color) {
 
 	// Создаем вектор размера: каждая плитка будет шириной и высотой ровно в m_cellSize пикселей
@@ -68,7 +67,7 @@ void Grid::draw(SpriteRenderer* renderer,
 	for (int y = 0; y < m_height; ++y) {
 		for (int x = 0; x < m_width; ++x) {
 			// Вычисляем, где физически на экране должен стоять этот квадрат (базовая позиция + общий сдвиг сетки)
-			glm::vec2 pixelPos = gridToPixel(x, y) + gridOffset;
+			glm::vec2 pixelPos = gridToPixel(x, y);
 
 			// если ячейка пустая в масиве
 			if (m_grid[y][x] == CellType::Empty) {

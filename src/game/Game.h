@@ -32,7 +32,6 @@ private:
 	std::shared_ptr<Texture2D> m_cellTexture; // текстура для клеток сетки и врагов
 	std::shared_ptr<Texture2D> m_grassTexture; // текстура травы сетки
 	std::unique_ptr<Enemy> m_testEnemy; // удалить после тестов!!!!
-	glm::vec2 m_gridOffset; // смещение сетки от левого верхнего угла окна, чтобы она не была прямо в углу
 	bool m_mousePressedLastFrame; // флаг для отслеживания состояния мыши, чтобы не спавнить башню при каждом кадре, когда мышь нажата
 
 

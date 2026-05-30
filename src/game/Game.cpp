@@ -12,8 +12,7 @@
 Game::Game(int width, int height)
     : width(width), // запоминаем стартовую ширину окна
 	height(height), // запоминаем стартовую высоту окна
-	m_mousePressedLastFrame(false), // изначально мышь не нажата флаг сброшен
-	m_gridOffset(100.0f, 100.0f) { // задаем смещение сетки от левого верхнего угла окна, чтобы она не была прямо в углу
+	m_mousePressedLastFrame(false){ // изначально мышь не нажата флаг сброшен
 }
 
 Game::~Game() {
@@ -57,7 +56,7 @@ void Game::init() {
     glUniform1i(glGetUniformLocation(shader->getId(), "u_texture"), 0);
 
 	// Создаем сетку 10 на 7 клеток, каждая клетка 64 пикселя в размере
-    m_gameGrid = std::make_unique<Grid>(10, 7, 64.0f);
+    m_gameGrid = std::make_unique<Grid>(10, 5, 64.0f, glm::vec2(20.0f, 20.0f));
 
 	// Обновляем размер клеток сетки, чтобы она всегда занимала все окно, даже при изменении размера окна
     m_gameGrid->updateCellSize(this->width, this->height);
@@ -91,7 +90,7 @@ void Game::processInput(GLFWwindow* window, float dt) {
 		glfwGetCursorPos(window, &mouseX, &mouseY); // получаем текущие координаты мыши в пикселях относительно верхнего левого угла окна
 
         // Переводим пиксели экрана в индексы ячейки с учетом сдвига сетки
-        glm::ivec2 clickedCell = m_gameGrid->pixelToGrid(glm::vec2(mouseX, mouseY), m_gridOffset);
+        glm::ivec2 clickedCell = m_gameGrid->pixelToGrid(glm::vec2(mouseX, mouseY));
 
         // проверям можно ли в ячейке с этими индексами строить здания
         if (m_gameGrid->canBuildAt(clickedCell.x, clickedCell.y)) {
@@ -108,7 +107,7 @@ void Game::processInput(GLFWwindow* window, float dt) {
 
     // Если на клавиатуре обнаружено нажатие на клавишу Пробел
     if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
-        spawnEnemy(EnemyType::Tank); // Моментально спавним нового быстрого врага
+        spawnEnemy(EnemyType::Tank); // Моментально спавним нового танка врага
     }
 }
 
@@ -135,12 +134,12 @@ void Game::update(float dt) {
 // Отрисовка кадра вызывается каждый кадр, после обновления логики
 void Game::render() {
     // Малюем игровую сетку передавая туда рендерер, текстуру плитки, сдвиг и белый цвет тонирования
-    m_gameGrid->draw(m_renderer.get(), m_grassTexture, m_cellTexture, m_gridOffset, { 1.0f, 1.0f, 1.0f });
+    m_gameGrid->draw(m_renderer.get(), m_grassTexture, m_cellTexture, { 1.0f, 1.0f, 1.0f });
 
     // Пробегаемся по вектору активных врагов и рисуем каждого поверх сетки
     for (const auto& enemy : m_enemies) {
         if (enemy) { // Если враг существует
-            enemy->render(m_renderer.get(), m_cellTexture, m_gridOffset, *m_gameGrid); // Вызываем его метод отрисовки
+            enemy->render(m_renderer.get(), m_cellTexture, m_gameGrid->getOffset(), *m_gameGrid); // Вызываем его метод отрисовки
         }
     }
 }

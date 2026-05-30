@@ -24,14 +24,14 @@ class Grid;
 class Enemy
 {
 private:
-	EnemyType m_type;
-	int m_health;
-	float m_speed;
+	EnemyType m_type; // тип характеристик врага
+	int m_health; // здоровье врага
+	float m_speed; // скорость врага
 
-	const std::vector<glm::ivec2>& m_path;
-	size_t m_currentWayPoint;
-	glm::vec2 m_pixelPos;
-	bool m_reachedEnd;
+	const std::vector<glm::ivec2>& m_path; // Ссылка на общий путь врагов
+	size_t m_currentWayPoint; // текущая точка к которой враг идет
+	glm::vec2 m_pixelPos; // координаты врага в пикселях экрнана
+	bool m_reachedEnd; // флаг дошел ли враг до конца
 
 public:
 
