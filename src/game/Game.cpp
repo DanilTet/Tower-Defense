@@ -73,10 +73,10 @@ void Game::init() {
     // Масив контрольных точек (x, y) по которым идет враг
     m_levelPath = { {0, 0}, {3, 0}, {3, 3}, {6, 3}, {6, 6}, {9, 6} }; // маршрут врага по клеткам сетки
     
-	//спавним 3 врага с разной скоростью для теста
-	spawnEnemy(100.0f); // пиксели в секунду
-    spawnEnemy(90.0f);
-    spawnEnemy(42.0f);
+	//спавним 3 врага с разным типом и характеристиками для теста
+    spawnEnemy(EnemyType::Basic);
+    spawnEnemy(EnemyType::Fast);
+    spawnEnemy(EnemyType::Tank);
 }
 
 // Обработка ввода вызывается каждый кадр
@@ -108,7 +108,7 @@ void Game::processInput(GLFWwindow* window, float dt) {
 
     // Если на клавиатуре обнаружено нажатие на клавишу Пробел
     if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
-        spawnEnemy(130.0f); // Моментально спавним нового быстрого врага
+        spawnEnemy(EnemyType::Tank); // Моментально спавним нового быстрого врага
     }
 }
 
@@ -140,7 +140,7 @@ void Game::render() {
     // Пробегаемся по вектору активных врагов и рисуем каждого поверх сетки
     for (const auto& enemy : m_enemies) {
         if (enemy) { // Если враг существует
-            enemy->render(m_renderer.get(), m_cellTexture, m_gridOffset); // Вызываем его метод отрисовки
+            enemy->render(m_renderer.get(), m_cellTexture, m_gridOffset, *m_gameGrid); // Вызываем его метод отрисовки
         }
     }
 }
@@ -156,15 +156,25 @@ void Game::resize(int width, int height) {
         m_renderer->setProjection(projection); // Загружаем обновленную матрицу в рендерер
     }
     if (m_gameGrid) { // Если сетка существует
+		// Сохраняем старую сетку
+        Grid oldGrid = *m_gameGrid;
+
         // Приказываем сетке пересчитать размеры ячеек под новое окно
         m_gameGrid->updateCellSize(width, height); 
+        
+		// Обновляем позицию каждого врага, чтобы они оставались на своих клетках даже при изменении размера окна и размера клеток
+        for (const auto& enemy : m_enemies) {
+            if (enemy) {
+                enemy->recalculatePosition(oldGrid, *m_gameGrid);   
+            }
+        }
     }
 }
 
 // функция для спавна врага (принимает скорость)
-void Game::spawnEnemy(float speed) {
+void Game::spawnEnemy(EnemyType type) {
     // Выделяем память под новый объект Enemy, передавая ему ЕДИНЫЙ путь m_levelPath по константной ссылке
-	auto newEnemy = std::make_unique<Enemy>(m_levelPath, *m_gameGrid, speed); // спавн нового врага
+    auto newEnemy = std::make_unique<Enemy>(m_levelPath, *m_gameGrid, type); // спавн нового врага
     // Переносим владение (std::move) над этим указателем и пушим его в конец вектора m_enemies
     m_enemies.push_back(std::move(newEnemy));
 }

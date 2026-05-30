@@ -4,6 +4,7 @@
 #include <GLFW/glfw3.h>
 #include <memory>
 #include <glm/glm.hpp>
+#include "Enemy.h"
 
 // Forward declarations ускоряет компиляцию и уменьшает количество включаемых заголовочных файлов
 // типа просто говорим компилятору, что эти классы существуют, а их определения будут в соответствующих заголовочных файлах
@@ -38,5 +39,5 @@ private:
 	// Движение врага и спавн
 	std::vector<glm::ivec2> m_levelPath; // маршрут врага по клеткам сетки
 	std::vector<std::unique_ptr<Enemy>> m_enemies; // вектор для хранения всех врагов на уровне
-	void spawnEnemy(float speed = 100.0f); // функция для спавна врага
+	void spawnEnemy(EnemyType type); // функция для спавна врага
 };

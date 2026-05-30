@@ -2,6 +2,7 @@
 #include <vector>
 #include <memory>
 #include <glm/glm.hpp>
+#include "Enemy.h"
 
 enum class CellType {
 	Empty,
