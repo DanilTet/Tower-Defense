@@ -76,7 +76,7 @@ void Enemy::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture,
 
     // Ставим врага по центру
     float padding = (cellSize - enemySizeDim) / 2.0f;
-    glm::vec2 centeredPos = m_pixelPos + gridOffset + glm::vec2(padding, padding);
+    glm::vec2 centeredPos = m_pixelPos + glm::vec2(padding, padding);
 
     // задаем цвет в зависимости от типа врага
     glm::vec3 color(1.0f);

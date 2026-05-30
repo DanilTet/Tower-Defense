@@ -84,10 +84,22 @@ void Grid::draw(SpriteRenderer* renderer,
 }
 // Динамический пересчет размера клеток при изменении размера окна
 void Grid::updateCellSize(int windowWidth, int windowHeight) {
-	// Считаем, сколько пикселей должна занимать клетка по ширине и высоте
-	float sizeX = static_cast<float>(windowWidth) / m_width;
-	float sizeY = static_cast<float>(windowHeight) / m_height;
+	// Считаем доступну. ширину и высоту с вычетом симетричных отступов
+	float availableWidth = static_cast<float>(windowWidth) - (2.0f * m_offset.x);
+	float availableHeight = static_cast<float>(windowHeight) - (2.0f * m_offset.y);
 
+	// защита если окно свернуто
+	if (availableWidth < 0.0f) {
+		availableWidth = 0.0f;
+	}
+	if (availableHeight < 0.0f) {
+		availableHeight = 0.0f;
+	}
+
+	// считаем сколько пикселей занимает одна клетка в доступной зоне
+	float sizeX = availableWidth / m_width;
+	float sizeY = availableHeight / m_height;
+	
 	// Выбираем меньший из этих двух размеров, чтобы клетки всегда были квадратными и сетка занимала все окно
 	if (sizeX < sizeY) {
 		m_cellSize = sizeX;
