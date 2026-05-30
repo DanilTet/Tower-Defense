@@ -4,65 +4,92 @@
 #include "resources/ResourceManager.h"
 #include "Enemy.h"
 
+// конструктор создает пустую сетку заданого размера
 Grid::Grid(int width, int height, float cellSize){
-	m_width = width;
-	m_height = height;
-	m_cellSize = cellSize;
+	m_width = width; // Запоминаем количество клеток по горизонтали
+	m_height = height; // Запоминаем количество клеток по вертикали
+	m_cellSize = cellSize; // Задаем стартовый размер одной клетки в пикселях
+
+	// Двумерный вектор для хранения типа каждой клетки, изначально все клетки пустые
 	m_grid.resize(m_height, std::vector<CellType>(m_width, CellType::Empty));
 }
 
+// Перевод из индексов клетки в пиксели экрана
 glm::vec2 Grid::gridToPixel(int gridX, int gridY) const {
+	// умножаем индекс строки и столбца на размер клетки в пикселях
 	return glm::vec2(gridX * m_cellSize, gridY * m_cellSize);
 }
 
+// Перевод из пикселей экрана в индексы клетки сетки (х,у)
 glm::ivec2 Grid::pixelToGrid(glm::vec2 pixelPos, glm::vec2 gridOffset) const {
+	// Считаем смещение сетки. чтобы получить координаты относительно сетки
 	float localX = pixelPos.x - gridOffset.x;
 	float localY = pixelPos.y - gridOffset.y;
 
+	// Делим локальные координаты на размер клетки, чтобы получить индексы строки и столбца
 	int gridX = static_cast<int>(localX / m_cellSize);
 	int gridY = static_cast<int>(localY / m_cellSize);
 
+	// возвращаем индексы клетки в виде целочисленного вектора
 	return glm::ivec2(gridX, gridY);
 }
 
+// Проверяем можно ли построить башню на клетке с этими индексами
 bool Grid::canBuildAt(int gridX, int gridY) const {
+	// Проверяем , что индексы в пределах сетки и клетка пустая
 	if (gridX >= 0 && gridX < m_width && gridY >= 0 && gridY < m_height) {
+		// Если клетка пустая, то можно строить
 		return m_grid[gridY][gridX] == CellType::Empty;
 	}
+	// Если индексы вне сетки или клетка не пустая, то строить нельзя
 	return false;
 }
 
+// Принудительно меняем тип конкретной ячейки
 void Grid::setCellType(int gridX, int gridY, CellType type) {
+	// защищаем массив от вылета за границы памяти
 	if (gridX >= 0 && gridX < m_width && gridY >= 0 && gridY < m_height) {
+		// тут важно что первый индекс - это строка (y), а второй индекс - это столбец (x)
 		m_grid[gridY][gridX] = type;
 	}
 }
 
+// Отрисовка всей карты ячейка за ячейкой
 void Grid::draw(SpriteRenderer* renderer,
-	std::shared_ptr<Texture2D> cellTexture,
+	std::shared_ptr<Texture2D> grassTexture,
+	std::shared_ptr<Texture2D> towerTexture,
 	glm::vec2 gridOffset,
 	glm::vec3 color) {
 
+	// Создаем вектор размера: каждая плитка будет шириной и высотой ровно в m_cellSize пикселей
 	glm::vec2 size(m_cellSize, m_cellSize);
 
+	// вложенный цикл для обхода всей матрицы (Y — строки, X — столбцы)
 	for (int y = 0; y < m_height; ++y) {
 		for (int x = 0; x < m_width; ++x) {
+			// Вычисляем, где физически на экране должен стоять этот квадрат (базовая позиция + общий сдвиг сетки)
 			glm::vec2 pixelPos = gridToPixel(x, y) + gridOffset;
 
+			// если ячейка пустая в масиве
 			if (m_grid[y][x] == CellType::Empty) {
-				renderer->drawSprite(cellTexture, pixelPos, size, 0.0f, color);
+				// Рисуем обычную стандартную плитку
+				renderer->drawSprite(grassTexture, pixelPos, size, 0.0f, color);
 			}
+			// если ячейка с башней в масиве
 			else if (m_grid[y][x] == CellType::Tower) {
-				renderer->drawSprite(cellTexture, pixelPos, size, 0.0f, { 1.0f, 0.3f, 0.3f });
+				// рисует туже текстуру но надо починить и загрузить другой спрайт
+				renderer->drawSprite(towerTexture, pixelPos, size, 0.0f, { 1.0f, 1.0f, 1.0f });
 			}
 		}
 	}
 }
-
+// Динамический пересчет размера клеток при изменении размера окна
 void Grid::updateCellSize(int windowWidth, int windowHeight) {
+	// Считаем, сколько пикселей должна занимать клетка по ширине и высоте
 	float sizeX = static_cast<float>(windowWidth) / m_width;
 	float sizeY = static_cast<float>(windowHeight) / m_height;
 
+	// Выбираем меньший из этих двух размеров, чтобы клетки всегда были квадратными и сетка занимала все окно
 	if (sizeX < sizeY) {
 		m_cellSize = sizeX;
 	}

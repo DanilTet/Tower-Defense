@@ -8,113 +8,163 @@
 #include <vector>
 #include <iostream>
 
+// Конструктор и деструктор
 Game::Game(int width, int height)
-    : width(width), height(height), m_mousePressedLastFrame(false), m_gridOffset(100.0f, 100.0f) {
+    : width(width), // запоминаем стартовую ширину окна
+	height(height), // запоминаем стартовую высоту окна
+	m_mousePressedLastFrame(false), // изначально мышь не нажата флаг сброшен
+	m_gridOffset(100.0f, 100.0f) { // задаем смещение сетки от левого верхнего угла окна, чтобы она не была прямо в углу
 }
 
 Game::~Game() {
-    m_renderer.reset();
-    m_gameGrid.reset();
+	m_renderer.reset(); // удаляем рендерер и освобождаем память
+	m_gameGrid.reset(); // удаляем сетку и освобождаем память
 }
 
+// Инициализация игры, загрузка ресурсов, настройка рендерера и создание сетки
 void Game::init() {
+	// загрузака файлов вершинного и фрагментного шейдера в видеокарту под именем "spriteShader"
     if (!ResourceManager::loadShader("spriteShader", "res/shaders/vertex_shader.vert", "res/shaders/fragment_shader.frag")) {
-        std::cerr << "Failed to load shaders" << std::endl;
+		std::cerr << "Failed to load shaders" << std::endl; // если загрузка не удалась, выводим ошибку в консоль
     }
+
+	// загрузка текстуры для клеток сетки и врагов под именем "towerTexture" в VRAM
     ResourceManager::loadTexture("towerTexture", "res/textures/test_sprite.png");
 
+	// загрузка текстуры земли для фона сетки под именем "grassTexture" в VRAM
+    ResourceManager::loadTexture("grassTexture", "res/textures/spr_grass_02.png");
+
+	// Получаем указатель на шейдер из ResourceManager и создаем рендерер для спрайтов
     ShaderProgram* shader = ResourceManager::getShader("spriteShader");
+
+	// Обертываем его в пустой shared_ptr, чтобы SpriteRenderer не удалял его при уничтожении, так как ResourceManager управляет временем жизни шейдера
     std::shared_ptr<ShaderProgram> shaderPtr(shader, [](ShaderProgram*) {});
+    
+    // Создаем обьект рендера и передаем туда шейдер
     m_renderer = std::make_unique<SpriteRenderer>(shaderPtr);
 
+	// Создаем  ортографическую матрицу лево = 0, право = ширина окна, низ = высота окна, верх = 0, ближняя плоскость = -1, дальняя плоскость = 1
+    // после єтого все координаты в игре будут в пикселях, где (0, 0) - это верхний левый угол окна, а (width, height) - это нижний правый угол окна
     glm::mat4 projection = glm::ortho(0.0f, static_cast<float>(this->width), static_cast<float>(this->height), 0.0f, -1.0f, 1.0f);
+    
+	// Загружаем єту матрицу в рендерер, чтобы он использовал ее при отрисовке спрайтов
     m_renderer->setProjection(projection);
 
+    // Включаем шейдер в работу на GPU
     shader->use();
+
+    // Привязываем uniform-переменную текстуры в фрагментном шейдере к текстурному слоту №0
     glUniform1i(glGetUniformLocation(shader->getId(), "u_texture"), 0);
 
+	// Создаем сетку 10 на 7 клеток, каждая клетка 64 пикселя в размере
     m_gameGrid = std::make_unique<Grid>(10, 7, 64.0f);
+
+	// Обновляем размер клеток сетки, чтобы она всегда занимала все окно, даже при изменении размера окна
     m_gameGrid->updateCellSize(this->width, this->height);
 
+	// Получаем указатель на текстуру из ResourceManager и оборачиваем его в shared_ptr, чтобы управлять временем жизни текстуры
     Texture2D* cellTex = ResourceManager::getTexture("towerTexture");
     m_cellTexture = std::shared_ptr<Texture2D>(cellTex, [](Texture2D*) {});
 
-    //Движение врага
+    //
+    Texture2D* grassTex = ResourceManager::getTexture("grassTexture");
+	m_grassTexture = std::shared_ptr<Texture2D>(grassTex, [](Texture2D*) {});
+
+    // Масив контрольных точек (x, y) по которым идет враг
     m_levelPath = { {0, 0}, {3, 0}, {3, 3}, {6, 3}, {6, 6}, {9, 6} }; // маршрут врага по клеткам сетки
     
-    spawnEnemy(100.0f); // спавн врага
+	//спавним 3 врага с разной скоростью для теста
+	spawnEnemy(100.0f); // пиксели в секунду
     spawnEnemy(90.0f);
     spawnEnemy(42.0f);
 }
 
+// Обработка ввода вызывается каждый кадр
 void Game::processInput(GLFWwindow* window, float dt) {
+	// Получаем состояние левой кнопки мыши (зажата она или отпущена)
     int mouseState = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
 
+    // Если ЛКМ зажата и на прошлом кадре она не была зажата, то фиксируем момент клика
     if (mouseState == GLFW_PRESS && !m_mousePressedLastFrame) {
-        m_mousePressedLastFrame = true;
+		m_mousePressedLastFrame = true; // обновляем флаг, что мышь сейчас зажата
         double mouseX, mouseY;
-        glfwGetCursorPos(window, &mouseX, &mouseY);
+		glfwGetCursorPos(window, &mouseX, &mouseY); // получаем текущие координаты мыши в пикселях относительно верхнего левого угла окна
 
+        // Переводим пиксели экрана в индексы ячейки с учетом сдвига сетки
         glm::ivec2 clickedCell = m_gameGrid->pixelToGrid(glm::vec2(mouseX, mouseY), m_gridOffset);
 
+        // проверям можно ли в ячейке с этими индексами строить здания
         if (m_gameGrid->canBuildAt(clickedCell.x, clickedCell.y)) {
+            // Если можно — принудительно меняем тип этой ячейки на Tower
             m_gameGrid->setCellType(clickedCell.x, clickedCell.y, CellType::Tower);
+            // Выводим отладочный лог в консоль
             std::cout << "Поставили башню в ячейку: " << clickedCell.x << ", " << clickedCell.y << std::endl;
         }
     }
+    // Если мышка отпущена — сбрасываем флаг зажатия, открывая возможность для нового клика
     else if (mouseState == GLFW_RELEASE) {
         m_mousePressedLastFrame = false;
     }
 
+    // Если на клавиатуре обнаружено нажатие на клавишу Пробел
     if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
-        spawnEnemy(130.0f);
+        spawnEnemy(130.0f); // Моментально спавним нового быстрого врага
     }
 }
 
+// Обновление игровой логики вызывается каждый кадр, после обработки ввода
 void Game::update(float dt) {
-	// Обновляем всех врагов
+    // Пробегаемся по всему вектору активных врагов на карте
     for (const auto& enemy : m_enemies) {
-        if (enemy) {
-            enemy->update(dt, *m_gameGrid);
+        if (enemy) { // Если указатель на врага живой
+            enemy->update(dt, *m_gameGrid); // Приказываем врагу пересчитать свою позицию с учетом deltaTime
         }
     }
 
 	// Удаляем врагов, которые достигли конца пути
     m_enemies.erase(
+        // remove_if сдвигает всех "финишировавших" врагов в хвост вектора и возвращает итератор на начало этого хвоста
         std::remove_if(m_enemies.begin(), m_enemies.end(),
             [](const std::unique_ptr<Enemy>& enemy) {
-                return enemy->isReachedEnd();
+                return enemy->isReachedEnd(); // Критерий удаления: метод вернул true
             }),
-        m_enemies.end()
+        m_enemies.end() // Метод erase физически отрезает этот хвост из памяти
     );
 }
 
+// Отрисовка кадра вызывается каждый кадр, после обновления логики
 void Game::render() {
-	// Рисуем сетку
-    m_gameGrid->draw(m_renderer.get(), m_cellTexture, m_gridOffset, { 1.0f, 1.0f, 1.0f });
+    // Малюем игровую сетку передавая туда рендерер, текстуру плитки, сдвиг и белый цвет тонирования
+    m_gameGrid->draw(m_renderer.get(), m_grassTexture, m_cellTexture, m_gridOffset, { 1.0f, 1.0f, 1.0f });
 
-	// Рисуем всех врагов
+    // Пробегаемся по вектору активных врагов и рисуем каждого поверх сетки
     for (const auto& enemy : m_enemies) {
-        if (enemy) {
-            enemy->render(m_renderer.get(), m_cellTexture, m_gridOffset);
+        if (enemy) { // Если враг существует
+            enemy->render(m_renderer.get(), m_cellTexture, m_gridOffset); // Вызываем его метод отрисовки
         }
     }
 }
 
+// Изменение размеров окна: вызывается системным колбеком из main.cpp
 void Game::resize(int width, int height) {
-    this->width = width;
-    this->height = height;
-    if (m_renderer) {
+    this->width = width; // Перезаписываем новое значение ширины игры
+    this->height = height; // Перезаписываем новое значение высоты игры
+
+    if (m_renderer) { // Если рендерер уже создан
+        // Заново создаем ортографическую матрицу под новые физические размеры окна
         glm::mat4 projection = glm::ortho(0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, -1.0f, 1.0f);
-        m_renderer->setProjection(projection);
+        m_renderer->setProjection(projection); // Загружаем обновленную матрицу в рендерер
     }
-    if (m_gameGrid) {
-        m_gameGrid->updateCellSize(width, height);
+    if (m_gameGrid) { // Если сетка существует
+        // Приказываем сетке пересчитать размеры ячеек под новое окно
+        m_gameGrid->updateCellSize(width, height); 
     }
 }
 
 // функция для спавна врага (принимает скорость)
 void Game::spawnEnemy(float speed) {
+    // Выделяем память под новый объект Enemy, передавая ему ЕДИНЫЙ путь m_levelPath по константной ссылке
 	auto newEnemy = std::make_unique<Enemy>(m_levelPath, *m_gameGrid, speed); // спавн нового врага
+    // Переносим владение (std::move) над этим указателем и пушим его в конец вектора m_enemies
     m_enemies.push_back(std::move(newEnemy));
 }

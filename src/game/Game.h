@@ -5,6 +5,8 @@
 #include <memory>
 #include <glm/glm.hpp>
 
+// Forward declarations ускоряет компиляцию и уменьшает количество включаемых заголовочных файлов
+// типа просто говорим компилятору, что эти классы существуют, а их определения будут в соответствующих заголовочных файлах
 class SpriteRenderer;
 class Grid;
 class Texture2D;
@@ -12,7 +14,7 @@ class Enemy;
 
 class Game {
 public:
-    int width, height;
+	int width, height; // размеры окна, которые могут изменяться при ресайзе
 
     Game(int width, int height);
     ~Game();
@@ -24,12 +26,13 @@ public:
     void resize(int width, int height);
 
 private:
-    std::unique_ptr<SpriteRenderer> m_renderer;
-    std::unique_ptr<Grid> m_gameGrid;
-    std::shared_ptr<Texture2D> m_cellTexture;
-    std::unique_ptr<Enemy> m_testEnemy;
-    glm::vec2 m_gridOffset;
-    bool m_mousePressedLastFrame;
+	std::unique_ptr<SpriteRenderer> m_renderer; // рендерер для отрисовки спрайтов
+	std::unique_ptr<Grid> m_gameGrid; // указатель на сетку
+	std::shared_ptr<Texture2D> m_cellTexture; // текстура для клеток сетки и врагов
+	std::shared_ptr<Texture2D> m_grassTexture; // текстура травы сетки
+	std::unique_ptr<Enemy> m_testEnemy; // удалить после тестов!!!!
+	glm::vec2 m_gridOffset; // смещение сетки от левого верхнего угла окна, чтобы она не была прямо в углу
+	bool m_mousePressedLastFrame; // флаг для отслеживания состояния мыши, чтобы не спавнить башню при каждом кадре, когда мышь нажата
 
 
 	// Движение врага и спавн
