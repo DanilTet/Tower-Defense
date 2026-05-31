@@ -44,13 +44,13 @@ public:
 	static TowerStats getStatsfromTowerType(TowerType type) {
 		switch (type) {
 			case TowerType::Basic:
-				return { 200.0f, 1.0f, 10 };
+				return { 1.5f, 1.0f, 10 };
 			case TowerType::Sniper:
-				return { 500.0f, 40.0f, 50 };
+				return { 5.0f, 40.0f, 50 };
 			case TowerType::Cannon:
-				return { 120.0f, 2.0f, 30 };
+				return { 2.0f, 2.0f, 30 };
 		}
-		return { 100.0f, 1.0f, 10 };
+		return { 2.0f, 1.0f, 10 };
 	}
 	//конструктор
 	Tower(int gridX, int gridY, TowerType type);
@@ -59,5 +59,5 @@ public:
 	void update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies, const Grid& grid);
 
 	// отрисовка
-	void render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture, const Grid& grid);
+	void render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture, std::shared_ptr<Texture2D> radiusTexture, const Grid& grid);
 };

@@ -91,6 +91,28 @@ void Enemy::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture,
     }
     // Отправляем команду в SpriteRenderer
     renderer->drawSprite(texture, centeredPos, size, 0.0f, color);
+
+    // --- ОТРИСОВКА ПОЛОСКИ ЗДОРОВЬЯ (HEALTH BAR) ---
+
+    // 1. Высчитываем процент оставшегося здоровья (от 0.0 до 1.0)
+    // Убедись, что переменная максимального ХП в stats называется Maxhealth (как мы писали ранее)
+    float hpPercent = static_cast<float>(m_health) / static_cast<float>(stats.Maxhealth);
+    if (hpPercent < 0.0f) hpPercent = 0.0f; // Защита, чтобы полоска не уходила в минус
+
+    // 2. Настраиваем размеры полоски
+    float barWidth = enemySizeDim; // Ширина полоски равна ширине врага
+    float barHeight = 6.0f;        // Высота полоски (тоненькая)
+
+    // 3. Вычисляем позицию: центрируем по X и поднимаем чуть ВЫШЕ врага по Y
+    glm::vec2 barPos = centeredPos + glm::vec2(0.0f, -10.0f);
+
+    // 4. Рисуем КРАСНЫЙ фон (это пустая часть полоски / сколько ХП сняли)
+    // Используем ту же текстуру (если это белый квадрат, она идеально закрасится)
+    renderer->drawSprite(texture, barPos, glm::vec2(barWidth, barHeight), 0.0f, glm::vec3(1.0f, 0.0f, 0.0f));
+
+    // 5. Рисуем ЗЕЛЕНУЮ полоску поверх красной (это текущее ХП)
+    // Умножаем ширину на hpPercent, чтобы зеленая полоска "усыхала" при получении урона
+    renderer->drawSprite(texture, barPos, glm::vec2(barWidth * hpPercent, barHeight), 0.0f, glm::vec3(0.0f, 1.0f, 0.0f));
 }
 
 void Enemy::recalculatePosition(const Grid& oldGrid, const Grid& newGrid) {

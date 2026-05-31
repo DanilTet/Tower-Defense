@@ -28,12 +28,23 @@ void Game::init() {
 		std::cerr << "Failed to load shaders" << std::endl; // если загрузка не удалась, выводим ошибку в консоль
     }
 
-	// загрузка текстуры для клеток сетки и врагов под именем "towerTexture" в VRAM
-    ResourceManager::loadTexture("towerTexture", "res/textures/test_sprite.png");
 
-	// загрузка текстуры земли для фона сетки под именем "grassTexture" в VRAM
-    ResourceManager::loadTexture("grassTexture", "res/textures/spr_grass_02.png");
+    // ЗАГРУЗКА ФАЙЛОВ ТЕКСТУРОК в VRAM
+    ResourceManager::loadTexture("towerTexture", "res/textures/test_sprite.png"); // текстурка башни
+    ResourceManager::loadTexture("grassTexture", "res/textures/spr_grass_02.png"); // текстурка тайла траві
+    ResourceManager::loadTexture("radiusTexture", "res/textures/radius.png"); // радиус атаки башни
+    
+    // Получаем указатель на текстура из ResourceManager
+    Texture2D* cellTex = ResourceManager::getTexture("towerTexture"); // башня
+    Texture2D* grassTex = ResourceManager::getTexture("grassTexture"); // тайл земли
+    Texture2D* radTex = ResourceManager::getTexture("radiusTexture"); // радиус атаки башни
+    
+    // указатель на тексту оборачиваем его в shared_ptr, чтобы управлять временем жизни текстуры
+    m_cellTexture = std::shared_ptr<Texture2D>(cellTex, [](Texture2D*) {}); // башня
+    m_grassTexture = std::shared_ptr<Texture2D>(grassTex, [](Texture2D*) {}); // тайл земли
+    m_radiusTexture = std::shared_ptr<Texture2D>(radTex, [](Texture2D*) {}); // радиус атаки башни
 
+    // ШЕЙДЕР
 	// Получаем указатель на шейдер из ResourceManager и создаем рендерер для спрайтов
     ShaderProgram* shader = ResourceManager::getShader("spriteShader");
 
@@ -56,20 +67,15 @@ void Game::init() {
     // Привязываем uniform-переменную текстуры в фрагментном шейдере к текстурному слоту №0
     glUniform1i(glGetUniformLocation(shader->getId(), "u_texture"), 0);
 
+
+    // ПОЛЕ
 	// Создаем сетку 10 на 7 клеток, каждая клетка 64 пикселя в размере
     m_gameGrid = std::make_unique<Grid>(10, 7, 64.0f, glm::vec2(20.0f, 20.0f));
 
 	// Обновляем размер клеток сетки, чтобы она всегда занимала все окно, даже при изменении размера окна
     m_gameGrid->updateCellSize(this->width, this->height);
 
-	// Получаем указатель на текстуру из ResourceManager и оборачиваем его в shared_ptr, чтобы управлять временем жизни текстуры
-    Texture2D* cellTex = ResourceManager::getTexture("towerTexture");
-    m_cellTexture = std::shared_ptr<Texture2D>(cellTex, [](Texture2D*) {});
-
-    //
-    Texture2D* grassTex = ResourceManager::getTexture("grassTexture");
-	m_grassTexture = std::shared_ptr<Texture2D>(grassTex, [](Texture2D*) {});
-
+    // ПУТЬ ВРАГОВ
     // Масив контрольных точек (x, y) по которым идет враг
     m_levelPath = { {0, 0}, {3, 0}, {3, 3}, {6, 3}, {6, 6}, {9, 6} }; // маршрут врага по клеткам сетки
     
@@ -130,12 +136,12 @@ void Game::update(float dt) {
         }
     }
 
-	// Удаляем врагов, которые достигли конца пути
+	// Удаляем врагов, которые достигли конца пути или умерли
     m_enemies.erase(
         // remove_if сдвигает всех "финишировавших" врагов в хвост вектора и возвращает итератор на начало этого хвоста
         std::remove_if(m_enemies.begin(), m_enemies.end(),
             [](const std::unique_ptr<Enemy>& enemy) {
-                return enemy->isReachedEnd(); // Критерий удаления: метод вернул true
+                return enemy->isReachedEnd() || enemy->isDead(); // Критерий удаления: метод вернул true
             }),
         m_enemies.end() // Метод erase физически отрезает этот хвост из памяти
     );
@@ -155,7 +161,7 @@ void Game::render() {
     // Пробегаемся по вектору активных башен и рисуем каждого поверх сетки
     for (const auto& tower : m_towers) {
         if (tower) {
-            tower->render(m_renderer.get(), m_cellTexture, *m_gameGrid);
+            tower->render(m_renderer.get(), m_cellTexture, m_radiusTexture, *m_gameGrid);
         }
     }
 }

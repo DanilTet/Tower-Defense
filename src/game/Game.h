@@ -30,8 +30,13 @@ public:
 private:
 	std::unique_ptr<SpriteRenderer> m_renderer; // рендерер для отрисовки спрайтов
 	std::unique_ptr<Grid> m_gameGrid; // указатель на сетку
+
+	// текстурки 
 	std::shared_ptr<Texture2D> m_cellTexture; // текстура для клеток сетки и врагов
 	std::shared_ptr<Texture2D> m_grassTexture; // текстура травы сетки
+	std::shared_ptr<Texture2D> m_radiusTexture; // текстура радиус атаки
+
+
 	std::unique_ptr<Enemy> m_testEnemy; // удалить после тестов!!!!
 	bool m_mousePressedLastFrame; // флаг для отслеживания состояния мыши, чтобы не спавнить башню при каждом кадре, когда мышь нажата
 
@@ -42,4 +47,5 @@ private:
 	void spawnEnemy(EnemyType type); // функция для спавна врага
 
 	std::vector<std::unique_ptr<Tower>> m_towers;// БАШНИ
+	
 };

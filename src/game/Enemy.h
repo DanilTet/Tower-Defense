@@ -59,4 +59,11 @@ public:
 	void takeDamage(int damage) {
 		m_health -= damage;
 	}
+
+	bool isDead() const {
+		if (m_health <= 0) {
+			return true;
+		}
+		return false;
+	}
 };
