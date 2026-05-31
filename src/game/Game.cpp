@@ -70,6 +70,24 @@ void Game::init() {
     glUniform1i(glGetUniformLocation(shader->getId(), "u_texture"), 0);
 
 
+
+    // ИНИЦИАЛИЗАЦИЯ ТЕКСТА
+    if (!ResourceManager::loadShader("textShader", "res/shaders/text_shader.vert", "res/shaders/text_shader.frag")) {
+        std::cerr << "Failed to load text shaders" << std::endl;
+    }
+    ShaderProgram* textShader = ResourceManager::getShader("textShader");
+    std::shared_ptr<ShaderProgram> textShaderPtr(textShader, [](ShaderProgram*) {});
+    
+    // Создаем рендерер текста
+    m_textRenderer = std::make_unique<TextRenderer>(textShaderPtr, this->width, this->height);
+
+    // Загружаем шрифт с размером 24 пикселя
+    if (!m_textRenderer->Load("res/fonts/Roboto-Regular.ttf", 24)) {
+        std::cerr << "Failed to load font!" << std::endl;
+    }
+
+
+
     // ПОЛЕ
 	// Создаем сетку 10 на 7 клеток, каждая клетка 64 пикселя в размере
     m_gameGrid = std::make_unique<Grid>(10, 7, 64.0f, glm::vec2(20.0f, 20.0f));
@@ -181,6 +199,13 @@ void Game::render() {
             tower->render(m_renderer.get(), m_cellTexture, m_radiusTexture, *m_gameGrid);
         }
     }
+
+    // ОТРИСОВКА ИНТЕРФЕЙСА
+    // Желтый цвет для денег
+    m_textRenderer->RenderText("Деньги: " + std::to_string(m_playerMoney), 25.0f, 25.0f, 1.0f, glm::vec3(1.0f, 0.9f, 0.2f));
+
+    // Красный цвет для здоровья базы (рисуем чуть ниже)
+    m_textRenderer->RenderText("База: " + std::to_string(m_baseHealth) + " HP", 25.0f, 60.0f, 1.0f, glm::vec3(1.0f, 0.3f, 0.3f));
 }
 
 // Изменение размеров окна: вызывается системным колбеком из main.cpp
@@ -206,6 +231,11 @@ void Game::resize(int width, int height) {
                 enemy->recalculatePosition(oldGrid, *m_gameGrid);   
             }
         }
+    }
+
+    if (m_textRenderer) {
+        glm::mat4 textProjection = glm::ortho(0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f);
+        m_textRenderer->updateProjection(textProjection);
     }
 }
 

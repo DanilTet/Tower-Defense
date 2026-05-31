@@ -28,6 +28,23 @@ configure_file(
     COPYONLY
 )
 
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/res/shaders/text_shader.vert
+    ${CMAKE_CURRENT_BINARY_DIR}/res/shaders/text_shader.vert
+    COPYONLY
+)
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/res/shaders/text_shader.frag
+    ${CMAKE_CURRENT_BINARY_DIR}/res/shaders/text_shader.frag
+    COPYONLY
+)
+
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/res/fonts/Roboto-Regular.ttf
+    ${CMAKE_CURRENT_BINARY_DIR}/res/fonts/Roboto-Regular.ttf
+    COPYONLY
+)
+
 add_subdirectory(external/glfw)
 add_subdirectory(external/glad)
 add_subdirectory(external/freetype)
@@ -51,11 +68,17 @@ add_executable(${PROJECT_NAME}
     src/game/Enemy.cpp
     src/game/Tower.h
     src/game/Tower.cpp
+    src/renderer/TextRenderer.h
+    src/renderer/TextRenderer.cpp
+
+
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/external
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/freetype/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/freetype/include/freetype2
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE glfw glad freetype)

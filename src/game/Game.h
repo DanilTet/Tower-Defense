@@ -5,6 +5,7 @@
 #include <memory>
 #include <glm/glm.hpp>
 #include "Enemy.h"
+#include "../renderer/TextRenderer.h"
 
 // Forward declarations ускоряет компиляцию и уменьшает количество включаемых заголовочных файлов
 // типа просто говорим компилятору, что эти классы существуют, а их определения будут в соответствующих заголовочных файлах
@@ -50,5 +51,7 @@ private:
 	void spawnEnemy(EnemyType type); // функция для спавна врага
 
 	std::vector<std::unique_ptr<Tower>> m_towers;// БАШНИ
+
+	std::unique_ptr<TextRenderer> m_textRenderer; // текст
 	
 };
