@@ -30,6 +30,7 @@ configure_file(
 
 add_subdirectory(external/glfw)
 add_subdirectory(external/glad)
+add_subdirectory(external/freetype)
 
 add_executable(${PROJECT_NAME} 
     src/main.cpp 
@@ -57,4 +58,4 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/external
 )
 
-target_link_libraries(${PROJECT_NAME} PRIVATE glfw glad)
+target_link_libraries(${PROJECT_NAME} PRIVATE glfw glad freetype)
