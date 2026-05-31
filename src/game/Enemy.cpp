@@ -14,6 +14,7 @@ Enemy::Enemy(const std::vector<glm::ivec2>& gridPath, const Grid& grid, EnemyTyp
     EnemyStats stats = Enemy::getStatsfromEnemyType(type); // Получаем характеристики врага в зависимости от его типа
     m_speed = stats.speed; // сохраняем скорость врага
 	m_health = stats.Maxhealth; // сохраняем здоровье врага
+    m_reward = stats.reward; // сохраняем награду за убийство врага
 
 	// Если маршрут не пустой, то устанавливаем начальную позицию врага в пикселях на основе первой контрольной точки маршрута
     if (!m_path.empty()) {
@@ -38,9 +39,12 @@ void Enemy::update(float dt, const Grid& grid) {
 
 	// Считаем расстояние до контрольной точки
     float distance = glm::length(toTarget);
+    
+    // перевод скоросты в пиксели в секунду
+    float currentPixelSpeed = m_speed * grid.getCellSize();
 
 	// Считаем сколько пикселей враг может пройти за этот кадр, умножая скорость на deltaTime
-    float moveDistance = m_speed * dt;
+    float moveDistance = currentPixelSpeed * dt;
 
     // если расстояние до чекпоинта меньше или равно шагу, который мы можем сделать
     if (distance <= moveDistance) {

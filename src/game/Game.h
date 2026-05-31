@@ -28,6 +28,9 @@ public:
     void resize(int width, int height);
 
 private:
+	int m_playerMoney; // деньги игрока
+	int m_baseHealth; // здоровье базы
+
 	std::unique_ptr<SpriteRenderer> m_renderer; // рендерер для отрисовки спрайтов
 	std::unique_ptr<Grid> m_gameGrid; // указатель на сетку
 

@@ -13,7 +13,9 @@
 Game::Game(int width, int height)
     : width(width), // запоминаем стартовую ширину окна
 	height(height), // запоминаем стартовую высоту окна
-	m_mousePressedLastFrame(false){ // изначально мышь не нажата флаг сброшен
+	m_mousePressedLastFrame(false), // изначально мышь не нажата флаг сброшен
+    m_playerMoney(100), // Выдаем в самом начале 100 деняк
+    m_baseHealth(100){ 
 }
 
 Game::~Game() {
@@ -99,15 +101,21 @@ void Game::processInput(GLFWwindow* window, float dt) {
         // Переводим пиксели экрана в индексы ячейки с учетом сдвига сетки
         glm::ivec2 clickedCell = m_gameGrid->pixelToGrid(glm::vec2(mouseX, mouseY));
 
-        // проверям можно ли в ячейке с этими индексами строить здания
-        if (m_gameGrid->canBuildAt(clickedCell.x, clickedCell.y)) {
+        // проверям можно ли в ячейке с этими индексами строить здания и хватает ли денег
+        if (m_playerMoney >= 50 && m_gameGrid->canBuildAt(clickedCell.x, clickedCell.y)) {
+            m_playerMoney -= 50; // списываем деньги
+
             // Если можно — принудительно меняем тип этой ячейки на Tower
             m_gameGrid->setCellType(clickedCell.x, clickedCell.y, CellType::Tower);
             // створюємо об'єкт башні
             auto newTower = std::make_unique<Tower>(clickedCell.x, clickedCell.y, TowerType::Basic);
             m_towers.push_back(std::move(newTower));
             // Выводим отладочный лог в консоль
-            std::cout << "Поставили башню в ячейку: " << clickedCell.x << ", " << clickedCell.y << std::endl;
+            std::cout << "tower placed! money: " << m_playerMoney << std::endl;
+        }
+        else if (m_playerMoney < 50) {
+            // если денег не хватает
+            std::cout << "Not enough money! You have only: " << m_playerMoney << std::endl;
         }
     }
     // Если мышка отпущена — сбрасываем флаг зажатия, открывая возможность для нового клика
@@ -133,6 +141,15 @@ void Game::update(float dt) {
     for (const auto& enemy : m_enemies) {
         if (enemy) { // Если указатель на врага живой
             enemy->update(dt, *m_gameGrid); // Приказываем врагу пересчитать свою позицию с учетом deltaTime
+        }
+    }
+
+    for (const auto& enemy : m_enemies) {
+        if (enemy->isDead()) {
+            m_playerMoney += enemy->getReward();
+        }
+        if (enemy->isReachedEnd()) {
+            m_baseHealth -= 1;
         }
     }
 
