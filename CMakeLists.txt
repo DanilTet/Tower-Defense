@@ -51,6 +51,8 @@ configure_file(
     COPYONLY
 )
 
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/res/sounds DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/res)
+
 add_subdirectory(external/glfw)
 add_subdirectory(external/glad)
 add_subdirectory(external/freetype)
@@ -78,8 +80,8 @@ add_executable(${PROJECT_NAME}
     src/renderer/TextRenderer.cpp
     src/game/WaveManager.h
     src/game/WaveManager.cpp
-
-
+    src/audio/AudioManager.h
+    src/audio/AudioManager.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
@@ -87,6 +89,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/external
     ${CMAKE_CURRENT_SOURCE_DIR}/external/freetype/include
     ${CMAKE_CURRENT_SOURCE_DIR}/external/freetype/include/freetype2
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/miniaudio
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE glfw glad freetype)

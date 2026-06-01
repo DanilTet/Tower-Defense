@@ -9,6 +9,7 @@
 #include "WaveManager.h"
 #include <vector>
 #include <iostream>
+#include "../audio/AudioManager.h"
 
 // Конструктор и деструктор
 Game::Game(int width, int height)
@@ -103,6 +104,9 @@ void Game::init() {
     // МЕНЕДЖЕР ВОЛН
     m_waveManager = std::make_unique<WaveManager>();
     m_waveManager->loadLevel("res/levels/level_1.json"); // загружаем конфигурацию уровня
+
+    // АУДИО
+    AudioManager::playMusic("res/sounds/background.mp3"); // врубаем имбовый трек
 }
 
 // Обработка ввода вызывается каждый кадр

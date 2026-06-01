@@ -4,6 +4,7 @@
 #include <memory>
 #include "resources/ResourceManager.h"
 #include "game/Game.h"
+#include "audio/AudioManager.h"
 
 int windowWidth = 640; // начальная ширина окна
 int windowHeight = 480; // начальная высота окна
@@ -88,7 +89,10 @@ int main(void)
     glEnable(GL_BLEND); // Включение прозрачности
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // Включение прозрачности
 
-	//создание и инициализация игры
+    // инициализация аудио
+    AudioManager::init();
+
+    //создание и инициализация игры
     TowerDefenseGame = std::make_unique<Game>(windowWidth, windowHeight); // Выделяем память под игру
 	TowerDefenseGame->init(); // включаем инициализацию где подгружается текстуры, шейдеры и т.д.
 
@@ -121,6 +125,7 @@ int main(void)
         
     }
 
+    AudioManager::cleanup(); // очистка звуков
 	TowerDefenseGame.reset(); // удаляем игру и освобождаем память
 	ResourceManager::clear(); // очищаем все ресурсы, которые были загружены через ResourceManager
 	glfwTerminate(); // завершаем работу с GLFW и закрываем окно
