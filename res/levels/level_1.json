@@ -1,0 +1,42 @@
+{
+  "waves": [
+    {
+      "parts": [
+        {
+          "type": "Basic",
+          "count": 3,
+          "interval": 1.0,
+          "delayAfter": 4.0
+        },
+        {
+          "type": "Fast",
+          "count": 5,
+          "interval": 0.4,
+          "delayAfter": 2.0
+        },
+        {
+          "type": "Basic",
+          "count": 2,
+          "interval": 1.0,
+          "delayAfter": 0.0
+        }
+      ]
+    },
+    {
+      "parts": [
+        {
+          "type": "Tank",
+          "count": 1,
+          "interval": 0.0,
+          "delayAfter": 2.0
+        },
+        {
+          "type": "Fast",
+          "count": 10,
+          "interval": 0.5,
+          "delayAfter": 0.0
+        }
+      ]
+    }
+  ]
+}

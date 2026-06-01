@@ -41,11 +41,11 @@ public:
 	static EnemyStats getStatsfromEnemyType(EnemyType type) {
 		switch (type) {
 			case EnemyType::Basic:
-				return { 1.5f, 100, 0.6f, 10 };
+				return { 0.5f, 100, 0.6f, 10 };
 			case EnemyType::Fast:
-				return { 2.5f, 50, 0.5f, 15};
+				return { 1.5f, 50, 0.5f, 15};
 			case EnemyType::Tank:
-				return { 0.8f, 500, 0.7f, 30};
+				return { 0.3f, 500, 0.7f, 30};
 		}
 		return { 1.5f, 100, 0.6f, 10 };
 	}

@@ -6,6 +6,7 @@
 #include "Grid.h"
 #include "Enemy.h"
 #include "Tower.h"
+#include "WaveManager.h"
 #include <vector>
 #include <iostream>
 
@@ -14,7 +15,7 @@ Game::Game(int width, int height)
     : width(width), // запоминаем стартовую ширину окна
 	height(height), // запоминаем стартовую высоту окна
 	m_mousePressedLastFrame(false), // изначально мышь не нажата флаг сброшен
-    m_playerMoney(100), // Выдаем в самом начале 100 деняк
+    m_playerMoney(100000), // Выдаем в самом начале 100 деняк
     m_baseHealth(100){ 
 }
 
@@ -99,10 +100,9 @@ void Game::init() {
     // Масив контрольных точек (x, y) по которым идет враг
     m_levelPath = { {0, 0}, {3, 0}, {3, 3}, {6, 3}, {6, 6}, {9, 6} }; // маршрут врага по клеткам сетки
     
-	//спавним 3 врага с разным типом и характеристиками для теста
-    spawnEnemy(EnemyType::Basic);
-    spawnEnemy(EnemyType::Fast);
-    spawnEnemy(EnemyType::Tank);
+    // МЕНЕДЖЕР ВОЛН
+    m_waveManager = std::make_unique<WaveManager>();
+    m_waveManager->loadLevel("res/levels/level_1.json"); // загружаем конфигурацию уровня
 }
 
 // Обработка ввода вызывается каждый кадр
@@ -143,12 +143,21 @@ void Game::processInput(GLFWwindow* window, float dt) {
 
     // Если на клавиатуре обнаружено нажатие на клавишу Пробел
     if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
-        spawnEnemy(EnemyType::Tank); // Моментально спавним нового танка врага
+        spawnEnemy(EnemyType::Basic); // Моментально спавним нового врага
+    }
+    // Если на клавиатуре обнаружено нажатие на клавишу Ентер
+    if (glfwGetKey(window, GLFW_KEY_ENTER) == GLFW_PRESS) {
+        startNextWave(); // Моментально начинаем новую волну
     }
 }
 
 // Обновление игровой логики вызывается каждый кадр, после обработки ввода
 void Game::update(float dt) {
+    // менеджер волн
+    if (m_waveManager) {
+        m_waveManager->update(dt, *this); // Передаем разницу во времени и ссылку на себя
+    }
+    
     // Пробегаемся по всему вектору активных башен на карте
     for (const auto& tower : m_towers) {
         if (tower) {
@@ -206,6 +215,8 @@ void Game::render() {
 
     // Красный цвет для здоровья базы (рисуем чуть ниже)
     m_textRenderer->RenderText("База: " + std::to_string(m_baseHealth) + " HP", 25.0f, 60.0f, 1.0f, glm::vec3(1.0f, 0.3f, 0.3f));
+
+    m_textRenderer->RenderText("Волна: " + std::to_string(m_waveManager->getCurrentWaveNumber()), 25.0f, 95.0f, 1.0f, glm::vec3(0.5f, 1.0f, 0.5f));
 }
 
 // Изменение размеров окна: вызывается системным колбеком из main.cpp
@@ -245,4 +256,10 @@ void Game::spawnEnemy(EnemyType type) {
     auto newEnemy = std::make_unique<Enemy>(m_levelPath, *m_gameGrid, type); // спавн нового врага
     // Переносим владение (std::move) над этим указателем и пушим его в конец вектора m_enemies
     m_enemies.push_back(std::move(newEnemy));
+}
+
+void Game::startNextWave() {
+    if (m_waveManager) {
+        m_waveManager->startNextWave();
+    }
 }

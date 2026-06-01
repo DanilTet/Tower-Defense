@@ -45,6 +45,12 @@ configure_file(
     COPYONLY
 )
 
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/res/levels/level_1.json
+    ${CMAKE_CURRENT_BINARY_DIR}/res/levels/level_1.json
+    COPYONLY
+)
+
 add_subdirectory(external/glfw)
 add_subdirectory(external/glad)
 add_subdirectory(external/freetype)
@@ -70,6 +76,8 @@ add_executable(${PROJECT_NAME}
     src/game/Tower.cpp
     src/renderer/TextRenderer.h
     src/renderer/TextRenderer.cpp
+    src/game/WaveManager.h
+    src/game/WaveManager.cpp
 
 
 )
