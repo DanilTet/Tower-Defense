@@ -42,19 +42,9 @@ private:
 	float m_shotTimer;
 
 public:
+	// получаем характеристики башни
+	static TowerStats getStatsfromTowerType(TowerType type);
 
-	static TowerStats getStatsfromTowerType(TowerType type) {
-		switch (type) {
-			// дальность (в клетках), скорострельность урон, цена
-			case TowerType::Basic:
-				return { 1.5f, 1.0f, 10, 50 };
-			case TowerType::Sniper:
-				return { 5.0f, 40.0f, 50, 100 };
-			case TowerType::Cannon:
-				return { 2.0f, 2.0f, 30, 150 };
-		}
-		return { 1.5f, 1.0f, 10, 50 };
-	}
 	//конструктор
 	Tower(int gridX, int gridY, TowerType type);
 

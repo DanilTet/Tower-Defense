@@ -1,0 +1,20 @@
+{
+  "Basic": {
+    "speed": 0.5,
+    "Maxhealth": 100,
+    "sizeScale": 0.6,
+    "reward": 10
+  },
+  "Fast": {
+    "speed": 1.5,
+    "Maxhealth": 50,
+    "sizeScale": 0.5,
+    "reward": 15
+  },
+  "Tank": {
+    "speed": 0.3,
+    "Maxhealth": 500,
+    "sizeScale": 0.7,
+    "reward": 30
+  }
+}

@@ -46,17 +46,7 @@ private:
 public:
 
 	// Функция для получения характеристик врага в зависимости от его типа
-	static EnemyStats getStatsfromEnemyType(EnemyType type) {
-		switch (type) {
-			case EnemyType::Basic:
-				return { 0.5f, 100, 0.6f, 10 };
-			case EnemyType::Fast:
-				return { 1.5f, 50, 0.5f, 15};
-			case EnemyType::Tank:
-				return { 0.3f, 500, 0.7f, 30};
-		}
-		return { 1.5f, 100, 0.6f, 10 };
-	}
+	static EnemyStats getStatsfromEnemyType(EnemyType type);
 
 	void recalculatePosition(const Grid& oldGrid, const Grid& newGrid); // вызывается при изменении размера окна, чтобы враг всегда был точно на клетке, даже если размер клеток изменится при ресайзе окна
 

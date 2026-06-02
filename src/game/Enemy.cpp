@@ -3,8 +3,13 @@
 #include "../textures/Texture2D.h"
 #include "Grid.h"
 #include <iostream>
+#include "ConfigManager.h"
 
 int Enemy::s_nextId = 0; // инициализация общего счетчика
+
+EnemyStats Enemy::getStatsfromEnemyType(EnemyType type) {
+    return ConfigManager::getEnemyStats(type);
+}
 
 // конструктор который вызывается при спавне крипа
 Enemy::Enemy(const std::vector<glm::ivec2>& gridPath, const Grid& grid, EnemyType type)

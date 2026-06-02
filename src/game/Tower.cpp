@@ -4,6 +4,11 @@
 #include "renderer/SpriteRenderer.h"
 #include "../audio/AudioManager.h"
 #include "Projectile.h"
+#include "ConfigManager.h"
+
+TowerStats Tower::getStatsfromTowerType(TowerType type) {
+	return ConfigManager::getTowerStats(type);
+}
 
 // конструктор
 Tower::Tower(int gridX, int gridY, TowerType type)

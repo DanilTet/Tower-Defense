@@ -10,6 +10,7 @@
 #include <vector>
 #include <iostream>
 #include "../audio/AudioManager.h"
+#include "ConfigManager.h"
 
 // Конструктор и деструктор
 Game::Game(int width, int height)
@@ -27,6 +28,9 @@ Game::~Game() {
 
 // Инициализация игры, загрузка ресурсов, настройка рендерера и создание сетки
 void Game::init() {
+    // загрузка конфигураций
+    ConfigManager::loadConfigs("res/configs/towers.json", "res/configs/enemies.json");
+
 	// загрузака файлов вершинного и фрагментного шейдера в видеокарту под именем "spriteShader"
     if (!ResourceManager::loadShader("spriteShader", "res/shaders/vertex_shader.vert", "res/shaders/fragment_shader.frag")) {
 		std::cerr << "Failed to load shaders" << std::endl; // если загрузка не удалась, выводим ошибку в консоль

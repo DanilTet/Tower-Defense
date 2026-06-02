@@ -85,6 +85,8 @@ add_executable(${PROJECT_NAME}
     src/game/CircleCollider.h
     src/game/Projectile.cpp
     src/game/Projectile.h
+    src/game/ConfigManager.cpp
+    src/game/ConfigManager.h
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
