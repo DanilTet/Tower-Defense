@@ -11,7 +11,8 @@ Enemy::Enemy(const std::vector<glm::ivec2>& gridPath, const Grid& grid, EnemyTyp
     : m_path(gridPath), // сохраняем ссылку на маршрут врага по клеткам сетки
     m_currentWayPoint(0), // начинаем с первой контрольной точки маршрута
     m_reachedEnd(false), // изначально враг не достиг конца маршрута
-    m_type(type) // сохраняем тип врага
+    m_type(type), // сохраняем тип врага
+    m_distanceTraveled(0.0f) // инициализация одометра
 {
     m_id = s_nextId++; // выдаем уникальный айди
 
@@ -63,13 +64,14 @@ void Enemy::update(float dt, const Grid& grid) {
 
     // если расстояние до чекпоинта меньше или равно шагу, который мы можем сделать
     if (distance <= moveDistance) {
+        m_distanceTraveled += distance;// плюсуем пройденое расстояние за кадр
         m_pixelPos = targetPixelPos; // приравниваем позицию врага к координатам цели
         m_currentWayPoint++; // теперь целью становится следующий чекпоинт
 
         // если индекс новой цели превысил размер массива маршрута — чекпоинты закончились
         if (m_currentWayPoint >= m_path.size()) {
             m_reachedEnd = true; // Выставляем флаг, что враг успешно закончил свой путь
-            std::cout << "Враг прорвал туза!" << std::endl; // Сигнализируем в консоль
+            std::cout << "enemy came to base!" << std::endl; // Сигнализируем в консоль
         }
     }
     // если до контрольной точк далеко
@@ -78,6 +80,7 @@ void Enemy::update(float dt, const Grid& grid) {
         glm::vec2 direction = glm::normalize(toTarget);
 		// Двигаем врага в направлении контрольной точки на расстояние, которое он может пройти за этот кадр
         m_pixelPos += direction * moveDistance;
+        m_distanceTraveled += moveDistance; // плюсуем пройденое расстояние за кадр
     }
 }
 

@@ -59,6 +59,11 @@ void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies,
 		// создание хитбокса башни в понимании зоны поражения
 		CircleCollider towerCollider = { towerCenter, currentPixelRange };
 
+		// ПЕРЕМЕННІЕ ДЛЯ ПОИСКА ЛУЧШЕЙ ЦЕЛИ
+		Enemy* bestTarget = nullptr; // указатели на лучшую цель
+		float maxDistance = -1.0f; // рекорд пройденого пути
+
+
 		// проходим по врагам
 		for (const auto& enemy : enemies) {
 			// пропускаем мертвіх или тех кто дошел до финала
@@ -66,18 +71,25 @@ void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies,
 
 			// берем хитбокс врага и проверяем столкновение с зоной башни
 			if (towerCollider.intersects(enemy->getCollider(grid))) {
-				// получаем центр врага
-				glm::vec2 enemyCenter = enemy->getCollider(grid).center;
-
-				// Создаем пулю
-				auto newProj = std::make_unique<Projectile>(towerCenter, enemyCenter, 800.0f, m_damage, enemy->getId());
-				projectiles.push_back(std::move(newProj));
-
-				AudioManager::playSound("res/sounds/shoot.wav", 0.1f);
-
-				m_shotTimer = m_fireRate;
-				break;
+				
+				if (enemy->getDistanceTraveled() > maxDistance) {
+					maxDistance = enemy->getDistanceTraveled(); // обновляем рекорд пути
+					bestTarget = enemy.get(); // запоминаем врага
+				}
 			}
+		}
+
+		if (bestTarget != nullptr) {
+			// получаем центр врага
+			glm::vec2 enemyCenter = bestTarget->getCollider(grid).center;
+
+			// Создаем пулю
+			auto newProj = std::make_unique<Projectile>(towerCenter, enemyCenter, 800.0f, m_damage, bestTarget->getId());
+			projectiles.push_back(std::move(newProj));
+
+			AudioManager::playSound("res/sounds/shoot.wav", 0.1f); // играем звук
+
+			m_shotTimer = m_fireRate;
 		}
 	}
 

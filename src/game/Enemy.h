@@ -41,6 +41,8 @@ private:
 	static int s_nextId; // счетчик врагов общий
 	int m_id; // личный номер врага
 
+	float m_distanceTraveled;// пройденная дистанция врага
+
 public:
 
 	// Функция для получения характеристик врага в зависимости от его типа
@@ -80,4 +82,6 @@ public:
 	CircleCollider getCollider(const Grid& grid) const; // генераттор хитбокса
 
 	int getId() const { return m_id; } // геттер для получения айди врага
+
+	float getDistanceTraveled() const { return m_distanceTraveled; } // геттер для того щоб отримати пройдений шлях ворога
 };
