@@ -3,6 +3,7 @@
 #include <glm/glm.hpp>
 #include <memory>
 #include <vector>
+#include "CircleCollider.h"
 
 // типы башен
 enum class TowerType {
@@ -37,7 +38,6 @@ private:
 	//float m_splashDamage;
 
 	float m_shotTimer;
-	Enemy* m_currentTarget;
 
 public:
 

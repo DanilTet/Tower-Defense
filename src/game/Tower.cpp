@@ -2,6 +2,7 @@
 #include "Grid.h"
 #include "Enemy.h"
 #include "renderer/SpriteRenderer.h"
+#include "../audio/AudioManager.h"
 
 // конструктор
 Tower::Tower(int gridX, int gridY, TowerType type)
@@ -14,7 +15,7 @@ Tower::Tower(int gridX, int gridY, TowerType type)
 	m_damage = stats.damage; // присваиваем урон
 	m_fireRate = stats.fireRate; // присваеваем скорость атаки
 	
-	m_currentTarget = nullptr; // текущая цель это нулпоинтер
+	//m_currentTarget = nullptr; // текущая цель это нулпоинтер
 
 	m_shotTimer = 0.0f; // переменная таймер
 }
@@ -45,37 +46,33 @@ void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies,
 	if (m_shotTimer > 0.0f) {
 		m_shotTimer -= dt;
 	}
-	float cellSize = grid.getCellSize(); // достаем размер клетки для центров
-	glm::vec2 towerCenter = grid.gridToPixel(m_gridX, m_gridY) + glm::vec2(cellSize / 2.0f);
+	
+	// если башня заряжена
+	if (m_shotTimer <= 0.0f) {
+		// считаем центр башни
+		float cellSize = grid.getCellSize();
+		glm::vec2 towerCenter = grid.gridToPixel(m_gridX, m_gridY) + glm::vec2(cellSize / 2.0f);
+		
+		float currentPixelRange = m_range * cellSize; // считаем радиус атаки в пикселях
 
-	float currentPixelRange = m_range * cellSize; // пересчитываем дальность стрельбы
+		// создание хитбокса башни в понимании зоны поражения
+		CircleCollider towerCollider = { towerCenter, currentPixelRange };
 
-	if (m_currentTarget != nullptr) {
-		if (!m_currentTarget->isReachedEnd() && !m_currentTarget->isDead()) {
-			glm::vec2 enemyCenter = m_currentTarget->getPixelPos();
-
-			float dist = glm::distance(towerCenter, enemyCenter);
-			if (dist > currentPixelRange) {
-				m_currentTarget = nullptr;
-			}
-		}
-		else {
-			m_currentTarget = nullptr;
-		}
-	}
-	if (m_currentTarget == nullptr) {
+		// проходим по врагам
 		for (const auto& enemy : enemies) {
+			// пропускаем мертвіх или тех кто дошел до финала
 			if (!enemy || enemy->isReachedEnd() || enemy->isDead()) continue;
-			glm::vec2 enemyCenter = enemy->getPixelPos();
-			float dist = glm::distance(towerCenter, enemyCenter);
-			if (dist <= currentPixelRange) {
-				m_currentTarget = enemy.get();
+
+			// берем хитбокс врага и проверяем столкновение с зоной башни
+			if (towerCollider.intersects(enemy->getCollider(grid))) {
+				enemy->takeDamage(m_damage); // враг в радиусе - наносим урон
+
+				AudioManager::playSound("res/sounds/shoot.wav");
+
+				m_shotTimer = m_fireRate;
 				break;
 			}
 		}
 	}
-	if (m_currentTarget && m_shotTimer <= 0.0f) {
-		m_currentTarget->takeDamage(m_damage);
-		m_shotTimer = m_fireRate;
-	}
+
 }

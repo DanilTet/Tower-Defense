@@ -82,6 +82,7 @@ add_executable(${PROJECT_NAME}
     src/game/WaveManager.cpp
     src/audio/AudioManager.h
     src/audio/AudioManager.cpp
+    src/game/CircleCollider.h
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE

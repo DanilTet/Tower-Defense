@@ -2,6 +2,7 @@
 #include <vector>
 #include <glm/glm.hpp>
 #include <memory>
+#include "CircleCollider.h"
 
 enum class EnemyType {
 	Basic,
@@ -35,6 +36,8 @@ private:
 	glm::vec2 m_pixelPos; // координаты врага в пикселях экрнана
 	bool m_reachedEnd; // флаг дошел ли враг до конца
 
+	float m_radiusMultiplier; // соотношение врага отностительно клетки
+
 public:
 
 	// Функция для получения характеристик врага в зависимости от его типа
@@ -55,7 +58,7 @@ public:
 	Enemy(const std::vector<glm::ivec2>& gridPath, const Grid& grid, EnemyType type);
 	void update(float dt, const Grid& grid);
 
-	void render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture, glm::vec2 gridOffset, const Grid& grid);
+	void render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture, std::shared_ptr<Texture2D> radiusTex, glm::vec2 offset, const Grid& grid);
 	glm::vec2 getPixelPos() const { return m_pixelPos; }
 	bool isReachedEnd() const { return m_reachedEnd; }
 	void takeDamage(int damage) {
@@ -70,4 +73,6 @@ public:
 	}
 
 	int getReward() const { return m_reward; } // геттер который возгращает награду за убийство врага
+
+	CircleCollider getCollider(const Grid& grid) const; // генераттор хитбокса
 };

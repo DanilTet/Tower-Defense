@@ -21,6 +21,17 @@ Enemy::Enemy(const std::vector<glm::ivec2>& gridPath, const Grid& grid, EnemyTyp
         // Берем индексы x и y первой ячейки [0], переводим в экранные пиксели и сохраняем в m_pixelPos
         m_pixelPos = grid.gridToPixel(m_path[0].x, m_path[0].y);
     }
+
+    // присваиваем размер относительно клетки в процентах
+    if (type == EnemyType::Basic) {
+        m_radiusMultiplier = 0.3f;
+    }
+    else if (type == EnemyType::Fast) {
+        m_radiusMultiplier = 0.2f;
+    }
+    else if (type == EnemyType::Tank) {
+        m_radiusMultiplier = 0.45f;
+    }
 }
 
 // Обновление логики и расчет движения
@@ -67,7 +78,7 @@ void Enemy::update(float dt, const Grid& grid) {
 }
 
 // отрисовка врага на экране
-void Enemy::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture, glm::vec2 gridOffset, const Grid& grid) {
+void Enemy::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture, std::shared_ptr<Texture2D> radiusTex, glm::vec2 gridOffset, const Grid& grid) {
 	if (m_reachedEnd) return; // если враг достиг конца пути, то не рисуем его
 
 	// Получаем характеристики врага в зависимости от его типа, чтобы использовать их для отрисовки (например, размер спрайта)
@@ -96,27 +107,32 @@ void Enemy::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture,
     // Отправляем команду в SpriteRenderer
     renderer->drawSprite(texture, centeredPos, size, 0.0f, color);
 
+
+    //ЧАТО ГПТИШНОЕ ГОВНО КОТОРОЕ ПОТОМ УБРАТЬ
+    // //ЧАТО ГПТИШНОЕ ГОВНО КОТОРОЕ ПОТОМ УБРАТЬ
+    // //ЧАТО ГПТИШНОЕ ГОВНО КОТОРОЕ ПОТОМ УБРАТЬ
     // --- ОТРИСОВКА ПОЛОСКИ ЗДОРОВЬЯ (HEALTH BAR) ---
 
-    // 1. Высчитываем процент оставшегося здоровья (от 0.0 до 1.0)
-    // Убедись, что переменная максимального ХП в stats называется Maxhealth (как мы писали ранее)
     float hpPercent = static_cast<float>(m_health) / static_cast<float>(stats.Maxhealth);
-    if (hpPercent < 0.0f) hpPercent = 0.0f; // Защита, чтобы полоска не уходила в минус
+    if (hpPercent < 0.0f) hpPercent = 0.0f;
 
-    // 2. Настраиваем размеры полоски
-    float barWidth = enemySizeDim; // Ширина полоски равна ширине врага
-    float barHeight = 6.0f;        // Высота полоски (тоненькая)
+    float barWidth = enemySizeDim;
+    float barHeight = 6.0f;
 
-    // 3. Вычисляем позицию: центрируем по X и поднимаем чуть ВЫШЕ врага по Y
     glm::vec2 barPos = centeredPos + glm::vec2(0.0f, -10.0f);
 
-    // 4. Рисуем КРАСНЫЙ фон (это пустая часть полоски / сколько ХП сняли)
-    // Используем ту же текстуру (если это белый квадрат, она идеально закрасится)
     renderer->drawSprite(texture, barPos, glm::vec2(barWidth, barHeight), 0.0f, glm::vec3(1.0f, 0.0f, 0.0f));
-
-    // 5. Рисуем ЗЕЛЕНУЮ полоску поверх красной (это текущее ХП)
-    // Умножаем ширину на hpPercent, чтобы зеленая полоска "усыхала" при получении урона
     renderer->drawSprite(texture, barPos, glm::vec2(barWidth * hpPercent, barHeight), 0.0f, glm::vec3(0.0f, 1.0f, 0.0f));
+
+    // --- ОТРИСОВКА ХИТБОКСА (ДЕБАГ) ---
+
+    CircleCollider collider = getCollider(grid);
+
+    glm::vec2 hitboxSize(collider.radius * 2.0f, collider.radius * 2.0f);
+    glm::vec2 hitboxPos = collider.center - glm::vec2(collider.radius, collider.radius);
+
+    // ИСПРАВЛЕНИЕ 2: drawSprite с маленькой буквы и передаем radiusTex без звездочки (это shared_ptr)
+    renderer->drawSprite(radiusTex, hitboxPos, hitboxSize, 0.0f, glm::vec3(1.0f, 0.0f, 0.0f));
 }
 
 void Enemy::recalculatePosition(const Grid& oldGrid, const Grid& newGrid) {
@@ -147,4 +163,16 @@ void Enemy::recalculatePosition(const Grid& oldGrid, const Grid& newGrid) {
     else if (m_currentWayPoint == 0 && !m_path.empty()) {
         m_pixelPos = newGrid.gridToPixel(m_path[0].x, m_path[0].y);
     }
+}
+
+// функция которая дает хитбокс зависимо от размера окна
+CircleCollider Enemy::getCollider(const Grid& grid) const {
+    // умножаем коэффициент на текущий размер клетки из сетки
+    float currentRadius = m_radiusMultiplier * grid.getCellSize();
+
+    float halfCell = grid.getCellSize() / 2.0f;
+    glm::vec2 center = m_pixelPos + glm::vec2(halfCell, halfCell);
+
+    // возвращаем готовую структуру центр врага и его динамический радиус
+    return { center, currentRadius };
 }

@@ -203,7 +203,7 @@ void Game::render() {
     // Пробегаемся по вектору активных врагов и рисуем каждого поверх сетки
     for (const auto& enemy : m_enemies) {
         if (enemy) { // Если враг существует
-            enemy->render(m_renderer.get(), m_cellTexture, m_gameGrid->getOffset(), *m_gameGrid); // Вызываем его метод отрисовки
+            enemy->render(m_renderer.get(), m_cellTexture, m_radiusTexture, m_gameGrid->getOffset(), *m_gameGrid); // Вызываем его метод отрисовки
         }
     }
     // Пробегаемся по вектору активных башен и рисуем каждого поверх сетки
