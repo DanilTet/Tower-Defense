@@ -7,6 +7,7 @@
 #include "Enemy.h"
 #include "../renderer/TextRenderer.h"
 #include "Projectile.h"
+#include "Tower.h"
 
 // Forward declarations ускоряет компиляцию и уменьшает количество включаемых заголовочных файлов
 // типа просто говорим компилятору, что эти классы существуют, а их определения будут в соответствующих заголовочных файлах
@@ -33,6 +34,8 @@ public:
 	void spawnEnemy(EnemyType type); // функция для спавна врага
 	void startNextWave();
 
+	void renderPathArrows(); // метод ренгера стрелочек пути
+
 private:
 	int m_playerMoney; // деньги игрока
 	int m_baseHealth; // здоровье базы
@@ -53,14 +56,32 @@ private:
 	// Движение врага и спавн
 	std::vector<glm::ivec2> m_levelPath; // маршрут врага по клеткам сетки
 	std::vector<std::unique_ptr<Enemy>> m_enemies; // вектор для хранения всех врагов на уровне
-	
+	std::unique_ptr<WaveManager> m_waveManager; // менеджер волн
 
 	std::vector<std::unique_ptr<Tower>> m_towers;// БАШНИ
 
 	std::unique_ptr<TextRenderer> m_textRenderer; // текст
 
-	std::unique_ptr<WaveManager> m_waveManager; // менеджер волн
-
 	std::vector<std::unique_ptr<Projectile>> m_projectiles; // проджектайлы
-	
+
+	float m_pathAnimationTimer = 0.0f; // таймер для анимации стрелочек
+
+	TowerType m_selectedTowerType = TowerType::Basic; // какая башня выбрана щас
+
+	// ИНТЕРФЕЙС ПАНЕЛИ ВІБОРА БАШНИ
+	static constexpr float UI_PANEL_WIDTH = 350.0f; // длина панели
+	static constexpr float UI_PANEL_HEIGHT = 120.0f; // вісота панели
+	static constexpr float UI_ICON_SIZE = 60.0f; // размер иконки
+	static constexpr float UI_ICON_PADDING = 110.0f; // отступ
+	static constexpr float UI_OFFSET_X = 20.0f; // Отступ иконок от левого края панели
+	static constexpr float UI_OFFSET_Y = 30.0f; // Отступ иконок от верхнего края панели
+
+
+	glm::vec2 getUIPanelPos() const;
+	glm::vec2 getTowerIconPos(int index) const;
+
+	glm::vec2 m_currentMousePos; // позиция мыши каждый кадр
+
+	void renderUI(); // отриовка интерфейса
+	void renderHologram(); // метод лоя рисования голограммы
 };

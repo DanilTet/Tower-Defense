@@ -8,7 +8,7 @@
 enum class CellType {
 	Empty,
 	Tower,
-	Road,
+	Path,
 	Blocked
 };
 

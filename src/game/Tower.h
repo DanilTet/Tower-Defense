@@ -17,6 +17,7 @@ struct TowerStats {
 	float range; // радиус атаки
 	float fireRate; // скорость атаки
 	int damage; // урон
+	int cost;
 	//float splashDamage;
 };
 
@@ -44,14 +45,15 @@ public:
 
 	static TowerStats getStatsfromTowerType(TowerType type) {
 		switch (type) {
+			// дальность (в клетках), скорострельность урон, цена
 			case TowerType::Basic:
-				return { 1.5f, 1.0f, 10 };
+				return { 1.5f, 1.0f, 10, 50 };
 			case TowerType::Sniper:
-				return { 5.0f, 40.0f, 50 };
+				return { 5.0f, 40.0f, 50, 100 };
 			case TowerType::Cannon:
-				return { 2.0f, 2.0f, 30 };
+				return { 2.0f, 2.0f, 30, 150 };
 		}
-		return { 2.0f, 1.0f, 10 };
+		return { 1.5f, 1.0f, 10, 50 };
 	}
 	//конструктор
 	Tower(int gridX, int gridY, TowerType type);

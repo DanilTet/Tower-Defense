@@ -70,7 +70,7 @@ void Grid::draw(SpriteRenderer* renderer,
 			glm::vec2 pixelPos = gridToPixel(x, y);
 
 			// если ячейка пустая в масиве
-			if (m_grid[y][x] == CellType::Empty || m_grid[y][x] == CellType::Tower) {
+			if (m_grid[y][x] == CellType::Empty || m_grid[y][x] == CellType::Tower || m_grid[y][x] == CellType::Path) {
 				// Рисуем обычную стандартную плитку
 				renderer->drawSprite(grassTexture, pixelPos, size, 0.0f, color);
 			}
