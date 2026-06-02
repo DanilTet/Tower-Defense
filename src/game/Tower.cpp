@@ -3,6 +3,7 @@
 #include "Enemy.h"
 #include "renderer/SpriteRenderer.h"
 #include "../audio/AudioManager.h"
+#include "Projectile.h"
 
 // конструктор
 Tower::Tower(int gridX, int gridY, TowerType type)
@@ -41,7 +42,7 @@ void Tower::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture,
 	renderer->drawSprite(texture, pixelPos, size, 0.0f, color);
 }
 
-void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies, const Grid& grid) {
+void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies, std::vector<std::unique_ptr<Projectile>>& projectiles, const Grid& grid) {
 	//если башня еще не перезарядилась, перезаряжаем
 	if (m_shotTimer > 0.0f) {
 		m_shotTimer -= dt;
@@ -65,9 +66,14 @@ void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies,
 
 			// берем хитбокс врага и проверяем столкновение с зоной башни
 			if (towerCollider.intersects(enemy->getCollider(grid))) {
-				enemy->takeDamage(m_damage); // враг в радиусе - наносим урон
+				// получаем центр врага
+				glm::vec2 enemyCenter = enemy->getCollider(grid).center;
 
-				AudioManager::playSound("res/sounds/shoot.wav");
+				// Создаем пулю
+				auto newProj = std::make_unique<Projectile>(towerCenter, enemyCenter, 800.0f, m_damage, enemy->getId());
+				projectiles.push_back(std::move(newProj));
+
+				AudioManager::playSound("res/sounds/shoot.wav", 0.1f);
 
 				m_shotTimer = m_fireRate;
 				break;

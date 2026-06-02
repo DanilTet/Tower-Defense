@@ -6,6 +6,7 @@
 #include <glm/glm.hpp>
 #include "Enemy.h"
 #include "../renderer/TextRenderer.h"
+#include "Projectile.h"
 
 // Forward declarations ускоряет компиляцию и уменьшает количество включаемых заголовочных файлов
 // типа просто говорим компилятору, что эти классы существуют, а их определения будут в соответствующих заголовочных файлах
@@ -59,5 +60,7 @@ private:
 	std::unique_ptr<TextRenderer> m_textRenderer; // текст
 
 	std::unique_ptr<WaveManager> m_waveManager; // менеджер волн
+
+	std::vector<std::unique_ptr<Projectile>> m_projectiles; // проджектайлы
 	
 };

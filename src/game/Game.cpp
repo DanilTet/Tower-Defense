@@ -36,7 +36,7 @@ void Game::init() {
     // ЗАГРУЗКА ФАЙЛОВ ТЕКСТУРОК в VRAM
     ResourceManager::loadTexture("towerTexture", "res/textures/test_sprite.png"); // текстурка башни
     ResourceManager::loadTexture("grassTexture", "res/textures/spr_grass_02.png"); // текстурка тайла траві
-    ResourceManager::loadTexture("radiusTexture", "res/textures/radius.png"); // радиус атаки башни
+    ResourceManager::loadTexture("radiusTexture", "res/textures/radius2.png"); // радиус атаки башни
     
     // Получаем указатель на текстура из ResourceManager
     Texture2D* cellTex = ResourceManager::getTexture("towerTexture"); // башня
@@ -165,7 +165,7 @@ void Game::update(float dt) {
     // Пробегаемся по всему вектору активных башен на карте
     for (const auto& tower : m_towers) {
         if (tower) {
-            tower->update(dt, m_enemies, *m_gameGrid);
+            tower->update(dt, m_enemies, m_projectiles, *m_gameGrid);
         }
     }
     // Пробегаемся по всему вектору активных врагов на карте
@@ -175,6 +175,7 @@ void Game::update(float dt) {
         }
     }
 
+    // если враг убит добавляем игроку деняк иначе отминаем от базі хп
     for (const auto& enemy : m_enemies) {
         if (enemy->isDead()) {
             m_playerMoney += enemy->getReward();
@@ -183,6 +184,22 @@ void Game::update(float dt) {
             m_baseHealth -= 1;
         }
     }
+
+    // обновляем пули
+    for (const auto& proj : m_projectiles) {
+        if (proj) {
+            proj->update(dt, m_enemies, *m_gameGrid);
+        }
+    }
+
+    // удаляем уничтоженіе пули
+    m_projectiles.erase(
+        std::remove_if(m_projectiles.begin(), m_projectiles.end(),
+            [](const std::unique_ptr<Projectile>& proj) {
+                return proj->isDestroyed();
+            }),
+        m_projectiles.end()
+    );
 
 	// Удаляем врагов, которые достигли конца пути или умерли
     m_enemies.erase(
@@ -210,6 +227,13 @@ void Game::render() {
     for (const auto& tower : m_towers) {
         if (tower) {
             tower->render(m_renderer.get(), m_cellTexture, m_radiusTexture, *m_gameGrid);
+        }
+    }
+
+    // рисуем пули
+    for (const auto& proj : m_projectiles) {
+        if (proj) {
+            proj->render(m_renderer.get(), m_cellTexture);
         }
     }
 

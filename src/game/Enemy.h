@@ -38,6 +38,9 @@ private:
 
 	float m_radiusMultiplier; // соотношение врага отностительно клетки
 
+	static int s_nextId; // счетчик врагов общий
+	int m_id; // личный номер врага
+
 public:
 
 	// Функция для получения характеристик врага в зависимости от его типа
@@ -75,4 +78,6 @@ public:
 	int getReward() const { return m_reward; } // геттер который возгращает награду за убийство врага
 
 	CircleCollider getCollider(const Grid& grid) const; // генераттор хитбокса
+
+	int getId() const { return m_id; } // геттер для получения айди врага
 };

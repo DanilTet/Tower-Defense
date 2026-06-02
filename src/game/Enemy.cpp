@@ -4,6 +4,8 @@
 #include "Grid.h"
 #include <iostream>
 
+int Enemy::s_nextId = 0; // инициализация общего счетчика
+
 // конструктор который вызывается при спавне крипа
 Enemy::Enemy(const std::vector<glm::ivec2>& gridPath, const Grid& grid, EnemyType type)
     : m_path(gridPath), // сохраняем ссылку на маршрут врага по клеткам сетки
@@ -11,6 +13,8 @@ Enemy::Enemy(const std::vector<glm::ivec2>& gridPath, const Grid& grid, EnemyTyp
     m_reachedEnd(false), // изначально враг не достиг конца маршрута
     m_type(type) // сохраняем тип врага
 {
+    m_id = s_nextId++; // выдаем уникальный айди
+
     EnemyStats stats = Enemy::getStatsfromEnemyType(type); // Получаем характеристики врага в зависимости от его типа
     m_speed = stats.speed; // сохраняем скорость врага
 	m_health = stats.Maxhealth; // сохраняем здоровье врага
