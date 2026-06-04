@@ -3,18 +3,21 @@
     "range": 2.5,
     "damage": 20,
     "fireRate": 1.0,
-    "cost": 50
+    "cost": 50,
+    "splashRadius": 0.0
   },
   "Sniper": {
     "range": 5.0,
     "damage": 100,
     "fireRate": 3.0,
-    "cost": 100
+    "cost": 100,
+    "splashRadius": 0.0
   },
   "Cannon": {
     "range": 2.0,
     "damage": 50,
     "fireRate": 2.0,
-    "cost": 150
+    "cost": 150,
+    "splashRadius": 2.0
   }
 }

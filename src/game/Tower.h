@@ -18,7 +18,7 @@ struct TowerStats {
 	float fireRate; // скорость атаки
 	int damage; // урон
 	int cost;
-	//float splashDamage;
+	float splashRadius;
 };
 
 class SpriteRenderer;

@@ -101,7 +101,7 @@ void AudioManager::playMusic(const std::string& filepath) {
         isMusicLoaded = true;
 
         ma_sound_set_looping(&bgmSound, MA_TRUE); // включаем бесконечный повтор
-        ma_sound_set_volume(&bgmSound, 0.1f); // делаем громкость 20%
+        ma_sound_set_volume(&bgmSound, 0.05f); // делаем громкость 
 
         // воспроизведение музыки
         ma_sound_start(&bgmSound);

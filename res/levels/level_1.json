@@ -4,7 +4,7 @@
       "parts": [
         {
           "type": "Basic",
-          "count": 3,
+          "count": 10,
           "interval": 1.0,
           "delayAfter": 4.0
         },

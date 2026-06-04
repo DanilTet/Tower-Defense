@@ -88,8 +88,11 @@ void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies,
 			// получаем центр врага
 			glm::vec2 enemyCenter = bestTarget->getCollider(grid).center;
 
+			// достаем радиус сплеша
+			float currentSplash = Tower::getStatsfromTowerType(m_type).splashRadius;
+
 			// Создаем пулю
-			auto newProj = std::make_unique<Projectile>(towerCenter, enemyCenter, 800.0f, m_damage, bestTarget->getId());
+			auto newProj = std::make_unique<Projectile>(towerCenter, enemyCenter, 800.0f, m_damage, bestTarget->getId(), currentSplash);
 			projectiles.push_back(std::move(newProj));
 
 			AudioManager::playSound("res/sounds/shoot.wav", 0.1f); // играем звук

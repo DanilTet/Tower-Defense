@@ -1,15 +1,17 @@
 #include "Projectile.h"
 #include "../renderer/SpriteRenderer.h"
 #include "../textures/Texture2D.h"
+#include "Grid.h"
 
-Projectile::Projectile(glm::vec2 startPos, glm::vec2 targetPos, float speed, int damage, int targetId)
+Projectile::Projectile(glm::vec2 startPos, glm::vec2 targetPos, float speed, int damage, int targetId, float splashRadius)
 	: m_pos(startPos),
 	m_speed(speed),
 	m_damage(damage),
 	m_radius(5.0f),
 	m_destroyed(false),
 	m_lifeTime(3.0f),
-    m_targetId(targetId)
+    m_targetId(targetId),
+    m_splashRadius(splashRadius)
 
 {
 	glm::vec2 toTarget = targetPos - startPos; // векиор от башни к врагу
@@ -55,8 +57,27 @@ void Projectile::update(float dt, const std::vector<std::unique_ptr<Enemy>>& ene
 
             // проверяем столкновение только с текущим врагом
             if (myCollider.intersects(enemy->getCollider(grid))) {
-                enemy->takeDamage(m_damage);
-                m_destroyed = true;
+
+                // логика сплеш урона
+                if (m_splashRadius > 0.0f) {
+                    float splashPixels = m_splashRadius * grid.getCellSize(); // переводим радиус из клеток в пиксели
+                    CircleCollider explosion = { m_pos, splashPixels };
+
+                    // проходим по всем врагам
+                    for (const auto& otherEnemy : enemies) {
+                        if (!otherEnemy || otherEnemy->isDead()) continue;
+                        // если враг попал в радиус взріва то наносим урон ему
+                        if (explosion.intersects(otherEnemy->getCollider(grid))) {
+                            otherEnemy->takeDamage(m_damage);
+                        }
+                    }
+
+                }
+                else { // тут обычный не сплеш урон
+                    enemy->takeDamage(m_damage);
+                    
+                }
+                m_destroyed = true; // уничтожаем пулю
             }
             break;
         }

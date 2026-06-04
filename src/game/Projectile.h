@@ -12,7 +12,7 @@ class Grid;
 class Projectile {
 public:
 	// конструктор принимает откуда летим, куда целимся, скорость и урон и айди цели
-	Projectile(glm::vec2 startPos, glm::vec2 targetPos, float speed, int damage, int targetId);
+	Projectile(glm::vec2 startPos, glm::vec2 targetPos, float speed, int damage, int targetId, float splashRadius);
 
 	// двигаем пулу и проверяем столкновение со всеми врагами
 	void update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies, const Grid& grid);
@@ -35,4 +35,6 @@ private:
 	float m_lifeTime; // таймер самоуничтожения
 
 	int m_targetId; // айди врага к которому летит
+
+	float m_splashRadius; // радиус сплеш урона
 };

@@ -17,9 +17,9 @@ bool ConfigManager::loadConfigs(const std::string& towerPath, const std::string&
 		tFile >> j;
 		// мапим json на Enum
 		// Порядок  range, fireRate, damage, cost
-		s_towerStats[TowerType::Basic] = { j["Basic"]["range"],  j["Basic"]["fireRate"],  j["Basic"]["damage"],  j["Basic"]["cost"] };
-		s_towerStats[TowerType::Sniper] = { j["Sniper"]["range"], j["Sniper"]["fireRate"], j["Sniper"]["damage"], j["Sniper"]["cost"] };
-		s_towerStats[TowerType::Cannon] = { j["Cannon"]["range"], j["Cannon"]["fireRate"], j["Cannon"]["damage"], j["Cannon"]["cost"] };
+		s_towerStats[TowerType::Basic] = { j["Basic"]["range"],  j["Basic"]["fireRate"],  j["Basic"]["damage"],  j["Basic"]["cost"], j["Basic"]["splashRadius"] };
+		s_towerStats[TowerType::Sniper] = { j["Sniper"]["range"], j["Sniper"]["fireRate"], j["Sniper"]["damage"], j["Sniper"]["cost"], j["Sniper"]["splashRadius"] };
+		s_towerStats[TowerType::Cannon] = { j["Cannon"]["range"], j["Cannon"]["fireRate"], j["Cannon"]["damage"], j["Cannon"]["cost"], j["Cannon"]["splashRadius"]};
 		tFile.close(); // закріваем файл
 	}
 	else {
@@ -29,7 +29,7 @@ bool ConfigManager::loadConfigs(const std::string& towerPath, const std::string&
 
 	// загрузка врагов
 	std::ifstream eFile(enemiesPath); // откріваем файл
-	if (tFile.is_open()) {
+	if (eFile.is_open()) {
 		json j;
 		eFile >> j;
 		// мапим json на Enum
