@@ -4,12 +4,14 @@
 #include <memory>
 #include <vector>
 #include "CircleCollider.h"
+#include <string>
 
 // типы башен
 enum class TowerType {
 	Basic,
 	Sniper,
-	Cannon
+	Cannon,
+	None
 };
 
 //конфиг характеристик башни
@@ -17,8 +19,12 @@ struct TowerStats {
 	float range; // радиус атаки
 	float fireRate; // скорость атаки
 	int damage; // урон
-	int cost;
-	float splashRadius;
+	int cost; // цена башни
+	float splashRadius; // сплеш урон
+
+	std::string buildSound; // звук строительства
+	std::string attackSound; // звук атаки
+
 };
 
 class SpriteRenderer;
@@ -41,6 +47,9 @@ private:
 
 	float m_shotTimer;
 
+	int m_currentLevel; // текущий левел
+	int m_maxLevel; // макс левел
+
 public:
 	// получаем характеристики башни
 	static TowerStats getStatsfromTowerType(TowerType type);
@@ -53,4 +62,12 @@ public:
 
 	// отрисовка
 	void render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture, std::shared_ptr<Texture2D> radiusTexture, const Grid& grid);
+
+	bool upgrade(int& playerMoney);
+	int getUpgradeCost() const;
+
+	int getGridX() const { return m_gridX; }
+	int getGridY() const { return m_gridY; }
+	int getLevel() const { return m_currentLevel; }	
+
 };

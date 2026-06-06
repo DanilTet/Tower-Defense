@@ -1,23 +1,95 @@
 {
   "Basic": {
-    "range": 2.5,
-    "damage": 20,
-    "fireRate": 1.0,
-    "cost": 50,
-    "splashRadius": 0.0
+    "levels": [
+      {
+        "range": 2.5,
+        "damage": 20,
+        "fireRate": 1.0,
+        "cost": 50,
+        "splashRadius": 0.0,
+        "buildSound": "res/sounds/build.wav",
+        "attackSound": "res/sounds/shoot.wav"
+      },
+      {
+        "range": 3.0,
+        "damage": 45,
+        "fireRate": 0.85,
+        "cost": 75,
+        "splashRadius": 0.0,
+        "buildSound": "res/sounds/build.wav",
+        "attackSound": "res/sounds/shoot.wav"
+      },
+      {
+        "range": 3.5,
+        "damage": 90,
+        "fireRate": 0.7,
+        "cost": 120,
+        "splashRadius": 0.0,
+        "buildSound": "res/sounds/build.wav",
+        "attackSound": "res/sounds/shoot.wav"
+      }
+    ]
   },
   "Sniper": {
-    "range": 5.0,
-    "damage": 100,
-    "fireRate": 3.0,
-    "cost": 100,
-    "splashRadius": 0.0
+    "levels": [
+      {
+        "range": 5.0,
+        "damage": 100,
+        "fireRate": 3.0,
+        "cost": 100,
+        "splashRadius": 0.0,
+        "buildSound": "res/sounds/buildSniper.wav",
+        "attackSound": "res/sounds/shoot.wav"
+      },
+      {
+        "range": 6.5,
+        "damage": 250,
+        "fireRate": 2.6,
+        "cost": 180,
+        "splashRadius": 0.0,
+        "buildSound": "res/sounds/buildSniper.wav",
+        "attackSound": "res/sounds/shoot.wav"
+      },
+      {
+        "range": 8.0,
+        "damage": 600,
+        "fireRate": 2.2,
+        "cost": 300,
+        "splashRadius": 0.0,
+        "buildSound": "res/sounds/buildSniper.wav",
+        "attackSound": "res/sounds/shoot.wav"
+      }
+    ]
   },
   "Cannon": {
-    "range": 2.0,
-    "damage": 50,
-    "fireRate": 2.0,
-    "cost": 150,
-    "splashRadius": 2.0
+    "levels": [
+      {
+        "range": 2.0,
+        "damage": 50,
+        "fireRate": 2.0,
+        "cost": 150,
+        "splashRadius": 2.0,
+        "buildSound": "res/sounds/build.wav",
+        "attackSound": "res/sounds/shoot.wav"
+      },
+      {
+        "range": 2.5,
+        "damage": 120,
+        "fireRate": 1.7,
+        "cost": 220,
+        "splashRadius": 2.5,
+        "buildSound": "res/sounds/build.wav",
+        "attackSound": "res/sounds/shoot.wav"
+      },
+      {
+        "range": 3.0,
+        "damage": 280,
+        "fireRate": 1.4,
+        "cost": 350,
+        "splashRadius": 3.2,
+        "buildSound": "res/sounds/build.wav",
+        "attackSound": "res/sounds/shoot.wav"
+      }
+    ]
   }
 }

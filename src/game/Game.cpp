@@ -19,7 +19,8 @@ Game::Game(int width, int height)
 	height(height), // запоминаем стартовую высоту окна
 	m_mousePressedLastFrame(false), // изначально мышь не нажата флаг сброшен
     m_playerMoney(100000), // Выдаем в самом начале 100 деняк
-    m_baseHealth(100){ 
+    m_baseHealth(100),
+    m_selectedTowerType(TowerType::None) {
 }
 
 Game::~Game() {
@@ -169,6 +170,9 @@ void Game::processInput(GLFWwindow* window, float dt) {
     glfwGetCursorPos(window, &mouseX, &mouseY);
     m_currentMousePos = glm::vec2(mouseX, mouseY);
 
+    if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS) {
+        m_selectedTowerType = TowerType::None; // очищаем руку, голограмма сразу исчезнет
+    }
 
 	// Получаем состояние левой кнопки мыши (зажата она или отпущена)
     int mouseState = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
@@ -199,7 +203,7 @@ void Game::processInput(GLFWwindow* window, float dt) {
                     else if (i == 1) m_selectedTowerType = TowerType::Sniper;
                     else if (i == 2) m_selectedTowerType = TowerType::Cannon;
 
-                    AudioManager::playSound("res/sounds/build.wav", 0.5f); // Звук клика по кнопке
+                    //AudioManager::playSound("res/sounds/build.wav", 0.5f); // Звук клика по кнопке
                 }
             }
             return;
@@ -232,7 +236,9 @@ void Game::processInput(GLFWwindow* window, float dt) {
                 // спавним башню
                 auto newTower = std::make_unique<Tower>(clickedCell.x, clickedCell.y, m_selectedTowerType);
                 m_towers.push_back(std::move(newTower));
-                //AudioManager::playSound("res/sounds/build.wav");
+                // звук постройки
+                TowerStats stats = Tower::getStatsfromTowerType(m_selectedTowerType);
+                AudioManager::playSound(stats.buildSound.c_str());
 
                 // обновляем путь
                 testPath.insert(testPath.begin(), m_spawners[0]);
@@ -564,6 +570,11 @@ glm::vec2 Game::getTowerIconPos(int index) const {
 
 // рендерим голограму перед покупкой
 void Game::renderHologram() {
+
+    if (m_selectedTowerType == TowerType::None) {
+        return;
+    }
+
     if (m_levelPath.size() < 2) return;
 
     auto arrowTex = ResourceManager::getTexture("arrowTexture");

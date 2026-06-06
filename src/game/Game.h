@@ -3,6 +3,7 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <memory>
+#include <vector>
 #include <glm/glm.hpp>
 #include "Enemy.h"
 #include "../renderer/TextRenderer.h"
@@ -67,7 +68,9 @@ private:
 
 	float m_pathAnimationTimer = 0.0f; // таймер для анимации стрелочек
 
-	TowerType m_selectedTowerType = TowerType::Basic; // какая башня выбрана щас
+	//TowerType m_selectedTowerType = TowerType::Basic; // какая башня выбрана щас
+
+	TowerType m_selectedTowerType = TowerType::None; //какая башня вібрана
 
 	// ИНТЕРФЕЙС ПАНЕЛИ ВІБОРА БАШНИ
 	static constexpr float UI_PANEL_WIDTH = 350.0f; // длина панели
@@ -89,7 +92,6 @@ private:
 
 	// точки спавна и точки баз
 	std::vector<glm::ivec2> m_spawners;
-
 	std::vector<glm::ivec2> m_bases;
 
 	//маршруты

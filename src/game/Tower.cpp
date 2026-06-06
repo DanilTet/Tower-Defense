@@ -14,7 +14,10 @@ TowerStats Tower::getStatsfromTowerType(TowerType type) {
 Tower::Tower(int gridX, int gridY, TowerType type)
 	: m_gridX(gridX),
 	m_gridY(gridY),
-	m_type(type) {
+	m_type(type),
+	m_currentLevel(1), // бам бам с первого уровня
+	m_maxLevel(3) // макс левел башни
+{
 	// считываем статистику
 	TowerStats stats = Tower::getStatsfromTowerType(type);
 	m_range = stats.range; // присваеваем радиус атаки
@@ -44,6 +47,11 @@ void Tower::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture,
 	if (m_type == TowerType::Basic) color = glm::vec3(0.5f, 0.5f, 0.5f);
 	else if (m_type == TowerType::Sniper) color = glm::vec3(0.8f, 0.2f, 0.2f);
 	else if (m_type == TowerType::Cannon) color = glm::vec3(0.2f, 0.2f, 0.8f);
+
+	// зависимо от левела башни меняем цвет
+	if (m_currentLevel == 2) color += glm::vec3(0.2f, 0.2f, 0.2f);
+	if (m_currentLevel == 3) color += glm::vec3(0.4f, 0.4f, 0.4f);
+
 	renderer->drawSprite(texture, pixelPos, size, 0.0f, color);
 }
 
@@ -89,16 +97,47 @@ void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies,
 			glm::vec2 enemyCenter = bestTarget->getCollider(grid).center;
 
 			// достаем радиус сплеша
-			float currentSplash = Tower::getStatsfromTowerType(m_type).splashRadius;
+			float currentSplash = ConfigManager::getTowerStats(m_type, m_currentLevel).splashRadius;
 
 			// Создаем пулю
 			auto newProj = std::make_unique<Projectile>(towerCenter, enemyCenter, 800.0f, m_damage, bestTarget->getId(), currentSplash);
 			projectiles.push_back(std::move(newProj));
 
-			AudioManager::playSound("res/sounds/shoot.wav", 0.1f); // играем звук
+			TowerStats stats = ConfigManager::getTowerStats(m_type, m_currentLevel);
+			AudioManager::playSound(stats.attackSound.c_str(), 0.1f); // играем звук
 
 			m_shotTimer = m_fireRate;
 		}
 	}
 
+}
+
+// функция улучшения башни
+bool Tower::upgrade(int& playerMoney) {
+	if (m_currentLevel >= m_maxLevel) return false; // достигнут максимум
+
+	// увеличиваем лвл
+	int nextLevel = m_currentLevel + 1;
+	TowerStats nextStats = ConfigManager::getTowerStats(m_type, nextLevel);
+
+	if (playerMoney >= nextStats.cost) {
+		playerMoney -= nextStats.cost; // заберяем деняк
+		m_currentLevel = nextLevel;
+
+		// теперь новые статы
+		m_range = nextStats.range;
+		m_damage = nextStats.damage;
+		m_fireRate = nextStats.fireRate;
+
+		// Играем кастомный звук апгрейда 
+		AudioManager::playSound(nextStats.buildSound.c_str());
+		return true;
+	}
+
+	return false; // Не хватило денег
+}
+
+int Tower::getUpgradeCost() const {
+	if (m_currentLevel >= m_maxLevel) return 0;
+	return ConfigManager::getTowerStats(m_type, m_currentLevel + 1).cost;
 }
