@@ -210,9 +210,40 @@ void Game::processInput(GLFWwindow* window, float dt) {
         }
 
         // узнаем стоимость выбраной башни
-        int currentCost = Tower::getStatsfromTowerType(m_selectedTowerType).cost;
+        
 
         glm::ivec2 clickedCell = m_gameGrid->pixelToGrid(glm::vec2(mouseX, mouseY));
+        
+        // если клик поза поля
+        if (clickedCell.x < 0 || clickedCell.x >= m_gameGrid->getWidth() ||
+            clickedCell.y < 0 || clickedCell.y >= m_gameGrid->getHeight()) {
+            return;
+        }
+
+        // логика апгрейда
+        if (m_selectedTowerType == TowerType::None) {
+            CellType clickedCellType = m_gameGrid->getCellType(clickedCell.x, clickedCell.y);
+
+            if (clickedCellType == CellType::Tower) {
+                // ищем в нашем векторе башню с такими же координатами YX
+                for (auto& tower : m_towers) {
+                    if (tower && tower->getGridX() == clickedCell.x && tower->getGridY() == clickedCell.y) {
+                        int cost = tower->getUpgradeCost();
+                        if (tower->upgrade(m_playerMoney)) {
+                            std::cout << "Tower upgraded to level " << tower->getLevel() << "!" << std::endl;
+                        }
+                        else {
+                            std::cout << "Upgrade failed! Max level or check money ($" << cost << ")" << std::endl;
+                        }
+                        break; // выходим
+                    }
+                }
+            }
+            return; // ОБЯЗАТЕЛЬНО выходим из метода, чтобы пустая рука не шла строить!
+        }
+
+
+        int currentCost = Tower::getStatsfromTowerType(m_selectedTowerType).cost;
 
         if (m_playerMoney >= currentCost && m_gameGrid->canBuildAt(clickedCell.x, clickedCell.y)) {
 
