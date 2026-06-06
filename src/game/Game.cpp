@@ -212,6 +212,9 @@ void Game::processInput(GLFWwindow* window, float dt) {
 
         if (m_playerMoney >= currentCost && m_gameGrid->canBuildAt(clickedCell.x, clickedCell.y)) {
 
+            // запоминаем какая клетка была до клика
+            CellType oldCellType = m_gameGrid->getCellType(clickedCell.x, clickedCell.y);
+
             // виртуально ставим башню
             m_gameGrid->setCellType(clickedCell.x, clickedCell.y, CellType::Tower);
             //проверка маршрута
@@ -219,7 +222,7 @@ void Game::processInput(GLFWwindow* window, float dt) {
 
             // если пути нету значит игрок заблокировал маршрут
             if (testPath.empty()) {
-                m_gameGrid->setCellType(clickedCell.x, clickedCell.y, CellType::Empty);
+                m_gameGrid->setCellType(clickedCell.x, clickedCell.y, oldCellType);
                 std::cout << "Path Blocked! Cannot build here." << std::endl;
             }
             else {

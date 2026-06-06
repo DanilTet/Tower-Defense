@@ -40,7 +40,10 @@ bool Grid::canBuildAt(int gridX, int gridY) const {
 	if (gridX < 0 || gridX >= m_width || gridY < 0 || gridY >= m_height) {
 		return false;
 	}
-	return m_grid[gridY][gridX] == CellType::Empty;
+	// получаем тип клетки
+	CellType type = getCellType(gridX, gridY);
+	// разрешаем строить на пустой клетке или на пути
+	return (type == CellType::Empty || type == CellType::Path);
 }
 
 // Принудительно меняем тип конкретной ячейки
