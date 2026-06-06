@@ -87,6 +87,8 @@ add_executable(${PROJECT_NAME}
     src/game/Projectile.h
     src/game/ConfigManager.cpp
     src/game/ConfigManager.h
+    src/game/Pathfinder.cpp
+    src/game/Pathfinder.h
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE

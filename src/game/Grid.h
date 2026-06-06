@@ -9,7 +9,9 @@ enum class CellType {
 	Empty,
 	Tower,
 	Path,
-	Blocked
+	Blocked,
+	Spawner,
+	Base
 };
 
 class SpriteRenderer;
@@ -44,4 +46,9 @@ public:
 	void updateCellSize(int windowWidth, int windowHeight); // обновляем размер клеток при изменении размера окна, чтобы сетка всегда занимала все окно
 	float getCellSize() const { return m_cellSize; } // получаем размер клетки
 	glm::vec2 getOffset() const { return m_offset; }
+
+	// геттеры для алгоритма А*
+	int getWidth() const { return m_width; }
+	int getHeight() const { return m_height; }
+	CellType getCellType(int gridX, int gridY) const;
 };

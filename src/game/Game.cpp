@@ -11,6 +11,7 @@
 #include <iostream>
 #include "../audio/AudioManager.h"
 #include "ConfigManager.h"
+#include "Pathfinder.h"
 
 // Конструктор и деструктор
 Game::Game(int width, int height)
@@ -103,9 +104,34 @@ void Game::init() {
 	// Обновляем размер клеток сетки, чтобы она всегда занимала все окно, даже при изменении размера окна
     m_gameGrid->updateCellSize(this->width, this->height);
 
-    // ПУТЬ ВРАГОВ
-    // Масив контрольных точек (x, y) по которым идет враг
-    m_levelPath = { {0, 0}, {3, 0}, {3, 3}, {6, 3}, {6, 6}, {9, 6} }; // маршрут врага по клеткам сетки
+    // ТОЧКИ ПОЯВЛЕНИЯ И БАЗА
+
+    m_spawners.push_back({ 0, 0 }); // спавнер
+    m_bases.push_back({ 9, 6 }); // база
+
+    m_gameGrid->setCellType(m_spawners[0].x, m_spawners[0].y, CellType::Spawner);
+    m_gameGrid->setCellType(m_bases[0].x, m_bases[0].y, CellType::Base);
+
+    // ИНИЦИАЛИЗАЦИЯ АЛГОРИТМА И ПОИСК ПУТИ
+    m_pathfinder = std::make_unique<Pathfinder>(10, 7); // размері сетки
+
+    // запуск алгоритма А*
+    std::vector<glm::ivec2> calculatedPath = m_pathfinder->findPath(*m_gameGrid, m_spawners[0], m_bases[0]);
+
+    // добавление точки спавна в начало пути
+    calculatedPath.insert(calculatedPath.begin(), m_spawners[0]);
+
+    // сохранение готового маршрута в список маршрутов
+    m_paths.push_back(calculatedPath);
+    m_levelPath = m_paths[0];
+    // блокируем постройку башни 
+    for (const auto& p : m_paths[0]) {
+        if (m_gameGrid->getCellType(p.x, p.y) == CellType::Empty) {
+            m_gameGrid->setCellType(p.x, p.y, CellType::Path);
+        }
+    }
+
+
     
     // МЕНЕДЖЕР ВОЛН
     m_waveManager = std::make_unique<WaveManager>();
@@ -114,7 +140,7 @@ void Game::init() {
     // АУДИО
     AudioManager::playMusic("res/sounds/background.mp3"); // врубаем имбовый трек
 
-
+    /*
     // МАРШРУТ БЛОКИРУЕТ КЛЕТКИ
     for (size_t i = 0; i < m_levelPath.size() - 1; ++i) {
         glm::ivec2 start = m_levelPath[i];
@@ -132,6 +158,7 @@ void Game::init() {
             current.y += stepY;
         }
     }
+    */
 }
 
 // Обработка ввода вызывается каждый кадр
@@ -185,14 +212,52 @@ void Game::processInput(GLFWwindow* window, float dt) {
 
         if (m_playerMoney >= currentCost && m_gameGrid->canBuildAt(clickedCell.x, clickedCell.y)) {
 
-            m_playerMoney -= currentCost;
+            // виртуально ставим башню
             m_gameGrid->setCellType(clickedCell.x, clickedCell.y, CellType::Tower);
+            //проверка маршрута
+            std::vector<glm::ivec2> testPath = m_pathfinder->findPath(*m_gameGrid, m_spawners[0], m_bases[0]);
 
-            // строим именно ту башню, которая выбрана в инерфейсе
-            auto newTower = std::make_unique<Tower>(clickedCell.x, clickedCell.y, m_selectedTowerType);
-            m_towers.push_back(std::move(newTower));
+            // если пути нету значит игрок заблокировал маршрут
+            if (testPath.empty()) {
+                m_gameGrid->setCellType(clickedCell.x, clickedCell.y, CellType::Empty);
+                std::cout << "Path Blocked! Cannot build here." << std::endl;
+            }
+            else {
+                // если путь есть
+                // забираем деньги
+                m_playerMoney -= currentCost;
+                // спавним башню
+                auto newTower = std::make_unique<Tower>(clickedCell.x, clickedCell.y, m_selectedTowerType);
+                m_towers.push_back(std::move(newTower));
+                //AudioManager::playSound("res/sounds/build.wav");
 
-            AudioManager::playSound("res/sounds/build.wav");
+                // обновляем путь
+                testPath.insert(testPath.begin(), m_spawners[0]);
+                m_paths[0] = testPath;
+                m_levelPath = testPath;
+
+                // убираем старій путь
+                for (int x = 0; x < m_gameGrid->getWidth(); ++x) {
+                    for (int y = 0; y < m_gameGrid->getHeight(); ++y) {
+                        if (m_gameGrid->getCellType(x, y) == CellType::Path) {
+                            m_gameGrid->setCellType(x, y, CellType::Empty);
+                        }
+                    }
+                }
+                // записуем новій путь
+                for (const auto& p : m_paths[0]) {
+                    if (m_gameGrid->getCellType(p.x, p.y) == CellType::Empty) {
+                        m_gameGrid->setCellType(p.x, p.y, CellType::Path);
+                    }
+                }
+
+                // даем врагам новій путь
+                for (auto& enemy : m_enemies) {
+                    if (enemy) {
+                        enemy->recalculatePath(m_pathfinder.get(), *m_gameGrid, m_bases[0]);
+                    }
+                }
+            }
         }
     }
     // Если мышка отпущена — сбрасываем флаг зажатия
@@ -342,10 +407,13 @@ void Game::resize(int width, int height) {
     }
 }
 
-// функция для спавна врага (принимает скорость)
-void Game::spawnEnemy(EnemyType type) {
-    // Выделяем память под новый объект Enemy, передавая ему ЕДИНЫЙ путь m_levelPath по константной ссылке
-    auto newEnemy = std::make_unique<Enemy>(m_levelPath, *m_gameGrid, type); // спавн нового врага
+// функция для спавна врага
+void Game::spawnEnemy(EnemyType type, int spawnerIndex) {\
+    // если спавнера не существуеты
+    if (spawnerIndex >= m_paths.size() || m_paths[spawnerIndex].empty()) return;
+
+    // выдаем врагу маршрут из списка путей
+    auto newEnemy = std::make_unique<Enemy>(m_paths[spawnerIndex], *m_gameGrid, type);
     // Переносим владение (std::move) над этим указателем и пушим его в конец вектора m_enemies
     m_enemies.push_back(std::move(newEnemy));
 }
@@ -493,6 +561,11 @@ glm::vec2 Game::getTowerIconPos(int index) const {
 
 // рендерим голограму перед покупкой
 void Game::renderHologram() {
+    if (m_levelPath.size() < 2) return;
+
+    auto arrowTex = ResourceManager::getTexture("arrowTexture");
+    if (!arrowTex) return;
+
     if (!m_gameGrid) return;
 
     // не рисуем башню поверх меню

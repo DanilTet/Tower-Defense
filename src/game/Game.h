@@ -17,6 +17,7 @@ class Texture2D;
 class Enemy;
 class Tower;
 class WaveManager;
+class Pathfinder;
 
 class Game {
 public:
@@ -31,7 +32,7 @@ public:
     void render();
     void resize(int width, int height);
 
-	void spawnEnemy(EnemyType type); // функция для спавна врага
+	void spawnEnemy(EnemyType type, int spawnerIndex = 0); // функция для спавна врага
 	void startNextWave();
 
 	void renderPathArrows(); // метод ренгера стрелочек пути
@@ -84,4 +85,16 @@ private:
 
 	void renderUI(); // отриовка интерфейса
 	void renderHologram(); // метод лоя рисования голограммы
+
+
+	// точки спавна и точки баз
+	std::vector<glm::ivec2> m_spawners;
+
+	std::vector<glm::ivec2> m_bases;
+
+	//маршруты
+	//список маршрутов даже так
+	std::vector<std::vector<glm::ivec2>> m_paths;
+
+	std::unique_ptr<Pathfinder> m_pathfinder; // указатель на алгоритм поиска путиі
 };

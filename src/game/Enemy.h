@@ -21,6 +21,7 @@ struct EnemyStats {
 class SpriteRenderer;
 class Texture2D;
 class Grid;
+class Pathfinder;
 
 class Enemy
 {
@@ -31,7 +32,7 @@ private:
 	int m_reward; // награда за убийство врага
 
 
-	const std::vector<glm::ivec2>& m_path; // Ссылка на общий путь врагов
+	std::vector<glm::ivec2> m_path; // маршрут врага
 	size_t m_currentWayPoint; // текущая точка к которой враг идет
 	glm::vec2 m_pixelPos; // координаты врага в пикселях экрнана
 	bool m_reachedEnd; // флаг дошел ли враг до конца
@@ -44,6 +45,9 @@ private:
 	float m_distanceTraveled;// пройденная дистанция врага
 
 public:
+	
+	// функци для перерасчета пути
+	void recalculatePath(Pathfinder* pathfinder, const Grid& grid, glm::ivec2 basePos);
 
 	// Функция для получения характеристик врага в зависимости от его типа
 	static EnemyStats getStatsfromEnemyType(EnemyType type);

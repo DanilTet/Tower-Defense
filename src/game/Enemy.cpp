@@ -4,6 +4,7 @@
 #include "Grid.h"
 #include <iostream>
 #include "ConfigManager.h"
+#include "Pathfinder.h"
 
 int Enemy::s_nextId = 0; // инициализация общего счетчика
 
@@ -187,4 +188,18 @@ CircleCollider Enemy::getCollider(const Grid& grid) const {
 
     // возвращаем готовую структуру центр врага и его динамический радиус
     return { center, currentRadius };
+}
+// функция для нахождения новго пути
+void Enemy::recalculatePath(Pathfinder* pathfinder, const Grid& grid, glm::ivec2 basePos) {
+    //узнаем в какой клетке сейчас враг
+    glm::ivec2 currentGridPos = grid.pixelToGrid(m_pixelPos);
+
+    // ищем новый путь от позиции до базы
+    std::vector<glm::ivec2> newPath = pathfinder->findPath(grid, currentGridPos, basePos);
+
+    // если путь найден то обновляем 
+    if (!newPath.empty()) {
+        m_path = newPath; // записуем новый маршрут
+        m_currentWayPoint = 0; // начинаем идти по новому пути
+    }
 }

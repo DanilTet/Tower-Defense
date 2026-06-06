@@ -36,20 +36,18 @@ glm::ivec2 Grid::pixelToGrid(glm::vec2 pixelPos) const {
 
 // Проверяем можно ли построить башню на клетке с этими индексами
 bool Grid::canBuildAt(int gridX, int gridY) const {
-	// Проверяем , что индексы в пределах сетки и клетка пустая
-	if (gridX >= 0 && gridX < m_width && gridY >= 0 && gridY < m_height) {
-		// Если клетка пустая, то можно строить
-		return m_grid[gridY][gridX] == CellType::Empty;
+	// если координаты вышли за поле то строить нельзя
+	if (gridX < 0 || gridX >= m_width || gridY < 0 || gridY >= m_height) {
+		return false;
 	}
-	// Если индексы вне сетки или клетка не пустая, то строить нельзя
-	return false;
+	return m_grid[gridY][gridX] == CellType::Empty;
 }
 
 // Принудительно меняем тип конкретной ячейки
 void Grid::setCellType(int gridX, int gridY, CellType type) {
 	// защищаем массив от вылета за границы памяти
 	if (gridX >= 0 && gridX < m_width && gridY >= 0 && gridY < m_height) {
-		// тут важно что первый индекс - это строка (y), а второй индекс - это столбец (x)
+		// В нашем движке первый индекс всегда X (столбец), а второй Y (строка)!
 		m_grid[gridY][gridX] = type;
 	}
 }
@@ -102,4 +100,17 @@ void Grid::updateCellSize(int windowWidth, int windowHeight) {
 	else {
 		m_cellSize = sizeY;
 	}
+}
+
+
+CellType Grid::getCellType(int gridX, int gridY) const {
+	// 1. Сначала железная броня (чтобы не выйти за пределы 10 и 7)
+	if (gridX >= 0 && gridX < m_width && gridY >= 0 && gridY < m_height) {
+
+		// 2. ИМЕННО [gridX][gridY], а не наоборот!
+		return m_grid[gridY][gridX];
+	}
+
+	// Если алгоритм спрашивает про клетку за экраном - говорим, что там стена
+	return CellType::Blocked;
 }
