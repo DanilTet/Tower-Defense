@@ -2,8 +2,8 @@
 #include <vector>
 #include <memory>
 #include <glm/glm.hpp>
-#include "Enemy.h"
-#include "Tower.h"
+#include "entities/Enemy.h"
+#include "entities/Tower.h"
 
 enum class CellType {
 	Empty,

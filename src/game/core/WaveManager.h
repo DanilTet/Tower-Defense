@@ -2,7 +2,7 @@
 
 #include <vector>
 #include <string>
-#include "Enemy.h"
+#include "entities/Enemy.h"
 
 class Game;
 

@@ -1,10 +1,10 @@
 #include "Enemy.h"
 #include "../renderer/SpriteRenderer.h"
 #include "../textures/Texture2D.h"
-#include "Grid.h"
+#include "world/Grid.h"
 #include <iostream>
-#include "ConfigManager.h"
-#include "Pathfinder.h"
+#include "core/ConfigManager.h"
+#include "world/Pathfinder.h"
 
 int Enemy::s_nextId = 0; // инициализация общего счетчика
 

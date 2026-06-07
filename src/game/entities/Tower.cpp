@@ -1,10 +1,10 @@
 #include "Tower.h"
-#include "Grid.h"
+#include "world/Grid.h"
 #include "Enemy.h"
 #include "renderer/SpriteRenderer.h"
 #include "../audio/AudioManager.h"
 #include "Projectile.h"
-#include "ConfigManager.h"
+#include "core/ConfigManager.h"
 
 TowerStats Tower::getStatsfromTowerType(TowerType type) {
 	return ConfigManager::getTowerStats(type);

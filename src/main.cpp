@@ -3,7 +3,7 @@
 #include <iostream>
 #include <memory>
 #include "resources/ResourceManager.h"
-#include "game/Game.h"
+#include "game/core/Game.h"
 #include "audio/AudioManager.h"
 
 int windowWidth = 640; // начальная ширина окна

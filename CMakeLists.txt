@@ -57,38 +57,61 @@ add_subdirectory(external/glfw)
 add_subdirectory(external/glad)
 add_subdirectory(external/freetype)
 
+include_directories(src/game)
+
 add_executable(${PROJECT_NAME} 
+    # Главные файлы
     src/main.cpp 
     src/stb_image.cpp
-    src/shaders/ShaderProgram.h 
-    src/shaders/ShaderProgram.cpp
-    src/textures/Texture2D.h
-    src/textures/Texture2D.cpp
-    src/resources/ResourceManager.h
-    src/resources/ResourceManager.cpp
+
+    # === ИГРОВАЯ ЛОГИКА (Новая структура) ===
+
+    # Core (Ядро и менеджеры)
+    src/game/core/Game.h
+    src/game/core/Game.cpp
+    src/game/core/ConfigManager.h
+    src/game/core/ConfigManager.cpp
+    src/game/core/WaveManager.h
+    src/game/core/WaveManager.cpp
+
+    # Entities (Игровые сущности)
+    src/game/entities/Enemy.h
+    src/game/entities/Enemy.cpp
+    src/game/entities/Tower.h
+    src/game/entities/Tower.cpp
+    src/game/entities/Projectile.h
+    src/game/entities/Projectile.cpp
+    src/game/entities/CircleCollider.h
+
+    # World (Мир и навигация)
+    src/game/world/Grid.h
+    src/game/world/Grid.cpp
+    src/game/world/Pathfinder.h
+    src/game/world/Pathfinder.cpp
+
+    # === СИСТЕМНЫЕ МОДУЛИ ДВИЖКА ===
+
+    # Renderer (Отрисовка)
     src/renderer/SpriteRenderer.h
     src/renderer/SpriteRenderer.cpp
-    src/game/Grid.h
-    src/game/Grid.cpp
-    src/game/Game.h
-    src/game/Game.cpp
-    src/game/Enemy.h
-    src/game/Enemy.cpp
-    src/game/Tower.h
-    src/game/Tower.cpp
     src/renderer/TextRenderer.h
     src/renderer/TextRenderer.cpp
-    src/game/WaveManager.h
-    src/game/WaveManager.cpp
+
+    # Resources (Ресурсы)
+    src/resources/ResourceManager.h
+    src/resources/ResourceManager.cpp
+
+    # Shaders (Шейдеры)
+    src/shaders/ShaderProgram.h
+    src/shaders/ShaderProgram.cpp
+
+    # Textures (Текстуры)
+    src/textures/Texture2D.h
+    src/textures/Texture2D.cpp
+
+    # Audio (Аудио)
     src/audio/AudioManager.h
     src/audio/AudioManager.cpp
-    src/game/CircleCollider.h
-    src/game/Projectile.cpp
-    src/game/Projectile.h
-    src/game/ConfigManager.cpp
-    src/game/ConfigManager.h
-    src/game/Pathfinder.cpp
-    src/game/Pathfinder.h
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE

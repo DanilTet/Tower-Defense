@@ -2,8 +2,8 @@
 #include <map>
 #include <string>
 #include <vector>
-#include "Tower.h"
-#include "Enemy.h"
+#include "entities/Tower.h"
+#include "entities/Enemy.h"
 
 class ConfigManager {
 public:

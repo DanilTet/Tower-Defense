@@ -2,7 +2,7 @@
 #include "renderer/SpriteRenderer.h"
 #include "textures/Texture2D.h"
 #include "resources/ResourceManager.h"
-#include "Enemy.h"
+#include "entities/Enemy.h"
 
 // конструктор создает пустую сетку заданого размера
 Grid::Grid(int width, int height, float cellSize, glm::vec2 offset){

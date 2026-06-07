@@ -5,10 +5,10 @@
 #include <memory>
 #include <vector>
 #include <glm/glm.hpp>
-#include "Enemy.h"
+#include "entities/Enemy.h"
 #include "../renderer/TextRenderer.h"
-#include "Projectile.h"
-#include "Tower.h"
+#include "entities/Projectile.h"
+#include "entities/Tower.h"
 
 // Forward declarations ускоряет компиляцию и уменьшает количество включаемых заголовочных файлов
 // типа просто говорим компилятору, что эти классы существуют, а их определения будут в соответствующих заголовочных файлах

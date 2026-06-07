@@ -1,7 +1,7 @@
 #include "Projectile.h"
 #include "../renderer/SpriteRenderer.h"
 #include "../textures/Texture2D.h"
-#include "Grid.h"
+#include "world/Grid.h"
 
 Projectile::Projectile(glm::vec2 startPos, glm::vec2 targetPos, float speed, int damage, int targetId, float splashRadius)
 	: m_pos(startPos),

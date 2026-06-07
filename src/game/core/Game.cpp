@@ -3,15 +3,15 @@
 #include "renderer/SpriteRenderer.h"
 #include "textures/Texture2D.h"
 #include <glm/gtc/matrix_transform.hpp>
-#include "Grid.h"
-#include "Enemy.h"
-#include "Tower.h"
+#include "world/Grid.h"
+#include "entities/Enemy.h"
+#include "entities/Tower.h"
 #include "WaveManager.h"
 #include <vector>
 #include <iostream>
 #include "../audio/AudioManager.h"
 #include "ConfigManager.h"
-#include "Pathfinder.h"
+#include "world/Pathfinder.h"
 
 // Конструктор и деструктор
 Game::Game(int width, int height)
