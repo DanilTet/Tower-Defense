@@ -112,6 +112,19 @@ add_executable(${PROJECT_NAME}
     # Audio (Аудио)
     src/audio/AudioManager.h
     src/audio/AudioManager.cpp
+
+    # панелька для строительства
+    src/game/ui/BuildPanel.h
+    src/game/ui/BuildPanel.cpp
+
+    src/game/ui/PlacementUI.h
+    src/game/ui/PlacementUI.cpp
+
+    src/game/ui/PathRenderer.h
+    src/game/ui/PathRenderer.cpp
+
+    src/game/gameplay/BuildManager.h
+    src/game/gameplay/BuildManager.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE

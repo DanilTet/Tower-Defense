@@ -12,6 +12,9 @@
 #include "../audio/AudioManager.h"
 #include "ConfigManager.h"
 #include "world/Pathfinder.h"
+#include "ui/BuildPanel.h"
+#include "ui/PlacementUI.h"
+#include "gameplay/BuildManager.h"
 
 // Конструктор и деструктор
 Game::Game(int width, int height)
@@ -50,11 +53,12 @@ void Game::init() {
     Texture2D* cellTex = ResourceManager::getTexture("towerTexture"); // башня
     Texture2D* grassTex = ResourceManager::getTexture("grassTexture"); // тайл земли
     Texture2D* radTex = ResourceManager::getTexture("radiusTexture"); // радиус атаки башни
-    
+
     // указатель на тексту оборачиваем его в shared_ptr, чтобы управлять временем жизни текстуры
     m_cellTexture = std::shared_ptr<Texture2D>(cellTex, [](Texture2D*) {}); // башня
     m_grassTexture = std::shared_ptr<Texture2D>(grassTex, [](Texture2D*) {}); // тайл земли
     m_radiusTexture = std::shared_ptr<Texture2D>(radTex, [](Texture2D*) {}); // радиус атаки башни
+    
 
     // ШЕЙДЕР
 	// Получаем указатель на шейдер из ResourceManager и создаем рендерер для спрайтов
@@ -125,7 +129,7 @@ void Game::init() {
     // сохранение готового маршрута в список маршрутов
     m_paths.push_back(calculatedPath);
     m_levelPath = m_paths[0];
-    // блокируем постройку башни 
+    // блокируем постройку башни УЖЕ НЕ АКТУАЛЬНЕНЬКО БАМ БАМ БАМ 
     for (const auto& p : m_paths[0]) {
         if (m_gameGrid->getCellType(p.x, p.y) == CellType::Empty) {
             m_gameGrid->setCellType(p.x, p.y, CellType::Path);
@@ -141,25 +145,13 @@ void Game::init() {
     // АУДИО
     AudioManager::playMusic("res/sounds/background.mp3"); // врубаем имбовый трек
 
-    /*
-    // МАРШРУТ БЛОКИРУЕТ КЛЕТКИ
-    for (size_t i = 0; i < m_levelPath.size() - 1; ++i) {
-        glm::ivec2 start = m_levelPath[i];
-        glm::ivec2 end = m_levelPath[i + 1];
+    // ИНТЕРФЕЙС
+    m_buildPanel = std::make_unique<Buildpanel>(); // инициализация панельки для строительства
+    m_placementUI = std::make_unique<PlacementUI>(); // инициализация голограммы для строительства
+    m_pathVisualizer = std::make_unique<PathVisualizer>(); // инициализация стрелочек пути
 
-        // вычисляем направление шага -1, 0 или 1
-        int stepX = (end.x > start.x) ? 1 : (end.x < start.x) ? -1 : 0;
-        int stepY = (end.y > start.y) ? 1 : (end.y < start.y) ? -1 : 0;
-
-        glm::ivec2 current = start;
-        while (current != end + glm::ivec2(stepX, stepY)) {
-            // помечаем клетку как путь запрещенную для постройки
-            m_gameGrid->setCellType(current.x, current.y, CellType::Path);
-            current.x += stepX;
-            current.y += stepY;
-        }
-    }
-    */
+    // Гейплей
+    m_buildManager = std::make_unique<BuildManager>(); // инициализация абгрейдера и строителя башен
 }
 
 // Обработка ввода вызывается каждый кадр
@@ -185,7 +177,7 @@ void Game::processInput(GLFWwindow* window, float dt) {
         glfwGetCursorPos(window, &mouseX, &mouseY);
 
         //проверка клика по Ui
-        glm::vec2 panelPos = getUIPanelPos();
+        glm::vec2 panelPos = m_buildPanel->getUIPanelPos(this->width, this->height);
 
 
         // если мышка внутри прямоугольника панели
@@ -193,10 +185,10 @@ void Game::processInput(GLFWwindow* window, float dt) {
 
             // проверяем, по какой именно башне кликнули
             for (int i = 0; i < 3; ++i) {
-                glm::vec2 iconPos = getTowerIconPos(i);
+                glm::vec2 iconPos = m_buildPanel->getTowerIconPos(i, this->width, this->height);
 
-                if (mouseX >= iconPos.x && mouseX <= iconPos.x + UI_ICON_SIZE &&
-                    mouseY >= iconPos.y && mouseY <= iconPos.y + UI_ICON_SIZE) {
+                if (mouseX >= iconPos.x && mouseX <= iconPos.x + Buildpanel::UI_ICON_SIZE &&
+                    mouseY >= iconPos.y && mouseY <= iconPos.y + Buildpanel::UI_ICON_SIZE) {
 
                     // меняем выбранную башню
                     if (i == 0) m_selectedTowerType = TowerType::Basic;
@@ -208,98 +200,21 @@ void Game::processInput(GLFWwindow* window, float dt) {
             }
             return;
         }
-
-        // узнаем стоимость выбраной башни
         
-
-        glm::ivec2 clickedCell = m_gameGrid->pixelToGrid(glm::vec2(mouseX, mouseY));
-        
-        // если клик поза поля
-        if (clickedCell.x < 0 || clickedCell.x >= m_gameGrid->getWidth() ||
-            clickedCell.y < 0 || clickedCell.y >= m_gameGrid->getHeight()) {
-            return;
-        }
-
-        // логика апгрейда
-        if (m_selectedTowerType == TowerType::None) {
-            CellType clickedCellType = m_gameGrid->getCellType(clickedCell.x, clickedCell.y);
-
-            if (clickedCellType == CellType::Tower) {
-                // ищем в нашем векторе башню с такими же координатами YX
-                for (auto& tower : m_towers) {
-                    if (tower && tower->getGridX() == clickedCell.x && tower->getGridY() == clickedCell.y) {
-                        int cost = tower->getUpgradeCost();
-                        if (tower->upgrade(m_playerMoney)) {
-                            std::cout << "Tower upgraded to level " << tower->getLevel() << "!" << std::endl;
-                        }
-                        else {
-                            std::cout << "Upgrade failed! Max level or check money ($" << cost << ")" << std::endl;
-                        }
-                        break; // выходим
-                    }
-                }
-            }
-            return; // ОБЯЗАТЕЛЬНО выходим из метода, чтобы пустая рука не шла строить!
-        }
-
-
-        int currentCost = Tower::getStatsfromTowerType(m_selectedTowerType).cost;
-
-        if (m_playerMoney >= currentCost && m_gameGrid->canBuildAt(clickedCell.x, clickedCell.y)) {
-
-            // запоминаем какая клетка была до клика
-            CellType oldCellType = m_gameGrid->getCellType(clickedCell.x, clickedCell.y);
-
-            // виртуально ставим башню
-            m_gameGrid->setCellType(clickedCell.x, clickedCell.y, CellType::Tower);
-            //проверка маршрута
-            std::vector<glm::ivec2> testPath = m_pathfinder->findPath(*m_gameGrid, m_spawners[0], m_bases[0]);
-
-            // если пути нету значит игрок заблокировал маршрут
-            if (testPath.empty()) {
-                m_gameGrid->setCellType(clickedCell.x, clickedCell.y, oldCellType);
-                std::cout << "Path Blocked! Cannot build here." << std::endl;
-            }
-            else {
-                // если путь есть
-                // забираем деньги
-                m_playerMoney -= currentCost;
-                // спавним башню
-                auto newTower = std::make_unique<Tower>(clickedCell.x, clickedCell.y, m_selectedTowerType);
-                m_towers.push_back(std::move(newTower));
-                // звук постройки
-                TowerStats stats = Tower::getStatsfromTowerType(m_selectedTowerType);
-                AudioManager::playSound(stats.buildSound.c_str());
-
-                // обновляем путь
-                testPath.insert(testPath.begin(), m_spawners[0]);
-                m_paths[0] = testPath;
-                m_levelPath = testPath;
-
-                // убираем старій путь
-                for (int x = 0; x < m_gameGrid->getWidth(); ++x) {
-                    for (int y = 0; y < m_gameGrid->getHeight(); ++y) {
-                        if (m_gameGrid->getCellType(x, y) == CellType::Path) {
-                            m_gameGrid->setCellType(x, y, CellType::Empty);
-                        }
-                    }
-                }
-                // записуем новій путь
-                for (const auto& p : m_paths[0]) {
-                    if (m_gameGrid->getCellType(p.x, p.y) == CellType::Empty) {
-                        m_gameGrid->setCellType(p.x, p.y, CellType::Path);
-                    }
-                }
-
-                // даем врагам новій путь
-                for (auto& enemy : m_enemies) {
-                    if (enemy) {
-                        enemy->recalculatePath(m_pathfinder.get(), *m_gameGrid, m_bases[0]);
-                    }
-                }
-            }
-        }
+        m_buildManager->tryBuildOrUpgrade(
+            m_currentMousePos, // позиция мыши
+            m_selectedTowerType,// выбраный тип башни
+            m_playerMoney, // деньки игрока
+            m_towers,
+            m_enemies,// башни
+            *m_gameGrid, // сетка
+            *m_pathfinder, // поиск пути
+            m_spawners, // спавны
+            m_bases,// базы блять
+            m_paths,
+            m_levelPath);
     }
+    
     // Если мышка отпущена — сбрасываем флаг зажатия
     else if (mouseState == GLFW_RELEASE) {
         m_mousePressedLastFrame = false;
@@ -318,7 +233,7 @@ void Game::processInput(GLFWwindow* window, float dt) {
 // Обновление игровой логики вызывается каждый кадр, после обработки ввода
 void Game::update(float dt) {
     if (m_gameGrid) {
-        m_pathAnimationTimer += dt * (m_gameGrid->getCellSize() * 0.5f); // таймер анимации двигаем оп оп
+        m_pathVisualizer->update(dt, m_gameGrid->getCellSize()); // таймер анимации двигаем оп оп
     }
     // менеджер волн
     if (m_waveManager) {
@@ -380,7 +295,16 @@ void Game::render() {
     // Малюем игровую сетку передавая туда рендерер, текстуру плитки, сдвиг и белый цвет тонирования
     m_gameGrid->draw(m_renderer.get(), m_grassTexture, m_cellTexture, { 1.0f, 1.0f, 1.0f });
 
-    renderPathArrows(); // рисуем стрелочки пути
+
+    // стрелочки пути   
+    Texture2D* arrowTex = ResourceManager::getTexture("arrowTexture"); // достаем там єти стрелочки из ресурсменеджера
+    std::shared_ptr<Texture2D> arrowTexPtr(arrowTex, [](Texture2D*) {}); // и бахаем его в указатель
+    m_pathVisualizer->renderPathArrows(
+        m_renderer.get(),
+        arrowTexPtr,
+        m_levelPath,
+        *m_gameGrid
+    );; // рисуем стрелочки пути
 
     // Пробегаемся по вектору активных врагов и рисуем каждого поверх сетки
     for (const auto& enemy : m_enemies) {
@@ -401,10 +325,27 @@ void Game::render() {
             proj->render(m_renderer.get(), m_cellTexture);
         }
     }
-    // рисуем голограму
-    renderHologram();
 
     // ОТРИСОВКА ИНТЕРФЕЙСА
+    
+    // рендерим голограмму строительства
+    bool hasPath = m_levelPath.size() >= 2;
+    // актуальная позиция менюшки
+    glm::vec2 currentPanelPos = m_buildPanel->getUIPanelPos(this->width, this->height);
+
+    m_placementUI->renderHologram(
+        m_renderer.get(),
+        m_cellTexture,
+        m_radiusTexture,
+        *m_gameGrid,
+        m_currentMousePos,
+        m_selectedTowerType,
+        m_playerMoney,
+        currentPanelPos,
+        hasPath
+    );
+
+    
     // Желтый цвет для денег
     m_textRenderer->RenderText("Деньги: " + std::to_string(m_playerMoney), 25.0f, 25.0f, 1.0f, glm::vec3(1.0f, 0.9f, 0.2f));
 
@@ -413,7 +354,16 @@ void Game::render() {
 
     m_textRenderer->RenderText("Волна: " + std::to_string(m_waveManager->getCurrentWaveNumber()), 25.0f, 95.0f, 1.0f, glm::vec3(0.5f, 1.0f, 0.5f));
 
-    renderUI();
+    // отрисовка панельки для постройки
+    m_buildPanel->BuildRenderUI(
+        m_renderer.get(),
+        m_textRenderer.get(),
+        m_cellTexture,
+        this->width,
+        this->height,
+        m_playerMoney,
+        m_selectedTowerType
+    );
 }
 
 // Изменение размеров окна: вызывается системным колбеком из main.cpp
@@ -448,7 +398,7 @@ void Game::resize(int width, int height) {
 }
 
 // функция для спавна врага
-void Game::spawnEnemy(EnemyType type, int spawnerIndex) {\
+void Game::spawnEnemy(EnemyType type, int spawnerIndex) {
     // если спавнера не существуеты
     if (spawnerIndex >= m_paths.size() || m_paths[spawnerIndex].empty()) return;
 
@@ -462,202 +412,4 @@ void Game::startNextWave() {
     if (m_waveManager) {
         m_waveManager->startNextWave();
     }
-}
-
-void Game::renderPathArrows() {
-    auto arrowTex = ResourceManager::getTexture("arrowTexture");
-    if (!arrowTex) return;
-
-    float cellSize = m_gameGrid->getCellSize(); // размер клетки
-    float halfCell = cellSize / 2.0f; // половина клетки
-
-    glm::vec2 arrowSize(cellSize * 0.20f, cellSize * 0.20f); // Размер стрелки — 25% от ширины клетки
-    float arrowSpacing = cellSize * 0.50f; // Расстояние между стрелками — 60% от ширины клетки
-
-    // СУПЕР КРУТОЙ ЄФЕКТ СВЕЧЕНИЯ
-    // переключаем бленд-функцию в режим сложения цветов
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-
-    // белый цвет с альфа-прозрачностью чат гпт говорит 0.6f для мягкого свечения
-    glm::vec3 arrowColor(1.0f, 1.0f, 1.0f);
-
-    // пробегаемся по всем отрезкам пути
-    for (size_t i = 0; i < m_levelPath.size() - 1; ++i) {
-        // переводим узлы пути в пиксельные центры клеток
-        glm::vec2 startPx = m_gameGrid->gridToPixel(m_levelPath[i].x, m_levelPath[i].y) + glm::vec2(halfCell);
-        glm::vec2 endPx = m_gameGrid->gridToPixel(m_levelPath[i + 1].x, m_levelPath[i + 1].y) + glm::vec2(halfCell);
-
-        glm::vec2 toEnd = endPx - startPx;
-        float segmentLength = glm::length(toEnd);
-        glm::vec2 direction = glm::normalize(toEnd);
-
-        // вычисляем угол поворота стрелочки в зависимости от направления отрезка
-        float angle = glm::degrees(atan2(direction.y, direction.x));
-        // ефект ползанья
-        // стартовое смещение для этого кадра
-        float startOffset = fmod(m_pathAnimationTimer, arrowSpacing);
-
-        // рисуем стрелочки вдоль всего текущего сегмента
-        for (float d = startOffset; d < segmentLength; d += arrowSpacing) {
-            glm::vec2 arrowPos = startPx + direction * d;
-
-            // сдвигаем позицию, чтобы arrowPos была ровно по центру стрелочки
-            glm::vec2 drawPos = arrowPos - (arrowSize / 2.0f);
-
-            // отрисовка через спрайт-рендерер
-            m_renderer->drawSprite(std::shared_ptr<Texture2D>(arrowTex, [](Texture2D*) {}), drawPos, arrowSize, angle, arrowColor);
-        }
-    }
-
-    // возражение режима прозрачности
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-}
-
-void Game::renderUI()
-{
-    glm::vec2 panelPos = getUIPanelPos(); // позиция менюшки
-
-    // рисуем фон панели
-    m_renderer->drawSprite(m_cellTexture, panelPos, glm::vec2(UI_PANEL_WIDTH, UI_PANEL_HEIGHT), 0.0f, glm::vec3(0.1f, 0.1f, 0.1f));
-    // список башен для отрисовки
-    std::vector<TowerType> availableTowers = { TowerType::Basic, TowerType::Sniper, TowerType::Cannon };
-
-    // рисуем каждую башню
-    for (size_t i = 0; i < availableTowers.size(); ++i) {
-        TowerType currentType = availableTowers[i];
-        TowerStats stats = Tower::getStatsfromTowerType(currentType);
-
-        // позиция иконок
-        glm::vec2 iconPos = getTowerIconPos(i);
-
-        bool canAfford = (m_playerMoney >= stats.cost); // определяем хватает ли денег
-
-        // цвет башни
-        glm::vec3 towerColor(1.0f);
-        if (currentType == TowerType::Basic) towerColor = glm::vec3(0.5f, 0.5f, 0.5f);
-        else if (currentType == TowerType::Sniper) towerColor = glm::vec3(0.8f, 0.2f, 0.2f);
-        else if (currentType == TowerType::Cannon) towerColor = glm::vec3(0.2f, 0.2f, 0.8f);
-
-        // если денег не достаточно то делаем башню серой
-        glm::vec3 drawColor;
-        
-        if (canAfford) {
-            drawColor = towerColor;
-        }
-        else {
-            drawColor = glm::vec3(0.2f, 0.2f, 0.2f);
-        }
-
-        // выделяем желтой рамкой выбраную башню
-        if (m_selectedTowerType == currentType) {
-            m_renderer->drawSprite(m_cellTexture, iconPos - glm::vec2(4.0f), glm::vec2(UI_ICON_SIZE + 8.0f), 0.0f, glm::vec3(1.0f, 1.0f, 0.0f));
-        }
-
-        // рисуем иконку башни
-        m_renderer->drawSprite(m_cellTexture, iconPos, glm::vec2(UI_ICON_SIZE), 0.0f, drawColor);
-
-        // текст цены
-        std::string towerName;
-
-        if (currentType == TowerType::Basic) {
-            towerName = "Basic";
-        }
-        else if (currentType == TowerType::Sniper) {
-            towerName = "Sniper";
-        }
-        else {
-            towerName = "Cannon";
-        }
-
-        // если нету денег текст красный и зеленый если есть
-        glm::vec3 textColor;
-
-        if (canAfford) {
-            textColor = glm::vec3(0.4f, 1.0f, 0.4f);
-        }
-        else {
-            textColor = glm::vec3(1.0f, 0.3f, 0.3f);
-        }
-
-        m_textRenderer->RenderText(towerName + ": $" + std::to_string(stats.cost),
-            iconPos.x - 5.0f, iconPos.y + UI_ICON_SIZE + 10.0f, 0.5f, textColor);
-
-    }
-}
-
-// возвражает координаті верхнего левого угла всей панели (НАДА БУДЕТ ВОЗВОМЖНО ДЛЯ РЕСАЙЗА)
-glm::vec2 Game::getUIPanelPos() const {
-    return glm::vec2(this->width - UI_PANEL_WIDTH, this->height - UI_PANEL_HEIGHT);
-}
-
-// возвращает координаты конкретной иконки башни 0, 1 или 2
-glm::vec2 Game::getTowerIconPos(int index) const {
-    glm::vec2 panelPos = getUIPanelPos();
-    return glm::vec2(
-        panelPos.x + UI_OFFSET_X + (index * UI_ICON_PADDING),
-        panelPos.y + UI_OFFSET_Y
-    );
-}
-
-// рендерим голограму перед покупкой
-void Game::renderHologram() {
-
-    if (m_selectedTowerType == TowerType::None) {
-        return;
-    }
-
-    if (m_levelPath.size() < 2) return;
-
-    auto arrowTex = ResourceManager::getTexture("arrowTexture");
-    if (!arrowTex) return;
-
-    if (!m_gameGrid) return;
-
-    // не рисуем башню поверх меню
-    glm::vec2 panelPos = getUIPanelPos();
-    if (m_currentMousePos.x >= panelPos.x && m_currentMousePos.y >= panelPos.y) {
-        return;
-    }
-
-    // переводим пиксели мыши в координаты сетки
-    glm::ivec2 gridPos = m_gameGrid->pixelToGrid(m_currentMousePos);
-
-    // получаем данные выбранной башни
-    TowerStats stats = Tower::getStatsfromTowerType(m_selectedTowerType);
-
-    // проверяем, можно ли тут строить
-    bool hasMoney = (m_playerMoney >= stats.cost);
-    bool canBuildHere = m_gameGrid->canBuildAt(gridPos.x, gridPos.y);
-
-    // задаем цвет голограмы
-    glm::vec3 holoColor;
-
-    if (hasMoney && canBuildHere) {
-        holoColor = glm::vec3(0.2f, 1.0f, 0.2f); // Зелёная голограмма все ок
-    }
-    else {
-        holoColor = glm::vec3(1.0f, 0.2f, 0.2f); // Красная голограмма проблема
-    }
-
-    // вычисляем пиксельные координаты для центрирования
-    float cellSize = m_gameGrid->getCellSize();
-    glm::vec2 cellPixelPos = m_gameGrid->gridToPixel(gridPos.x, gridPos.y);
-    glm::vec2 cellCenter = cellPixelPos + glm::vec2(cellSize / 2.0f);
-
-    // включаем режим свечения
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-
-    // отрисовка радиуса атаки
-    float currentPixelRange = stats.range * cellSize;
-    glm::vec2 radiusSize(currentPixelRange * 2.0f, currentPixelRange * 2.0f);
-    glm::vec2 radiusPos = cellCenter - glm::vec2(currentPixelRange);
-
-    // рисуем радиус цвета голограммы
-    m_renderer->drawSprite(m_radiusTexture, radiusPos, radiusSize, 0.0f, holoColor);
-
-    // отрисовка самой башни
-    m_renderer->drawSprite(m_cellTexture, cellPixelPos, glm::vec2(cellSize), 0.0f, holoColor);
-
-    // выключаем свечение
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }

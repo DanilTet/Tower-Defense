@@ -9,6 +9,10 @@
 #include "../renderer/TextRenderer.h"
 #include "entities/Projectile.h"
 #include "entities/Tower.h"
+#include "ui/BuildPanel.h"
+#include "ui/PlacementUI.h"
+#include "ui/PathRenderer.h"
+#include "gameplay/BuildManager.h"
 
 // Forward declarations ускоряет компиляцию и уменьшает количество включаемых заголовочных файлов
 // типа просто говорим компилятору, что эти классы существуют, а их определения будут в соответствующих заголовочных файлах
@@ -35,8 +39,6 @@ public:
 
 	void spawnEnemy(EnemyType type, int spawnerIndex = 0); // функция для спавна врага
 	void startNextWave();
-
-	void renderPathArrows(); // метод ренгера стрелочек пути
 
 private:
 	int m_playerMoney; // деньги игрока
@@ -66,29 +68,9 @@ private:
 
 	std::vector<std::unique_ptr<Projectile>> m_projectiles; // проджектайлы
 
-	float m_pathAnimationTimer = 0.0f; // таймер для анимации стрелочек
-
-	//TowerType m_selectedTowerType = TowerType::Basic; // какая башня выбрана щас
-
 	TowerType m_selectedTowerType = TowerType::None; //какая башня вібрана
 
-	// ИНТЕРФЕЙС ПАНЕЛИ ВІБОРА БАШНИ
-	static constexpr float UI_PANEL_WIDTH = 350.0f; // длина панели
-	static constexpr float UI_PANEL_HEIGHT = 120.0f; // вісота панели
-	static constexpr float UI_ICON_SIZE = 60.0f; // размер иконки
-	static constexpr float UI_ICON_PADDING = 110.0f; // отступ
-	static constexpr float UI_OFFSET_X = 20.0f; // Отступ иконок от левого края панели
-	static constexpr float UI_OFFSET_Y = 30.0f; // Отступ иконок от верхнего края панели
-
-
-	glm::vec2 getUIPanelPos() const;
-	glm::vec2 getTowerIconPos(int index) const;
-
 	glm::vec2 m_currentMousePos; // позиция мыши каждый кадр
-
-	void renderUI(); // отриовка интерфейса
-	void renderHologram(); // метод лоя рисования голограммы
-
 
 	// точки спавна и точки баз
 	std::vector<glm::ivec2> m_spawners;
@@ -99,4 +81,13 @@ private:
 	std::vector<std::vector<glm::ivec2>> m_paths;
 
 	std::unique_ptr<Pathfinder> m_pathfinder; // указатель на алгоритм поиска путиі
+
+	// ИНТЕРФЕЙС
+	std::unique_ptr<Buildpanel> m_buildPanel;//указатель на панельку стоительства
+	std::unique_ptr<PlacementUI> m_placementUI; // указатель на голограму строительства
+	std::unique_ptr<PathVisualizer> m_pathVisualizer; // указатель на стрелочки пути
+
+	// Геймплей
+	std::unique_ptr<BuildManager> m_buildManager; // укащатель на абгрейдер та строитель башен
+
 };
