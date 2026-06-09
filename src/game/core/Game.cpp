@@ -16,6 +16,7 @@
 #include "ui/PlacementUI.h"
 #include "ui/StatsPanel.h"
 #include "gameplay/BuildManager.h"
+#include "core/LevelManager.h"
 
 // Конструктор и деструктор
 Game::Game(int width, int height)
@@ -101,25 +102,37 @@ void Game::init() {
         std::cerr << "Failed to load font!" << std::endl;
     }
 
-
+    // ГРУЗИМ УРОВЕНЬ
+    // грузим данные уровня
+    std::string currentLevelPath = "res/levels/level_1.json";
+    LevelMapData levelData = LevelManager::loadLevelMap(currentLevelPath);
 
     // ПОЛЕ
 	// Создаем сетку 10 на 7 клеток, каждая клетка 64 пикселя в размере
-    m_gameGrid = std::make_unique<Grid>(10, 7, 64.0f, glm::vec2(20.0f, 20.0f));
-
-	// Обновляем размер клеток сетки, чтобы она всегда занимала все окно, даже при изменении размера окна
+    m_gameGrid = std::make_unique<Grid>(
+        levelData.gridWidth,
+        levelData.gridHeight,
+        levelData.cellSize,
+        glm::vec2(levelData.offsetX, levelData.offsetY)
+    ); // передаем из levelData инфу про поле
     m_gameGrid->updateCellSize(this->width, this->height);
 
     // ТОЧКИ ПОЯВЛЕНИЯ И БАЗА
+    m_spawners = levelData.spawners;
+    m_bases = levelData.bases;
 
-    m_spawners.push_back({ 0, 0 }); // спавнер
-    m_bases.push_back({ 9, 6 }); // база
+    // устанавливаем спавнеры на карту
+    for (const auto& spawner : m_spawners) {
+        m_gameGrid->setCellType(spawner.x, spawner.y, CellType::Spawner);
+    }
 
-    m_gameGrid->setCellType(m_spawners[0].x, m_spawners[0].y, CellType::Spawner);
-    m_gameGrid->setCellType(m_bases[0].x, m_bases[0].y, CellType::Base);
+    // устанавливаем базы на карту
+    for (const auto& base : m_bases) {
+        m_gameGrid->setCellType(base.x, base.y, CellType::Base);
+    }
 
     // ИНИЦИАЛИЗАЦИЯ АЛГОРИТМА И ПОИСК ПУТИ
-    m_pathfinder = std::make_unique<Pathfinder>(10, 7); // размері сетки
+    m_pathfinder = std::make_unique<Pathfinder>(levelData.gridWidth, levelData.gridHeight); // размері сетки
 
     // запуск алгоритма А*
     std::vector<glm::ivec2> calculatedPath = m_pathfinder->findPath(*m_gameGrid, m_spawners[0], m_bases[0]);
@@ -141,7 +154,7 @@ void Game::init() {
     
     // МЕНЕДЖЕР ВОЛН
     m_waveManager = std::make_unique<WaveManager>();
-    m_waveManager->loadLevel("res/levels/level_1.json"); // загружаем конфигурацию уровня
+    m_waveManager->loadLevel(currentLevelPath); // загружаем конфигурацию уровня
 
     // АУДИО
     AudioManager::playMusic("res/sounds/background.mp3"); // врубаем имбовый трек

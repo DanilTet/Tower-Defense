@@ -1,4 +1,23 @@
 {
+  "map": {
+    "width": 11,
+    "height": 7,
+    "cellSize": 64.0,
+    "offsetX": 20.0,
+    "offsetY": 20.0,
+    "spawners": [
+      {
+        "x": 0,
+        "y": 5
+      }
+    ],
+    "bases": [
+      {
+        "x": 10,
+        "y": 6
+      }
+    ]
+  },
   "waves": [
     {
       "parts": [

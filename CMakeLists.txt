@@ -128,6 +128,9 @@ add_executable(${PROJECT_NAME}
 
     src/game/gameplay/BuildManager.h
     src/game/gameplay/BuildManager.cpp
+
+    src/game/core/LevelManager.h
+    src/game/core/LevelManager.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
