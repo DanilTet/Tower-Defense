@@ -14,6 +14,7 @@
 #include "ui/PathRenderer.h"
 #include "ui/StatsPanel.h"
 #include "gameplay/BuildManager.h"
+#include "gameplay/EntityManager.h"
 
 // Forward declarations ускоряет компиляцию и уменьшает количество включаемых заголовочных файлов
 // типа просто говорим компилятору, что эти классы существуют, а их определения будут в соответствующих заголовочных файлах
@@ -24,6 +25,7 @@ class Enemy;
 class Tower;
 class WaveManager;
 class Pathfinder;
+class EntityManager;
 
 class Game {
 public:
@@ -60,14 +62,11 @@ private:
 
 	// Движение врага и спавн
 	std::vector<glm::ivec2> m_levelPath; // маршрут врага по клеткам сетки
-	std::vector<std::unique_ptr<Enemy>> m_enemies; // вектор для хранения всех врагов на уровне
 	std::unique_ptr<WaveManager> m_waveManager; // менеджер волн
 
-	std::vector<std::unique_ptr<Tower>> m_towers;// БАШНИ
 
 	std::unique_ptr<TextRenderer> m_textRenderer; // текст
 
-	std::vector<std::unique_ptr<Projectile>> m_projectiles; // проджектайлы
 
 	TowerType m_selectedTowerType = TowerType::None; //какая башня вібрана
 
@@ -91,5 +90,5 @@ private:
 
 	// Геймплей
 	std::unique_ptr<BuildManager> m_buildManager; // укащатель на абгрейдер та строитель башен
-
+	std::unique_ptr<EntityManager> m_entityManager; // менеджер отвечающий за отрисовку и обновление всех башен, врагов и пули
 };

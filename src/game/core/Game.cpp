@@ -17,6 +17,7 @@
 #include "ui/StatsPanel.h"
 #include "gameplay/BuildManager.h"
 #include "core/LevelManager.h"
+#include "gameplay/EntityManager.h"
 
 // Конструктор и деструктор
 Game::Game(int width, int height)
@@ -167,6 +168,7 @@ void Game::init() {
 
     // Гейплей
     m_buildManager = std::make_unique<BuildManager>(); // инициализация абгрейдера и строителя башен
+    m_entityManager = std::make_unique<EntityManager>(); // инициализация менеджера для отрисовки и обновление башен,врагов и пуль
 }
 
 // Обработка ввода вызывается каждый кадр
@@ -200,8 +202,8 @@ void Game::processInput(GLFWwindow* window, float dt) {
             m_currentMousePos, // позиция мыши
             m_selectedTowerType,// выбраный тип башни
             m_playerMoney, // деньки игрока
-            m_towers,
-            m_enemies,// башни
+            m_entityManager->getTowers(),// башни
+            m_entityManager->getEnemies(),// враги
             *m_gameGrid, // сетка
             *m_pathfinder, // поиск пути
             m_spawners, // спавны
@@ -235,54 +237,8 @@ void Game::update(float dt) {
         m_waveManager->update(dt, *this); // Передаем разницу во времени и ссылку на себя
     }
     
-    // Пробегаемся по всему вектору активных башен на карте
-    for (const auto& tower : m_towers) {
-        if (tower) {
-            tower->update(dt, m_enemies, m_projectiles, *m_gameGrid);
-        }
-    }
-    // Пробегаемся по всему вектору активных врагов на карте
-    for (const auto& enemy : m_enemies) {
-        if (enemy) { // Если указатель на врага живой
-            enemy->update(dt, *m_gameGrid); // Приказываем врагу пересчитать свою позицию с учетом deltaTime
-        }
-    }
-
-    // если враг убит добавляем игроку деняк иначе отминаем от базі хп
-    for (const auto& enemy : m_enemies) {
-        if (enemy->isDead()) {
-            m_playerMoney += enemy->getReward();
-        }
-        if (enemy->isReachedEnd()) {
-            m_baseHealth -= 1;
-        }
-    }
-
-    // обновляем пули
-    for (const auto& proj : m_projectiles) {
-        if (proj) {
-            proj->update(dt, m_enemies, *m_gameGrid);
-        }
-    }
-
-    // удаляем уничтоженіе пули
-    m_projectiles.erase(
-        std::remove_if(m_projectiles.begin(), m_projectiles.end(),
-            [](const std::unique_ptr<Projectile>& proj) {
-                return proj->isDestroyed();
-            }),
-        m_projectiles.end()
-    );
-
-	// Удаляем врагов, которые достигли конца пути или умерли
-    m_enemies.erase(
-        // remove_if сдвигает всех "финишировавших" врагов в хвост вектора и возвращает итератор на начало этого хвоста
-        std::remove_if(m_enemies.begin(), m_enemies.end(),
-            [](const std::unique_ptr<Enemy>& enemy) {
-                return enemy->isReachedEnd() || enemy->isDead(); // Критерий удаления: метод вернул true
-            }),
-        m_enemies.end() // Метод erase физически отрезает этот хвост из памяти
-    );
+    // обновляем все башни, врагов и пули
+    m_entityManager->update(dt, *m_gameGrid, m_playerMoney, m_baseHealth);
 }
 
 // Отрисовка кадра вызывается каждый кадр, после обновления логики
@@ -301,25 +257,8 @@ void Game::render() {
         *m_gameGrid
     );; // рисуем стрелочки пути
 
-    // Пробегаемся по вектору активных врагов и рисуем каждого поверх сетки
-    for (const auto& enemy : m_enemies) {
-        if (enemy) { // Если враг существует
-            enemy->render(m_renderer.get(), m_cellTexture, m_radiusTexture, m_gameGrid->getOffset(), *m_gameGrid); // Вызываем его метод отрисовки
-        }
-    }
-    // Пробегаемся по вектору активных башен и рисуем каждого поверх сетки
-    for (const auto& tower : m_towers) {
-        if (tower) {
-            tower->render(m_renderer.get(), m_cellTexture, m_radiusTexture, *m_gameGrid);
-        }
-    }
-
-    // рисуем пули
-    for (const auto& proj : m_projectiles) {
-        if (proj) {
-            proj->render(m_renderer.get(), m_cellTexture);
-        }
-    }
+    // рисуем все башни врагов и пули
+    m_entityManager->render(m_renderer.get(), m_cellTexture, m_radiusTexture, *m_gameGrid);
 
     // ОТРИСОВКА ИНТЕРФЕЙСА
     
@@ -373,7 +312,7 @@ void Game::resize(int width, int height) {
         m_gameGrid->updateCellSize(width, height); 
         
 		// Обновляем позицию каждого врага, чтобы они оставались на своих клетках даже при изменении размера окна и размера клеток
-        for (const auto& enemy : m_enemies) {
+        for (const auto& enemy : m_entityManager->getEnemies()) {
             if (enemy) {
                 enemy->recalculatePosition(oldGrid, *m_gameGrid);   
             }
@@ -394,7 +333,7 @@ void Game::spawnEnemy(EnemyType type, int spawnerIndex) {
     // выдаем врагу маршрут из списка путей
     auto newEnemy = std::make_unique<Enemy>(m_paths[spawnerIndex], *m_gameGrid, type);
     // Переносим владение (std::move) над этим указателем и пушим его в конец вектора m_enemies
-    m_enemies.push_back(std::move(newEnemy));
+    m_entityManager->addEnemy(std::move(newEnemy));
 }
 
 void Game::startNextWave() {

@@ -129,6 +129,9 @@ add_executable(${PROJECT_NAME}
     src/game/gameplay/BuildManager.h
     src/game/gameplay/BuildManager.cpp
 
+    src/game/gameplay/EntityManager.h
+    src/game/gameplay/EntityManager.cpp
+
     src/game/core/LevelManager.h
     src/game/core/LevelManager.cpp
 )
