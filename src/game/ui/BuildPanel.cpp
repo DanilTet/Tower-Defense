@@ -96,3 +96,34 @@ void Buildpanel::BuildRenderUI(
 
     }
 }
+
+
+bool Buildpanel::checkClick(float mouseX, float mouseY, int windowWidth, int windowHeight, TowerType& selectedTower) {
+    
+    //проверка клика по Ui
+    glm::vec2 panelPos = getUIPanelPos(windowWidth, windowHeight);
+
+
+    // если мышка вне прямоугольника панели
+    if (mouseX < panelPos.x || mouseY < panelPos.y){
+        return false;
+    }
+
+    // проверяем, по какой именно башне кликнули
+    for (int i = 0; i < 3; ++i) {
+        glm::vec2 iconPos = getTowerIconPos(i, windowWidth, windowHeight);
+
+        if (mouseX >= iconPos.x && mouseX <= iconPos.x + Buildpanel::UI_ICON_SIZE &&
+            mouseY >= iconPos.y && mouseY <= iconPos.y + Buildpanel::UI_ICON_SIZE) {
+
+            // меняем выбранную башню
+            if (i == 0) selectedTower = TowerType::Basic;
+            else if (i == 1) selectedTower = TowerType::Sniper;
+            else if (i == 2) selectedTower = TowerType::Cannon;
+
+            //AudioManager::playSound("res/sounds/build.wav", 0.5f); // Звук клика по кнопке
+        }
+    }
+
+    return true;
+}

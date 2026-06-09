@@ -36,6 +36,9 @@ public:
 		TowerType selectedTower // выбраная башня
 	);
 
+	// чекаем кликнули по панельки ли не
+	bool checkClick(float mouseX, float mouseY, int windowWidth, int windowHeight, TowerType& selectedTower);
+
 	// методы для панельки
 	glm::vec2 getUIPanelPos(int windowWidth, int windowHeight) const; // получить позицию панельки относительно верхнего левого угла панельки
 	glm::vec2 getTowerIconPos(int index, int windowWidth, int windowHeight) const; // когда отрисовываем иконки башни в менюшки то зависимо от индекса возращает корды

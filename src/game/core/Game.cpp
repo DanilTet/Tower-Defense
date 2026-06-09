@@ -178,28 +178,8 @@ void Game::processInput(GLFWwindow* window, float dt) {
         double mouseX, mouseY;
         glfwGetCursorPos(window, &mouseX, &mouseY);
 
-        //проверка клика по Ui
-        glm::vec2 panelPos = m_buildPanel->getUIPanelPos(this->width, this->height);
-
-
-        // если мышка внутри прямоугольника панели
-        if (mouseX >= panelPos.x && mouseY >= panelPos.y) {
-
-            // проверяем, по какой именно башне кликнули
-            for (int i = 0; i < 3; ++i) {
-                glm::vec2 iconPos = m_buildPanel->getTowerIconPos(i, this->width, this->height);
-
-                if (mouseX >= iconPos.x && mouseX <= iconPos.x + Buildpanel::UI_ICON_SIZE &&
-                    mouseY >= iconPos.y && mouseY <= iconPos.y + Buildpanel::UI_ICON_SIZE) {
-
-                    // меняем выбранную башню
-                    if (i == 0) m_selectedTowerType = TowerType::Basic;
-                    else if (i == 1) m_selectedTowerType = TowerType::Sniper;
-                    else if (i == 2) m_selectedTowerType = TowerType::Cannon;
-
-                    //AudioManager::playSound("res/sounds/build.wav", 0.5f); // Звук клика по кнопке
-                }
-            }
+        // если кликнули по менюшке то обновляем выбраную башню
+        if (m_buildPanel->checkClick(mouseX, mouseY, this->width, this->height, m_selectedTowerType)) {
             return;
         }
         
@@ -335,6 +315,7 @@ void Game::render() {
     // актуальная позиция менюшки
     glm::vec2 currentPanelPos = m_buildPanel->getUIPanelPos(this->width, this->height);
 
+    //тут рисуем голограмму для строительсва 
     m_placementUI->renderHologram(
         m_renderer.get(),
         m_cellTexture,
