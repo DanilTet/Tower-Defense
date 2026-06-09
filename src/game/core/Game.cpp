@@ -174,6 +174,14 @@ void Game::init() {
 // Обработка ввода вызывается каждый кадр
 void Game::processInput(GLFWwindow* window, float dt) {
     
+    // если игра проиграна блокируем мышь и можно рестартнуть на R
+    if (m_isGameOver) {
+        if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS) {
+            restartGame(); // тут рестартаем
+        }
+        return; // выходим из метода чтобы ниче дальге не обрабатывать
+    }
+
     // читаем мышку каждый кадр
     double mouseX, mouseY;
     glfwGetCursorPos(window, &mouseX, &mouseY);
@@ -229,6 +237,11 @@ void Game::processInput(GLFWwindow* window, float dt) {
 
 // Обновление игровой логики вызывается каждый кадр, после обработки ввода
 void Game::update(float dt) {
+    // если игра окончена то фризим ее
+    if (m_isGameOver) {
+        return;
+    }
+
     if (m_gameGrid) {
         m_pathVisualizer->update(dt, m_gameGrid->getCellSize()); // таймер анимации двигаем оп оп
     }
@@ -239,6 +252,13 @@ void Game::update(float dt) {
     
     // обновляем все башни, врагов и пули
     m_entityManager->update(dt, *m_gameGrid, m_playerMoney, m_baseHealth);
+
+    //проверка на проигрыш
+    if (m_baseHealth <= 0) {
+        m_baseHealth = 0;
+        m_isGameOver = true;
+        
+    }
 }
 
 // Отрисовка кадра вызывается каждый кадр, после обновления логики
@@ -292,6 +312,12 @@ void Game::render() {
         m_playerMoney,
         m_selectedTowerType
     );
+
+    // экран проигрыша хотя скорее тектс
+    if (m_isGameOver) {
+        m_textRenderer->RenderText("GAME OVER", this->width / 2.0f - 100.0f, this->height / 2.0f - 50.0f, 2.0f, glm::vec3(1.0f, 0.1f, 0.1f));
+        m_textRenderer->RenderText("Press 'R' to Restart", this->width / 2.0f - 130.0f, this->height / 2.0f + 20.0f, 1.0f, glm::vec3(1.0f, 1.0f, 1.0f));
+    }
 }
 
 // Изменение размеров окна: вызывается системным колбеком из main.cpp
@@ -340,4 +366,23 @@ void Game::startNextWave() {
     if (m_waveManager) {
         m_waveManager->startNextWave();
     }
+}
+
+
+void Game::restartGame() {
+    // сброс статы
+    m_playerMoney = 100000000;
+    m_baseHealth = 100;
+    m_isGameOver = false;
+
+    // сбарсываем выбраную башню
+    m_selectedTowerType = TowerType::None;
+
+    // убиваем менеджера сущсностей
+    m_entityManager = std::make_unique<EntityManager>();
+
+    // рестертаем волны
+    m_waveManager->loadLevel("res/levels/level_1.json");
+
+    std::cout << "Game Restarted!" << std::endl;
 }

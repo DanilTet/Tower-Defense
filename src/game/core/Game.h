@@ -42,10 +42,12 @@ public:
 
 	void spawnEnemy(EnemyType type, int spawnerIndex = 0); // функция для спавна врага
 	void startNextWave();
+	void restartGame(); // функция перезапуска уровня
 
 private:
 	int m_playerMoney; // деньги игрока
 	int m_baseHealth; // здоровье базы
+	bool m_isGameOver = false; // флаг проигрыша
 
 	std::unique_ptr<SpriteRenderer> m_renderer; // рендерер для отрисовки спрайтов
 	std::unique_ptr<Grid> m_gameGrid; // указатель на сетку

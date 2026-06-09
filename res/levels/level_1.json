@@ -22,9 +22,9 @@
     {
       "parts": [
         {
-          "type": "Basic",
-          "count": 10,
-          "interval": 1.0,
+          "type": "Fast",
+          "count": 100,
+          "interval": 0.01,
           "delayAfter": 4.0
         },
         {
