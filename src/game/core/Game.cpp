@@ -14,6 +14,7 @@
 #include "world/Pathfinder.h"
 #include "ui/BuildPanel.h"
 #include "ui/PlacementUI.h"
+#include "ui/StatsPanel.h"
 #include "gameplay/BuildManager.h"
 
 // Конструктор и деструктор
@@ -149,6 +150,7 @@ void Game::init() {
     m_buildPanel = std::make_unique<Buildpanel>(); // инициализация панельки для строительства
     m_placementUI = std::make_unique<PlacementUI>(); // инициализация голограммы для строительства
     m_pathVisualizer = std::make_unique<PathVisualizer>(); // инициализация стрелочек пути
+    m_statsPanel = std::make_unique<StatsPanel>(); // инициализация панельки здровья деняг и всякого такого посмотрим че будет
 
     // Гейплей
     m_buildManager = std::make_unique<BuildManager>(); // инициализация абгрейдера и строителя башен
@@ -345,14 +347,7 @@ void Game::render() {
         hasPath
     );
 
-    
-    // Желтый цвет для денег
-    m_textRenderer->RenderText("Деньги: " + std::to_string(m_playerMoney), 25.0f, 25.0f, 1.0f, glm::vec3(1.0f, 0.9f, 0.2f));
-
-    // Красный цвет для здоровья базы (рисуем чуть ниже)
-    m_textRenderer->RenderText("База: " + std::to_string(m_baseHealth) + " HP", 25.0f, 60.0f, 1.0f, glm::vec3(1.0f, 0.3f, 0.3f));
-
-    m_textRenderer->RenderText("Волна: " + std::to_string(m_waveManager->getCurrentWaveNumber()), 25.0f, 95.0f, 1.0f, glm::vec3(0.5f, 1.0f, 0.5f));
+    m_statsPanel->drawstatsPanel(m_playerMoney, m_baseHealth, m_waveManager.get(), m_textRenderer.get());
 
     // отрисовка панельки для постройки
     m_buildPanel->BuildRenderUI(

@@ -12,6 +12,7 @@
 #include "ui/BuildPanel.h"
 #include "ui/PlacementUI.h"
 #include "ui/PathRenderer.h"
+#include "ui/StatsPanel.h"
 #include "gameplay/BuildManager.h"
 
 // Forward declarations ускоряет компиляцию и уменьшает количество включаемых заголовочных файлов
@@ -86,6 +87,7 @@ private:
 	std::unique_ptr<Buildpanel> m_buildPanel;//указатель на панельку стоительства
 	std::unique_ptr<PlacementUI> m_placementUI; // указатель на голограму строительства
 	std::unique_ptr<PathVisualizer> m_pathVisualizer; // указатель на стрелочки пути
+	std::unique_ptr<StatsPanel> m_statsPanel; // указатель на панелтку статистик ну вот это здоровье деньки и тд
 
 	// Геймплей
 	std::unique_ptr<BuildManager> m_buildManager; // укащатель на абгрейдер та строитель башен

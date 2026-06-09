@@ -123,6 +123,9 @@ add_executable(${PROJECT_NAME}
     src/game/ui/PathRenderer.h
     src/game/ui/PathRenderer.cpp
 
+    src/game/ui/statsPanel.h
+    src/game/ui/statsPanel.cpp
+
     src/game/gameplay/BuildManager.h
     src/game/gameplay/BuildManager.cpp
 )
