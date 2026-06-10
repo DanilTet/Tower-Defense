@@ -15,6 +15,7 @@
 #include "ui/StatsPanel.h"
 #include "gameplay/BuildManager.h"
 #include "gameplay/EntityManager.h"
+#include "gameplay/PlayerStats.h"
 
 // Forward declarations ускоряет компиляцию и уменьшает количество включаемых заголовочных файлов
 // типа просто говорим компилятору, что эти классы существуют, а их определения будут в соответствующих заголовочных файлах
@@ -26,6 +27,13 @@ class Tower;
 class WaveManager;
 class Pathfinder;
 class EntityManager;
+
+enum class GameState {
+	MainMenu,
+	Playing,
+	Paused,
+	GameOver
+};
 
 class Game {
 public:
@@ -45,9 +53,11 @@ public:
 	void restartGame(); // функция перезапуска уровня
 
 private:
-	int m_playerMoney; // деньги игрока
-	int m_baseHealth; // здоровье базы
+	PlayerStats m_playerStats; // статы все 
 	bool m_isGameOver = false; // флаг проигрыша
+	GameState m_state; // переключатель состояний
+	bool m_pauseKeyPressedLastFrame = false; // костыль чтобы не залипало меню паузы
+
 
 	std::unique_ptr<SpriteRenderer> m_renderer; // рендерер для отрисовки спрайтов
 	std::unique_ptr<Grid> m_gameGrid; // указатель на сетку

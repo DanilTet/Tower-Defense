@@ -3,6 +3,7 @@
 #include "textures/Texture2D.h"
 #include "world/Grid.h"
 #include "core/ConfigManager.h"
+#include "gameplay/PlayerStats.h"
 
 void PlacementUI::renderHologram(
     SpriteRenderer* renderer,
@@ -11,7 +12,7 @@ void PlacementUI::renderHologram(
     const Grid& gameGrid,
     glm::vec2 currentMousePos,
     TowerType selectedTower,
-    int playerMoney,
+    const PlayerStats& stats,
     glm::vec2 panelPos,
     bool hasValidPath){
 
@@ -31,10 +32,10 @@ void PlacementUI::renderHologram(
     glm::ivec2 gridPos = gameGrid.pixelToGrid(currentMousePos);
 
     // получаем данные выбранной башни
-    TowerStats stats = Tower::getStatsfromTowerType(selectedTower);
+    TowerStats towerstats = Tower::getStatsfromTowerType(selectedTower);
 
     // проверяем, можно ли тут строить
-    bool hasMoney = (playerMoney >= stats.cost);
+    bool hasMoney = (stats.money >= towerstats.cost);
     bool canBuildHere = gameGrid.canBuildAt(gridPos.x, gridPos.y);
 
     // задаем цвет голограмы
@@ -56,7 +57,7 @@ void PlacementUI::renderHologram(
     glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 
     // отрисовка радиуса атаки
-    float currentPixelRange = stats.range * cellSize;
+    float currentPixelRange = towerstats.range * cellSize;
     glm::vec2 radiusSize(currentPixelRange * 2.0f, currentPixelRange * 2.0f);
     glm::vec2 radiusPos = cellCenter - glm::vec2(currentPixelRange);
 

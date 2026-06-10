@@ -5,11 +5,12 @@
 #include "entities/Enemy.h"
 #include "world/Grid.h"
 #include "world/Pathfinder.h"
+#include "gameplay/PlayerStats.h"
 
 void BuildManager::tryBuildOrUpgrade(
     glm::vec2 mousePos, // позиция мыши
     TowerType selectedType,// выбраный тип башни
-    int& playerMoney, // деньки игрока
+    PlayerStats& stats, // деньки игрока
     std::vector<std::unique_ptr<Tower>>& towers,
     std::vector<std::unique_ptr<Enemy>>& enemies,// башни
     Grid& gameGrid, // сетка
@@ -37,7 +38,7 @@ void BuildManager::tryBuildOrUpgrade(
             for (auto& tower : towers) {
                 if (tower && tower->getGridX() == clickedCell.x && tower->getGridY() == clickedCell.y) {
                     int cost = tower->getUpgradeCost();
-                    if (tower->upgrade(playerMoney)) {
+                    if (tower->upgrade(stats.money)) {
                         std::cout << "Tower upgraded to level " << tower->getLevel() << "!" << std::endl;
                     }
                     else {
@@ -53,7 +54,7 @@ void BuildManager::tryBuildOrUpgrade(
 
     int currentCost = Tower::getStatsfromTowerType(selectedType).cost;
 
-    if (playerMoney >= currentCost && gameGrid.canBuildAt(clickedCell.x, clickedCell.y)) {
+    if (stats.money >= currentCost && gameGrid.canBuildAt(clickedCell.x, clickedCell.y)) {
 
         // запоминаем какая клетка была до клика
         CellType oldCellType = gameGrid.getCellType(clickedCell.x, clickedCell.y);
@@ -71,13 +72,13 @@ void BuildManager::tryBuildOrUpgrade(
         else {
             // если путь есть
             // забираем деньги
-            playerMoney -= currentCost;
+            stats.money -= currentCost;
             // спавним башню
             auto newTower = std::make_unique<Tower>(clickedCell.x, clickedCell.y, selectedType);
             towers.push_back(std::move(newTower));
             // звук постройки
-            TowerStats stats = Tower::getStatsfromTowerType(selectedType);
-            AudioManager::playSound(stats.buildSound.c_str());
+            TowerStats towerstats = Tower::getStatsfromTowerType(selectedType);
+            AudioManager::playSound(towerstats.buildSound.c_str());
 
             // обновляем путь
             testPath.insert(testPath.begin(), spawners[0]);

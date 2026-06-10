@@ -10,13 +10,14 @@
 class Grid;
 class Pathfinder;
 class Tower;
+struct PlayerStats;
 
 class BuildManager {
 public:
     void tryBuildOrUpgrade(
         glm::vec2 mousePos, // позиция мыши
         TowerType selectedType,// выбраный тип башни
-        int& playerMoney, // деньки игрока
+        PlayerStats& stats, // деньки игрока
         std::vector<std::unique_ptr<Tower>>& towers,
         std::vector<std::unique_ptr<Enemy>>& enemies,// башни
         Grid& gameGrid, // сетка

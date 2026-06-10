@@ -8,6 +8,7 @@
 class Grid;
 class SpriteRenderer;
 class Texture2D;
+struct PlayerStats;
 
 class EntityManager {
 private:
@@ -17,7 +18,7 @@ private:
 
 public:
 	// методы обновления и рендера
-	void update(float dt, Grid& gameGrid, int& playerMoney, int& baseHealth);
+	void update(float dt, Grid& gameGrid, PlayerStats& stats);
 	void render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> cellTex, std::shared_ptr<Texture2D> radiusTex, Grid& gameGrid);
 
 	// методы добавления

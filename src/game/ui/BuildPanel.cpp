@@ -5,6 +5,7 @@
 #include "renderer/TextRenderer.h"
 #include "textures/Texture2D.h"
 #include "core/ConfigManager.h"
+#include "gameplay/PlayerStats.h"
 
 glm::vec2 Buildpanel::getUIPanelPos(int windowWidth, int windowHeight) const {
 	return glm::vec2(windowWidth - UI_PANEL_WIDTH, windowHeight - UI_PANEL_HEIGHT);
@@ -19,12 +20,12 @@ glm::vec2 Buildpanel::getTowerIconPos(int index, int windowWidth, int windowHeig
 }
 
 void Buildpanel::BuildRenderUI(
+    const PlayerStats& playerStats,
     SpriteRenderer* renderer,
     TextRenderer* textRenderer,
     std::shared_ptr<Texture2D> cellTexture,
     int windowWidth,
     int windowHeight,
-    int playerMoney,
     TowerType selectedTower)
 {
     glm::vec2 panelPos = getUIPanelPos(windowWidth, windowHeight); // позиция менюшки
@@ -37,12 +38,12 @@ void Buildpanel::BuildRenderUI(
     // рисуем каждую башню
     for (size_t i = 0; i < availableTowers.size(); ++i) {
         TowerType currentType = availableTowers[i];
-        TowerStats stats = Tower::getStatsfromTowerType(currentType);
+        TowerStats towerstats = Tower::getStatsfromTowerType(currentType);
 
         // позиция иконок
         glm::vec2 iconPos = getTowerIconPos(i, windowWidth, windowHeight);
 
-        bool canAfford = (playerMoney >= stats.cost); // определяем хватает ли денег
+        bool canAfford = (playerStats.money >= towerstats.cost); // определяем хватает ли денег
 
         // цвет башни
         glm::vec3 towerColor(1.0f);
@@ -91,7 +92,7 @@ void Buildpanel::BuildRenderUI(
             textColor = glm::vec3(1.0f, 0.3f, 0.3f);
         }
 
-        textRenderer->RenderText(towerName + ": $" + std::to_string(stats.cost),
+        textRenderer->RenderText(towerName + ": $" + std::to_string(towerstats.cost),
             iconPos.x - 5.0f, iconPos.y + UI_ICON_SIZE + 10.0f, 0.5f, textColor);
 
     }

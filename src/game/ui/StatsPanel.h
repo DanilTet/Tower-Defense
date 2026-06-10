@@ -3,8 +3,9 @@
 
 class WaveManager;
 class TextRenderer;
+struct PlayerStats;
 
 class StatsPanel {
 public:
-	void drawstatsPanel(int playerMoney, int baseHealth, WaveManager* waveManager, TextRenderer* textRenderer);
+	void drawStatsPanel(const PlayerStats& playerStats, WaveManager* waveManager, TextRenderer* textRenderer);
 };

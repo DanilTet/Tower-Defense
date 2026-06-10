@@ -3,8 +3,9 @@
 #include "renderer/SpriteRenderer.h"
 #include "textures/Texture2D.h"
 #include <algorithm>
+#include "gameplay/PlayerStats.h"
 
-void EntityManager::update(float dt, Grid& gameGrid, int& playerMoney, int& baseHealth) {
+void EntityManager::update(float dt, Grid& gameGrid, PlayerStats& stats) {
     // пробегаемся по всему вектору активных башен на карте
     for (const auto& tower : m_towers) {
         if (tower) {
@@ -21,10 +22,11 @@ void EntityManager::update(float dt, Grid& gameGrid, int& playerMoney, int& base
     // если враг убит добавляем игроку деняк иначе отминаем от базі хп
     for (const auto& enemy : m_enemies) {
         if (enemy->isDead()) {
-            playerMoney += enemy->getReward();
+            stats.money += enemy->getReward();
+            stats.score += 10;
         }
         if (enemy->isReachedEnd()) {
-            baseHealth -= 1;
+            stats.baseHealth -= 1;
         }
     }
 

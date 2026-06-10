@@ -132,6 +132,8 @@ add_executable(${PROJECT_NAME}
     src/game/gameplay/EntityManager.h
     src/game/gameplay/EntityManager.cpp
 
+    src/game/gameplay/PlayerStats.h
+
     src/game/core/LevelManager.h
     src/game/core/LevelManager.cpp
 )
@@ -144,4 +146,4 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/external/miniaudio
 )
 
-target_link_libraries(${PROJECT_NAME} PRIVATE glfw glad freetyped)
+target_link_libraries(${PROJECT_NAME} PRIVATE glfw glad debug freetype optimized freetyped)

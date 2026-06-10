@@ -11,6 +11,7 @@
 class SpriteRenderer;
 class TextRenderer;
 class Texture2D;
+struct PlayerStats;
 
 class Buildpanel {
 private:
@@ -27,12 +28,12 @@ public:
 
 	// метод для отрисовки панельки
 	void BuildRenderUI(
+		const PlayerStats& playerStats, // сколька деняяяк
 		SpriteRenderer* renderer, // для рисования спрайта
 		TextRenderer* textRenderer, // для рисования цен
 		std::shared_ptr<Texture2D> cellTexture, //текстурка
 		int windowWidth, // размері окна
 		int windowHeight,
-		int playerMoney, // сколька деняяяк
 		TowerType selectedTower // выбраная башня
 	);
 

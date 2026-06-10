@@ -9,6 +9,7 @@
 class SpriteRenderer;
 class Texture2D;
 class Grid;
+struct PlayerStats;
 
 class PlacementUI {
 private:
@@ -21,7 +22,7 @@ public:
         const Grid& gameGrid, // ссылка на сетку поля
         glm::vec2 currentMousePos, // курсор позиция
         TowerType selectedTower, // выбраная башня
-        int playerMoney, // деняк
+        const PlayerStats& stats, // деняк
         glm::vec2 panelPos, // позиция менбшки
         bool hasValidPath // есть ли путь чтобы пк не взорвался
     );

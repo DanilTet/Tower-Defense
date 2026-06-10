@@ -22,11 +22,11 @@
 // Конструктор и деструктор
 Game::Game(int width, int height)
     : width(width), // запоминаем стартовую ширину окна
-	height(height), // запоминаем стартовую высоту окна
+	height(height),// запоминаем стартовую высоту окна
 	m_mousePressedLastFrame(false), // изначально мышь не нажата флаг сброшен
-    m_playerMoney(100000), // Выдаем в самом начале 100 деняк
-    m_baseHealth(100),
-    m_selectedTowerType(TowerType::None) {
+    m_selectedTowerType(TowerType::None),
+    m_state(GameState::MainMenu),
+    m_pauseKeyPressedLastFrame(false) {
 }
 
 Game::~Game() {
@@ -174,12 +174,35 @@ void Game::init() {
 // Обработка ввода вызывается каждый кадр
 void Game::processInput(GLFWwindow* window, float dt) {
     
-    // если игра проиграна блокируем мышь и можно рестартнуть на R
-    if (m_isGameOver) {
-        if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS) {
-            restartGame(); // тут рестартаем
+    // управление в главном меню
+    if (m_state == GameState::MainMenu) {
+        if (glfwGetKey(window, GLFW_KEY_ENTER) == GLFW_PRESS) {
+            m_state = GameState::Playing; // если бахнули ентер то играем
         }
-        return; // выходим из метода чтобы ниче дальге не обрабатывать
+        return; // дальше ничего не проверяем
+    }
+
+    // управление при проигрыше
+    if (m_state == GameState::GameOver) {
+        if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS) {
+            restartGame();
+        }
+        return; // дальше ничего не проверяем
+    }
+
+    // пауща на p покачто потому что лень переписывать на ентер
+    bool isPausePressed = (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS);
+    if (isPausePressed && !m_pauseKeyPressedLastFrame) {
+        // если играли то ставим на паузу
+        if (m_state == GameState::Playing) m_state = GameState::Paused;
+        // если была пауза то играем
+        else if (m_state == GameState::Paused) m_state = GameState::Playing;
+    }
+    m_pauseKeyPressedLastFrame = isPausePressed;
+
+    // если пауза то дальше ничего не проверяем и не трекаем мышь
+    if (m_state == GameState::Paused) {
+        return;
     }
 
     // читаем мышку каждый кадр
@@ -209,7 +232,7 @@ void Game::processInput(GLFWwindow* window, float dt) {
         m_buildManager->tryBuildOrUpgrade(
             m_currentMousePos, // позиция мыши
             m_selectedTowerType,// выбраный тип башни
-            m_playerMoney, // деньки игрока
+            m_playerStats, // статы игрока
             m_entityManager->getTowers(),// башни
             m_entityManager->getEnemies(),// враги
             *m_gameGrid, // сетка
@@ -237,32 +260,43 @@ void Game::processInput(GLFWwindow* window, float dt) {
 
 // Обновление игровой логики вызывается каждый кадр, после обработки ввода
 void Game::update(float dt) {
-    // если игра окончена то фризим ее
-    if (m_isGameOver) {
-        return;
-    }
+    switch (m_state) {
+    case GameState::MainMenu:
+        // в главном меню ничего пока что не происходит
+        break;
 
-    if (m_gameGrid) {
-        m_pathVisualizer->update(dt, m_gameGrid->getCellSize()); // таймер анимации двигаем оп оп
-    }
-    // менеджер волн
-    if (m_waveManager) {
-        m_waveManager->update(dt, *this); // Передаем разницу во времени и ссылку на себя
-    }
-    
-    // обновляем все башни, врагов и пули
-    m_entityManager->update(dt, *m_gameGrid, m_playerMoney, m_baseHealth);
+    case GameState::Playing:
+        //обновляем визуализатор пути
+        if (m_gameGrid) m_pathVisualizer->update(dt, m_gameGrid->getCellSize());
+        // чекаем менеджер волн
+        if (m_waveManager) m_waveManager->update(dt, *this);
+        // обновляем башни, пули и другое
+        m_entityManager->update(dt, *m_gameGrid, m_playerStats);
 
-    //проверка на проигрыш
-    if (m_baseHealth <= 0) {
-        m_baseHealth = 0;
-        m_isGameOver = true;
-        
+        // проверка на проигрыш
+        if (m_playerStats.baseHealth <= 0) {
+            m_playerStats.baseHealth = 0;
+            m_state = GameState::GameOver; //переключаем стейт
+        }
+        break;
+
+    case GameState::Paused:
+    case GameState::GameOver:
+        // логика заморожена 
+        break;
     }
 }
 
 // Отрисовка кадра вызывается каждый кадр, после обновления логики
 void Game::render() {
+
+    // если в меню то рисуем меню и всьо
+    if (m_state == GameState::MainMenu) {
+        m_textRenderer->RenderText("DVIYESHNYKY STUDIOS", this->width / 2.0f - 180.0f, this->height / 2.0f - 50.0f, 1.5f, glm::vec3(1.0f, 1.0f, 0.0f));
+        m_textRenderer->RenderText("Press ENTER to Start", this->width / 2.0f - 130.0f, this->height / 2.0f + 20.0f, 1.0f, glm::vec3(1.0f));
+        return; // дальше ниче не рисуем
+    }
+
     // Малюем игровую сетку передавая туда рендерер, текстуру плитки, сдвиг и белый цвет тонирования
     m_gameGrid->draw(m_renderer.get(), m_grassTexture, m_cellTexture, { 1.0f, 1.0f, 1.0f });
 
@@ -287,36 +321,47 @@ void Game::render() {
     // актуальная позиция менюшки
     glm::vec2 currentPanelPos = m_buildPanel->getUIPanelPos(this->width, this->height);
 
-    //тут рисуем голограмму для строительсва 
-    m_placementUI->renderHologram(
-        m_renderer.get(),
-        m_cellTexture,
-        m_radiusTexture,
-        *m_gameGrid,
-        m_currentMousePos,
-        m_selectedTowerType,
-        m_playerMoney,
-        currentPanelPos,
-        hasPath
-    );
+    
 
-    m_statsPanel->drawstatsPanel(m_playerMoney, m_baseHealth, m_waveManager.get(), m_textRenderer.get());
+    // рисуем интерфейс в зависимо от состояния
+    if (m_state == GameState::Playing) {
+        //тут рисуем голограмму для строительсва 
+        m_placementUI->renderHologram(
+            m_renderer.get(),
+            m_cellTexture,
+            m_radiusTexture,
+            *m_gameGrid,
+            m_currentMousePos,
+            m_selectedTowerType,
+            m_playerStats,
+            currentPanelPos,
+            hasPath
+        );
 
-    // отрисовка панельки для постройки
-    m_buildPanel->BuildRenderUI(
-        m_renderer.get(),
-        m_textRenderer.get(),
-        m_cellTexture,
-        this->width,
-        this->height,
-        m_playerMoney,
-        m_selectedTowerType
-    );
+        m_statsPanel->drawStatsPanel(m_playerStats, m_waveManager.get(), m_textRenderer.get());
+
+        // отрисовка панельки для постройки
+        m_buildPanel->BuildRenderUI(
+            m_playerStats,
+            m_renderer.get(),
+            m_textRenderer.get(),
+            m_cellTexture,
+            this->width,
+            this->height,
+            m_selectedTowerType
+        );
+    }
+    // тут пауза
+    else if (m_state == GameState::Paused) {
+        // затычка просто
+        m_textRenderer->RenderText("PAUSED", this->width / 2.0f - 80.0f, this->height / 2.0f, 2.0f, glm::vec3(1.0f, 0.8f, 0.0f));
+    }
 
     // экран проигрыша хотя скорее тектс
-    if (m_isGameOver) {
+    else if (m_state == GameState::GameOver) {
+        // оверлей проигрыша
         m_textRenderer->RenderText("GAME OVER", this->width / 2.0f - 100.0f, this->height / 2.0f - 50.0f, 2.0f, glm::vec3(1.0f, 0.1f, 0.1f));
-        m_textRenderer->RenderText("Press 'R' to Restart", this->width / 2.0f - 130.0f, this->height / 2.0f + 20.0f, 1.0f, glm::vec3(1.0f, 1.0f, 1.0f));
+        m_textRenderer->RenderText("Press 'R' to Restart", this->width / 2.0f - 130.0f, this->height / 2.0f + 20.0f, 1.0f, glm::vec3(1.0f));
     }
 }
 
@@ -371,8 +416,8 @@ void Game::startNextWave() {
 
 void Game::restartGame() {
     // сброс статы
-    m_playerMoney = 100000000;
-    m_baseHealth = 100;
+    m_playerStats.reset();
+    m_state = GameState::Playing;
     m_isGameOver = false;
 
     // сбарсываем выбраную башню
