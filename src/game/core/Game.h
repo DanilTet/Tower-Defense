@@ -27,6 +27,7 @@ class Tower;
 class WaveManager;
 class Pathfinder;
 class EntityManager;
+class TowerMenuUI;
 
 enum class GameState {
 	MainMenu,
@@ -88,6 +89,8 @@ private:
 
 	TowerType m_selectedTowerType = TowerType::None; //какая башня вібрана
 
+	Tower* m_selectedTowerOnMap = nullptr; //какая башня выделена на поле
+
 	glm::vec2 m_currentMousePos; // позиция мыши каждый кадр
 
 	// точки спавна и точки баз
@@ -105,6 +108,7 @@ private:
 	std::unique_ptr<PlacementUI> m_placementUI; // указатель на голограму строительства
 	std::unique_ptr<PathVisualizer> m_pathVisualizer; // указатель на стрелочки пути
 	std::unique_ptr<StatsPanel> m_statsPanel; // указатель на панелтку статистик ну вот это здоровье деньки и тд
+	std::unique_ptr<TowerMenuUI> m_towerMenuUI; // менюшка при нажатии на башню
 
 	// Геймплей
 	std::unique_ptr<BuildManager> m_buildManager; // укащатель на абгрейдер та строитель башен

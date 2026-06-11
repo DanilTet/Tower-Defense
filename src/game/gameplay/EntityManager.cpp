@@ -71,3 +71,23 @@ void EntityManager::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> 
         }
     }
 }
+
+Tower* EntityManager::getTowerAt(int gridX, int gridY) {
+    // бам бам бим бим по башням и ищем по кордам ее
+    for (const auto& tower : m_towers) {
+        if (tower && tower->getGridX() == gridX && tower->getGridY() == gridY) {
+            return tower.get();
+        }
+    }
+    return nullptr;
+}
+
+void EntityManager::removeTower(int gridX, int gridY) {
+    m_towers.erase(
+        std::remove_if(m_towers.begin(), m_towers.end(),
+            [gridX, gridY](const std::unique_ptr<Tower>& tower) {
+                return tower->getGridX() == gridX && tower->getGridY() == gridY;
+            }),
+        m_towers.end()
+    );// короче круто просто убираем через КРУТУЮ лямбда функцию егор тетеря курсач
+}

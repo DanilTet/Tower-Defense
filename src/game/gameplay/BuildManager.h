@@ -11,6 +11,7 @@ class Grid;
 class Pathfinder;
 class Tower;
 struct PlayerStats;
+class EntityManager;
 
 class BuildManager {
 public:
@@ -27,4 +28,17 @@ public:
         std::vector<std::vector<glm::ivec2>>& paths,
         std::vector<glm::ivec2>& levelPath
     );
+
+    void sellTower(
+        Tower* tower,
+        PlayerStats& stats,
+        EntityManager& entityManager,
+        Grid& gameGrid,
+        Pathfinder& pathfinder,
+        const std::vector<glm::ivec2>& spawners,
+        const std::vector<glm::ivec2>& bases,
+        std::vector<std::vector<glm::ivec2>>& paths,
+        std::vector<glm::ivec2>& levelPath
+    );
+
 };

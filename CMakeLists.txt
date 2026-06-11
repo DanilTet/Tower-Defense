@@ -126,6 +126,9 @@ add_executable(${PROJECT_NAME}
     src/game/ui/statsPanel.h
     src/game/ui/statsPanel.cpp
 
+    src/game/ui/TowerMenuUI.h
+    src/game/ui/TowerMenuUI.cpp
+
     src/game/gameplay/BuildManager.h
     src/game/gameplay/BuildManager.cpp
 

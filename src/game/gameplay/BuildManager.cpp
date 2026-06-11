@@ -6,6 +6,7 @@
 #include "world/Grid.h"
 #include "world/Pathfinder.h"
 #include "gameplay/PlayerStats.h"
+#include "gameplay/EntityManager.h"
 
 void BuildManager::tryBuildOrUpgrade(
     glm::vec2 mousePos, // позиция мыши
@@ -29,26 +30,9 @@ void BuildManager::tryBuildOrUpgrade(
         return;
     }
 
-    // логика апгрейда
+    // если в руке ниче нету то просто клик по карте
     if (selectedType == TowerType::None) {
-        CellType clickedCellType = gameGrid.getCellType(clickedCell.x, clickedCell.y);
-
-        if (clickedCellType == CellType::Tower) {
-            // ищем в нашем векторе башню с такими же координатами YX
-            for (auto& tower : towers) {
-                if (tower && tower->getGridX() == clickedCell.x && tower->getGridY() == clickedCell.y) {
-                    int cost = tower->getUpgradeCost();
-                    if (tower->upgrade(stats.money)) {
-                        std::cout << "Tower upgraded to level " << tower->getLevel() << "!" << std::endl;
-                    }
-                    else {
-                        std::cout << "Upgrade failed! Max level or check money ($" << cost << ")" << std::endl;
-                    }
-                    break; // выходим
-                }
-            }
-        }
-        return; // ОБЯЗАТЕЛЬНО выходим из метода
+        return;
     }
 
 
@@ -124,6 +108,67 @@ void BuildManager::tryBuildOrUpgrade(
                     enemy->recalculatePath(&pathfinder, gameGrid, bases[0]);
                 }
             }
+        }
+    }
+}
+
+void BuildManager::sellTower(
+    Tower* tower,
+    PlayerStats& stats,
+    EntityManager& entityManager,
+    Grid& gameGrid,
+    Pathfinder& pathfinder,
+    const std::vector<glm::ivec2>& spawners,
+    const std::vector<glm::ivec2>& bases,
+    std::vector<std::vector<glm::ivec2>>& paths,
+    std::vector<glm::ivec2>& levelPath) {
+
+    if (!tower) return;
+
+    int tx = tower->getGridX();
+    int ty = tower->getGridY();
+
+    // заглушка даем 50 деньков позже сделаем расчет возврата в зависимости от левела
+    stats.money += 50;
+
+    // освобождаем клетку на сетке
+    gameGrid.setCellType(tx, ty, CellType::Empty);
+
+    // уничтожаем объект башни
+    entityManager.removeTower(tx, ty);
+
+    // считаем заново путь но тут 1000% будет путь так как же освободили путь клянусь!!!
+    std::vector<std::vector<glm::ivec2>> newPaths;
+    for (size_t i = 0; i < spawners.size(); ++i) {
+        std::vector<glm::ivec2> testPath = pathfinder.findPath(gameGrid, spawners[i], bases[0]);
+        testPath.insert(testPath.begin(), spawners[i]);
+        newPaths.push_back(testPath);
+    }
+
+    // обновляем пути
+    paths = newPaths;
+    levelPath = paths[0];
+
+    // очищаем старые пути и рисуем новые на сетке
+    for (int x = 0; x < gameGrid.getWidth(); ++x) {
+        for (int y = 0; y < gameGrid.getHeight(); ++y) {
+            if (gameGrid.getCellType(x, y) == CellType::Path) {
+                gameGrid.setCellType(x, y, CellType::Empty);
+            }
+        }
+    }
+    for (const auto& path : paths) {
+        for (const auto& p : path) {
+            if (gameGrid.getCellType(p.x, p.y) == CellType::Empty) {
+                gameGrid.setCellType(p.x, p.y, CellType::Path);
+            }
+        }
+    }
+
+    // перенаправляем врагов по новому маршруту
+    for (auto& enemy : entityManager.getEnemies()) {
+        if (enemy) {
+            enemy->recalculatePath(&pathfinder, gameGrid, bases[0]);
         }
     }
 }

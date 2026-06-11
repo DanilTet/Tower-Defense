@@ -25,6 +25,10 @@ public:
 	void addEnemy(std::unique_ptr<Enemy> enemy) { m_enemies.push_back(std::move(enemy)); }
 	void addTower(std::unique_ptr<Tower> tower) { m_towers.push_back(std::move(tower)); }
 	void addProjectile(std::unique_ptr<Projectile> proj) { m_projectiles.push_back(std::move(proj)); }
+	// методы взаемодействия с башнями
+	Tower* getTowerAt(int gridX, int gridY); // получить указатель на башню по клетке
+	void removeTower(int gridX, int gridY);  // удалить башню с поля
+
 
 	// геттеры
 	std::vector<std::unique_ptr<Tower>>& getTowers() { return m_towers; }

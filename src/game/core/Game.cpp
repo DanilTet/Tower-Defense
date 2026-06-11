@@ -18,6 +18,7 @@
 #include "gameplay/BuildManager.h"
 #include "core/LevelManager.h"
 #include "gameplay/EntityManager.h"
+#include "ui/TowerMenuUI.h"
 
 // Конструктор и деструктор
 Game::Game(int width, int height)
@@ -157,16 +158,6 @@ void Game::init() {
     if (!m_paths.empty()) {
         m_levelPath = m_paths[0];
     }
-    /*
-    // блокируем постройку башни УЖЕ НЕ АКТУАЛЬНЕНЬКО БАМ БАМ БАМ 
-    for (const auto& p : m_paths[0]) {
-        if (m_gameGrid->getCellType(p.x, p.y) == CellType::Empty) {
-            m_gameGrid->setCellType(p.x, p.y, CellType::Path);
-        }
-    }
-    */
-
-
     
     // МЕНЕДЖЕР ВОЛН
     m_waveManager = std::make_unique<WaveManager>();
@@ -180,6 +171,7 @@ void Game::init() {
     m_placementUI = std::make_unique<PlacementUI>(); // инициализация голограммы для строительства
     m_pathVisualizer = std::make_unique<PathVisualizer>(); // инициализация стрелочек пути
     m_statsPanel = std::make_unique<StatsPanel>(); // инициализация панельки здровья деняг и всякого такого посмотрим че будет
+    m_towerMenuUI = std::make_unique<TowerMenuUI>(); // инициализация панельки при клике на башню
 
     // Гейплей
     m_buildManager = std::make_unique<BuildManager>(); // инициализация абгрейдера и строителя башен
@@ -246,10 +238,30 @@ void Game::processInput(GLFWwindow* window, float dt) {
         double mouseX, mouseY;
         glfwGetCursorPos(window, &mouseX, &mouseY);
 
-        // если кликнули по менюшке то обновляем выбраную башню
+        // если кликнули по менюшке выбора башни то обновляем выбраную башню
         if (m_buildPanel->checkClick(mouseX, mouseY, this->width, this->height, m_selectedTowerType)) {
+            m_selectedTowerOnMap = nullptr; // если выбрали новую башню для стройки то снимаем выделение с башни на карте
             return;
         }
+
+        // чекаем клик по мею башни
+        if (m_towerMenuUI->processClick(mouseX, mouseY, m_selectedTowerOnMap, m_buildManager.get(), m_playerStats, *m_entityManager, *m_gameGrid, *m_pathfinder, m_spawners, m_bases, m_paths, m_levelPath, m_selectedTowerOnMap)) {
+            return; // если кликнули по кнопке, выходим
+        }
+
+        // чекаем клик по башне
+        glm::ivec2 clickedCell = m_gameGrid->pixelToGrid(glm::vec2(mouseX, mouseY));
+        Tower* clickedTower = m_entityManager->getTowerAt(clickedCell.x, clickedCell.y);
+
+        if (clickedTower != nullptr) {
+            m_selectedTowerOnMap = clickedTower;
+            m_selectedTowerType = TowerType::None; // очищаем руку
+            return;
+        }
+        else { // типа если кликнуть мимо башни то снять выделение
+            m_selectedTowerOnMap = nullptr;
+        }
+
         
         m_buildManager->tryBuildOrUpgrade(
             m_currentMousePos, // позиция мыши
@@ -335,7 +347,11 @@ void Game::render() {
     m_entityManager->render(m_renderer.get(), m_cellTexture, m_radiusTexture, arrowTexPtr, *m_gameGrid);
 
     // ОТРИСОВКА ИНТЕРФЕЙСА
-    
+    // отрисовка меню выбраной или выделеной как это называют башни
+    if (m_state == GameState::Playing) {
+        m_towerMenuUI->render(m_selectedTowerOnMap, m_renderer.get(), m_textRenderer.get(), m_cellTexture, *m_gameGrid);
+    }
+
     // рендерим голограмму строительства
     bool hasPath = !m_paths.empty();
     // актуальная позиция менюшки
