@@ -53,11 +53,16 @@ public:
 	void restartGame(); // функция перезапуска уровня
 
 private:
+
+	bool isKeyJustPressed(GLFWwindow* window, int key); // метод который возвращает true ТОЛЬКО в первый кадр нажатия
+
 	PlayerStats m_playerStats; // статы все 
 	bool m_isGameOver = false; // флаг проигрыша
 	GameState m_state; // переключатель состояний
-	bool m_pauseKeyPressedLastFrame = false; // костыль чтобы не залипало меню паузы
+	//bool m_pauseKeyPressedLastFrame = false; // костыль чтобы не залипало меню паузы
+	//bool m_spaceKeyPressedLastFrame = false; // костыль еще
 
+	bool m_keysProcessed[1024] = { false }; // общий костыль для всех кнопок
 
 	std::unique_ptr<SpriteRenderer> m_renderer; // рендерер для отрисовки спрайтов
 	std::unique_ptr<Grid> m_gameGrid; // указатель на сетку

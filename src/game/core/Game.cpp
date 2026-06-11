@@ -25,8 +25,7 @@ Game::Game(int width, int height)
 	height(height),// запоминаем стартовую высоту окна
 	m_mousePressedLastFrame(false), // изначально мышь не нажата флаг сброшен
     m_selectedTowerType(TowerType::None),
-    m_state(GameState::MainMenu),
-    m_pauseKeyPressedLastFrame(false) {
+    m_state(GameState::MainMenu) {
 }
 
 Game::~Game() {
@@ -176,7 +175,7 @@ void Game::processInput(GLFWwindow* window, float dt) {
     
     // управление в главном меню
     if (m_state == GameState::MainMenu) {
-        if (glfwGetKey(window, GLFW_KEY_ENTER) == GLFW_PRESS) {
+        if (isKeyJustPressed(window, GLFW_KEY_ENTER)) {
             m_state = GameState::Playing; // если бахнули ентер то играем
         }
         return; // дальше ничего не проверяем
@@ -184,25 +183,32 @@ void Game::processInput(GLFWwindow* window, float dt) {
 
     // управление при проигрыше
     if (m_state == GameState::GameOver) {
-        if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS) {
+        if (isKeyJustPressed(window, GLFW_KEY_R)) {
             restartGame();
         }
         return; // дальше ничего не проверяем
     }
 
-    // пауща на p покачто потому что лень переписывать на ентер
-    bool isPausePressed = (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS);
-    if (isPausePressed && !m_pauseKeyPressedLastFrame) {
-        // если играли то ставим на паузу
+    // пауща на p покачто потому что лень переписывать на ескейп
+    if (isKeyJustPressed(window, GLFW_KEY_P)) {
         if (m_state == GameState::Playing) m_state = GameState::Paused;
-        // если была пауза то играем
         else if (m_state == GameState::Paused) m_state = GameState::Playing;
     }
-    m_pauseKeyPressedLastFrame = isPausePressed;
 
     // если пауза то дальше ничего не проверяем и не трекаем мышь
     if (m_state == GameState::Paused) {
         return;
+    }
+    if (m_state == GameState::Playing) {
+        // Если на клавиатуре обнаружено нажатие на клавишу Ентер
+        if (isKeyJustPressed(window, GLFW_KEY_ENTER)) {
+            startNextWave(); // Моментально начинаем новую волну
+        }
+
+        // секретній чит код на деньки
+        if (isKeyJustPressed(window, GLFW_KEY_M)) {
+            m_playerStats.money += 99999;
+        }
     }
 
     // читаем мышку каждый кадр
@@ -251,10 +257,6 @@ void Game::processInput(GLFWwindow* window, float dt) {
     // Если на клавиатуре обнаружено нажатие на клавишу Пробел
     if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
         spawnEnemy(EnemyType::Basic); // Моментально спавним нового врага
-    }
-    // Если на клавиатуре обнаружено нажатие на клавишу Ентер
-    if (glfwGetKey(window, GLFW_KEY_ENTER) == GLFW_PRESS) {
-        startNextWave(); // Моментально начинаем новую волну
     }
 }
 
@@ -430,4 +432,22 @@ void Game::restartGame() {
     m_waveManager->loadLevel("res/levels/level_1.json");
 
     std::cout << "Game Restarted!" << std::endl;
+}
+
+
+bool Game::isKeyJustPressed(GLFWwindow* window, int key) {
+    // защита от выхода за предел массива
+    if (key < 0 || key >= 1024) return false;
+
+    if (glfwGetKey(window, key) == GLFW_PRESS) {
+        if (!m_keysProcessed[key]) {
+            m_keysProcessed[key] = true; // блочим кнопку
+            return true; // срабатывает только один раз
+        }
+    }
+    else {
+        m_keysProcessed[key] = false; // если кнопку отпустили то убираем блок
+    }
+
+    return false;
 }
