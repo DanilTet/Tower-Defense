@@ -21,6 +21,7 @@ struct TowerStats {
 	int damage; // урон
 	int cost; // цена башни
 	float splashRadius; // сплеш урон
+	float rotationSpeed; // скорость поворота башни
 
 	std::string buildSound; // звук строительства
 	std::string attackSound; // звук атаки
@@ -50,6 +51,13 @@ private:
 	int m_currentLevel; // текущий левел
 	int m_maxLevel; // макс левел
 
+
+	float m_angle = 0.0f;
+	float m_rotationSpeed;
+
+	// debug
+	bool m_showDebugArrow = true;
+
 public:
 	// получаем характеристики башни
 	static TowerStats getStatsfromTowerType(TowerType type);
@@ -61,7 +69,7 @@ public:
 	void update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies, std::vector<std::unique_ptr<Projectile>>& projectiles, const Grid& grid);
 
 	// отрисовка
-	void render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture, std::shared_ptr<Texture2D> radiusTexture, const Grid& grid);
+	void render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture, std::shared_ptr<Texture2D> radiusTexture, std::shared_ptr<Texture2D> arrowTexture, const Grid& grid);
 
 	bool upgrade(int& playerMoney);
 	int getUpgradeCost() const;

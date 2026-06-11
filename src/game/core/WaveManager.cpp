@@ -19,6 +19,7 @@ bool WaveManager::loadLevel(const std::string& filepath) {
 	m_waves.clear();
 	m_currentPartIndex = 0;
 	m_isWaveActive = false;
+	m_currentSpawnerIndex = 0;
 
 	std::ifstream file(filepath); // открываем файл
 
@@ -92,7 +93,17 @@ void WaveManager::update(float dt, Game& game) {
 		// берем конфиг текущей пачки
 		const WavePart& currentPart = currentWave.parts[m_currentPartIndex];
 
-		game.spawnEnemy(currentPart.type); // спайним врага
+		// выбор спавнера
+		int totalSpawners = game.getPathCount(); 
+		if (totalSpawners > 0) {
+			game.spawnEnemy(currentPart.type, m_currentSpawnerIndex);
+
+			// крутим в каком спавнере спавнить
+			m_currentSpawnerIndex++;
+			if (m_currentSpawnerIndex >= totalSpawners) {
+				m_currentSpawnerIndex = 0;
+			}
+		}
 		m_enemiesSpawnedInCurrentPart++;
 
 		// закончилась ли текущая пачка???

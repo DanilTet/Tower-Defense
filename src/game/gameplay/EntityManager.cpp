@@ -53,7 +53,7 @@ void EntityManager::update(float dt, Grid& gameGrid, PlayerStats& stats) {
     );
 }
 
-void EntityManager::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> cellTex, std::shared_ptr<Texture2D> radiusTex, Grid& gameGrid) {
+void EntityManager::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> cellTex, std::shared_ptr<Texture2D> radiusTex, std::shared_ptr<Texture2D> arrowTex, Grid& gameGrid) {
     // проходим по всем врагам, башням, пулям и рисуем их
     for (const auto& enemy : m_enemies) {
         if (enemy) { // Если враг существует
@@ -62,7 +62,7 @@ void EntityManager::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> 
     }
     for (const auto& tower : m_towers) {
         if (tower) {
-            tower->render(renderer, cellTex, radiusTex, gameGrid);
+            tower->render(renderer, cellTex, radiusTex, arrowTex, gameGrid);
         }
     }
     for (const auto& proj : m_projectiles) {

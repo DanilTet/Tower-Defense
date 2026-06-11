@@ -39,4 +39,6 @@ private:
 	size_t m_currentPartIndex; // какая пачка щас идет
 	int m_enemiesSpawnedInCurrentPart;; // количество врагов заспавненых из текущей пачки
 	float m_spawnTimer; // время спавна между врагами
+
+	int m_currentSpawnerIndex = 0;
 };

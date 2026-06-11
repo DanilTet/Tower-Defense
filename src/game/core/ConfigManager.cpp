@@ -39,6 +39,7 @@ bool ConfigManager::loadConfigs(const std::string& towerPath, const std::string&
 						lvlJson["damage"],
 						lvlJson["cost"],
 						lvlJson["splashRadius"],
+						lvlJson.value("rotationSpeed", 300.0f),
 						lvlJson["buildSound"],
 						lvlJson["attackSound"]
 					};
@@ -53,6 +54,7 @@ bool ConfigManager::loadConfigs(const std::string& towerPath, const std::string&
 					j[name]["damage"],
 					j[name]["cost"],
 					j[name]["splashRadius"],
+					j[name].value("rotationSpeed", 300.0f),
 					j[name]["buildSound"],
 					j[name]["attackSound"]
 				};

@@ -23,13 +23,13 @@ Tower::Tower(int gridX, int gridY, TowerType type)
 	m_range = stats.range; // присваеваем радиус атаки
 	m_damage = stats.damage; // присваиваем урон
 	m_fireRate = stats.fireRate; // присваеваем скорость атаки
-	
+	m_rotationSpeed = stats.rotationSpeed; // присвоение скорости поворота башни
 	//m_currentTarget = nullptr; // текущая цель это нулпоинтер
 
 	m_shotTimer = 0.0f; // переменная таймер
 }
 
-void Tower::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture, std::shared_ptr<Texture2D> radiusTexture, const Grid& grid) {
+void Tower::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture, std::shared_ptr<Texture2D> radiusTexture, std::shared_ptr<Texture2D> arrowTexture, const Grid& grid) {
 	float cellSize = grid.getCellSize(); //подтягиваем рязмер чтобы в клетку попала башня
 	glm::vec2 size(cellSize, cellSize); // создаем вектор чтобы башня идеально стала в клетку
 	glm::vec2 pixelPos = grid.gridToPixel(m_gridX, m_gridY); // получаем пиксели клетки
@@ -53,6 +53,15 @@ void Tower::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture,
 	if (m_currentLevel == 3) color += glm::vec3(0.4f, 0.4f, 0.4f);
 
 	renderer->drawSprite(texture, pixelPos, size, 0.0f, color);
+
+
+	// debug стрелочка
+	if (m_showDebugArrow && arrowTexture != nullptr) {
+		glm::vec2 arrowSize = size * 0.8f;
+		glm::vec2 arrowPos = pixelPos + (size - arrowSize) * 0.5f;
+		renderer->drawSprite(arrowTexture, arrowPos, arrowSize, m_angle, glm::vec3(0.5f, 1.0f, 0.5f));
+	}
+
 }
 
 void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies, std::vector<std::unique_ptr<Projectile>>& projectiles, const Grid& grid) {
@@ -61,55 +70,85 @@ void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies,
 		m_shotTimer -= dt;
 	}
 	
-	// если башня заряжена
-	if (m_shotTimer <= 0.0f) {
-		// считаем центр башни
-		float cellSize = grid.getCellSize();
-		glm::vec2 towerCenter = grid.gridToPixel(m_gridX, m_gridY) + glm::vec2(cellSize / 2.0f);
-		
-		float currentPixelRange = m_range * cellSize; // считаем радиус атаки в пикселях
+	
+	// считаем центр башни
+	float cellSize = grid.getCellSize();
+	glm::vec2 towerCenter = grid.gridToPixel(m_gridX, m_gridY) + glm::vec2(cellSize / 2.0f);
+	
+	float currentPixelRange = m_range * cellSize; // считаем радиус атаки в пикселях
 
-		// создание хитбокса башни в понимании зоны поражения
-		CircleCollider towerCollider = { towerCenter, currentPixelRange };
+	// создание хитбокса башни в понимании зоны поражения
+	CircleCollider towerCollider = { towerCenter, currentPixelRange };
 
-		// ПЕРЕМЕННІЕ ДЛЯ ПОИСКА ЛУЧШЕЙ ЦЕЛИ
-		Enemy* bestTarget = nullptr; // указатели на лучшую цель
-		float maxDistance = -1.0f; // рекорд пройденого пути
+	// ПЕРЕМЕННІЕ ДЛЯ ПОИСКА ЛУЧШЕЙ ЦЕЛИ
+	Enemy* bestTarget = nullptr; // указатели на лучшую цель
+	float maxDistance = -1.0f; // рекорд пройденого пути
 
 
-		// проходим по врагам
-		for (const auto& enemy : enemies) {
-			// пропускаем мертвіх или тех кто дошел до финала
-			if (!enemy || enemy->isReachedEnd() || enemy->isDead()) continue;
+	// проходим по врагам
+	for (const auto& enemy : enemies) {
+		// пропускаем мертвіх или тех кто дошел до финала
+		if (!enemy || enemy->isReachedEnd() || enemy->isDead()) continue;
 
-			// берем хитбокс врага и проверяем столкновение с зоной башни
-			if (towerCollider.intersects(enemy->getCollider(grid))) {
+		// берем хитбокс врага и проверяем столкновение с зоной башни
+		if (towerCollider.intersects(enemy->getCollider(grid))) {
 				
-				if (enemy->getDistanceTraveled() > maxDistance) {
-					maxDistance = enemy->getDistanceTraveled(); // обновляем рекорд пути
-					bestTarget = enemy.get(); // запоминаем врага
-				}
+			if (enemy->getDistanceTraveled() > maxDistance) {
+				maxDistance = enemy->getDistanceTraveled(); // обновляем рекорд пути
+				bestTarget = enemy.get(); // запоминаем врага
 			}
 		}
-
-		if (bestTarget != nullptr) {
-			// получаем центр врага
-			glm::vec2 enemyCenter = bestTarget->getCollider(grid).center;
-
-			// достаем радиус сплеша
-			float currentSplash = ConfigManager::getTowerStats(m_type, m_currentLevel).splashRadius;
-
-			// Создаем пулю
-			auto newProj = std::make_unique<Projectile>(towerCenter, enemyCenter, 800.0f, m_damage, bestTarget->getId(), currentSplash);
-			projectiles.push_back(std::move(newProj));
-
-			TowerStats stats = ConfigManager::getTowerStats(m_type, m_currentLevel);
-			AudioManager::playSound(stats.attackSound.c_str(), 0.1f); // играем звук
-
-			m_shotTimer = m_fireRate;
-		}
 	}
+		
+	// если нашли врага то наводимся на него
+	if (bestTarget != nullptr) {
+		// получаем центр врага
+		glm::vec2 enemyCenter = bestTarget->getCollider(grid).center;
+		// вектор направления к цели от башни до врага
+		glm::vec2 dir = enemyCenter - towerCenter;
+		// получаем градусы на которые надо повернуться
+		float targetAngle = glm::degrees(atan2(dir.y, dir.x));
 
+		// вычисляем разницу между текущим углом башни и нужным углом -180 до 180
+		float angleDiff = targetAngle - m_angle;
+		while (angleDiff > 180.0f) angleDiff -= 360.0f;
+		while (angleDiff < -180.0f) angleDiff += 360.0f;
+
+		// если дуло почти смотрит на врага и разница меньше того что мы проверяем за этот кадр
+		if (abs(angleDiff) <= m_rotationSpeed * dt) {
+			
+			m_angle = targetAngle; // фиксируем прицел на враге
+			// проверяем перезарядку
+			if (m_shotTimer <= 0.0f) {
+				// достаем радиус сплеша
+				float currentSplash = ConfigManager::getTowerStats(m_type, m_currentLevel).splashRadius;
+
+				// Создаем пулю
+				auto newProj = std::make_unique<Projectile>(towerCenter, enemyCenter, 800.0f, m_damage, bestTarget->getId(), currentSplash);
+				projectiles.push_back(std::move(newProj));
+
+				TowerStats stats = ConfigManager::getTowerStats(m_type, m_currentLevel);
+				AudioManager::playSound(stats.attackSound.c_str(), 0.1f); // играем звук
+
+				m_shotTimer = m_fireRate;
+			}
+		}
+		else {
+			float direction = 0.0f;
+			if (angleDiff > 0) {
+				direction = 1.0f;
+			}
+			else {
+				direction = -1.0f;
+			}
+
+			float rotationStep = direction * m_rotationSpeed * dt;
+
+			m_angle += rotationStep;
+			if (m_angle > 180.0f) m_angle -= 360.0f;
+			if (m_angle < -180.0f) m_angle += 360.0f;
+		}	
+	}
 }
 
 // функция улучшения башни
@@ -128,6 +167,7 @@ bool Tower::upgrade(int& playerMoney) {
 		m_range = nextStats.range;
 		m_damage = nextStats.damage;
 		m_fireRate = nextStats.fireRate;
+		m_rotationSpeed = nextStats.rotationSpeed;
 
 		// Играем кастомный звук апгрейда 
 		AudioManager::playSound(nextStats.buildSound.c_str());

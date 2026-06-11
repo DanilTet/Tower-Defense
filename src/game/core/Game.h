@@ -51,6 +51,7 @@ public:
 	void spawnEnemy(EnemyType type, int spawnerIndex = 0); // функция для спавна врага
 	void startNextWave();
 	void restartGame(); // функция перезапуска уровня
+	int getPathCount() const { return m_paths.size(); } // геттер для WaveManager
 
 private:
 

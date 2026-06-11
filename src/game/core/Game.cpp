@@ -134,21 +134,37 @@ void Game::init() {
     // ИНИЦИАЛИЗАЦИЯ АЛГОРИТМА И ПОИСК ПУТИ
     m_pathfinder = std::make_unique<Pathfinder>(levelData.gridWidth, levelData.gridHeight); // размері сетки
 
-    // запуск алгоритма А*
-    std::vector<glm::ivec2> calculatedPath = m_pathfinder->findPath(*m_gameGrid, m_spawners[0], m_bases[0]);
+    m_paths.clear(); // очищаем старые пути
 
-    // добавление точки спавна в начало пути
-    calculatedPath.insert(calculatedPath.begin(), m_spawners[0]);
+    // циклом прокладываем путь от КАЖДОГО спавнера до базы
+    for (size_t i = 0; i < m_spawners.size(); ++i) {
+        std::vector<glm::ivec2> calculatedPath = m_pathfinder->findPath(*m_gameGrid, m_spawners[i], m_bases[0]);
 
-    // сохранение готового маршрута в список маршрутов
-    m_paths.push_back(calculatedPath);
-    m_levelPath = m_paths[0];
+        if (!calculatedPath.empty()) {
+            calculatedPath.insert(calculatedPath.begin(), m_spawners[i]);
+            m_paths.push_back(calculatedPath);
+
+            // блокируем постройку на этом пути
+            for (const auto& p : calculatedPath) {
+                if (m_gameGrid->getCellType(p.x, p.y) == CellType::Empty) {
+                    m_gameGrid->setCellType(p.x, p.y, CellType::Path);
+                }
+            }
+        }
+    }
+
+    // сохраняем первый путь для голограммы постройки
+    if (!m_paths.empty()) {
+        m_levelPath = m_paths[0];
+    }
+    /*
     // блокируем постройку башни УЖЕ НЕ АКТУАЛЬНЕНЬКО БАМ БАМ БАМ 
     for (const auto& p : m_paths[0]) {
         if (m_gameGrid->getCellType(p.x, p.y) == CellType::Empty) {
             m_gameGrid->setCellType(p.x, p.y, CellType::Path);
         }
     }
+    */
 
 
     
@@ -255,8 +271,8 @@ void Game::processInput(GLFWwindow* window, float dt) {
     }
 
     // Если на клавиатуре обнаружено нажатие на клавишу Пробел
-    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
-        spawnEnemy(EnemyType::Basic); // Моментально спавним нового врага
+    if (isKeyJustPressed(window, GLFW_KEY_SPACE)) {
+        spawnEnemy(EnemyType::Basic);
     }
 }
 
@@ -306,20 +322,22 @@ void Game::render() {
     // стрелочки пути   
     Texture2D* arrowTex = ResourceManager::getTexture("arrowTexture"); // достаем там єти стрелочки из ресурсменеджера
     std::shared_ptr<Texture2D> arrowTexPtr(arrowTex, [](Texture2D*) {}); // и бахаем его в указатель
-    m_pathVisualizer->renderPathArrows(
-        m_renderer.get(),
-        arrowTexPtr,
-        m_levelPath,
-        *m_gameGrid
-    );; // рисуем стрелочки пути
+    for (const auto& path : m_paths) {
+        m_pathVisualizer->renderPathArrows(
+            m_renderer.get(),
+            arrowTexPtr,
+            path,
+            *m_gameGrid
+        );
+    } // рисуем стрелочки пути
 
     // рисуем все башни врагов и пули
-    m_entityManager->render(m_renderer.get(), m_cellTexture, m_radiusTexture, *m_gameGrid);
+    m_entityManager->render(m_renderer.get(), m_cellTexture, m_radiusTexture, arrowTexPtr, *m_gameGrid);
 
     // ОТРИСОВКА ИНТЕРФЕЙСА
     
     // рендерим голограмму строительства
-    bool hasPath = m_levelPath.size() >= 2;
+    bool hasPath = !m_paths.empty();
     // актуальная позиция менюшки
     glm::vec2 currentPanelPos = m_buildPanel->getUIPanelPos(this->width, this->height);
 
@@ -420,7 +438,6 @@ void Game::restartGame() {
     // сброс статы
     m_playerStats.reset();
     m_state = GameState::Playing;
-    m_isGameOver = false;
 
     // сбарсываем выбраную башню
     m_selectedTowerType = TowerType::None;

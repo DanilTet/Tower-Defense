@@ -62,30 +62,45 @@ void BuildManager::tryBuildOrUpgrade(
         // виртуально ставим башню
         gameGrid.setCellType(clickedCell.x, clickedCell.y, CellType::Tower);
         //проверка маршрута
-        std::vector<glm::ivec2> testPath = pathfinder.findPath(gameGrid, spawners[0], bases[0]);
+        
+        // проверяем пути для всех спавнеров
+        bool isPathBlocked = false;
+        std::vector<std::vector<glm::ivec2>> newPaths; // временное хранилице для новых путей
+
+        for (size_t i = 0; i < spawners.size(); ++i) {
+            std::vector<glm::ivec2> testPath = pathfinder.findPath(gameGrid, spawners[i], bases[0]);
+
+            if (testPath.empty()) {
+                isPathBlocked = true; // если хоть один спавнер заблокирован то строить нельзя
+                break;
+            }
+
+            testPath.insert(testPath.begin(), spawners[i]); // добавляем точку старта
+            newPaths.push_back(testPath); // сохраняем успешный путь
+        }
 
         // если пути нету значит игрок заблокировал маршрут
-        if (testPath.empty()) {
-            gameGrid.setCellType(clickedCell.x, clickedCell.y, oldCellType);
+        if (isPathBlocked) {
+            gameGrid.setCellType(clickedCell.x, clickedCell.y, oldCellType); // Откатываем сетку
             std::cout << "Path Blocked! Cannot build here." << std::endl;
         }
-        else {
-            // если путь есть
-            // забираем деньги
+        else { // иначе пути свободны
+            
             stats.money -= currentCost;
+
             // спавним башню
             auto newTower = std::make_unique<Tower>(clickedCell.x, clickedCell.y, selectedType);
             towers.push_back(std::move(newTower));
+
             // звук постройки
             TowerStats towerstats = Tower::getStatsfromTowerType(selectedType);
             AudioManager::playSound(towerstats.buildSound.c_str());
 
-            // обновляем путь
-            testPath.insert(testPath.begin(), spawners[0]);
-            paths[0] = testPath;
-            levelPath = testPath;
+            // обновляем все маршруты
+            paths = newPaths; // заменяем старые пути на новые
+            levelPath = paths[0]; // оставляем нулевой для обратной совместимости
 
-            // убираем старій путь
+            // убираем старый путь с сетки
             for (int x = 0; x < gameGrid.getWidth(); ++x) {
                 for (int y = 0; y < gameGrid.getHeight(); ++y) {
                     if (gameGrid.getCellType(x, y) == CellType::Path) {
@@ -93,14 +108,17 @@ void BuildManager::tryBuildOrUpgrade(
                     }
                 }
             }
-            // записуем новій путь
-            for (const auto& p : paths[0]) {
-                if (gameGrid.getCellType(p.x, p.y) == CellType::Empty) {
-                    gameGrid.setCellType(p.x, p.y, CellType::Path);
+            // записуем новые пути на сетку
+            for (const auto& path : paths) {
+                for (const auto& p : path) {
+                    // Ставим CellType::Path, только если клетка пустая чтобы не затереть спавнер или базу
+                    if (gameGrid.getCellType(p.x, p.y) == CellType::Empty) {
+                        gameGrid.setCellType(p.x, p.y, CellType::Path);
+                    }
                 }
             }
 
-            // даем врагам новій путь
+            // даем врагам новый путь
             for (auto& enemy : enemies) {
                 if (enemy) {
                     enemy->recalculatePath(&pathfinder, gameGrid, bases[0]);

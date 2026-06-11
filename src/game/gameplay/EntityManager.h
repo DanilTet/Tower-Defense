@@ -19,7 +19,7 @@ private:
 public:
 	// методы обновления и рендера
 	void update(float dt, Grid& gameGrid, PlayerStats& stats);
-	void render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> cellTex, std::shared_ptr<Texture2D> radiusTex, Grid& gameGrid);
+	void render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> cellTex, std::shared_ptr<Texture2D> radiusTex, std::shared_ptr<Texture2D> arrowTex, Grid& gameGrid);
 
 	// методы добавления
 	void addEnemy(std::unique_ptr<Enemy> enemy) { m_enemies.push_back(std::move(enemy)); }
