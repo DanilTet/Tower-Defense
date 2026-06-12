@@ -44,19 +44,21 @@ private:
 
 	float m_distanceTraveled;// пройденная дистанция врага
 
+	int m_targetBaseIndex; //индекс базы
+
 public:
-	// функция чтобы враг всегда знал где находиться его финальная точка
-	glm::ivec2 getTargetBase() const { return m_path.back(); }
 
 	// функци для перерасчета пути
-	void recalculatePath(Pathfinder* pathfinder, const Grid& grid, glm::ivec2 basePos);
+	void recalculatePath(Pathfinder* pathfinder, const Grid& grid, const std::vector<glm::ivec2>& bases);
+
+	glm::ivec2 getTargetBase() const { return m_path.empty() ? glm::ivec2(0) : m_path.back(); }
 
 	// Функция для получения характеристик врага в зависимости от его типа
 	static EnemyStats getStatsfromEnemyType(EnemyType type);
 
 	void recalculatePosition(const Grid& oldGrid, const Grid& newGrid); // вызывается при изменении размера окна, чтобы враг всегда был точно на клетке, даже если размер клеток изменится при ресайзе окна
 
-	Enemy(const std::vector<glm::ivec2>& gridPath, const Grid& grid, EnemyType type);
+	Enemy(const std::vector<glm::ivec2>& gridPath, const Grid& grid, EnemyType type, int targetBaseIndex);
 	void update(float dt, const Grid& grid);
 
 	void render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture, std::shared_ptr<Texture2D> radiusTex, glm::vec2 offset, const Grid& grid);

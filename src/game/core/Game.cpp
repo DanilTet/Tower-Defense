@@ -140,10 +140,38 @@ void Game::init() {
     // циклом прокладываем путь от КАЖДОГО спавнера до базы
     for (size_t i = 0; i < m_spawners.size(); ++i) {
         int baseIdx = m_spawners[i].targetBaseIndex;
-        // если в JSON указан несуществующий индекс базы то сводим к 0
-        if (baseIdx < 0 || baseIdx >= m_bases.size()) baseIdx = 0;
+        std::vector<glm::ivec2> calculatedPath;
 
-        std::vector<glm::ivec2> calculatedPath = m_pathfinder->findPath(*m_gameGrid, m_spawners[i].pos, m_bases[baseIdx]);
+        if (baseIdx == -1) {
+            int minCost = 999999;
+            float minEuclideanDist = 999999.0f;
+
+            for (const auto& base : m_bases) {
+                int currentCost = 0; // Создаем переменную для стоимости
+                // Передаем currentCost в функцию, и она сама туда запишет ответ!
+                auto path = m_pathfinder->findPath(*m_gameGrid, m_spawners[i].pos, base, currentCost);
+
+                if (!path.empty()) {
+                    // НАМ БОЛЬШЕ НЕ НУЖЕН ЦИКЛ ПО path ДЛЯ СТРОИТЕЛЬСТВА СТОИМОСТИ!
+                    // currentCost уже равен правильной цифре (например, 150 или 194).
+
+                    float euclideanDist = glm::distance(glm::vec2(m_spawners[i].pos), glm::vec2(base));
+
+                    if (currentCost < minCost || (currentCost == minCost && euclideanDist < minEuclideanDist)) {
+                        minCost = currentCost;
+                        minEuclideanDist = euclideanDist;
+                        calculatedPath = path;
+                    }
+                }
+            }
+        }
+
+        else {
+            // СТРОГО ПО ИНДЕКСУ ИЗ JSON
+            if (baseIdx < 0 || baseIdx >= m_bases.size()) baseIdx = 0;
+            int dummyCost = 0;
+            calculatedPath = m_pathfinder->findPath(*m_gameGrid, m_spawners[i].pos, m_bases[baseIdx], dummyCost);
+        }
 
         if (!calculatedPath.empty()) {
             calculatedPath.insert(calculatedPath.begin(), m_spawners[i].pos);
@@ -441,8 +469,9 @@ void Game::spawnEnemy(EnemyType type, int spawnerIndex) {
     // если спавнера не существуеты
     if (spawnerIndex >= m_paths.size() || m_paths[spawnerIndex].empty()) return;
 
-    // выдаем врагу маршрут из списка путей
-    auto newEnemy = std::make_unique<Enemy>(m_paths[spawnerIndex], *m_gameGrid, type);
+    // вытягиваем индекс базы из данных спавнера и передаем во врага
+    int targetIdx = m_spawners[spawnerIndex].targetBaseIndex;
+    auto newEnemy = std::make_unique<Enemy>(m_paths[spawnerIndex], *m_gameGrid, type, targetIdx);
     // Переносим владение (std::move) над этим указателем и пушим его в конец вектора m_enemies
     m_entityManager->addEnemy(std::move(newEnemy));
 }

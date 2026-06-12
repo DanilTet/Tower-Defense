@@ -13,12 +13,13 @@ EnemyStats Enemy::getStatsfromEnemyType(EnemyType type) {
 }
 
 // конструктор который вызывается при спавне крипа
-Enemy::Enemy(const std::vector<glm::ivec2>& gridPath, const Grid& grid, EnemyType type)
+Enemy::Enemy(const std::vector<glm::ivec2>& gridPath, const Grid& grid, EnemyType type, int targetBaseIndex)
     : m_path(gridPath), // сохраняем ссылку на маршрут врага по клеткам сетки
     m_currentWayPoint(0), // начинаем с первой контрольной точки маршрута
     m_reachedEnd(false), // изначально враг не достиг конца маршрута
     m_type(type), // сохраняем тип врага
-    m_distanceTraveled(0.0f) // инициализация одометра
+    m_distanceTraveled(0.0f),// инициализация одометра
+    m_targetBaseIndex(targetBaseIndex) // СОХРАНЯЕМ ИНДЕКС БАЗЫ
 {
     m_id = s_nextId++; // выдаем уникальный айди
 
@@ -190,16 +191,34 @@ CircleCollider Enemy::getCollider(const Grid& grid) const {
     return { center, currentRadius };
 }
 // функция для нахождения новго пути
-void Enemy::recalculatePath(Pathfinder* pathfinder, const Grid& grid, glm::ivec2 basePos) {
-    //узнаем в какой клетке сейчас враг
+void Enemy::recalculatePath(Pathfinder* pathfinder, const Grid& grid, const std::vector<glm::ivec2>& bases) {
     glm::ivec2 currentGridPos = grid.pixelToGrid(m_pixelPos);
+    std::vector<glm::ivec2> bestPath;
 
-    // ищем новый путь от позиции до базы
-    std::vector<glm::ivec2> newPath = pathfinder->findPath(grid, currentGridPos, basePos);
+    if (m_targetBaseIndex == -1) {
+        // ищем кратчайший путь с учетом стоимости
+        int minCost = 999999;
 
-    // если путь найден то обновляем 
-    if (!newPath.empty()) {
-        m_path = newPath; // записуем новый маршрут
-        m_currentWayPoint = 0; // начинаем идти по новому пути
+        for (const auto& base : bases) {
+            int currentCost = 0; // переменная для сохранения стоимости
+            auto path = pathfinder->findPath(grid, currentGridPos, base, currentCost);
+            if (!path.empty()) {
+                if (currentCost < minCost) {
+                    minCost = currentCost;
+                    bestPath = path;
+                }
+            }
+        }
+    }
+    else {
+        int idx = m_targetBaseIndex;
+        if (idx < 0 || idx >= bases.size()) idx = 0;
+        int dummyCost = 0;
+        bestPath = pathfinder->findPath(grid, currentGridPos, bases[idx], dummyCost);
+    }
+
+    if (!bestPath.empty()) {
+        m_path = bestPath;
+        m_currentWayPoint = 0;
     }
 }

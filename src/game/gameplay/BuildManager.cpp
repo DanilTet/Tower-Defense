@@ -19,8 +19,7 @@ void BuildManager::tryBuildOrUpgrade(
     const std::vector<SpawnerData>& spawners, // спавны
     const std::vector<glm::ivec2>& bases,// базы блять
     std::vector<std::vector<glm::ivec2>>& paths,
-    std::vector<glm::ivec2>& levelPath) { 
-
+    std::vector<glm::ivec2>& levelPath) {
 
     glm::ivec2 clickedCell = gameGrid.pixelToGrid(mousePos);
 
@@ -35,7 +34,6 @@ void BuildManager::tryBuildOrUpgrade(
         return;
     }
 
-
     int currentCost = Tower::getStatsfromTowerType(selectedType).cost;
 
     if (stats.money >= currentCost && gameGrid.canBuildAt(clickedCell.x, clickedCell.y)) {
@@ -45,25 +43,47 @@ void BuildManager::tryBuildOrUpgrade(
 
         // виртуально ставим башню
         gameGrid.setCellType(clickedCell.x, clickedCell.y, CellType::Tower);
-        //проверка маршрута
-        
+
         // проверяем пути для всех спавнеров
         bool isPathBlocked = false;
-        std::vector<std::vector<glm::ivec2>> newPaths; // временное хранилице для новых путей
+        std::vector<std::vector<glm::ivec2>> newPaths; // временное хранилище для новых путей
 
         for (size_t i = 0; i < spawners.size(); ++i) {
             int baseIdx = spawners[i].targetBaseIndex;
-            if (baseIdx < 0 || baseIdx >= bases.size()) baseIdx = 0;
+            std::vector<glm::ivec2> bestPath;
 
-            std::vector<glm::ivec2> testPath = pathfinder.findPath(gameGrid, spawners[i].pos, bases[baseIdx]);
+            if (baseIdx == -1) {
+                int minCost = 999999;
+                float minEuclideanDist = 999999.0f;
 
-            if (testPath.empty()) {
+                for (const auto& base : bases) {
+                    int currentCost = 0;
+                    auto path = pathfinder.findPath(gameGrid, spawners[i].pos, base, currentCost);
+
+                    if (!path.empty()) {
+                        float euclideanDist = glm::distance(glm::vec2(spawners[i].pos), glm::vec2(base));
+
+                        if (currentCost < minCost || (currentCost == minCost && euclideanDist < minEuclideanDist)) {
+                            minCost = currentCost;
+                            minEuclideanDist = euclideanDist;
+                            bestPath = path;
+                        }
+                    }
+                }
+            }
+            else {
+                if (baseIdx < 0 || baseIdx >= bases.size()) baseIdx = 0;
+                int dummyCost = 0;
+                bestPath = pathfinder.findPath(gameGrid, spawners[i].pos, bases[baseIdx], dummyCost);
+            }
+
+            if (bestPath.empty()) {
                 isPathBlocked = true; // если хоть один спавнер заблокирован то строить нельзя
                 break;
             }
 
-            testPath.insert(testPath.begin(), spawners[i].pos); // добавляем точку старта
-            newPaths.push_back(testPath); // сохраняем успешный путь
+            bestPath.insert(bestPath.begin(), spawners[i].pos); // добавляем точку старта
+            newPaths.push_back(bestPath); // сохраняем успешный путь
         }
 
         // если пути нету значит игрок заблокировал маршрут
@@ -72,7 +92,6 @@ void BuildManager::tryBuildOrUpgrade(
             std::cout << "Path Blocked! Cannot build here." << std::endl;
         }
         else { // иначе пути свободны
-            
             stats.money -= currentCost;
 
             // спавним башню
@@ -84,8 +103,8 @@ void BuildManager::tryBuildOrUpgrade(
             AudioManager::playSound(towerstats.buildSound.c_str());
 
             // обновляем все маршруты
-            paths = newPaths; // заменяем старые пути на новые
-            levelPath = paths[0]; // оставляем нулевой для обратной совместимости
+            paths = newPaths;
+            levelPath = paths[0];
 
             // убираем старый путь с сетки
             for (int x = 0; x < gameGrid.getWidth(); ++x) {
@@ -98,7 +117,6 @@ void BuildManager::tryBuildOrUpgrade(
             // записуем новые пути на сетку
             for (const auto& path : paths) {
                 for (const auto& p : path) {
-                    // Ставим CellType::Path, только если клетка пустая чтобы не затереть спавнер или базу
                     if (gameGrid.getCellType(p.x, p.y) == CellType::Empty) {
                         gameGrid.setCellType(p.x, p.y, CellType::Path);
                     }
@@ -108,8 +126,7 @@ void BuildManager::tryBuildOrUpgrade(
             // даем врагам новый путь
             for (auto& enemy : enemies) {
                 if (enemy) {
-                    // враг пересчитывает путь именно к СВОЕЙ базе которую он запомнил
-                    enemy->recalculatePath(&pathfinder, gameGrid, enemy->getTargetBase());
+                    enemy->recalculatePath(&pathfinder, gameGrid, bases);
                 }
             }
         }
@@ -132,7 +149,6 @@ void BuildManager::sellTower(
     int tx = tower->getGridX();
     int ty = tower->getGridY();
 
-    // заглушка даем 50 деньков позже сделаем расчет возврата в зависимости от левела
     stats.money += 50;
 
     // освобождаем клетку на сетке
@@ -141,13 +157,37 @@ void BuildManager::sellTower(
     // уничтожаем объект башни
     entityManager.removeTower(tx, ty);
 
-    // считаем заново путь но тут 1000% будет путь так как же освободили путь клянусь!!!
+    // считаем заново пути с учетом геометрической близости
     std::vector<std::vector<glm::ivec2>> newPaths;
     for (size_t i = 0; i < spawners.size(); ++i) {
         int baseIdx = spawners[i].targetBaseIndex;
-        if (baseIdx < 0 || baseIdx >= bases.size()) baseIdx = 0;
+        std::vector<glm::ivec2> testPath;
 
-        std::vector<glm::ivec2> testPath = pathfinder.findPath(gameGrid, spawners[i].pos, bases[baseIdx]);
+        if (baseIdx == -1) {
+            int minCost = 999999;
+            float minEuclideanDist = 999999.0f;
+
+            for (const auto& base : bases) {
+                int currentCost = 0;
+                auto path = pathfinder.findPath(gameGrid, spawners[i].pos, base, currentCost);
+
+                if (!path.empty()) {
+                    float euclideanDist = glm::distance(glm::vec2(spawners[i].pos), glm::vec2(base));
+
+                    if (currentCost < minCost || (currentCost == minCost && euclideanDist < minEuclideanDist)) {
+                        minCost = currentCost;
+                        minEuclideanDist = euclideanDist;
+                        testPath = path;;
+                    }
+                }
+            }
+        }
+        else {
+            if (baseIdx < 0 || baseIdx >= bases.size()) baseIdx = 0;
+            int dummyCost = 0;
+            testPath = pathfinder.findPath(gameGrid, spawners[i].pos, bases[baseIdx], dummyCost);
+        }
+
         testPath.insert(testPath.begin(), spawners[i].pos);
         newPaths.push_back(testPath);
     }
@@ -175,7 +215,7 @@ void BuildManager::sellTower(
     // перенаправляем врагов по новому маршруту
     for (auto& enemy : entityManager.getEnemies()) {
         if (enemy) {
-            enemy->recalculatePath(&pathfinder, gameGrid, enemy->getTargetBase());
+            enemy->recalculatePath(&pathfinder, gameGrid, bases);
         }
     }
 }

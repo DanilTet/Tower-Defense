@@ -76,7 +76,7 @@ std::vector<Node*> Pathfinder::getNeighbors(Node* node, const Grid& grid) {
     return neighbors;
 }
 
-std::vector<glm::ivec2> Pathfinder::findPath(const Grid& grid, glm::ivec2 startPos, glm::ivec2 targetPos) {
+std::vector<glm::ivec2> Pathfinder::findPath(const Grid& grid, glm::ivec2 startPos, glm::ivec2 targetPos, int& outTotalCost) {
     // очищаем открытый и закрытый список
     m_openList.clear();
     m_closedList.clear();
@@ -132,6 +132,9 @@ std::vector<glm::ivec2> Pathfinder::findPath(const Grid& grid, glm::ivec2 startP
             std::vector<glm::ivec2> path;
 
             // востанавливаем маршрут до старта идем по отцам
+
+            outTotalCost = targetNode->gCost;
+
             while (currentNode != startNode) {
                 path.push_back(currentNode->pos);
                 currentNode = currentNode->parent;
@@ -175,5 +178,6 @@ std::vector<glm::ivec2> Pathfinder::findPath(const Grid& grid, glm::ivec2 startP
 
         }   
     }
+    outTotalCost = 999999;
     return std::vector<glm::ivec2>(); // возвращаем пустой маршрут
 }

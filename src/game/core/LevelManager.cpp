@@ -30,7 +30,7 @@ LevelMapData LevelManager::loadLevelMap(const std::string& filepath) {
             for (const auto& spawner : j["map"]["spawners"]) {
                 SpawnerData sd;
                 sd.pos = { spawner["x"], spawner["y"] };
-                sd.targetBaseIndex = spawner.value("targetBaseIndex", 0);
+                sd.targetBaseIndex = spawner.value("targetBaseIndex", -1);
                 data.spawners.push_back(sd);
             }
 

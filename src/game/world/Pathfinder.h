@@ -35,5 +35,5 @@ public:
 	Pathfinder(int gridWidth, int gridHeight);
 	// принимает все что надо и возвращает список координат для движения
 	std::vector<Node*> getNeighbors(Node* node, const Grid& grid); // ищет соседей вокруг
-	std::vector<glm::ivec2> findPath(const Grid& grid, glm::ivec2 startPos, glm::ivec2 targetPos);
+	std::vector<glm::ivec2> findPath(const Grid& grid, glm::ivec2 startPos, glm::ivec2 targetPos, int& outTotalCost);
 };
