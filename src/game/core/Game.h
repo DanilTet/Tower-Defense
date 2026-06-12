@@ -16,6 +16,7 @@
 #include "gameplay/BuildManager.h"
 #include "gameplay/EntityManager.h"
 #include "gameplay/PlayerStats.h"
+#include "core/LevelManager.h"
 
 // Forward declarations ускоряет компиляцию и уменьшает количество включаемых заголовочных файлов
 // типа просто говорим компилятору, что эти классы существуют, а их определения будут в соответствующих заголовочных файлах
@@ -94,7 +95,7 @@ private:
 	glm::vec2 m_currentMousePos; // позиция мыши каждый кадр
 
 	// точки спавна и точки баз
-	std::vector<glm::ivec2> m_spawners;
+	std::vector<SpawnerData> m_spawners;
 	std::vector<glm::ivec2> m_bases;
 
 	//маршруты

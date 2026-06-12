@@ -1,6 +1,7 @@
 #pragma once
 #include <memory>
 #include <glm/glm.hpp>
+#include "../core/LevelManager.h"
 
 class Tower;
 class SpriteRenderer;
@@ -23,7 +24,7 @@ public:
         EntityManager& entityManager,
         Grid& gameGrid,
         Pathfinder& pathfinder,
-        const std::vector<glm::ivec2>& spawners,
+        const std::vector<SpawnerData>& spawners,
         const std::vector<glm::ivec2>& bases,
         std::vector<std::vector<glm::ivec2>>& paths,
         std::vector<glm::ivec2>& levelPath,

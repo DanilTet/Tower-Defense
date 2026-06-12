@@ -16,7 +16,7 @@ bool TowerMenuUI::processClick(
     EntityManager& entityManager,
     Grid& gameGrid,
     Pathfinder& pathfinder,
-    const std::vector<glm::ivec2>& spawners,
+    const std::vector<SpawnerData>& spawners,
     const std::vector<glm::ivec2>& bases,
     std::vector<std::vector<glm::ivec2>>& paths,
     std::vector<glm::ivec2>& levelPath,

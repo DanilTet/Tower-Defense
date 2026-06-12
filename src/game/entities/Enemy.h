@@ -45,7 +45,9 @@ private:
 	float m_distanceTraveled;// пройденная дистанция врага
 
 public:
-	
+	// функция чтобы враг всегда знал где находиться его финальная точка
+	glm::ivec2 getTargetBase() const { return m_path.back(); }
+
 	// функци для перерасчета пути
 	void recalculatePath(Pathfinder* pathfinder, const Grid& grid, glm::ivec2 basePos);
 

@@ -16,7 +16,7 @@ void BuildManager::tryBuildOrUpgrade(
     std::vector<std::unique_ptr<Enemy>>& enemies,// башни
     Grid& gameGrid, // сетка
     Pathfinder& pathfinder, // поиск пути
-    const std::vector<glm::ivec2>& spawners, // спавны
+    const std::vector<SpawnerData>& spawners, // спавны
     const std::vector<glm::ivec2>& bases,// базы блять
     std::vector<std::vector<glm::ivec2>>& paths,
     std::vector<glm::ivec2>& levelPath) { 
@@ -52,14 +52,17 @@ void BuildManager::tryBuildOrUpgrade(
         std::vector<std::vector<glm::ivec2>> newPaths; // временное хранилице для новых путей
 
         for (size_t i = 0; i < spawners.size(); ++i) {
-            std::vector<glm::ivec2> testPath = pathfinder.findPath(gameGrid, spawners[i], bases[0]);
+            int baseIdx = spawners[i].targetBaseIndex;
+            if (baseIdx < 0 || baseIdx >= bases.size()) baseIdx = 0;
+
+            std::vector<glm::ivec2> testPath = pathfinder.findPath(gameGrid, spawners[i].pos, bases[baseIdx]);
 
             if (testPath.empty()) {
                 isPathBlocked = true; // если хоть один спавнер заблокирован то строить нельзя
                 break;
             }
 
-            testPath.insert(testPath.begin(), spawners[i]); // добавляем точку старта
+            testPath.insert(testPath.begin(), spawners[i].pos); // добавляем точку старта
             newPaths.push_back(testPath); // сохраняем успешный путь
         }
 
@@ -105,7 +108,8 @@ void BuildManager::tryBuildOrUpgrade(
             // даем врагам новый путь
             for (auto& enemy : enemies) {
                 if (enemy) {
-                    enemy->recalculatePath(&pathfinder, gameGrid, bases[0]);
+                    // враг пересчитывает путь именно к СВОЕЙ базе которую он запомнил
+                    enemy->recalculatePath(&pathfinder, gameGrid, enemy->getTargetBase());
                 }
             }
         }
@@ -118,7 +122,7 @@ void BuildManager::sellTower(
     EntityManager& entityManager,
     Grid& gameGrid,
     Pathfinder& pathfinder,
-    const std::vector<glm::ivec2>& spawners,
+    const std::vector<SpawnerData>& spawners,
     const std::vector<glm::ivec2>& bases,
     std::vector<std::vector<glm::ivec2>>& paths,
     std::vector<glm::ivec2>& levelPath) {
@@ -140,8 +144,11 @@ void BuildManager::sellTower(
     // считаем заново путь но тут 1000% будет путь так как же освободили путь клянусь!!!
     std::vector<std::vector<glm::ivec2>> newPaths;
     for (size_t i = 0; i < spawners.size(); ++i) {
-        std::vector<glm::ivec2> testPath = pathfinder.findPath(gameGrid, spawners[i], bases[0]);
-        testPath.insert(testPath.begin(), spawners[i]);
+        int baseIdx = spawners[i].targetBaseIndex;
+        if (baseIdx < 0 || baseIdx >= bases.size()) baseIdx = 0;
+
+        std::vector<glm::ivec2> testPath = pathfinder.findPath(gameGrid, spawners[i].pos, bases[baseIdx]);
+        testPath.insert(testPath.begin(), spawners[i].pos);
         newPaths.push_back(testPath);
     }
 
@@ -168,7 +175,7 @@ void BuildManager::sellTower(
     // перенаправляем врагов по новому маршруту
     for (auto& enemy : entityManager.getEnemies()) {
         if (enemy) {
-            enemy->recalculatePath(&pathfinder, gameGrid, bases[0]);
+            enemy->recalculatePath(&pathfinder, gameGrid, enemy->getTargetBase());
         }
     }
 }

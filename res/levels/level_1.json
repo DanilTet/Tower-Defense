@@ -1,28 +1,35 @@
 {
   "map": {
-    "width": 11,
-    "height": 7,
+    "width": 16,
+    "height": 12,
     "cellSize": 64.0,
     "offsetX": 20.0,
     "offsetY": 20.0,
     "spawners": [
       {
         "x": 0,
-        "y": 5
+        "y": 2,
+        "targetBaseIndex": 0
       },
       {
         "x": 0,
-        "y": 1
+        "y": 8,
+        "targetBaseIndex": 0
       },
       {
-        "x": 0,
-        "y": 3
+        "x": 5,
+        "y": 0,
+        "targetBaseIndex": 1
       }
     ],
     "bases": [
       {
-        "x": 10,
-        "y": 6
+        "x": 15,
+        "y": 5
+      },
+      {
+        "x": 5,
+        "y": 11
       }
     ]
   },

@@ -6,6 +6,7 @@
 #include <memory>
 #include <vector>
 #include "entities/Tower.h"
+#include "core/LevelManager.h"
 
 class Grid;
 class Pathfinder;
@@ -23,7 +24,7 @@ public:
         std::vector<std::unique_ptr<Enemy>>& enemies,// башни
         Grid& gameGrid, // сетка
         Pathfinder& pathfinder, // поиск пути
-        const std::vector<glm::ivec2>& spawners, // спавны
+        const std::vector<SpawnerData>& spawners, // спавны
         const std::vector<glm::ivec2>& bases,// базы блять
         std::vector<std::vector<glm::ivec2>>& paths,
         std::vector<glm::ivec2>& levelPath
@@ -35,7 +36,7 @@ public:
         EntityManager& entityManager,
         Grid& gameGrid,
         Pathfinder& pathfinder,
-        const std::vector<glm::ivec2>& spawners,
+        const std::vector<SpawnerData>& spawners,
         const std::vector<glm::ivec2>& bases,
         std::vector<std::vector<glm::ivec2>>& paths,
         std::vector<glm::ivec2>& levelPath

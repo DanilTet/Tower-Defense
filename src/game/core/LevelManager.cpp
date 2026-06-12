@@ -28,7 +28,10 @@ LevelMapData LevelManager::loadLevelMap(const std::string& filepath) {
 
             // читаем спавнеры
             for (const auto& spawner : j["map"]["spawners"]) {
-                data.spawners.push_back({ spawner["x"], spawner["y"] });
+                SpawnerData sd;
+                sd.pos = { spawner["x"], spawner["y"] };
+                sd.targetBaseIndex = spawner.value("targetBaseIndex", 0);
+                data.spawners.push_back(sd);
             }
 
             // читаем базы

@@ -124,7 +124,7 @@ void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies,
 				float currentSplash = ConfigManager::getTowerStats(m_type, m_currentLevel).splashRadius;
 
 				// Создаем пулю
-				auto newProj = std::make_unique<Projectile>(towerCenter, enemyCenter, 800.0f, m_damage, bestTarget->getId(), currentSplash);
+				auto newProj = std::make_unique<Projectile>(towerCenter, m_angle, 800.0f, m_damage, bestTarget->getId(), currentSplash, currentPixelRange);
 				projectiles.push_back(std::move(newProj));
 
 				TowerStats stats = ConfigManager::getTowerStats(m_type, m_currentLevel);

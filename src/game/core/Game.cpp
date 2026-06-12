@@ -124,7 +124,7 @@ void Game::init() {
 
     // устанавливаем спавнеры на карту
     for (const auto& spawner : m_spawners) {
-        m_gameGrid->setCellType(spawner.x, spawner.y, CellType::Spawner);
+        m_gameGrid->setCellType(spawner.pos.x, spawner.pos.y, CellType::Spawner);
     }
 
     // устанавливаем базы на карту
@@ -139,10 +139,14 @@ void Game::init() {
 
     // циклом прокладываем путь от КАЖДОГО спавнера до базы
     for (size_t i = 0; i < m_spawners.size(); ++i) {
-        std::vector<glm::ivec2> calculatedPath = m_pathfinder->findPath(*m_gameGrid, m_spawners[i], m_bases[0]);
+        int baseIdx = m_spawners[i].targetBaseIndex;
+        // если в JSON указан несуществующий индекс базы то сводим к 0
+        if (baseIdx < 0 || baseIdx >= m_bases.size()) baseIdx = 0;
+
+        std::vector<glm::ivec2> calculatedPath = m_pathfinder->findPath(*m_gameGrid, m_spawners[i].pos, m_bases[baseIdx]);
 
         if (!calculatedPath.empty()) {
-            calculatedPath.insert(calculatedPath.begin(), m_spawners[i]);
+            calculatedPath.insert(calculatedPath.begin(), m_spawners[i].pos);
             m_paths.push_back(calculatedPath);
 
             // блокируем постройку на этом пути
