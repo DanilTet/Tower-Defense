@@ -27,7 +27,7 @@ public:
 	std::vector<Projectile>& getProjectilePool() { return m_projectiles; }
 
 	// методы обновления и рендера
-	void update(float dt, Grid& gameGrid, PlayerStats& stats);
+	void update(float dt, Grid& gameGrid);
 	void render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> cellTex, std::shared_ptr<Texture2D> radiusTex, std::shared_ptr<Texture2D> arrowTex, Grid& gameGrid);
 
 	// методы добавления

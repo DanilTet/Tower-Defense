@@ -3,14 +3,14 @@
 #include "renderer/SpriteRenderer.h"
 #include "textures/Texture2D.h"
 #include <algorithm>
-#include "gameplay/PlayerStats.h"
+#include "../core/EventBus.h"
 
 // сразу выделяем память под 500 пуль
 EntityManager::EntityManager() {
     m_projectiles.resize(500);
 }
 
-void EntityManager::update(float dt, Grid& gameGrid, PlayerStats& stats) {
+void EntityManager::update(float dt, Grid& gameGrid) {
     // пробегаемся по всему вектору активных башен на карте
     for (const auto& tower : m_towers) {
         if (tower) {
@@ -27,11 +27,10 @@ void EntityManager::update(float dt, Grid& gameGrid, PlayerStats& stats) {
     // если враг убит добавляем игроку деняк иначе отминаем от базі хп
     for (const auto& enemy : m_enemies) {
         if (enemy->isDead()) {
-            stats.money += enemy->getReward();
-            stats.score += 10;
+            EventBus::publish({ EventType::EnemyDied, enemy->getReward(), 10, enemy->getCollider(gameGrid).center.x, enemy->getCollider(gameGrid).center.y });
         }
         if (enemy->isReachedEnd()) {
-            stats.baseHealth -= 1;
+            EventBus::publish({ EventType::EnemyReachedBase, 1 });
         }
     }
 

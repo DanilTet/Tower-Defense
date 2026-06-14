@@ -2,9 +2,9 @@
 #include "world/Grid.h"
 #include "Enemy.h"
 #include "renderer/SpriteRenderer.h"
-#include "../audio/AudioManager.h"
 #include "Projectile.h"
 #include "core/ConfigManager.h"
+#include "../core/EventBus.h"
 
 TowerStats Tower::getStatsfromTowerType(TowerType type) {
 	return ConfigManager::getTowerStats(type);
@@ -137,8 +137,7 @@ void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies,
 					freeProj->init(towerCenter, m_angle, 800.0f, m_damage, bestTarget->getId(), currentSplash, currentPixelRange);
 				}
 
-				TowerStats stats = ConfigManager::getTowerStats(m_type, m_currentLevel);
-				AudioManager::playSound(stats.attackSound.c_str(), 0.1f);
+				EventBus::publish({ EventType::TowerFired });
 
 				m_shotTimer = m_fireRate;
 
@@ -181,7 +180,7 @@ bool Tower::upgrade(int& playerMoney) {
 		m_rotationSpeed = nextStats.rotationSpeed;
 
 		// Играем кастомный звук апгрейда 
-		AudioManager::playSound(nextStats.buildSound.c_str());
+		EventBus::publish({ EventType::TowerBuilt });
 		return true;
 	}
 

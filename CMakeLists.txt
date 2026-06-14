@@ -139,6 +139,9 @@ add_executable(${PROJECT_NAME}
 
     src/game/core/LevelManager.h
     src/game/core/LevelManager.cpp
+
+    src/game/core/EventBus.cpp
+    src/game/core/EventBus.h
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE

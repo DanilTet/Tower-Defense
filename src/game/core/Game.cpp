@@ -19,6 +19,7 @@
 #include "core/LevelManager.h"
 #include "gameplay/EntityManager.h"
 #include "ui/TowerMenuUI.h"
+#include "EventBus.h"
 
 // Конструктор и деструктор
 Game::Game(int width, int height)
@@ -208,6 +209,35 @@ void Game::init() {
     // Гейплей
     m_buildManager = std::make_unique<BuildManager>(); // инициализация абгрейдера и строителя башен
     m_entityManager = std::make_unique<EntityManager>(); // инициализация менеджера для отрисовки и обновление башен,врагов и пуль
+
+
+
+    // КРУТАЯ ШИНА СОБЫТИЙ
+    EventBus::clear(); // очищаем старые подписки
+
+    // тут слушаем смерть врага
+    EventBus::subscribe(EventType::EnemyDied, [this](const Event& e) {
+        // e.value1 это деньки, e.value2 это очки
+        this->m_playerStats.money += e.value1;
+        this->m_playerStats.score += e.value2;
+    });
+
+    // тут слушаем прорыв врага на базу
+    EventBus::subscribe(EventType::EnemyReachedBase, [this](const Event& e) {
+        // e.value1 это урон по базе
+        this->m_playerStats.baseHealth -= e.value1;
+
+        // сразу проверяем на проигрыш здесь а не в update как было по лоховскому
+        if (this->m_playerStats.baseHealth <= 0) {
+            this->m_playerStats.baseHealth = 0;
+            this->m_state = GameState::GameOver;
+        }
+    });
+
+    // тут слушаем выстрелы башен
+    EventBus::subscribe(EventType::TowerFired, [](const Event& e) {
+        AudioManager::playSound("res/sounds/shoot.wav", 0.1f);
+    });
 }
 
 // Обработка ввода вызывается каждый кадр
@@ -333,7 +363,7 @@ void Game::update(float dt) {
         // чекаем менеджер волн
         if (m_waveManager) m_waveManager->update(dt, *this);
         // обновляем башни, пули и другое
-        m_entityManager->update(dt, *m_gameGrid, m_playerStats);
+        m_entityManager->update(dt, *m_gameGrid);
 
         // проверка на проигрыш
         if (m_playerStats.baseHealth <= 0) {
