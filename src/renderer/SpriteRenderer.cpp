@@ -67,7 +67,7 @@ void SpriteRenderer::initRenderData() {
     glBindVertexArray(m_quadVAO);
 
     glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_ebo);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
@@ -91,7 +91,8 @@ void SpriteRenderer::drawSprite(const std::shared_ptr<Texture2D>& texture,
     glm::vec2 position,
     glm::vec2 size,
     float rotation,
-    glm::vec3 color)
+    glm::vec3 color,
+    SpriteUV uv)
 {
     m_shader->use();
     glm::mat4 model = glm::mat4(1.0f);
@@ -107,6 +108,24 @@ void SpriteRenderer::drawSprite(const std::shared_ptr<Texture2D>& texture,
     GLuint programId = m_shader->getId();
     glUniformMatrix4fv(glGetUniformLocation(programId, "u_model"), 1, GL_FALSE, glm::value_ptr(model));
     glUniform3fv(glGetUniformLocation(programId, "u_color"), 1, glm::value_ptr(color));
+
+    // короче тут новый массив вершин где позиция квадрата таже НО UV координаты наши! УКРАИНСКИЕ!
+
+    float vertices[] = {
+        // позиция      // текстурные координаты (U, V)
+        0.0f, 0.0f,     uv.uvMin.x, uv.uvMin.y, // левый верхний
+        1.0f, 0.0f,     uv.uvMax.x, uv.uvMin.y, // правый верхний
+        1.0f, 1.0f,     uv.uvMax.x, uv.uvMax.y, // правый нижний
+        0.0f, 1.0f,     uv.uvMin.x, uv.uvMax.y  // левый нижний
+    };
+
+    // обновляем буфер в видеокарте
+    glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
+
+    // перезаписуем только кусок данных
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
 
     texture->bind(0);
 
