@@ -3,28 +3,36 @@
 #include "../textures/Texture2D.h"
 #include "world/Grid.h"
 
-Projectile::Projectile(glm::vec2 startPos, float startAngle, float speed, int damage, int targetId, float splashRadius, float searchRadius)
-    : m_pos(startPos),
-    m_angle(startAngle),
-    m_speed(speed),
-    m_damage(damage),
-    m_radius(5.0f),
-    m_destroyed(false),
-    m_lifeTime(3.0f),
-    m_targetId(targetId),
-    m_splashRadius(splashRadius),
-    m_turnSpeed(540.0f),
-    m_originPoint(startPos),
-    m_searchRadius(searchRadius)
+// конструктор задает спящего бизнесмена
+Projectile::Projectile()
+    : m_pos(0.0f), m_angle(0.0f), m_speed(0.0f), m_damage(0), m_radius(5.0f),
+    m_destroyed(true), m_lifeTime(0.0f), m_targetId(-1), m_splashRadius(0.0f),
+    m_turnSpeed(540.0f), m_originPoint(0.0f), m_searchRadius(0.0f), m_isActive(false) {
+}
 
-{
-    // считаем векртор движения на основе угла башни
+//  вызывается башней и тут не создается новая память
+void Projectile::init(glm::vec2 startPos, float startAngle, float speed, int damage, int targetId, float splashRadius, float searchRadius) {
+    m_pos = startPos;
+    m_angle = startAngle;
+    m_speed = speed;
+    m_damage = damage;
+    m_radius = 5.0f;
+    m_destroyed = false;
+    m_lifeTime = 3.0f;
+    m_targetId = targetId;
+    m_splashRadius = splashRadius;
+    m_turnSpeed = 540.0f;
+    m_originPoint = startPos;
+    m_searchRadius = searchRadius;
+    m_isActive = true; // и вот тут спящий бизнесмен просыпается
+
     float rad = glm::radians(m_angle);
     m_direction = glm::vec2(cos(rad), sin(rad));
 }
 
 void Projectile::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies, const Grid& grid) {
-    if (m_destroyed) return;
+    // пошел ты спящий бизнесмен
+    if (!m_isActive || m_destroyed) return;
 
     // уменьшаем время жизни
     m_lifeTime -= dt;

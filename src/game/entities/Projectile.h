@@ -11,10 +11,12 @@ class Grid;
 
 class Projectile {
 public:
-	// конструктор принимает откуда летим, куда целимся, скорость и урон и айди цели забей уже не актуально
-	Projectile(glm::vec2 startPos, float startAngle, float speed, int damage, int targetId, float splashRadius, float searchRadius);
+	Projectile(); // конструктор прям дефолтнейший
 
-	// двигаем пулу и проверяем столкновение со всеми врагами
+	// метод инициализации пули при выстреле
+	void init(glm::vec2 startPos, float startAngle, float speed, int damage, int targetId, float splashRadius, float searchRadius);
+
+	// двигаем пулу и проверяем столкновение
 	void update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies, const Grid& grid);
 
 	// отрисовка
@@ -24,6 +26,9 @@ public:
 	bool isDestroyed() const {
 		return m_destroyed;
 	}
+
+	bool isActive() const { return m_isActive; } // проверяет активна ли пуля
+	void setActive(bool active) { m_isActive = active; } // устанавливает состояние пули
 
 private:
 	glm::vec2 m_pos; // текущая позиция пули
@@ -49,4 +54,6 @@ private:
 
 	// флаш режима столкновений
 	bool m_hitOnlyTarget = true; // true = Аркада false = Реализм
+
+	bool m_isActive; // флаг для пула обьектов
 };

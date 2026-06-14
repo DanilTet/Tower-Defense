@@ -5,6 +5,11 @@
 #include <algorithm>
 #include "gameplay/PlayerStats.h"
 
+// сразу выделяем память под 500 пуль
+EntityManager::EntityManager() {
+    m_projectiles.resize(500);
+}
+
 void EntityManager::update(float dt, Grid& gameGrid, PlayerStats& stats) {
     // пробегаемся по всему вектору активных башен на карте
     for (const auto& tower : m_towers) {
@@ -31,19 +36,17 @@ void EntityManager::update(float dt, Grid& gameGrid, PlayerStats& stats) {
     }
 
 
-    // обновляем пули
-    for (const auto& proj : m_projectiles) {
-        if (proj) {
-            proj->update(dt, m_enemies, gameGrid);
+    // обновляем пули из пула
+    for (auto& proj : m_projectiles) {
+        if (proj.isActive()) {
+            proj.update(dt, m_enemies, gameGrid);
+
+            // если пуля долетела или время ВСЁ то выключаем её
+            if (proj.isDestroyed()) {
+                proj.setActive(false);
+            }
         }
     }
-
-    // удаляем уничтоженіе пули
-    m_projectiles.erase(
-        std::remove_if(m_projectiles.begin(), m_projectiles.end(),
-            [](const std::unique_ptr<Projectile>& proj) { return proj->isDestroyed(); }),
-        m_projectiles.end()
-    );
 
     // Удаляем врагов, которые достигли конца пути или умерли
     m_enemies.erase(
@@ -65,9 +68,9 @@ void EntityManager::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> 
             tower->render(renderer, cellTex, radiusTex, arrowTex, gameGrid);
         }
     }
-    for (const auto& proj : m_projectiles) {
-        if (proj) {
-            proj->render(renderer, cellTex);
+    for (auto& proj : m_projectiles) {
+        if (proj.isActive()) {
+            proj.render(renderer, cellTex);
         }
     }
 }
@@ -90,4 +93,15 @@ void EntityManager::removeTower(int gridX, int gridY) {
             }),
         m_towers.end()
     );// короче круто просто убираем через КРУТУЮ лямбда функцию егор тетеря курсач
+}
+
+Projectile* EntityManager::getFreeProjectile() {
+    for (auto& proj : m_projectiles) {
+        if (!proj.isActive()) {
+            return &proj;
+        }
+    }
+    // если 500 пуль не хватило то расширяем массив
+    m_projectiles.emplace_back();
+    return &m_projectiles.back();
 }

@@ -12,11 +12,20 @@ struct PlayerStats;
 
 class EntityManager {
 private:
-	std::vector<std::unique_ptr<Projectile>> m_projectiles; // проджектайлы
+	std::vector<Projectile> m_projectiles; // проджектайлы
 	std::vector<std::unique_ptr<Tower>> m_towers;// БАШНИ
 	std::vector<std::unique_ptr<Enemy>> m_enemies; // вектор для хранения всех врагов на уровне
 
 public:
+	// конструктор
+	EntityManager();
+
+	// метод поиска свободной пули для башен
+	Projectile* getFreeProjectile();
+
+	// геттер пула для передачи в башни
+	std::vector<Projectile>& getProjectilePool() { return m_projectiles; }
+
 	// методы обновления и рендера
 	void update(float dt, Grid& gameGrid, PlayerStats& stats);
 	void render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> cellTex, std::shared_ptr<Texture2D> radiusTex, std::shared_ptr<Texture2D> arrowTex, Grid& gameGrid);
@@ -24,7 +33,7 @@ public:
 	// методы добавления
 	void addEnemy(std::unique_ptr<Enemy> enemy) { m_enemies.push_back(std::move(enemy)); }
 	void addTower(std::unique_ptr<Tower> tower) { m_towers.push_back(std::move(tower)); }
-	void addProjectile(std::unique_ptr<Projectile> proj) { m_projectiles.push_back(std::move(proj)); }
+	//void addProjectile(std::unique_ptr<Projectile> proj) { m_projectiles.push_back(std::move(proj)); }
 	// методы взаемодействия с башнями
 	Tower* getTowerAt(int gridX, int gridY); // получить указатель на башню по клетке
 	void removeTower(int gridX, int gridY);  // удалить башню с поля

@@ -64,7 +64,7 @@ void Tower::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture,
 
 }
 
-void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies, std::vector<std::unique_ptr<Projectile>>& projectiles, const Grid& grid) {
+void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies, std::vector<Projectile>& projectiles, const Grid& grid) {
 	//если башня еще не перезарядилась, перезаряжаем
 	if (m_shotTimer > 0.0f) {
 		m_shotTimer -= dt;
@@ -123,14 +123,25 @@ void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies,
 				// достаем радиус сплеша
 				float currentSplash = ConfigManager::getTowerStats(m_type, m_currentLevel).splashRadius;
 
-				// Создаем пулю
-				auto newProj = std::make_unique<Projectile>(towerCenter, m_angle, 800.0f, m_damage, bestTarget->getId(), currentSplash, currentPixelRange);
-				projectiles.push_back(std::move(newProj));
+				// ищем свободную пулю в масиве
+				Projectile* freeProj = nullptr;
+				for (auto& proj : projectiles) {
+					if (!proj.isActive()) {
+						freeProj = &proj;
+						break;
+					}
+				}
+
+				// если нашли пулю то будим этого бизнесмена
+				if (freeProj) {
+					freeProj->init(towerCenter, m_angle, 800.0f, m_damage, bestTarget->getId(), currentSplash, currentPixelRange);
+				}
 
 				TowerStats stats = ConfigManager::getTowerStats(m_type, m_currentLevel);
-				AudioManager::playSound(stats.attackSound.c_str(), 0.1f); // играем звук
+				AudioManager::playSound(stats.attackSound.c_str(), 0.1f);
 
 				m_shotTimer = m_fireRate;
+
 			}
 		}
 		else {
