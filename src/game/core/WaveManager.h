@@ -7,7 +7,7 @@
 class Game;
 
 struct WavePart {
-	EnemyType type; // тип врага для спавна
+	std::string type; // тип врага для спавна
 	int count; // сколько врагов заспавнить
 	float spawnInterwal; // пауза между спавном внутри этой пачки
 	float delayAfter; // пауза между спавном после этой пачки

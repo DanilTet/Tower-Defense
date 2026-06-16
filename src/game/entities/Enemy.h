@@ -3,12 +3,7 @@
 #include <glm/glm.hpp>
 #include <memory>
 #include "CircleCollider.h"
-
-enum class EnemyType {
-	Basic,
-	Fast,
-	Tank
-};
+#include <string>
 
 // Структура для хранения характеристик врага
 struct EnemyStats {
@@ -16,6 +11,9 @@ struct EnemyStats {
 	int Maxhealth;
 	float sizeScale;
 	int reward;
+	std::string textureId;
+	glm::vec3 color;
+	std::string deathSound;
 };
 
 class SpriteRenderer;
@@ -26,10 +24,12 @@ class Pathfinder;
 class Enemy
 {
 private:
-	EnemyType m_type; // тип характеристик врага
+	std::string m_type; // тип характеристик врага
 	int m_health; // здоровье врага
 	float m_speed; // скорость врага
 	int m_reward; // награда за убийство врага
+	glm::vec3 m_color;
+	std::string m_deathSound; // звук смерти
 
 
 	std::vector<glm::ivec2> m_path; // маршрут врага
@@ -54,11 +54,11 @@ public:
 	glm::ivec2 getTargetBase() const { return m_path.empty() ? glm::ivec2(0) : m_path.back(); }
 
 	// Функция для получения характеристик врага в зависимости от его типа
-	static EnemyStats getStatsfromEnemyType(EnemyType type);
+	static EnemyStats getStatsfromEnemyType(const std::string& type);
 
 	void recalculatePosition(const Grid& oldGrid, const Grid& newGrid); // вызывается при изменении размера окна, чтобы враг всегда был точно на клетке, даже если размер клеток изменится при ресайзе окна
 
-	Enemy(const std::vector<glm::ivec2>& gridPath, const Grid& grid, EnemyType type, int targetBaseIndex);
+	Enemy(const std::vector<glm::ivec2>& gridPath, const Grid& grid, const std::string& type, int targetBaseIndex);
 	void update(float dt, const Grid& grid);
 
 	void render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture, std::shared_ptr<Texture2D> radiusTex, glm::vec2 offset, const Grid& grid);
@@ -76,7 +76,7 @@ public:
 	}
 
 	int getReward() const { return m_reward; } // геттер который возгращает награду за убийство врага
-
+	std::string getDeathSound() const { return m_deathSound; }
 	CircleCollider getCollider(const Grid& grid) const; // генераттор хитбокса
 
 	int getId() const { return m_id; } // геттер для получения айди врага

@@ -7,7 +7,7 @@ using json = nlohmann::json;
 
 // инициализация деревьев которіе как словари работают
 std::map<std::string, std::vector<TowerStats>> ConfigManager::s_towerStats;
-std::map<EnemyType, EnemyStats> ConfigManager::s_enemyStats;
+std::map<std::string, EnemyStats> ConfigManager::s_enemyStats;
 
 bool ConfigManager::loadConfigs(const std::string& towerPath, const std::string& enemiesPath) {
 	s_towerStats.clear();
@@ -70,10 +70,29 @@ bool ConfigManager::loadConfigs(const std::string& towerPath, const std::string&
 	if (eFile.is_open()) {
 		json j;
 		eFile >> j;
-		// мапим json на Enum
-		s_enemyStats[EnemyType::Basic] = { j["Basic"]["speed"], j["Basic"]["Maxhealth"], j["Basic"]["sizeScale"], j["Basic"]["reward"] };
-		s_enemyStats[EnemyType::Fast] = { j["Fast"]["speed"],  j["Fast"]["Maxhealth"],  j["Fast"]["sizeScale"],  j["Fast"]["reward"] };
-		s_enemyStats[EnemyType::Tank] = { j["Tank"]["speed"],  j["Tank"]["Maxhealth"],  j["Tank"]["sizeScale"],  j["Tank"]["reward"] };
+		// динамически парсим врагов
+		for (auto& element : j.items()) {
+			std::string enemyName = element.key();
+			json eData = element.value();
+
+			EnemyStats stats;
+			stats.speed = eData.value("speed", 1.0f);
+			stats.Maxhealth = eData.value("Maxhealth", 100);
+			stats.sizeScale = eData.value("sizeScale", 0.5f);
+			stats.reward = eData.value("reward", 10);
+			stats.textureId = eData.value("textureId", "towerTexture");
+			stats.deathSound = eData.value("deathSound", "");
+
+			stats.color = glm::vec3(1.0f);
+			if (eData.contains("color") && eData["color"].is_array() && eData["color"].size() >= 3) {
+				stats.color = glm::vec3(
+					eData["color"][0].get<float>(),
+					eData["color"][1].get<float>(),
+					eData["color"][2].get<float>()
+				);
+			}
+			s_enemyStats[enemyName] = stats;
+		}
 		eFile.close(); // закріваем файл
 	}
 	else {
@@ -98,7 +117,7 @@ TowerStats ConfigManager::getTowerStats(const std::string& type, int level) {
 	return TowerStats{}; // возвращаем пустую структуру в случае ошибки
 }
 
-EnemyStats ConfigManager::getEnemyStats(EnemyType type) {
+EnemyStats ConfigManager::getEnemyStats(const std::string& type) {
 	return s_enemyStats[type];
 }
 

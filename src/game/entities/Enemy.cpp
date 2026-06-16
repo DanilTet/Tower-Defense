@@ -8,12 +8,12 @@
 
 int Enemy::s_nextId = 0; // инициализация общего счетчика
 
-EnemyStats Enemy::getStatsfromEnemyType(EnemyType type) {
+EnemyStats Enemy::getStatsfromEnemyType(const std::string& type) {
     return ConfigManager::getEnemyStats(type);
 }
 
 // конструктор который вызывается при спавне крипа
-Enemy::Enemy(const std::vector<glm::ivec2>& gridPath, const Grid& grid, EnemyType type, int targetBaseIndex)
+Enemy::Enemy(const std::vector<glm::ivec2>& gridPath, const Grid& grid, const std::string& type, int targetBaseIndex)
     : m_path(gridPath), // сохраняем ссылку на маршрут врага по клеткам сетки
     m_currentWayPoint(0), // начинаем с первой контрольной точки маршрута
     m_reachedEnd(false), // изначально враг не достиг конца маршрута
@@ -27,22 +27,14 @@ Enemy::Enemy(const std::vector<glm::ivec2>& gridPath, const Grid& grid, EnemyTyp
     m_speed = stats.speed; // сохраняем скорость врага
 	m_health = stats.Maxhealth; // сохраняем здоровье врага
     m_reward = stats.reward; // сохраняем награду за убийство врага
+    m_color = stats.color;
+    m_deathSound = stats.deathSound;
 
+    m_radiusMultiplier = stats.sizeScale / 2.0f; // хитбокс
 	// Если маршрут не пустой, то устанавливаем начальную позицию врага в пикселях на основе первой контрольной точки маршрута
     if (!m_path.empty()) {
         // Берем индексы x и y первой ячейки [0], переводим в экранные пиксели и сохраняем в m_pixelPos
         m_pixelPos = grid.gridToPixel(m_path[0].x, m_path[0].y);
-    }
-
-    // присваиваем размер относительно клетки в процентах
-    if (type == EnemyType::Basic) {
-        m_radiusMultiplier = 0.3f;
-    }
-    else if (type == EnemyType::Fast) {
-        m_radiusMultiplier = 0.2f;
-    }
-    else if (type == EnemyType::Tank) {
-        m_radiusMultiplier = 0.45f;
     }
 }
 
@@ -107,19 +99,8 @@ void Enemy::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture,
     float padding = (cellSize - enemySizeDim) / 2.0f;
     glm::vec2 centeredPos = m_pixelPos + glm::vec2(padding, padding);
 
-    // задаем цвет в зависимости от типа врага
-    glm::vec3 color(1.0f);
-    if (m_type == EnemyType::Basic) {
-        color = glm::vec3(0.2f, 1.0f, 0.2f);
-    }
-    else if (m_type == EnemyType::Fast) {
-        color = glm::vec3(1.0f, 1.0f, 0.2f);
-    }
-    else if (m_type == EnemyType::Tank) {
-        color = glm::vec3(0.2f, 0.4f, 1.0f);
-    }
     // Отправляем команду в SpriteRenderer
-    renderer->drawSprite(texture, centeredPos, size, 0.0f, color);
+    renderer->drawSprite(texture, centeredPos, size, 0.0f, m_color);
 
 
     //ЧАТО ГПТИШНОЕ ГОВНО КОТОРОЕ ПОТОМ УБРАТЬ

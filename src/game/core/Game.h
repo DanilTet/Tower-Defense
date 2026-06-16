@@ -51,7 +51,7 @@ public:
     void render();
     void resize(int width, int height);
 
-	void spawnEnemy(EnemyType type, int spawnerIndex = 0); // функция для спавна врага
+	void spawnEnemy(const std::string& type, int spawnerIndex = 0); // функция для спавна врага
 	void startNextWave();
 	void restartGame(); // функция перезапуска уровня
 	int getPathCount() const { return m_paths.size(); } // геттер для WaveManager

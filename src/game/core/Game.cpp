@@ -220,6 +220,9 @@ void Game::init() {
         // e.value1 это деньки, e.value2 это очки
         this->m_playerStats.money += e.value1;
         this->m_playerStats.score += e.value2;
+        if (!e.textData.empty()) {
+            AudioManager::playSound(e.textData.c_str(), 0.1f);
+        }
     });
 
     // тут слушаем прорыв врага на базу
@@ -356,7 +359,7 @@ void Game::processInput(GLFWwindow* window, float dt) {
 
     // Если на клавиатуре обнаружено нажатие на клавишу Пробел
     if (isKeyJustPressed(window, GLFW_KEY_SPACE)) {
-        spawnEnemy(EnemyType::Basic);
+        spawnEnemy("Basic");
     }
 }
 
@@ -505,7 +508,7 @@ void Game::resize(int width, int height) {
 }
 
 // функция для спавна врага
-void Game::spawnEnemy(EnemyType type, int spawnerIndex) {
+void Game::spawnEnemy(const std::string& type, int spawnerIndex) {
     // если спавнера не существуеты
     if (spawnerIndex >= m_paths.size() || m_paths[spawnerIndex].empty()) return;
 

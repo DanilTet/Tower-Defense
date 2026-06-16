@@ -39,7 +39,7 @@ void EntityManager::update(float dt, Grid& gameGrid) {
     // если враг убит добавляем игроку деняк иначе отминаем от базі хп
     for (const auto& enemy : m_enemies) {
         if (enemy->isDead()) {
-            EventBus::publish({ EventType::EnemyDied, enemy->getReward(), 10, enemy->getCollider(gameGrid).center.x, enemy->getCollider(gameGrid).center.y });
+            EventBus::publish({ EventType::EnemyDied, enemy->getReward(), 10, enemy->getCollider(gameGrid).center.x, enemy->getCollider(gameGrid).center.y, enemy->getDeathSound() });
         }
         if (enemy->isReachedEnd()) {
             EventBus::publish({ EventType::EnemyReachedBase, 1 });

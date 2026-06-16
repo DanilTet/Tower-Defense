@@ -42,15 +42,8 @@ bool WaveManager::loadLevel(const std::string& filepath) {
 				part.spawnInterwal = partJson["interval"]; // интервал между спавном
 				part.delayAfter = partJson["delayAfter"]; // интервал между пачками
 
-				std::string typeStr = partJson["type"]; // тип врага 
-				//присваеваем тип врага
-				if (typeStr == "Basic") part.type = EnemyType::Basic;
-				else if (typeStr == "Fast") part.type = EnemyType::Fast;
-				else if (typeStr == "Tank") part.type = EnemyType::Tank;
-				else { // если враг еще не прописан
-					std::cerr << "WARNING::WAVEMANAGER: Unknown enemy type: " << typeStr << std::endl;
-					continue;
-				}
+				part.type = partJson["type"].get<std::string>();
+
 				wave.parts.push_back(part); // добаляем пачку в вектор
 			}
 			m_waves.push_back(wave); // добавляем волну в вектор
