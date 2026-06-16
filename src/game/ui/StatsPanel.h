@@ -7,5 +7,5 @@ struct PlayerStats;
 
 class StatsPanel {
 public:
-	void drawStatsPanel(const PlayerStats& playerStats, WaveManager* waveManager, TextRenderer* textRenderer);
+	void drawStatsPanel(const PlayerStats& stats, WaveManager* waveSize, TextRenderer* textRenderer, int screenWidth, int screenHeight);
 };

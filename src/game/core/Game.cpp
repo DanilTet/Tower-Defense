@@ -446,7 +446,7 @@ void Game::render() {
             hasPath
         );
 
-        m_statsPanel->drawStatsPanel(m_playerStats, m_waveManager.get(), m_textRenderer.get());
+        m_statsPanel->drawStatsPanel(m_playerStats, m_waveManager.get(), m_textRenderer.get(), this->width, this->height);
 
         // отрисовка панельки для постройки
         m_buildPanel->BuildRenderUI(

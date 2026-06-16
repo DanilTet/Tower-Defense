@@ -6,16 +6,21 @@
 #include "textures/Texture2D.h"
 #include "core/ConfigManager.h"
 #include "gameplay/PlayerStats.h"
+#include "UICommon.h"
 
 glm::vec2 Buildpanel::getUIPanelPos(int windowWidth, int windowHeight) const {
-	return glm::vec2(windowWidth - UI_PANEL_WIDTH, windowHeight - UI_PANEL_HEIGHT);
+    float scale = GetUIScale(windowWidth, windowHeight);
+    glm::vec2 panelSize(UI_PANEL_WIDTH * scale, UI_PANEL_HEIGHT * scale);
+    glm::vec2 offset(20.0f * scale, 20.0f * scale);
+	return CalculateAnchorPosition(UIAnchor::BottomRight, offset, panelSize, windowWidth, windowHeight);
 }
 
 glm::vec2 Buildpanel::getTowerIconPos(int index, int windowWidth, int windowHeight) const {
+    float scale = GetUIScale(windowWidth, windowHeight);
     glm::vec2 panelPos = getUIPanelPos(windowWidth, windowHeight);
     return glm::vec2(
-        panelPos.x + UI_OFFSET_X + (index * UI_ICON_PADDING),
-        panelPos.y + UI_OFFSET_Y
+        panelPos.x + (UI_OFFSET_X * scale) + (index * UI_ICON_PADDING * scale),
+        panelPos.y + (UI_OFFSET_Y * scale)
     );
 }
 
@@ -28,10 +33,11 @@ void Buildpanel::BuildRenderUI(
     int windowHeight,
     TowerType selectedTower)
 {
+    float scale = GetUIScale(windowWidth, windowHeight);
     glm::vec2 panelPos = getUIPanelPos(windowWidth, windowHeight); // позиция менюшки
 
     // рисуем фон панели
-    renderer->drawSprite(cellTexture, panelPos, glm::vec2(UI_PANEL_WIDTH, UI_PANEL_HEIGHT), 0.0f, glm::vec3(0.1f, 0.1f, 0.1f));
+    renderer->drawSprite(cellTexture, panelPos, glm::vec2(UI_PANEL_WIDTH * scale, UI_PANEL_HEIGHT * scale), 0.0f, glm::vec3(0.1f, 0.1f, 0.1f));
     // список башен для отрисовки
     std::vector<TowerType> availableTowers = { TowerType::Basic, TowerType::Sniper, TowerType::Cannon };
 
@@ -63,11 +69,11 @@ void Buildpanel::BuildRenderUI(
 
         // выделяем желтой рамкой выбраную башню
         if (selectedTower == currentType) {
-            renderer->drawSprite(cellTexture, iconPos - glm::vec2(4.0f), glm::vec2(UI_ICON_SIZE + 8.0f), 0.0f, glm::vec3(1.0f, 1.0f, 0.0f));
+            renderer->drawSprite(cellTexture, iconPos - glm::vec2(4.0f * scale), glm::vec2((UI_ICON_SIZE + 8.0f) * scale), 0.0f, glm::vec3(1.0f, 1.0f, 0.0f));
         }
 
         // рисуем иконку башни
-        renderer->drawSprite(cellTexture, iconPos, glm::vec2(UI_ICON_SIZE), 0.0f, drawColor);
+        renderer->drawSprite(cellTexture, iconPos, glm::vec2(UI_ICON_SIZE * scale), 0.0f, drawColor);
 
         // текст цены
         std::string towerName;
@@ -93,7 +99,7 @@ void Buildpanel::BuildRenderUI(
         }
 
         textRenderer->RenderText(towerName + ": $" + std::to_string(towerstats.cost),
-            iconPos.x - 5.0f, iconPos.y + UI_ICON_SIZE + 10.0f, 0.5f, textColor);
+            iconPos.x - (5.0f * scale), iconPos.y + (UI_ICON_SIZE * scale) + (10.0f * scale), 0.5f * scale, textColor);
 
     }
 }
@@ -102,17 +108,20 @@ void Buildpanel::BuildRenderUI(
 bool Buildpanel::checkClick(float mouseX, float mouseY, int windowWidth, int windowHeight, TowerType& selectedTower) {
     
     //проверка клика по Ui
+    float scale = GetUIScale(windowWidth, windowHeight);
     glm::vec2 panelPos = getUIPanelPos(windowWidth, windowHeight);
 
 
     // если мышка вне прямоугольника панели
-    if (mouseX < panelPos.x || mouseY < panelPos.y){
+    if (mouseX < panelPos.x || mouseX > panelPos.x + (UI_PANEL_WIDTH * scale) ||
+        mouseY < panelPos.y || mouseY > panelPos.y + (UI_PANEL_HEIGHT * scale)) {
         return false;
     }
 
     // проверяем, по какой именно башне кликнули
     for (int i = 0; i < 3; ++i) {
         glm::vec2 iconPos = getTowerIconPos(i, windowWidth, windowHeight);
+        float iconSizeScaled = UI_ICON_SIZE * scale;
 
         if (mouseX >= iconPos.x && mouseX <= iconPos.x + Buildpanel::UI_ICON_SIZE &&
             mouseY >= iconPos.y && mouseY <= iconPos.y + Buildpanel::UI_ICON_SIZE) {
