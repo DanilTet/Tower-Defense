@@ -7,18 +7,21 @@
 #include <vector>
 #include "entities/Tower.h"
 #include "core/LevelManager.h"
+#include "gameplay/EntityManager.h"
+#include <string>
 
+class Tower;
+class Enemy;
 class Grid;
 class Pathfinder;
-class Tower;
 struct PlayerStats;
-class EntityManager;
+struct SpawnerData;
 
 class BuildManager {
 public:
     void tryBuildOrUpgrade(
         glm::vec2 mousePos, // позиция мыши
-        TowerType selectedType,// выбраный тип башни
+        const std::string& selectedType,// выбраный тип башни
         PlayerStats& stats, // деньки игрока
         std::vector<std::unique_ptr<Tower>>& towers,
         std::vector<std::unique_ptr<Enemy>>& enemies,// башни

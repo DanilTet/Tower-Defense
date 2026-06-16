@@ -8,10 +8,18 @@
 #include "gameplay/PlayerStats.h"
 #include "UICommon.h"
 
+void Buildpanel::initPanelData() {
+    // получаем типы башен один раз и сохраняем в кеш
+    m_cachedTowers = ConfigManager::getAllTowerTypes();
+    // рассичивыем базовую ширину
+    m_cachedPanelWidth = calculatePanelWidth(m_cachedTowers.size());
+}
+
 glm::vec2 Buildpanel::getUIPanelPos(int windowWidth, int windowHeight) const {
     float scale = GetUIScale(windowWidth, windowHeight);
-    glm::vec2 panelSize(UI_PANEL_WIDTH * scale, UI_PANEL_HEIGHT * scale);
+    glm::vec2 panelSize(m_cachedPanelWidth * scale, UI_PANEL_HEIGHT * scale);
     glm::vec2 offset(20.0f * scale, 20.0f * scale);
+
 	return CalculateAnchorPosition(UIAnchor::BottomRight, offset, panelSize, windowWidth, windowHeight);
 }
 
@@ -31,20 +39,18 @@ void Buildpanel::BuildRenderUI(
     std::shared_ptr<Texture2D> cellTexture,
     int windowWidth,
     int windowHeight,
-    TowerType selectedTower)
+    const std::string& selectedTower)
 {
     float scale = GetUIScale(windowWidth, windowHeight);
     glm::vec2 panelPos = getUIPanelPos(windowWidth, windowHeight); // позиция менюшки
 
     // рисуем фон панели
-    renderer->drawSprite(cellTexture, panelPos, glm::vec2(UI_PANEL_WIDTH * scale, UI_PANEL_HEIGHT * scale), 0.0f, glm::vec3(0.1f, 0.1f, 0.1f));
-    // список башен для отрисовки
-    std::vector<TowerType> availableTowers = { TowerType::Basic, TowerType::Sniper, TowerType::Cannon };
+    renderer->drawSprite(cellTexture, panelPos, glm::vec2(m_cachedPanelWidth * scale, UI_PANEL_HEIGHT * scale), 0.0f, glm::vec3(0.1f, 0.1f, 0.1f));
 
     // рисуем каждую башню
-    for (size_t i = 0; i < availableTowers.size(); ++i) {
-        TowerType currentType = availableTowers[i];
-        TowerStats towerstats = Tower::getStatsfromTowerType(currentType);
+    for (size_t i = 0; i < m_cachedTowers.size(); ++i) {
+        std::string currentType = m_cachedTowers[i];
+        TowerStats towerstats = ConfigManager::getTowerStats(currentType);
 
         // позиция иконок
         glm::vec2 iconPos = getTowerIconPos(i, windowWidth, windowHeight);
@@ -52,16 +58,10 @@ void Buildpanel::BuildRenderUI(
         bool canAfford = (playerStats.money >= towerstats.cost); // определяем хватает ли денег
 
         // цвет башни
-        glm::vec3 towerColor(1.0f);
-        if (currentType == TowerType::Basic) towerColor = glm::vec3(0.5f, 0.5f, 0.5f);
-        else if (currentType == TowerType::Sniper) towerColor = glm::vec3(0.8f, 0.2f, 0.2f);
-        else if (currentType == TowerType::Cannon) towerColor = glm::vec3(0.2f, 0.2f, 0.8f);
-
-        // если денег не достаточно то делаем башню серой
         glm::vec3 drawColor;
 
         if (canAfford) {
-            drawColor = towerColor;
+            drawColor = towerstats.color;
         }
         else {
             drawColor = glm::vec3(0.2f, 0.2f, 0.2f);
@@ -75,19 +75,6 @@ void Buildpanel::BuildRenderUI(
         // рисуем иконку башни
         renderer->drawSprite(cellTexture, iconPos, glm::vec2(UI_ICON_SIZE * scale), 0.0f, drawColor);
 
-        // текст цены
-        std::string towerName;
-
-        if (currentType == TowerType::Basic) {
-            towerName = "Basic";
-        }
-        else if (currentType == TowerType::Sniper) {
-            towerName = "Sniper";
-        }
-        else if (currentType == TowerType::Cannon) {
-            towerName = "Cannon";
-        }
-
         // если нету денег текст красный и зеленый если есть
         glm::vec3 textColor;
 
@@ -98,39 +85,35 @@ void Buildpanel::BuildRenderUI(
             textColor = glm::vec3(1.0f, 0.3f, 0.3f);
         }
 
-        textRenderer->RenderText(towerName + ": $" + std::to_string(towerstats.cost),
+        textRenderer->RenderText(currentType + ": $" + std::to_string(towerstats.cost),
             iconPos.x - (5.0f * scale), iconPos.y + (UI_ICON_SIZE * scale) + (10.0f * scale), 0.5f * scale, textColor);
 
     }
 }
 
 
-bool Buildpanel::checkClick(float mouseX, float mouseY, int windowWidth, int windowHeight, TowerType& selectedTower) {
+bool Buildpanel::checkClick(float mouseX, float mouseY, int windowWidth, int windowHeight, std::string& selectedTower) {
     
     //проверка клика по Ui
     float scale = GetUIScale(windowWidth, windowHeight);
     glm::vec2 panelPos = getUIPanelPos(windowWidth, windowHeight);
 
-
     // если мышка вне прямоугольника панели
-    if (mouseX < panelPos.x || mouseX > panelPos.x + (UI_PANEL_WIDTH * scale) ||
+    if (mouseX < panelPos.x || mouseX > panelPos.x + (m_cachedPanelWidth * scale) ||
         mouseY < panelPos.y || mouseY > panelPos.y + (UI_PANEL_HEIGHT * scale)) {
         return false;
     }
 
     // проверяем, по какой именно башне кликнули
-    for (int i = 0; i < 3; ++i) {
+    for (int i = 0; i < m_cachedTowers.size(); ++i) {
         glm::vec2 iconPos = getTowerIconPos(i, windowWidth, windowHeight);
         float iconSizeScaled = UI_ICON_SIZE * scale;
 
-        if (mouseX >= iconPos.x && mouseX <= iconPos.x + Buildpanel::UI_ICON_SIZE &&
-            mouseY >= iconPos.y && mouseY <= iconPos.y + Buildpanel::UI_ICON_SIZE) {
-
-            // меняем выбранную башню
-            if (i == 0) selectedTower = TowerType::Basic;
-            else if (i == 1) selectedTower = TowerType::Sniper;
-            else if (i == 2) selectedTower = TowerType::Cannon;
-
+        if (mouseX >= iconPos.x && mouseX <= iconPos.x + iconSizeScaled &&
+            mouseY >= iconPos.y && mouseY <= iconPos.y + iconSizeScaled) {
+            // записуем имя башни из списка
+            selectedTower = m_cachedTowers[i];
+            return true;
             //AudioManager::playSound("res/sounds/build.wav", 0.5f); // Звук клика по кнопке
         }
     }

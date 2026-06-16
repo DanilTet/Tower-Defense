@@ -6,12 +6,12 @@
 #include "core/ConfigManager.h"
 #include "../core/EventBus.h"
 
-TowerStats Tower::getStatsfromTowerType(TowerType type) {
+TowerStats Tower::getStatsfromTowerType(const std::string& type) {
 	return ConfigManager::getTowerStats(type);
 }
 
 // конструктор
-Tower::Tower(int gridX, int gridY, TowerType type)
+Tower::Tower(int gridX, int gridY, const std::string& type)
 	: m_gridX(gridX),
 	m_gridY(gridY),
 	m_type(type),
@@ -31,6 +31,9 @@ Tower::Tower(int gridX, int gridY, TowerType type)
 	m_attackSound = stats.attackSound;
 	m_buildSound = stats.buildSound;
 
+	m_textureId = stats.textureId;
+	m_color = stats.color;
+
 	m_shotTimer = 0.0f; // переменная таймер
 }
 
@@ -48,10 +51,7 @@ void Tower::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture,
 	renderer->drawSprite(radiusTexture, radiusPos, radiusSize, 0.0f, glm::vec3(1.0f, 1.0f, 1.0f));
 
 	// БАШНЯ
-	glm::vec3 color(1.0f);
-	if (m_type == TowerType::Basic) color = glm::vec3(0.5f, 0.5f, 0.5f);
-	else if (m_type == TowerType::Sniper) color = glm::vec3(0.8f, 0.2f, 0.2f);
-	else if (m_type == TowerType::Cannon) color = glm::vec3(0.2f, 0.2f, 0.8f);
+	glm::vec3 color = m_color;
 
 	// зависимо от левела башни меняем цвет
 	if (m_currentLevel == 2) color += glm::vec3(0.2f, 0.2f, 0.2f);
@@ -122,6 +122,8 @@ void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies,
 		// если дуло почти смотрит на врага и разница меньше того что мы проверяем за этот кадр
 		if (abs(angleDiff) <= m_rotationSpeed * dt) {
 			
+			float currentSplash = ConfigManager::getTowerStats(m_type, m_currentLevel).splashRadius;
+
 			m_angle = targetAngle; // фиксируем прицел на враге
 			// проверяем перезарядку
 			if (m_shotTimer <= 0.0f) {
@@ -189,6 +191,8 @@ bool Tower::upgrade(int& playerMoney) {
 		m_splashRadius = nextStats.splashRadius;
 		m_attackSound = nextStats.attackSound;
 		m_buildSound = nextStats.buildSound;
+		m_textureId = nextStats.textureId;
+		m_color = nextStats.color;
 
 		// формируем посылку с кастомным звуком апгрейда
 		Event e;

@@ -26,7 +26,7 @@ Game::Game(int width, int height)
     : width(width), // запоминаем стартовую ширину окна
 	height(height),// запоминаем стартовую высоту окна
 	m_mousePressedLastFrame(false), // изначально мышь не нажата флаг сброшен
-    m_selectedTowerType(TowerType::None),
+    m_selectedTowerType(""),
     m_state(GameState::MainMenu) {
 }
 
@@ -39,7 +39,6 @@ Game::~Game() {
 void Game::init() {
     // загрузка конфигураций
     ConfigManager::loadConfigs("res/configs/towers.json", "res/configs/enemies.json");
-
 	// загрузака файлов вершинного и фрагментного шейдера в видеокарту под именем "spriteShader"
     if (!ResourceManager::loadShader("spriteShader", "res/shaders/vertex_shader.vert", "res/shaders/fragment_shader.frag")) {
 		std::cerr << "Failed to load shaders" << std::endl; // если загрузка не удалась, выводим ошибку в консоль
@@ -201,6 +200,7 @@ void Game::init() {
 
     // ИНТЕРФЕЙС
     m_buildPanel = std::make_unique<Buildpanel>(); // инициализация панельки для строительства
+    m_buildPanel->initPanelData();
     m_placementUI = std::make_unique<PlacementUI>(); // инициализация голограммы для строительства
     m_pathVisualizer = std::make_unique<PathVisualizer>(); // инициализация стрелочек пути
     m_statsPanel = std::make_unique<StatsPanel>(); // инициализация панельки здровья деняг и всякого такого посмотрим че будет
@@ -297,7 +297,7 @@ void Game::processInput(GLFWwindow* window, float dt) {
     m_currentMousePos = glm::vec2(mouseX, mouseY);
 
     if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS) {
-        m_selectedTowerType = TowerType::None; // очищаем руку, голограмма сразу исчезнет
+        m_selectedTowerType = ""; // очищаем руку, голограмма сразу исчезнет
     }
 
 	// Получаем состояние левой кнопки мыши (зажата она или отпущена)
@@ -327,7 +327,7 @@ void Game::processInput(GLFWwindow* window, float dt) {
 
         if (clickedTower != nullptr) {
             m_selectedTowerOnMap = clickedTower;
-            m_selectedTowerType = TowerType::None; // очищаем руку
+            m_selectedTowerType = ""; // очищаем руку
             return;
         }
         else { // типа если кликнуть мимо башни то снять выделение
@@ -529,7 +529,7 @@ void Game::restartGame() {
     m_state = GameState::Playing;
 
     // сбарсываем выбраную башню
-    m_selectedTowerType = TowerType::None;
+    m_selectedTowerType = "";
 
     // убиваем менеджера сущсностей
     m_entityManager = std::make_unique<EntityManager>();

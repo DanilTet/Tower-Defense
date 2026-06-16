@@ -5,6 +5,7 @@
 #include <memory>
 #include <vector>
 #include <glm/glm.hpp>
+#include <string>
 #include "entities/Enemy.h"
 #include "../renderer/TextRenderer.h"
 #include "entities/Projectile.h"
@@ -62,10 +63,9 @@ private:
 	PlayerStats m_playerStats; // статы все 
 	bool m_isGameOver = false; // флаг проигрыша
 	GameState m_state; // переключатель состояний
-	//bool m_pauseKeyPressedLastFrame = false; // костыль чтобы не залипало меню паузы
-	//bool m_spaceKeyPressedLastFrame = false; // костыль еще
 
 	bool m_keysProcessed[1024] = { false }; // общий костыль для всех кнопок
+	bool m_mousePressedLastFrame; // флаг для отслеживания состояния мыши, чтобы не спавнить башню при каждом кадре, когда мышь нажата
 
 	std::unique_ptr<SpriteRenderer> m_renderer; // рендерер для отрисовки спрайтов
 	std::unique_ptr<Grid> m_gameGrid; // указатель на сетку
@@ -76,10 +76,6 @@ private:
 	std::shared_ptr<Texture2D> m_radiusTexture; // текстура радиус атаки
 
 
-	std::unique_ptr<Enemy> m_testEnemy; // удалить после тестов!!!!
-	bool m_mousePressedLastFrame; // флаг для отслеживания состояния мыши, чтобы не спавнить башню при каждом кадре, когда мышь нажата
-
-
 	// Движение врага и спавн
 	std::vector<glm::ivec2> m_levelPath; // маршрут врага по клеткам сетки
 	std::unique_ptr<WaveManager> m_waveManager; // менеджер волн
@@ -88,8 +84,7 @@ private:
 	std::unique_ptr<TextRenderer> m_textRenderer; // текст
 
 
-	TowerType m_selectedTowerType = TowerType::None; //какая башня вібрана
-
+	std::string m_selectedTowerType = ""; //какая башня вібрана
 	Tower* m_selectedTowerOnMap = nullptr; //какая башня выделена на поле
 
 	glm::vec2 m_currentMousePos; // позиция мыши каждый кадр
@@ -101,7 +96,6 @@ private:
 	//маршруты
 	//список маршрутов даже так
 	std::vector<std::vector<glm::ivec2>> m_paths;
-
 	std::unique_ptr<Pathfinder> m_pathfinder; // указатель на алгоритм поиска путиі
 
 	// ИНТЕРФЕЙС

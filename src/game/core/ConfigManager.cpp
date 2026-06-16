@@ -6,7 +6,7 @@
 using json = nlohmann::json;
 
 // инициализация деревьев которіе как словари работают
-std::map<TowerType, std::vector<TowerStats>> ConfigManager::s_towerStats;
+std::map<std::string, std::vector<TowerStats>> ConfigManager::s_towerStats;
 std::map<EnemyType, EnemyStats> ConfigManager::s_enemyStats;
 
 bool ConfigManager::loadConfigs(const std::string& towerPath, const std::string& enemiesPath) {
@@ -19,46 +19,43 @@ bool ConfigManager::loadConfigs(const std::string& towerPath, const std::string&
 		json j;
 		tFile >> j;
 
-		// список типов для автоматизации парсинга уровней
-		std::vector<std::pair<std::string, TowerType>> types = {
-			{"Basic", TowerType::Basic},
-			{"Sniper", TowerType::Sniper},
-			{"Cannon", TowerType::Cannon}
-		};
+		// парсим все башни из json
+		for (auto& element : j.items()) {
+			std::string towerName = element.key(); // имя башни
+			json towerData = element.value(); // так называемые внутрености башни
 
-		for (const auto& pair : types) {
-			std::string name = pair.first;
-			TowerType type = pair.second;
+			// cчитываем визуальные настройки из корня башни
+			std::string tex = towerData.value("textureId", "towerTexture");
+			glm::vec3 col = glm::vec3(1.0f); // по умолчанию белый
 
-			// если в json конфиг файлі и если это массив обьэктов 
-			if (j[name].contains("levels") && j[name]["levels"].is_array()) {
-				for (const auto& lvlJson : j[name]["levels"]) {
-					TowerStats stats = {
-						lvlJson["range"],
-						lvlJson["fireRate"],
-						lvlJson["damage"],
-						lvlJson["cost"],
-						lvlJson["splashRadius"],
-						lvlJson.value("rotationSpeed", 300.0f),
-						lvlJson["buildSound"],
-						lvlJson["attackSound"]
-					};
-					s_towerStats[type].push_back(stats);
-				}
+			if (towerData.contains("color") && towerData["color"].is_array() && towerData["color"].size() >= 3) {
+				col = glm::vec3(
+					towerData["color"][0].get<float>(),
+					towerData["color"][1].get<float>(),
+					towerData["color"][2].get<float>()
+				);
 			}
-			else {
-				// обратная совместимость если уровней нету то один базовый уровень
-				TowerStats stats = {
-					j[name]["range"],
-					j[name]["fireRate"],
-					j[name]["damage"],
-					j[name]["cost"],
-					j[name]["splashRadius"],
-					j[name].value("rotationSpeed", 300.0f),
-					j[name]["buildSound"],
-					j[name]["attackSound"]
-				};
-				s_towerStats[type].push_back(stats);
+
+			// если есть уровни
+			if (towerData.contains("levels") && towerData["levels"].is_array()) {
+				for (const auto& lvlJson : towerData["levels"]) {
+					TowerStats stats;
+					stats.range = lvlJson["range"];
+					stats.fireRate = lvlJson["fireRate"];
+					stats.damage = lvlJson["damage"];
+					stats.cost = lvlJson["cost"];
+					stats.splashRadius = lvlJson["splashRadius"];
+					stats.rotationSpeed = lvlJson.value("rotationSpeed", 300.0f);
+					stats.buildSound = lvlJson["buildSound"];
+					stats.attackSound = lvlJson["attackSound"];
+
+					// присваиваем визуал
+					stats.textureId = tex;
+					stats.color = col;
+
+					// записываем статы в словарь по имени башни
+					s_towerStats[towerName].push_back(stats);
+				}
 			}
 		}
 		tFile.close();
@@ -88,7 +85,7 @@ bool ConfigManager::loadConfigs(const std::string& towerPath, const std::string&
 	return true;
 }
 
-TowerStats ConfigManager::getTowerStats(TowerType type, int level) {
+TowerStats ConfigManager::getTowerStats(const std::string& type, int level) {
 	auto it = s_towerStats.find(type);
 	if (it != s_towerStats.end() && !it->second.empty()) {
 		// защита от выхода за границы вектора уровней
@@ -103,4 +100,12 @@ TowerStats ConfigManager::getTowerStats(TowerType type, int level) {
 
 EnemyStats ConfigManager::getEnemyStats(EnemyType type) {
 	return s_enemyStats[type];
+}
+
+std::vector<std::string> ConfigManager::getAllTowerTypes() {
+	std::vector<std::string> keys;
+	for (const auto& pair : s_towerStats) {
+		keys.push_back(pair.first);
+	}
+	return keys;
 }

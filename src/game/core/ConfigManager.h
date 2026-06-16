@@ -11,10 +11,12 @@ public:
     static bool loadConfigs(const std::string& towersPath, const std::string& enemiesPath);
 
     // получение готовых стат
-    static TowerStats getTowerStats(TowerType type, int level = 1);
+    static TowerStats getTowerStats(const std::string& type, int level = 1);
     static EnemyStats getEnemyStats(EnemyType type);
+    // метод для получения всех загруженых имен
+    static std::vector<std::string> getAllTowerTypes();
 
 private:
-    static std::map<TowerType, std::vector<TowerStats>> s_towerStats; // виды статы башен
+    static std::map<std::string, std::vector<TowerStats>> s_towerStats; // виды статы башен
     static std::map<EnemyType, EnemyStats> s_enemyStats; // виды статы врагов
 };

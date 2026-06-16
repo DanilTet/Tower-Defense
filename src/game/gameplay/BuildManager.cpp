@@ -7,11 +7,12 @@
 #include "world/Pathfinder.h"
 #include "gameplay/PlayerStats.h"
 #include "gameplay/EntityManager.h"
+#include "../core/ConfigManager.h"
 #include "../core/EventBus.h"
 
 void BuildManager::tryBuildOrUpgrade(
     glm::vec2 mousePos, // позиция мыши
-    TowerType selectedType,// выбраный тип башни
+    const std::string& selectedType,// выбраный тип башни
     PlayerStats& stats, // деньки игрока
     std::vector<std::unique_ptr<Tower>>& towers,
     std::vector<std::unique_ptr<Enemy>>& enemies,// башни
@@ -31,11 +32,11 @@ void BuildManager::tryBuildOrUpgrade(
     }
 
     // если в руке ниче нету то просто клик по карте
-    if (selectedType == TowerType::None) {
+    if (selectedType.empty()) {
         return;
     }
 
-    int currentCost = Tower::getStatsfromTowerType(selectedType).cost;
+    int currentCost = ConfigManager::getTowerStats(selectedType).cost;
 
     if (stats.money >= currentCost && gameGrid.canBuildAt(clickedCell.x, clickedCell.y)) {
 

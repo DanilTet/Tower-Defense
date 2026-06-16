@@ -6,14 +6,6 @@
 #include "CircleCollider.h"
 #include <string>
 
-// типы башен
-enum class TowerType {
-	Basic,
-	Sniper,
-	Cannon,
-	None
-};
-
 //конфиг характеристик башни
 struct TowerStats {
 	float range; // радиус атаки
@@ -26,6 +18,9 @@ struct TowerStats {
 	std::string buildSound; // звук строительства
 	std::string attackSound; // звук атаки
 
+	std::string textureId; // ID текстуры
+	glm::vec3 color; // цвет башни
+
 };
 
 class SpriteRenderer;
@@ -36,7 +31,7 @@ class Projectile;
 
 class Tower {
 private:
-	TowerType m_type; //тип башни
+	std::string m_type; //тип башни
 	float m_range; //радиус атаки
 	float m_fireRate; //скорость атаки
 	int m_damage; //урон
@@ -62,13 +57,15 @@ private:
 	float m_splashRadius;
 	std::string m_attackSound;
 	std::string m_buildSound;
+	std::string m_textureId;
+	glm::vec3 m_color;
 
 public:
 	// получаем характеристики башни
-	static TowerStats getStatsfromTowerType(TowerType type);
+	static TowerStats getStatsfromTowerType(const std::string& type);
 
 	//конструктор
-	Tower(int gridX, int gridY, TowerType type);
+	Tower(int gridX, int gridY, const std::string& type);
 
 	//обновление логики
 	void update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies, std::vector<Projectile>& projectiles, const Grid& grid);
@@ -82,5 +79,6 @@ public:
 	int getGridX() const { return m_gridX; }
 	int getGridY() const { return m_gridY; }
 	int getLevel() const { return m_currentLevel; }	
+	const std::string& getType() const { return m_type; }
 
 };

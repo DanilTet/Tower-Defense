@@ -11,13 +11,13 @@ void PlacementUI::renderHologram(
     std::shared_ptr<Texture2D> radiusTexture,
     const Grid& gameGrid,
     glm::vec2 currentMousePos,
-    TowerType selectedTower,
+    const std::string& selectedTower,
     const PlayerStats& stats,
     glm::vec2 panelPos,
     bool hasValidPath){
 
     // если рука пустая то выходим
-    if (selectedTower == TowerType::None) {
+    if (selectedTower.empty()) {
         return;
     }
     // если нету пути то не рисуем голограму
@@ -32,7 +32,7 @@ void PlacementUI::renderHologram(
     glm::ivec2 gridPos = gameGrid.pixelToGrid(currentMousePos);
 
     // получаем данные выбранной башни
-    TowerStats towerstats = Tower::getStatsfromTowerType(selectedTower);
+    TowerStats towerstats = ConfigManager::getTowerStats(selectedTower);
 
     // проверяем, можно ли тут строить
     bool hasMoney = (stats.money >= towerstats.cost);
