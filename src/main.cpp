@@ -96,27 +96,37 @@ int main(void)
     TowerDefenseGame = std::make_unique<Game>(windowWidth, windowHeight); // Выделяем память под игру
 	TowerDefenseGame->init(); // включаем инициализацию где подгружается текстуры, шейдеры и т.д.
 
+    // СУПЕР ЧЕТЕНЬКАЯ НАЙСТРОЙКА ФИКСИРОВАНЫХ ТИКОВ
+    const float FIXED_DT = 1.0f / 60.0f; // 60 тиков в секунду
+
     // делаем переменные которые будем использовать для управления временем
 	double lastFrame = glfwGetTime(); // время начала предыдущего кадра
-	float deltaTime = 0.0f; // время, которое потребовалось копьютеру чтобы просчитать и вывести на екран предыдущий кадр
+    float accumulator = 0.0f; // копилка времени
 
 	// Главный цикл игры, который будет работать пока окно не закроется
     while (!glfwWindowShouldClose(window))
     {
         // Рассчитываем дельту времени
         double currentFrame = glfwGetTime();
-        deltaTime = static_cast<float>(currentFrame - lastFrame);
+        float frameTime = static_cast<float>(currentFrame - lastFrame); // считаем сколько времени прошло с торисовки прошлого кадра
         lastFrame = currentFrame;
 
-		// Если дельта будет большая то ее ограничиваем, чтобы не было резких скачков в игре при зависании или отладке
-        if (deltaTime > 0.1f) {
-            deltaTime = 0.1f;
+		// дефаемся от спирали серти чтобі игра не симулировала миллиард кадров
+        if (frameTime > 0.25f) {
+            frameTime = 0.25f;
         }
+
+        accumulator += frameTime; // закидуем прошедшее время в копилку 
 
 		glfwPollEvents(); // Спрашивает систему были ли клики мыши, нажатия клавиш и т.д. и вызывает соответствующие функции колбеки
 
-		TowerDefenseGame->processInput(window, deltaTime); // обработка клики мыши, нажатия клавиш
-		TowerDefenseGame->update(deltaTime); // обновление логики игры, перемещение врагов, проверка коллизий и т.д.
+		TowerDefenseGame->processInput(window, frameTime); // обработка клики мыши, нажатия клавиш
+        
+        // если в копилке есть хотя бы 1/60 секунды то обновляем физику и логику
+        while (accumulator >= FIXED_DT) {
+            TowerDefenseGame->update(FIXED_DT); // обновление логики игры, перемещение врагов, проверка коллизий и т.д.
+            accumulator -= FIXED_DT; // забираем потраченное время из копилки
+        }
         
 		glClear(GL_COLOR_BUFFER_BIT); // очистка буфера цвета, чтобы нарисовать новый кадр
 		TowerDefenseGame->render(); // отрисовка всех объектов игры на экран
