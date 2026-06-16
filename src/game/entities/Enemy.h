@@ -82,4 +82,6 @@ public:
 	int getId() const { return m_id; } // геттер для получения айди врага
 
 	float getDistanceTraveled() const { return m_distanceTraveled; } // геттер для того щоб отримати пройдений шлях ворога
+
+	int getHealth() const { return m_health; } // получить хп
 };

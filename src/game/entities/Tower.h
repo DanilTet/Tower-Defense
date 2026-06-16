@@ -6,6 +6,13 @@
 #include "CircleCollider.h"
 #include <string>
 
+enum class TargetMode {
+	First, // ближе всего к базе
+	Last, // дальше всего от базы (мин. пройденный путь)
+	Close, // физически ближе всего к башне
+	Weak // меньше всего здоровья
+};
+
 //конфиг характеристик башни
 struct TowerStats {
 	float range; // радиус атаки
@@ -60,6 +67,9 @@ private:
 	std::string m_textureId;
 	glm::vec3 m_color;
 
+	// режим наводки
+	TargetMode m_targetMode = TargetMode::First;
+
 public:
 	// получаем характеристики башни
 	static TowerStats getStatsfromTowerType(const std::string& type);
@@ -81,4 +91,20 @@ public:
 	int getLevel() const { return m_currentLevel; }	
 	const std::string& getType() const { return m_type; }
 
+	// геттері и сеттер режима наводки
+	TargetMode getTargetMode() const { return m_targetMode; }
+	void toggleTargetMode() {
+		int next = (static_cast<int>(m_targetMode) + 1) % 4;
+		m_targetMode = static_cast<TargetMode>(next);
+	}
+
+	std::string getTargetModeString() const {
+		switch (m_targetMode) {
+		case TargetMode::First: return "FIRST";
+		case TargetMode::Last:  return "LAST";
+		case TargetMode::Close: return "CLOSE";
+		case TargetMode::Weak:  return "WEAK";
+		}
+		return "FIRST";
+	}
 };

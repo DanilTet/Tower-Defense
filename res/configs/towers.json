@@ -106,5 +106,41 @@
         "attackSound": "res/sounds/shoot.wav"
       }
     ]
+  },
+  "Minigun": {
+    "textureId": "towerTexture",
+    "color": [ 0.8, 0.6, 0.2 ],
+    "levels": [
+      {
+        "range": 3.0,
+        "damage": 4,
+        "fireRate": 0.1,
+        "cost": 200,
+        "splashRadius": 0.0,
+        "rotationSpeed": 200.0,
+        "buildSound": "res/sounds/build.wav",
+        "attackSound": "res/sounds/shoot.wav"
+      },
+      {
+        "range": 3.2,
+        "damage": 7,
+        "fireRate": 0.08,
+        "cost": 300,
+        "splashRadius": 0.0,
+        "rotationSpeed": 240.0,
+        "buildSound": "res/sounds/build.wav",
+        "attackSound": "res/sounds/shoot.wav"
+      },
+      {
+        "range": 3.5,
+        "damage": 12,
+        "fireRate": 0.05,
+        "cost": 450,
+        "splashRadius": 0.0,
+        "rotationSpeed": 300.0,
+        "buildSound": "res/sounds/build.wav",
+        "attackSound": "res/sounds/shoot.wav"
+      }
+    ]
   }
 }

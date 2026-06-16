@@ -29,8 +29,11 @@ bool TowerMenuUI::processClick(
 
     // размеры и позиции кнопок
     glm::vec2 btnSize(cellSize * 0.5f, cellSize * 0.5f);
-    glm::vec2 upgPos = towerPos + glm::vec2(0.0f, -btnSize.y - 5.0f);
-    glm::vec2 sellPos = towerPos + glm::vec2(cellSize * 0.5f, -btnSize.y - 5.0f);
+    glm::vec2 targetBtnSize(cellSize, cellSize * 0.5f);
+
+    glm::vec2 upgPos = towerPos + glm::vec2(0.0f, -btnSize.y - 4.0f);
+    glm::vec2 sellPos = towerPos + glm::vec2(cellSize * 0.5f, -btnSize.y - 4.0f);
+    glm::vec2 targetPos = towerPos + glm::vec2(0.0f, cellSize + 4.0f);
 
     // клик по кнопке UPGRADE?
     if (mouseX >= upgPos.x && mouseX <= upgPos.x + btnSize.x && mouseY >= upgPos.y && mouseY <= upgPos.y + btnSize.y) {
@@ -51,6 +54,13 @@ bool TowerMenuUI::processClick(
         return true; // клик обработан
     }
 
+    // клик по кнопке TARGET MODE?
+    if (mouseX >= targetPos.x && mouseX <= targetPos.x + targetBtnSize.x && mouseY >= targetPos.y && mouseY <= targetPos.y + targetBtnSize.y) {
+        selectedTower->toggleTargetMode(); // переключаем режимчик
+        std::cout << "Target mode switched!" << std::endl;
+        return true;
+    }
+
     return false; // клик был мимо кнопок меню
 }
 
@@ -66,22 +76,50 @@ void TowerMenuUI::render(
     float cellSize = gameGrid.getCellSize();
     glm::vec2 towerPos = gameGrid.gridToPixel(selectedTower->getGridX(), selectedTower->getGridY());
 
+    //размерчики и позиции кнопок
     glm::vec2 btnSize(cellSize * 0.5f, cellSize * 0.5f);
-    glm::vec2 upgPos = towerPos + glm::vec2(0.0f, -btnSize.y - 5.0f);
-    glm::vec2 sellPos = towerPos + glm::vec2(cellSize * 0.5f, -btnSize.y - 5.0f);
+    glm::vec2 targetBtnSize(cellSize, cellSize * 0.5f);
 
-    // келеная заглушка
+    glm::vec2 upgPos = towerPos + glm::vec2(0.0f, -btnSize.y - 4.0f);
+    glm::vec2 sellPos = towerPos + glm::vec2(cellSize * 0.5f, -btnSize.y - 4.0f);
+    glm::vec2 targetPos = towerPos + glm::vec2(0.0f, cellSize + 4.0f);
+
+    auto drawCenteredText = [&](const std::string& text, glm::vec2 btnPos, glm::vec2 size) {
+        // узнаем базовую ширину текста при масштабе 1.0
+        float baseWidth = textRenderer->CalculateTextWidth(text, 1.0f);
+        if (baseWidth == 0.0f) return;
+
+        // рассчитываем динамический масштаб, чтобы текст занял ровно 85% ширины кнопки
+        float scale = (size.x * 0.80f) / baseWidth;
+
+        // ставим лимит
+        if (scale > 0.55f) scale = 0.55f;
+
+        // считаем итоговую ширину с новым масштабом
+        float finalWidth = baseWidth * scale;
+
+        // идеально центрируем по X
+        float textX = btnPos.x + (size.x - finalWidth) / 2.0f;
+
+        // идеально центрируем по Y
+        float textHeight = textRenderer->Characters['H'].Size.y * scale;
+        float textY = btnPos.y + (size.y - textHeight) / 2.0f;
+
+        textRenderer->RenderText(text, textX, textY, scale, glm::vec3(1.0f));
+    };
+
+    // отрисовка UPGRADE зеленым
     renderer->drawSprite(cellTexture, upgPos, btnSize, 0.0f, glm::vec3(0.2f, 0.8f, 0.2f));
-
     int cost = selectedTower->getUpgradeCost();
-    if (cost == 0) {
-        textRenderer->RenderText("MAX", upgPos.x + 5.0f, upgPos.y + 10.0f, 0.5f, glm::vec3(1.0f));
-    }
-    else {
-        textRenderer->RenderText("$" + std::to_string(cost), upgPos.x + 2.0f, upgPos.y + 10.0f, 0.5f, glm::vec3(1.0f));
-    }
+    std::string upgText = (cost == 0) ? "MAX" : "$" + std::to_string(cost);
+    drawCenteredText(upgText, upgPos, btnSize);
 
-    // красная заглушкак
+    // Отрисовка SELL красным
     renderer->drawSprite(cellTexture, sellPos, btnSize, 0.0f, glm::vec3(0.8f, 0.2f, 0.2f));
-    textRenderer->RenderText("SELL", sellPos.x + 2.0f, sellPos.y + 10.0f, 0.5f, glm::vec3(1.0f));
+    drawCenteredText("SELL", sellPos, btnSize);
+
+    // Отрисовка TARGET MODE синим
+    renderer->drawSprite(cellTexture, targetPos, targetBtnSize, 0.0f, glm::vec3(0.2f, 0.4f, 0.8f));
+    std::string modeText = selectedTower->getTargetModeString();
+    drawCenteredText(modeText, targetPos, targetBtnSize);
 }

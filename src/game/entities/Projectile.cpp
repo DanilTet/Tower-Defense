@@ -44,35 +44,12 @@ void Projectile::update(float dt, const std::vector<std::unique_ptr<Enemy>>& ene
     Enemy* target = nullptr; // враг
 
     // ищем цель по айдишнику
-    for (const auto& enemy : enemies) {
-        if (enemy && !enemy->isDead() && !enemy->isReachedEnd() && enemy->getId() == m_targetId) {
-            target = enemy.get();
-            break;
-        }
-    }
-
-    // если цель умерла или дошла до базы то ищем новую цель
-    if (!target) {
-        float minDst = 99999.0f;
+    if(m_targetId != -1) {
         for (const auto& enemy : enemies) {
-            if (enemy && !enemy->isDead() && !enemy->isReachedEnd()) {
-
-                // чекаем находится ли враг внутри зоны поражения башни?
-                float distFromTower = glm::distance(m_originPoint, enemy->getCollider(grid).center);
-
-                if (distFromTower <= m_searchRadius) {
-                    // если он в зоне то ищем самого близкого именно к пуле
-                    float distFromBullet = glm::distance(m_pos, enemy->getCollider(grid).center);
-                    if (distFromBullet < minDst) {
-                        minDst = distFromBullet;
-                        target = enemy.get();
-                    }
-                }
+            if (enemy && !enemy->isDead() && !enemy->isReachedEnd() && enemy->getId() == m_targetId) {
+                target = enemy.get();
+                break;
             }
-        }
-        // если нашли то берем его под прицел
-        if (target) {
-            m_targetId = target->getId();
         }
     }
 
@@ -93,7 +70,12 @@ void Projectile::update(float dt, const std::vector<std::unique_ptr<Enemy>>& ene
             m_angle = targetAngle; // защелкиваемся
         }
         else {
-            m_angle += (angleDiff > 0 ? rotationStep : -rotationStep); // плавно поворачиваем
+            if (angleDiff > 0) {
+                m_angle += rotationStep;
+            }
+            else {
+                m_angle -= rotationStep;
+            } // плавно поворачиваем
         }
 
         // держим угол в границах
@@ -104,6 +86,10 @@ void Projectile::update(float dt, const std::vector<std::unique_ptr<Enemy>>& ene
         float rad = glm::radians(m_angle);
         m_direction = glm::vec2(cos(rad), sin(rad));
     }
+    else {
+        // если враг умер или потерян то сбрасуем айдишник
+        m_targetId = -1;
+    }
     // двигаем пулю
     m_pos += m_direction * m_speed * dt;
     CircleCollider myCollider = { m_pos, m_radius };
@@ -113,7 +99,7 @@ void Projectile::update(float dt, const std::vector<std::unique_ptr<Enemy>>& ene
         if (!enemy || enemy->isDead() || enemy->isReachedEnd()) continue;
 
         // если включен аркадный режим, пропускаем всех врагов, кроме текущей цели
-        if (m_hitOnlyTarget && enemy->getId() != m_targetId) {
+        if (m_hitOnlyTarget && m_targetId != -1 && enemy->getId() != m_targetId) {
             continue;
         }
 

@@ -34,6 +34,9 @@ public:
 
 	// Метод для обновления матрицы при ресайзе окна
 	void updateProjection(const glm::mat4& projection);
+
+	// функция для вычесления ширины текста
+	float CalculateTextWidth(const std::string& text, float scale);
 private:
 	unsigned int VAO, VBO;
 };

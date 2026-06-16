@@ -87,7 +87,10 @@ void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies,
 
 	// ПЕРЕМЕННІЕ ДЛЯ ПОИСКА ЛУЧШЕЙ ЦЕЛИ
 	Enemy* bestTarget = nullptr; // указатели на лучшую цель
-	float maxDistance = -1.0f; // рекорд пройденого пути
+	float maxTraveled = -1.0f; // для режима First
+	float minTraveled = 999999.0f; // для режима Last
+	float minDistance = 999999.0f; // для режима Close
+	int minHealth = 999999; // для режима Weak
 
 
 	// проходим по врагам
@@ -97,10 +100,39 @@ void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies,
 
 		// берем хитбокс врага и проверяем столкновение с зоной башни
 		if (towerCollider.intersects(enemy->getCollider(grid))) {
-				
-			if (enemy->getDistanceTraveled() > maxDistance) {
-				maxDistance = enemy->getDistanceTraveled(); // обновляем рекорд пути
-				bestTarget = enemy.get(); // запоминаем врага
+
+			// выбираем логику в зависимости от текущего режима башни
+			switch (m_targetMode) {
+			case TargetMode::First:
+				if (enemy->getDistanceTraveled() > maxTraveled) {
+					maxTraveled = enemy->getDistanceTraveled();
+					bestTarget = enemy.get();
+				}
+				break;
+
+			case TargetMode::Last:
+				if (enemy->getDistanceTraveled() < minTraveled) {
+					minTraveled = enemy->getDistanceTraveled();
+					bestTarget = enemy.get();
+				}
+				break;
+
+			case TargetMode::Close: {
+				// Считаем дистанцию от центра башни до врага
+				float dist = glm::distance(towerCenter, enemy->getCollider(grid).center);
+				if (dist < minDistance) {
+					minDistance = dist;
+					bestTarget = enemy.get();
+				}
+				break;
+			}
+
+			case TargetMode::Weak:
+				if (enemy->getHealth() < minHealth) {
+					minHealth = enemy->getHealth();
+					bestTarget = enemy.get();
+				}
+				break;
 			}
 		}
 	}

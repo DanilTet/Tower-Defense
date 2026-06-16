@@ -147,3 +147,24 @@ void TextRenderer::RenderText(const std::string& text, float x, float y, float s
     glBindVertexArray(0);
     glBindTexture(GL_TEXTURE_2D, 0);
 }
+
+float TextRenderer::CalculateTextWidth(const std::string& text, float scale) {
+    float width = 0.0f;
+
+    for (size_t i = 0; i < text.length(); ) {
+        // читаем UTF-8 кодировку
+        char32_t codepoint = 0;
+        unsigned char c = text[i];
+        if (c < 0x80) { codepoint = c; i++; }
+        else if ((c & 0xE0) == 0xC0) { codepoint = ((c & 0x1F) << 6) | (text[i + 1] & 0x3F); i += 2; }
+        else if ((c & 0xF0) == 0xE0) { codepoint = ((c & 0x0F) << 12) | ((text[i + 1] & 0x3F) << 6) | (text[i + 2] & 0x3F); i += 3; }
+        else { codepoint = '?'; i++; }
+
+        // если символ есть в базе то добавляем его ширину к общей
+        if (Characters.find(codepoint) != Characters.end()) {
+            width += (Characters[codepoint].Advance >> 6) * scale;
+        }
+    }
+
+    return width;
+}
