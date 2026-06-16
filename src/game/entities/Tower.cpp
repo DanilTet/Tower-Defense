@@ -26,6 +26,11 @@ Tower::Tower(int gridX, int gridY, TowerType type)
 	m_rotationSpeed = stats.rotationSpeed; // присвоение скорости поворота башни
 	//m_currentTarget = nullptr; // текущая цель это нулпоинтер
 
+	// кеш
+	m_splashRadius = stats.splashRadius;
+	m_attackSound = stats.attackSound;
+	m_buildSound = stats.buildSound;
+
 	m_shotTimer = 0.0f; // переменная таймер
 }
 
@@ -120,9 +125,6 @@ void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies,
 			m_angle = targetAngle; // фиксируем прицел на враге
 			// проверяем перезарядку
 			if (m_shotTimer <= 0.0f) {
-				// достаем радиус сплеша
-				float currentSplash = ConfigManager::getTowerStats(m_type, m_currentLevel).splashRadius;
-
 				// ищем свободную пулю в масиве
 				Projectile* freeProj = nullptr;
 				for (auto& proj : projectiles) {
@@ -134,10 +136,14 @@ void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies,
 
 				// если нашли пулю то будим этого бизнесмена
 				if (freeProj) {
-					freeProj->init(towerCenter, m_angle, 800.0f, m_damage, bestTarget->getId(), currentSplash, currentPixelRange);
+					freeProj->init(towerCenter, m_angle, 800.0f, m_damage, bestTarget->getId(), m_splashRadius, currentPixelRange);
 				}
 
-				EventBus::publish({ EventType::TowerFired });
+				// формируем поссылку
+				Event e;
+				e.type = EventType::TowerFired;
+				e.textData = m_attackSound;
+				EventBus::publish(e);
 
 				m_shotTimer = m_fireRate;
 
@@ -179,8 +185,17 @@ bool Tower::upgrade(int& playerMoney) {
 		m_fireRate = nextStats.fireRate;
 		m_rotationSpeed = nextStats.rotationSpeed;
 
-		// Играем кастомный звук апгрейда 
-		EventBus::publish({ EventType::TowerBuilt });
+		// обновляем кеш
+		m_splashRadius = nextStats.splashRadius;
+		m_attackSound = nextStats.attackSound;
+		m_buildSound = nextStats.buildSound;
+
+		// формируем посылку с кастомным звуком апгрейда
+		Event e;
+		e.type = EventType::TowerBuilt;
+		e.textData = nextStats.buildSound;
+		EventBus::publish(e);
+
 		return true;
 	}
 

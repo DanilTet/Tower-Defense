@@ -7,6 +7,7 @@
 #include "world/Pathfinder.h"
 #include "gameplay/PlayerStats.h"
 #include "gameplay/EntityManager.h"
+#include "../core/EventBus.h"
 
 void BuildManager::tryBuildOrUpgrade(
     glm::vec2 mousePos, // позиция мыши
@@ -100,7 +101,10 @@ void BuildManager::tryBuildOrUpgrade(
 
             // звук постройки
             TowerStats towerstats = Tower::getStatsfromTowerType(selectedType);
-            AudioManager::playSound(towerstats.buildSound.c_str());
+            Event e;
+            e.type = EventType::TowerBuilt;
+            e.textData = towerstats.buildSound;
+            EventBus::publish(e);
 
             // обновляем все маршруты
             paths = newPaths;

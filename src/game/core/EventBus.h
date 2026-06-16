@@ -2,6 +2,7 @@
 #include <functional>
 #include <vector>
 #include <map>
+#include <string>
 
 enum class EventType {
     EnemyDied, // враг помер
@@ -17,6 +18,7 @@ struct Event {
     int value2 = 0; // Универсальное число 2 (например, очки)
     float x = 0.0f; // Координата X (для частиц или звука в пространстве)
     float y = 0.0f; // Координата Y
+    std::string textData = "";
 };
 
 class EventBus {

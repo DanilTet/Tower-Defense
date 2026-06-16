@@ -8,101 +8,28 @@
     "spawners": [
       {
         "x": 0,
-        "y": 0
+        "y": 1,
+        "targetBaseIndex": 0
       },
       {
         "x": 0,
-        "y": 1
+        "y": 6,
+        "targetBaseIndex": -1
       },
       {
         "x": 0,
-        "y": 2
-      },
-      {
-        "x": 0,
-        "y": 3
-      },
-      {
-        "x": 0,
-        "y": 4
-      },
-      {
-        "x": 0,
-        "y": 5
-      },
-      {
-        "x": 0,
-        "y": 6
-      },
-      {
-        "x": 0,
-        "y": 7
-      },
-      {
-        "x": 0,
-        "y": 8
-      },
-      {
-        "x": 0,
-        "y": 9
-      },
-      {
-        "x": 0,
-        "y": 10
-      },
-      {
-        "x": 0,
-        "y": 11
+        "y": 10,
+        "targetBaseIndex": -1
       }
     ],
     "bases": [
       {
         "x": 15,
-        "y": 0
-      },
-      {
-        "x": 15,
         "y": 1
       },
       {
         "x": 15,
-        "y": 2
-      },
-      {
-        "x": 15,
-        "y": 3
-      },
-      {
-        "x": 15,
-        "y": 4
-      },
-      {
-        "x": 15,
-        "y": 5
-      },
-      {
-        "x": 15,
-        "y": 6
-      },
-      {
-        "x": 15,
-        "y": 7
-      },
-      {
-        "x": 15,
-        "y": 8
-      },
-      {
-        "x": 15,
-        "y": 9
-      },
-      {
-        "x": 15,
         "y": 10
-      },
-      {
-        "x": 15,
-        "y": 11
       }
     ]
   },
@@ -112,13 +39,29 @@
         {
           "type": "Basic",
           "count": 5,
-          "interval": 1.0,
-          "delayAfter": 2.0
+          "interval": 1.2,
+          "delayAfter": 3.0
         },
         {
+          "type": "Basic",
+          "count": 6,
+          "interval": 0.8,
+          "delayAfter": 0.0
+        }
+      ]
+    },
+    {
+      "parts": [
+        {
           "type": "Fast",
-          "count": 10,
-          "interval": 0.4,
+          "count": 15,
+          "interval": 0.2,
+          "delayAfter": 4.0
+        },
+        {
+          "type": "Basic",
+          "count": 4,
+          "interval": 1.0,
           "delayAfter": 0.0
         }
       ]
@@ -127,14 +70,20 @@
       "parts": [
         {
           "type": "Tank",
-          "count": 3,
-          "interval": 1.5,
-          "delayAfter": 1.0
+          "count": 1,
+          "interval": 0.0,
+          "delayAfter": 2.5
         },
         {
           "type": "Fast",
-          "count": 15,
-          "interval": 0.3,
+          "count": 8,
+          "interval": 0.4,
+          "delayAfter": 1.0
+        },
+        {
+          "type": "Tank",
+          "count": 2,
+          "interval": 3.0,
           "delayAfter": 0.0
         }
       ]

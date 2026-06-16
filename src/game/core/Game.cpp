@@ -236,8 +236,18 @@ void Game::init() {
 
     // тут слушаем выстрелы башен
     EventBus::subscribe(EventType::TowerFired, [](const Event& e) {
-        AudioManager::playSound("res/sounds/shoot.wav", 0.1f);
+        if (!e.textData.empty()) { // проверка что строка не пустая
+            AudioManager::playSound(e.textData.c_str(), 0.1f);
+        }
     });
+
+
+    EventBus::subscribe(EventType::TowerBuilt, [](const Event& e) {
+        if (!e.textData.empty()) {
+            AudioManager::playSound(e.textData.c_str(), 0.1f);
+        }
+    });
+
 }
 
 // Обработка ввода вызывается каждый кадр

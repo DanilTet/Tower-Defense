@@ -58,6 +58,11 @@ private:
 	// debug
 	bool m_showDebugArrow = true;
 
+	// кеш
+	float m_splashRadius;
+	std::string m_attackSound;
+	std::string m_buildSound;
+
 public:
 	// получаем характеристики башни
 	static TowerStats getStatsfromTowerType(TowerType type);
