@@ -4,7 +4,7 @@
 #include <string>
 #include "entities/Enemy.h"
 
-class Game;
+class GameplayState;
 
 struct WavePart {
 	std::string type; // тип врага для спавна
@@ -25,7 +25,7 @@ public:
 	bool loadLevel(const std::string& filepath); // считываем левел с файла
 
 	void startNextWave(); // начинаем новую волну
-	void update(float dt, Game& game); // обновляем менеджер врагов
+	void update(float dt, GameplayState& gameState); // обновляем менеджер врагов
 
 	// гетері для дебага потом убрать
 	int getCurrentWaveNumber() const { return m_currentWaveIndex + 1; }

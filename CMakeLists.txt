@@ -143,6 +143,11 @@ add_executable(${PROJECT_NAME}
     src/game/core/EventBus.cpp
     src/game/core/EventBus.h
 
+    src/game/states/IGameState.h
+    src/game/states/GameStateManager.h
+    src/game/states/GameStateManager.cpp
+    src/game/states/GameplayState.cpp
+
     src/particles/ParticleSystem.cpp
 )
 
