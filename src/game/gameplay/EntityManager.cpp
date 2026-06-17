@@ -17,7 +17,7 @@ void EntityManager::update(float dt, Grid& gameGrid) {
     // пробегаемся по всему вектору активных башен на карте
     for (const auto& tower : m_towers) {
         if (tower) {
-            tower->update(dt, m_enemies, m_projectiles, gameGrid);
+            tower->update(dt, m_enemies, m_projectiles, gameGrid, *m_particleSystem);
         }
     }
     // Пробегаемся по всему вектору активных врагов на карте
@@ -30,8 +30,7 @@ void EntityManager::update(float dt, Grid& gameGrid) {
     // обновляем пули из пула
     for (auto& proj : m_projectiles) {
         if (proj.isActive()) {
-            proj.update(dt, m_enemies, gameGrid);
-
+            proj.update(dt, m_enemies, gameGrid, *m_particleSystem);
             // если пуля долетела или время ВСЁ то выключаем её
             if (proj.isDestroyed()) {
                 proj.setActive(false);

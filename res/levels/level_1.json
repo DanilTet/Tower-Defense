@@ -1,7 +1,7 @@
 {
   "map": {
-    "width": 16,
-    "height": 12,
+    "width": 8,
+    "height": 6,
     "cellSize": 64.0,
     "offsetX": 20.0,
     "offsetY": 20.0,
@@ -13,23 +13,18 @@
       },
       {
         "x": 0,
-        "y": 6,
-        "targetBaseIndex": -1
-      },
-      {
-        "x": 0,
-        "y": 10,
+        "y": 4,
         "targetBaseIndex": -1
       }
     ],
     "bases": [
       {
-        "x": 15,
+        "x": 7,
         "y": 1
       },
       {
-        "x": 15,
-        "y": 10
+        "x": 7,
+        "y": 4
       }
     ]
   },

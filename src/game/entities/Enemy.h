@@ -14,6 +14,7 @@ struct EnemyStats {
 	std::string textureId;
 	glm::vec3 color;
 	std::string deathSound;
+	std::string deathParticle;
 };
 
 class SpriteRenderer;
@@ -30,7 +31,7 @@ private:
 	int m_reward; // награда за убийство врага
 	glm::vec3 m_color;
 	std::string m_deathSound; // звук смерти
-
+	std::string m_deathParticle; // кеш для звука смерти
 
 	std::vector<glm::ivec2> m_path; // маршрут врага
 	size_t m_currentWayPoint; // текущая точка к которой враг идет
@@ -78,7 +79,7 @@ public:
 	int getReward() const { return m_reward; } // геттер который возгращает награду за убийство врага
 	std::string getDeathSound() const { return m_deathSound; }
 	CircleCollider getCollider(const Grid& grid) const; // генераттор хитбокса
-
+	std::string getDeathParticle() const { return m_deathParticle; } // геттер партиклов
 	int getId() const { return m_id; } // геттер для получения айди врага
 
 	float getDistanceTraveled() const { return m_distanceTraveled; } // геттер для того щоб отримати пройдений шлях ворога

@@ -54,6 +54,10 @@ bool ConfigManager::loadConfigs(const std::string& towerPath, const std::string&
 					stats.textureId = tex;
 					stats.color = col;
 
+					stats.muzzleParticle = lvlJson.value("muzzleParticle", "");
+					stats.trailParticle = lvlJson.value("trailParticle", "");
+					stats.impactParticle = lvlJson.value("impactParticle", "");
+
 					// записываем статы в словарь по имени башни
 					s_towerStats[towerName].push_back(stats);
 				}
@@ -83,6 +87,7 @@ bool ConfigManager::loadConfigs(const std::string& towerPath, const std::string&
 			stats.reward = eData.value("reward", 10);
 			stats.textureId = eData.value("textureId", "towerTexture");
 			stats.deathSound = eData.value("deathSound", "");
+			stats.deathParticle = eData.value("deathParticle", "BloodSplatter");
 
 			stats.color = glm::vec3(1.0f);
 			if (eData.contains("color") && eData["color"].is_array() && eData["color"].size() >= 3) {

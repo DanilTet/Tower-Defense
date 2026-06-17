@@ -2,12 +2,14 @@
 #include <glm/glm.hpp>
 #include <vector>
 #include <memory>
+#include <string>
 #include "CircleCollider.h"
 #include "Enemy.h"
 
 class SpriteRenderer;
 class Texture2D;
 class Grid;
+class ParticleSystem;
 
 class Projectile {
 public:
@@ -16,9 +18,14 @@ public:
 	// метод инициализации пули при выстреле
 	void init(glm::vec2 startPos, float startAngle, float speed, int damage, int targetId, float splashRadius, float searchRadius);
 
-	// двигаем пулу и проверяем столкновение
-	void update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies, const Grid& grid);
+	//метод для записи ефектов из башни берет
+	void setParticleEffects(const std::string& trail, const std::string& impact) {
+		m_trailParticle = trail;
+		m_impactParticle = impact;
+	}
 
+	// двигаем пулу и проверяем столкновение
+	void update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies, const Grid& grid, ParticleSystem& particleSystem);
 	// отрисовка
 	void render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture);
 
@@ -56,4 +63,8 @@ private:
 	bool m_hitOnlyTarget = true; // true = Аркада false = Реализм
 
 	bool m_isActive; // флаг для пула обьектов
+
+	// ефекты
+	std::string m_trailParticle;
+	std::string m_impactParticle;
 };

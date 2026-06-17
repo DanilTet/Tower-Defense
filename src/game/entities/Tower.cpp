@@ -5,6 +5,7 @@
 #include "Projectile.h"
 #include "core/ConfigManager.h"
 #include "../core/EventBus.h"
+#include "../../particles/ParticleSystem.h"
 
 TowerStats Tower::getStatsfromTowerType(const std::string& type) {
 	return ConfigManager::getTowerStats(type);
@@ -33,6 +34,10 @@ Tower::Tower(int gridX, int gridY, const std::string& type)
 
 	m_textureId = stats.textureId;
 	m_color = stats.color;
+	// и партиклы ефектов кешируем
+	m_muzzleParticle = stats.muzzleParticle;
+	m_trailParticle = stats.trailParticle;
+	m_impactParticle = stats.impactParticle;
 
 	m_shotTimer = 0.0f; // переменная таймер
 }
@@ -69,7 +74,7 @@ void Tower::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture,
 
 }
 
-void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies, std::vector<Projectile>& projectiles, const Grid& grid) {
+void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies, std::vector<Projectile>& projectiles, const Grid& grid, ParticleSystem& particleSystem) {
 	//если башня еще не перезарядилась, перезаряжаем
 	if (m_shotTimer > 0.0f) {
 		m_shotTimer -= dt;
@@ -170,7 +175,21 @@ void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies,
 
 				// если нашли пулю то будим этого бизнесмена
 				if (freeProj) {
+					freeProj->setParticleEffects(m_trailParticle, m_impactParticle);
 					freeProj->init(towerCenter, m_angle, 800.0f, m_damage, bestTarget->getId(), m_splashRadius, currentPixelRange);
+				}
+				// партиклы из дула
+				if (!m_muzzleParticle.empty()) {
+					ParticleEmitterProps muzzle = ConfigManager::getParticleProps(m_muzzleParticle);
+
+					// вычисляем вектор направления выстрела
+					glm::vec2 shootDirection = glm::vec2(cos(glm::radians(m_angle)), sin(glm::radians(m_angle)));
+
+					// вспышка появляется прямо на конце дула башни
+					muzzle.position = towerCenter + shootDirection * (cellSize * 0.4f);
+					muzzle.velocityDir = shootDirection * 50.0f; // искры летят вперед
+
+					particleSystem.emit(muzzle, muzzle.spawnCount);
 				}
 
 				// формируем поссылку
@@ -180,6 +199,8 @@ void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies,
 				EventBus::publish(e);
 
 				m_shotTimer = m_fireRate;
+
+
 
 			}
 		}
@@ -225,6 +246,9 @@ bool Tower::upgrade(int& playerMoney) {
 		m_buildSound = nextStats.buildSound;
 		m_textureId = nextStats.textureId;
 		m_color = nextStats.color;
+		m_muzzleParticle = nextStats.muzzleParticle;
+		m_trailParticle = nextStats.trailParticle;
+		m_impactParticle = nextStats.impactParticle;
 
 		// формируем посылку с кастомным звуком апгрейда
 		Event e;

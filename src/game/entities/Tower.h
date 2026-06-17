@@ -6,6 +6,8 @@
 #include "CircleCollider.h"
 #include <string>
 
+class ParticleSystem;
+
 enum class TargetMode {
 	First, // ближе всего к базе
 	Last, // дальше всего от базы (мин. пройденный путь)
@@ -27,6 +29,11 @@ struct TowerStats {
 
 	std::string textureId; // ID текстуры
 	glm::vec3 color; // цвет башни
+
+	// ефекты партиклы
+	std::string muzzleParticle;
+	std::string trailParticle;
+	std::string impactParticle;
 
 };
 
@@ -67,6 +74,11 @@ private:
 	std::string m_textureId;
 	glm::vec3 m_color;
 
+	std::string m_muzzleParticle;
+	std::string m_trailParticle;
+	std::string m_impactParticle;
+
+
 	// режим наводки
 	TargetMode m_targetMode = TargetMode::First;
 
@@ -78,9 +90,7 @@ public:
 	Tower(int gridX, int gridY, const std::string& type);
 
 	//обновление логики
-	void update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies, std::vector<Projectile>& projectiles, const Grid& grid);
-
-	// отрисовка
+	void update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies, std::vector<Projectile>& projectiles, const Grid& grid, ParticleSystem& particleSystem);	// отрисовка
 	void render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture, std::shared_ptr<Texture2D> radiusTexture, std::shared_ptr<Texture2D> arrowTexture, const Grid& grid);
 
 	bool upgrade(int& playerMoney);

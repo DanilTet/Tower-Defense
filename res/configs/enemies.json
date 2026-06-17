@@ -6,7 +6,8 @@
     "reward": 10,
     "textureId": "towerTexture",
     "color": [ 0.2, 1.0, 0.2 ],
-    "deathSound": "res/sounds/enemy_death.wav"
+    "deathSound": "res/sounds/enemy_death.wav",
+    "deathParticle": "BloodSplatter"
   },
   "Fast": {
     "speed": 1.5,
@@ -15,7 +16,8 @@
     "reward": 15,
     "textureId": "towerTexture",
     "color": [ 1.0, 1.0, 0.2 ],
-    "deathSound": "res/sounds/enemy_death.wav"
+    "deathSound": "res/sounds/enemy_death.wav",
+    "deathParticle": "BloodSplatter"
   },
   "Tank": {
     "speed": 0.3,
@@ -24,6 +26,7 @@
     "reward": 30,
     "textureId": "towerTexture",
     "color": [ 0.2, 0.4, 1.0 ],
-    "deathSound": "res/sounds/enemy_death.wav"
+    "deathSound": "res/sounds/enemy_death.wav",
+    "deathParticle": "BloodSplatter"
   }
 }

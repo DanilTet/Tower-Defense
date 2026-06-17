@@ -11,7 +11,10 @@
         "splashRadius": 0.0,
         "rotationSpeed": 500.0,
         "buildSound": "res/sounds/build.wav",
-        "attackSound": "res/sounds/shoot.wav"
+        "attackSound": "res/sounds/shoot.wav",
+        "muzzleParticle": "MuzzleSpark",
+        "trailParticle": "BulletTrail",
+        "impactParticle": "SparkImpact"
       },
       {
         "range": 3.0,
@@ -21,7 +24,10 @@
         "splashRadius": 0.0,
         "rotationSpeed": 550.0,
         "buildSound": "res/sounds/build.wav",
-        "attackSound": "res/sounds/shoot.wav"
+        "attackSound": "res/sounds/shoot.wav",
+        "muzzleParticle": "MuzzleSpark",
+        "trailParticle": "BulletTrail",
+        "impactParticle": "SparkImpact"
       },
       {
         "range": 3.5,
@@ -31,7 +37,10 @@
         "splashRadius": 0.0,
         "rotationSpeed": 600.0,
         "buildSound": "res/sounds/build.wav",
-        "attackSound": "res/sounds/shoot.wav"
+        "attackSound": "res/sounds/shoot.wav",
+        "muzzleParticle": "MuzzleSpark",
+        "trailParticle": "BulletTrail",
+        "impactParticle": "SparkImpact"
       }
     ]
   },
@@ -47,7 +56,10 @@
         "splashRadius": 0.0,
         "rotationSpeed": 120.0,
         "buildSound": "res/sounds/buildSniper.wav",
-        "attackSound": "res/sounds/shoot.wav"
+        "attackSound": "res/sounds/shoot.wav",
+        "muzzleParticle": "MuzzleSpark",
+        "trailParticle": "BulletTrail",
+        "impactParticle": "SparkImpact"
       },
       {
         "range": 6.5,
@@ -57,7 +69,10 @@
         "splashRadius": 0.0,
         "rotationSpeed": 150.0,
         "buildSound": "res/sounds/buildSniper.wav",
-        "attackSound": "res/sounds/shoot.wav"
+        "attackSound": "res/sounds/shoot.wav",
+        "muzzleParticle": "MuzzleSpark",
+        "trailParticle": "BulletTrail",
+        "impactParticle": "SparkImpact"
       },
       {
         "range": 8.0,
@@ -67,7 +82,10 @@
         "splashRadius": 0.0,
         "rotationSpeed": 180.0,
         "buildSound": "res/sounds/buildSniper.wav",
-        "attackSound": "res/sounds/shoot.wav"
+        "attackSound": "res/sounds/shoot.wav",
+        "muzzleParticle": "MuzzleSpark",
+        "trailParticle": "BulletTrail",
+        "impactParticle": "SparkImpact"
       }
     ]
   },
@@ -83,7 +101,10 @@
         "splashRadius": 2.0,
         "rotationSpeed": 250.0,
         "buildSound": "res/sounds/build.wav",
-        "attackSound": "res/sounds/shoot.wav"
+        "attackSound": "res/sounds/shoot.wav",
+        "muzzleParticle": "MuzzleSpark",
+        "trailParticle": "BulletTrail",
+        "impactParticle": "SparkImpact"
       },
       {
         "range": 2.5,
@@ -93,7 +114,10 @@
         "splashRadius": 2.5,
         "rotationSpeed": 280.0,
         "buildSound": "res/sounds/build.wav",
-        "attackSound": "res/sounds/shoot.wav"
+        "attackSound": "res/sounds/shoot.wav",
+        "muzzleParticle": "MuzzleSpark",
+        "trailParticle": "BulletTrail",
+        "impactParticle": "SparkImpact"
       },
       {
         "range": 3.0,
@@ -103,7 +127,10 @@
         "splashRadius": 3.2,
         "rotationSpeed": 320.0,
         "buildSound": "res/sounds/build.wav",
-        "attackSound": "res/sounds/shoot.wav"
+        "attackSound": "res/sounds/shoot.wav",
+        "muzzleParticle": "MuzzleSpark",
+        "trailParticle": "BulletTrail",
+        "impactParticle": "SparkImpact"
       }
     ]
   },
@@ -119,7 +146,10 @@
         "splashRadius": 0.0,
         "rotationSpeed": 200.0,
         "buildSound": "res/sounds/build.wav",
-        "attackSound": "res/sounds/shoot.wav"
+        "attackSound": "res/sounds/shoot.wav",
+        "muzzleParticle": "MuzzleSpark",
+        "trailParticle": "BulletTrail",
+        "impactParticle": "SparkImpact"
       },
       {
         "range": 3.2,
@@ -129,7 +159,10 @@
         "splashRadius": 0.0,
         "rotationSpeed": 240.0,
         "buildSound": "res/sounds/build.wav",
-        "attackSound": "res/sounds/shoot.wav"
+        "attackSound": "res/sounds/shoot.wav",
+        "muzzleParticle": "MuzzleSpark",
+        "trailParticle": "BulletTrail",
+        "impactParticle": "SparkImpact"
       },
       {
         "range": 3.5,
@@ -139,7 +172,10 @@
         "splashRadius": 0.0,
         "rotationSpeed": 300.0,
         "buildSound": "res/sounds/build.wav",
-        "attackSound": "res/sounds/shoot.wav"
+        "attackSound": "res/sounds/shoot.wav",
+        "muzzleParticle": "MuzzleSpark",
+        "trailParticle": "BulletTrail",
+        "impactParticle": "SparkImpact"
       }
     ]
   }

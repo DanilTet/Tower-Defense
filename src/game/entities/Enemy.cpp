@@ -29,6 +29,7 @@ Enemy::Enemy(const std::vector<glm::ivec2>& gridPath, const Grid& grid, const st
     m_reward = stats.reward; // сохраняем награду за убийство врага
     m_color = stats.color;
     m_deathSound = stats.deathSound;
+    m_deathParticle = stats.deathParticle;
 
     m_radiusMultiplier = stats.sizeScale / 2.0f; // хитбокс
 	// Если маршрут не пустой, то устанавливаем начальную позицию врага в пикселях на основе первой контрольной точки маршрута

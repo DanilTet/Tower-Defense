@@ -2,6 +2,8 @@
 #include "../renderer/SpriteRenderer.h"
 #include "../textures/Texture2D.h"
 #include "world/Grid.h"
+#include "core/ConfigManager.h"
+#include "../../particles/ParticleSystem.h"
 
 // конструктор задает спящего бизнесмена
 Projectile::Projectile()
@@ -30,8 +32,7 @@ void Projectile::init(glm::vec2 startPos, float startAngle, float speed, int dam
     m_direction = glm::vec2(cos(rad), sin(rad));
 }
 
-void Projectile::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies, const Grid& grid) {
-    // пошел ты спящий бизнесмен
+void Projectile::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies, const Grid& grid, ParticleSystem& particleSystem) {    // пошел ты спящий бизнесмен
     if (!m_isActive || m_destroyed) return;
 
     // уменьшаем время жизни
@@ -92,6 +93,14 @@ void Projectile::update(float dt, const std::vector<std::unique_ptr<Enemy>>& ene
     }
     // двигаем пулю
     m_pos += m_direction * m_speed * dt;
+
+    // добавляем треил
+    if (!m_trailParticle.empty()) {
+        ParticleEmitterProps trail = ConfigManager::getParticleProps(m_trailParticle);
+        trail.position = m_pos;
+        particleSystem.emit(trail, trail.spawnCount);
+    }
+
     CircleCollider myCollider = { m_pos, m_radius };
 
     // проверка на столкновение
@@ -104,6 +113,13 @@ void Projectile::update(float dt, const std::vector<std::unique_ptr<Enemy>>& ene
         }
 
         if (myCollider.intersects(enemy->getCollider(grid))) {
+            // спавн партиклов взрыва или попадания
+            if (!m_impactParticle.empty()) {
+                ParticleEmitterProps impact = ConfigManager::getParticleProps(m_impactParticle);
+                impact.position = m_pos; // там где было столкновение
+                particleSystem.emit(impact, impact.spawnCount);
+            }
+
             if (m_splashRadius > 0.0f) {
                 float splashPixels = m_splashRadius * grid.getCellSize();
                 CircleCollider explosion = { m_pos, splashPixels };
