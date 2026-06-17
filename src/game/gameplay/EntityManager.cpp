@@ -4,10 +4,12 @@
 #include "textures/Texture2D.h"
 #include <algorithm>
 #include "../core/EventBus.h"
+#include "../../particles/ParticleSystem.h"
 
 // сразу выделяем память под 500 пуль
 EntityManager::EntityManager() {
     m_projectiles.resize(500);
+    m_particleSystem = std::make_unique<ParticleSystem>();
 }
 
 void EntityManager::update(float dt, Grid& gameGrid) {
@@ -40,12 +42,28 @@ void EntityManager::update(float dt, Grid& gameGrid) {
     for (const auto& enemy : m_enemies) {
         if (enemy->isDead()) {
             EventBus::publish({ EventType::EnemyDied, enemy->getReward(), 10, enemy->getCollider(gameGrid).center.x, enemy->getCollider(gameGrid).center.y, enemy->getDeathSound() });
+
+            // ГОВНОКОД ДЛЯ ТЕСТА ПАРТИКЛОВ ОТ ГЕМИНЬКИ ПОТОМ УБРАТЬ
+            // --- СПАВНИМ КРОВИЩУ! ---
+            ParticleEmitterProps bloodProps;
+            bloodProps.position = enemy->getCollider(gameGrid).center; // Прямо в центре врага
+            bloodProps.velocityDir = glm::vec2(0.0f); // Разлет во все стороны
+            bloodProps.velocityVariation = 150.0f;    // Резкий взрывной выброс
+            bloodProps.startColor = glm::vec3(0.8f, 0.1f, 0.1f); // Свежая яркая кровь
+            bloodProps.endColor = glm::vec3(0.3f, 0.0f, 0.0f);   // Темнеет со временем
+            bloodProps.startSize = 12.0f; // Крупные ошметки
+            bloodProps.endSize = 2.0f;    // Растворяются в пыль
+            bloodProps.lifeTime = 0.4f;   // Быстро исчезают
+
+            // Запускаем 30 частиц за один раз
+            m_particleSystem->emit(bloodProps, 30);
         }
         if (enemy->isReachedEnd()) {
             EventBus::publish({ EventType::EnemyReachedBase, 1 });
         }
     }
 
+    m_particleSystem->update(dt);
 
     
 
@@ -74,6 +92,8 @@ void EntityManager::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> 
             proj.render(renderer, cellTex);
         }
     }
+
+    m_particleSystem->render(renderer, cellTex);
 }
 
 Tower* EntityManager::getTowerAt(int gridX, int gridY) {

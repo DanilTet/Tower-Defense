@@ -4,6 +4,7 @@
 #include "entities/Enemy.h"
 #include "entities/Tower.h"
 #include "entities/Projectile.h"
+#include "../../particles/ParticleSystem.h"
 
 class Grid;
 class SpriteRenderer;
@@ -15,6 +16,7 @@ private:
 	std::vector<Projectile> m_projectiles; // проджектайлы
 	std::vector<std::unique_ptr<Tower>> m_towers;// БАШНИ
 	std::vector<std::unique_ptr<Enemy>> m_enemies; // вектор для хранения всех врагов на уровне
+	std::unique_ptr<ParticleSystem> m_particleSystem; // партиклы
 
 public:
 	// конструктор

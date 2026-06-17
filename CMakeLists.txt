@@ -142,6 +142,8 @@ add_executable(${PROJECT_NAME}
 
     src/game/core/EventBus.cpp
     src/game/core/EventBus.h
+
+    src/particles/ParticleSystem.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
