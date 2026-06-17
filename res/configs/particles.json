@@ -4,9 +4,9 @@
     "velocityVariation": 150.0,
     "startColor": [ 0.8, 0.1, 0.1 ],
     "endColor": [ 0.3, 0.0, 0.0 ],
-    "startSize": 12.0,
-    "endSize": 2.0,
-    "lifeTime": 0.4,
+    "startSize": 18.0,
+    "endSize": 3.0,
+    "lifeTime": 0.8,
     "spawnCount": 30
   },
   "SmokeExplosion": {
@@ -24,9 +24,9 @@
     "velocityVariation": 60.0,
     "startColor": [ 1.0, 0.8, 0.3 ],
     "endColor": [ 1.0, 0.3, 0.0 ],
-    "startSize": 8.0,
-    "endSize": 1.0,
-    "lifeTime": 0.15,
+    "startSize": 12.0,
+    "endSize": 2.0,
+    "lifeTime": 0.3,
     "spawnCount": 8
   },
   "BulletTrail": {
@@ -44,9 +44,9 @@
     "velocityVariation": 120.0,
     "startColor": [ 1.0, 0.9, 0.5 ],
     "endColor": [ 0.5, 0.2, 0.0 ],
-    "startSize": 6.0,
-    "endSize": 0.0,
-    "lifeTime": 0.25,
+    "startSize": 10.0,
+    "endSize": 1.0,
+    "lifeTime": 0.5,
     "spawnCount": 12
   }
 }

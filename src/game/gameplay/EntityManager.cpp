@@ -82,7 +82,7 @@ void EntityManager::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> 
         }
     }
 
-    m_particleSystem->render(renderer, particleTex);
+    m_particleSystem->render(renderer, particleTex, gameGrid);
 }
 
 Tower* EntityManager::getTowerAt(int gridX, int gridY) {

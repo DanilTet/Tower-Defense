@@ -6,6 +6,7 @@
 
 class SpriteRenderer;
 class Texture2D;
+class Grid;
 
 // конфиг для создания єфекта
 struct ParticleEmitterProps {
@@ -38,7 +39,7 @@ public:
 
 	void update(float dt);
 
-	void render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture);
+	void render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture, const Grid& grid);
 
 	// выстрелить пачкой частиц
 	void emit(const ParticleEmitterProps& props, int count = 1);

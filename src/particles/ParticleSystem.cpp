@@ -2,6 +2,7 @@
 #include <random>
 #include "../renderer/SpriteRenderer.h" 
 #include "../textures/Texture2D.h"
+#include "../game/world/Grid.h"
 
 // генератор рандомных чисел для красивого разлета
 static std::random_device rd;
@@ -29,7 +30,8 @@ void ParticleSystem::update(float dt) {
     }
 }
 
-void ParticleSystem::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture) {
+void ParticleSystem::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture, const Grid& grid) {
+    float scaleFactor = grid.getCellSize() / 64.0f; // масштаб
     for (auto& p : m_pool) {
         if (!p.active) continue;
 
@@ -38,7 +40,7 @@ void ParticleSystem::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D>
 
         // интерполяция цвета и размера
         glm::vec3 currentColor = glm::mix(p.startColor, p.endColor, lifeFactor);
-        float currentSize = glm::mix(p.startSize, p.endSize, lifeFactor);
+        float currentSize = glm::mix(p.startSize, p.endSize, lifeFactor) * scaleFactor;
 
         // рисуем отцентрованную частицу
         glm::vec2 drawPos = p.position - glm::vec2(currentSize / 2.0f);
@@ -60,8 +62,10 @@ void ParticleSystem::emit(const ParticleEmitterProps& props, int count) {
             randomVec = glm::normalize(randomVec);
         }
 
+        float slowedVelocityVariation = props.velocityVariation * 0.5f;
+
         // задаем физику
-        p.velocity = props.velocityDir + randomVec * props.velocityVariation;
+        p.velocity = props.velocityDir + randomVec * slowedVelocityVariation;
 
         // задаем визуал
         p.startColor = props.startColor;
