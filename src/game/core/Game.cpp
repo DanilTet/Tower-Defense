@@ -51,6 +51,8 @@ void Game::init() {
     ResourceManager::loadTexture("radiusTexture", "res/textures/radius2.png"); // радиус атаки башни
     ResourceManager::loadTexture("arrowTexture", "res/textures/pathArrow.png"); // стрелочка пути
     ResourceManager::loadTexture("particleTexture", "res/textures/particle.png"); // партикл
+    ResourceManager::loadTexture("enemyAtlas", "res/textures/enemyAtlas.png"); // атлас для врагов
+
 
     // Получаем указатель на текстура из ResourceManager
     Texture2D* cellTex = ResourceManager::getTexture("towerTexture"); // башня

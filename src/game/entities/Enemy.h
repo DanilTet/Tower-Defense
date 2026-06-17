@@ -4,6 +4,7 @@
 #include <memory>
 #include "CircleCollider.h"
 #include <string>
+#include "../core/Animator.h"
 
 // Структура для хранения характеристик врага
 struct EnemyStats {
@@ -15,6 +16,10 @@ struct EnemyStats {
 	glm::vec3 color;
 	std::string deathSound;
 	std::string deathParticle;
+
+	int atlasWidth;
+	int atlasHeight;
+	std::unordered_map<std::string, AnimationClip> animations;
 };
 
 class SpriteRenderer;
@@ -32,6 +37,8 @@ private:
 	glm::vec3 m_color;
 	std::string m_deathSound; // звук смерти
 	std::string m_deathParticle; // кеш для звука смерти
+
+	Animator m_animator; // компонент аниматора
 
 	std::vector<glm::ivec2> m_path; // маршрут врага
 	size_t m_currentWayPoint; // текущая точка к которой враг идет

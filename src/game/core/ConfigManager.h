@@ -5,6 +5,7 @@
 #include "entities/Tower.h"
 #include "entities/Enemy.h"
 #include "../../particles/ParticleSystem.h"
+#include "core/Animator.h"
 
 class ConfigManager {
 public:

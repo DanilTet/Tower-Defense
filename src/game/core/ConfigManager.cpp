@@ -100,6 +100,35 @@ bool ConfigManager::loadConfigs(const std::string& towerPath, const std::string&
 					eData["color"][2].get<float>()
 				);
 			}
+			stats.atlasWidth = eData.value("atlasWidth", 64);
+			stats.atlasHeight = eData.value("atlasHeight", 64);
+
+			if (eData.contains("animations")) {
+				for (auto& animElement : eData["animations"].items()) {
+					std::string animName = animElement.key();
+					json animData = animElement.value();
+
+					AnimationClip clip;
+					clip.loop = animData.value("loop", true);
+
+					if (animData.contains("frames") && animData["frames"].is_array()) {
+						for (auto& frameJson : animData["frames"]) {
+							int x = frameJson.value("x", 0);
+							int y = frameJson.value("y", 0);
+							int w = frameJson.value("w", 64);
+							int h = frameJson.value("h", 64);
+							float duration = frameJson.value("duration", 0.1f);
+
+							AnimationFrame frame;
+							frame.uv = SpriteUV::fromPixels(x, y, w, h, stats.atlasWidth, stats.atlasHeight);
+							frame.duration = duration;
+							clip.frames.push_back(frame);
+						}
+					}
+					stats.animations[animName] = clip;
+				}
+			}
+
 			s_enemyStats[enemyName] = stats;
 		}
 		eFile.close(); // закріваем файл

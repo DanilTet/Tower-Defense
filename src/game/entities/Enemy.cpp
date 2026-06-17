@@ -5,6 +5,7 @@
 #include <iostream>
 #include "core/ConfigManager.h"
 #include "world/Pathfinder.h"
+#include "../../resources/ResourceManager.h"
 
 int Enemy::s_nextId = 0; // инициализация общего счетчика
 
@@ -37,12 +38,19 @@ Enemy::Enemy(const std::vector<glm::ivec2>& gridPath, const Grid& grid, const st
         // Берем индексы x и y первой ячейки [0], переводим в экранные пиксели и сохраняем в m_pixelPos
         m_pixelPos = grid.gridToPixel(m_path[0].x, m_path[0].y);
     }
+
+    for(const auto& pair : stats.animations) {
+        m_animator.addAnimation(pair.first, pair.second);
+    }
+    m_animator.play("Walk");
 }
 
 // Обновление логики и расчет движения
 void Enemy::update(float dt, const Grid& grid) {
     // Если враг достиг конца или нету пути - выходим
     if (m_reachedEnd || m_path.empty()) return;
+
+    m_animator.update(dt); // прокрутка анимации
 
     // Определяем контрольную точку маршрута к которой идем
     glm::ivec2 targetCell = m_path[m_currentWayPoint];
@@ -101,8 +109,15 @@ void Enemy::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture,
     glm::vec2 centeredPos = m_pixelPos + glm::vec2(padding, padding);
 
     // Отправляем команду в SpriteRenderer
-    renderer->drawSprite(texture, centeredPos, size, 0.0f, m_color);
+    Texture2D* enemyTex = ResourceManager::getTexture(stats.textureId);
+    if (!enemyTex) {
+        enemyTex = ResourceManager::getTexture("towerTexture");
+    }
+    std::shared_ptr<Texture2D> enemyTexPtr(enemyTex, [](Texture2D*) {});
 
+    SpriteUV currentFrameUV = m_animator.getCurrentUV();
+
+    renderer->drawSprite(enemyTexPtr, centeredPos, size, 0.0f, m_color, currentFrameUV);
 
     //ЧАТО ГПТИШНОЕ ГОВНО КОТОРОЕ ПОТОМ УБРАТЬ
     // //ЧАТО ГПТИШНОЕ ГОВНО КОТОРОЕ ПОТОМ УБРАТЬ
