@@ -74,6 +74,7 @@ private:
 	std::shared_ptr<Texture2D> m_cellTexture; // текстура для клеток сетки и врагов
 	std::shared_ptr<Texture2D> m_grassTexture; // текстура травы сетки
 	std::shared_ptr<Texture2D> m_radiusTexture; // текстура радиус атаки
+	std::shared_ptr<Texture2D> m_particleTexture; // текстурка партикла
 
 
 	// Движение врага и спавн

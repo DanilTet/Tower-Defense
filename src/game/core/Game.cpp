@@ -38,7 +38,7 @@ Game::~Game() {
 // Инициализация игры, загрузка ресурсов, настройка рендерера и создание сетки
 void Game::init() {
     // загрузка конфигураций
-    ConfigManager::loadConfigs("res/configs/towers.json", "res/configs/enemies.json");
+    ConfigManager::loadConfigs("res/configs/towers.json", "res/configs/enemies.json", "res/configs/particles.json");
 	// загрузака файлов вершинного и фрагментного шейдера в видеокарту под именем "spriteShader"
     if (!ResourceManager::loadShader("spriteShader", "res/shaders/vertex_shader.vert", "res/shaders/fragment_shader.frag")) {
 		std::cerr << "Failed to load shaders" << std::endl; // если загрузка не удалась, выводим ошибку в консоль
@@ -50,18 +50,19 @@ void Game::init() {
     ResourceManager::loadTexture("grassTexture", "res/textures/spr_grass_02.png"); // текстурка тайла траві
     ResourceManager::loadTexture("radiusTexture", "res/textures/radius2.png"); // радиус атаки башни
     ResourceManager::loadTexture("arrowTexture", "res/textures/pathArrow.png"); // стрелочка пути
-
+    ResourceManager::loadTexture("particleTexture", "res/textures/particle.png"); // партикл
 
     // Получаем указатель на текстура из ResourceManager
     Texture2D* cellTex = ResourceManager::getTexture("towerTexture"); // башня
     Texture2D* grassTex = ResourceManager::getTexture("grassTexture"); // тайл земли
     Texture2D* radTex = ResourceManager::getTexture("radiusTexture"); // радиус атаки башни
+    Texture2D* partTex = ResourceManager::getTexture("particleTexture"); // партикл
 
     // указатель на тексту оборачиваем его в shared_ptr, чтобы управлять временем жизни текстуры
     m_cellTexture = std::shared_ptr<Texture2D>(cellTex, [](Texture2D*) {}); // башня
     m_grassTexture = std::shared_ptr<Texture2D>(grassTex, [](Texture2D*) {}); // тайл земли
     m_radiusTexture = std::shared_ptr<Texture2D>(radTex, [](Texture2D*) {}); // радиус атаки башни
-    
+    m_particleTexture = std::shared_ptr<Texture2D>(partTex, [](Texture2D*) {}); // партикл
 
     // ШЕЙДЕР
 	// Получаем указатель на шейдер из ResourceManager и создаем рендерер для спрайтов
@@ -419,7 +420,7 @@ void Game::render() {
     } // рисуем стрелочки пути
 
     // рисуем все башни врагов и пули
-    m_entityManager->render(m_renderer.get(), m_cellTexture, m_radiusTexture, arrowTexPtr, *m_gameGrid);
+    m_entityManager->render(m_renderer.get(), m_cellTexture, m_radiusTexture, arrowTexPtr, m_particleTexture, *m_gameGrid);
 
     // ОТРИСОВКА ИНТЕРФЕЙСА
     // отрисовка меню выбраной или выделеной как это называют башни

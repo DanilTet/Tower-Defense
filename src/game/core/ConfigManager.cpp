@@ -8,8 +8,9 @@ using json = nlohmann::json;
 // инициализация деревьев которіе как словари работают
 std::map<std::string, std::vector<TowerStats>> ConfigManager::s_towerStats;
 std::map<std::string, EnemyStats> ConfigManager::s_enemyStats;
+std::map<std::string, ParticleEmitterProps> ConfigManager::s_particleProps;
 
-bool ConfigManager::loadConfigs(const std::string& towerPath, const std::string& enemiesPath) {
+bool ConfigManager::loadConfigs(const std::string& towerPath, const std::string& enemiesPath, const std::string& particlesPath) {
 	s_towerStats.clear();
 	s_enemyStats.clear();
 	
@@ -100,6 +101,47 @@ bool ConfigManager::loadConfigs(const std::string& towerPath, const std::string&
 		return false;
 	}
 
+	std::ifstream pFile(particlesPath);
+	if (pFile.is_open()) {
+		json j;
+		pFile >> j;
+		for (auto& element : j.items()) {
+			std::string pName = element.key();
+			json pData = element.value();
+			ParticleEmitterProps props;
+
+			props.position = glm::vec2(0.0f);
+			props.velocityDir = glm::vec2(0.0f);
+			if (pData.contains("velocityDir") && pData["velocityDir"].is_array() && pData["velocityDir"].size() >= 2) {
+				props.velocityDir = glm::vec2(pData["velocityDir"][0].get<float>(), pData["velocityDir"][1].get<float>());
+			}
+
+			props.velocityVariation = pData.value("velocityVariation", 50.0f);
+			props.startColor = glm::vec3(1.0f);
+			if (pData.contains("startColor") && pData["startColor"].is_array() && pData["startColor"].size() >= 3) {
+				props.startColor = glm::vec3(pData["startColor"][0].get<float>(), pData["startColor"][1].get<float>(), pData["startColor"][2].get<float>());
+			}
+			props.endColor = glm::vec3(0.0f);
+			if (pData.contains("endColor") && pData["endColor"].is_array() && pData["endColor"].size() >= 3) {
+				props.endColor = glm::vec3(pData["endColor"][0].get<float>(), pData["endColor"][1].get<float>(), pData["endColor"][2].get<float>());
+			}
+
+			props.startSize = pData.value("startSize", 10.0f);
+			props.endSize = pData.value("endSize", 2.0f);
+			props.lifeTime = pData.value("lifeTime", 0.5f);
+			props.spawnCount = pData.value("spawnCount", 10);
+
+			s_particleProps[pName] = props;
+		}
+		pFile.close();
+	}
+	else { 
+		std::cerr << "Failed to load:" << particlesPath << std::endl; 
+		return false; 
+	}
+
+
+
 	std::cout << "Configs loaded successfully!" << std::endl;
 	return true;
 }
@@ -127,4 +169,12 @@ std::vector<std::string> ConfigManager::getAllTowerTypes() {
 		keys.push_back(pair.first);
 	}
 	return keys;
+}
+
+ParticleEmitterProps ConfigManager::getParticleProps(const std::string& name) {
+	auto it = s_particleProps.find(name);
+	if (it != s_particleProps.end()) {
+		return it->second;
+	}
+	return ParticleEmitterProps{};
 }

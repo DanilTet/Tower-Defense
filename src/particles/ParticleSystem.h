@@ -17,6 +17,7 @@ struct ParticleEmitterProps {
 	float startSize; // начальній размер
 	float endSize; // конченый размер
 	float lifeTime; // время жизни в секундах
+	int spawnCount = 1; // сколько частиц спавним
 };
 
 struct Particle {

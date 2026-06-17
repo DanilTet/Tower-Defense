@@ -1,0 +1,22 @@
+{
+  "BloodSplatter": {
+    "velocityDir": [ 0.0, 0.0 ],
+    "velocityVariation": 150.0,
+    "startColor": [ 0.8, 0.1, 0.1 ],
+    "endColor": [ 0.3, 0.0, 0.0 ],
+    "startSize": 12.0,
+    "endSize": 2.0,
+    "lifeTime": 0.4,
+    "spawnCount": 30
+  },
+  "SmokeExplosion": {
+    "velocityDir": [ 0.0, -10.0 ],
+    "velocityVariation": 50.0,
+    "startColor": [ 0.5, 0.5, 0.5 ],
+    "endColor": [ 0.2, 0.2, 0.2 ],
+    "startSize": 5.0,
+    "endSize": 15.0,
+    "lifeTime": 0.8,
+    "spawnCount": 15
+  }
+}
