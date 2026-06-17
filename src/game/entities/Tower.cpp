@@ -38,6 +38,8 @@ Tower::Tower(int gridX, int gridY, const std::string& type)
 	m_muzzleParticle = stats.muzzleParticle;
 	m_trailParticle = stats.trailParticle;
 	m_impactParticle = stats.impactParticle;
+	m_bulletTextureId = stats.bulletTextureId;
+	m_bulletBaseSize = stats.bulletBaseSize;
 
 	m_shotTimer = 0.0f; // переменная таймер
 }
@@ -176,6 +178,7 @@ void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies,
 				// если нашли пулю то будим этого бизнесмена
 				if (freeProj) {
 					freeProj->setParticleEffects(m_trailParticle, m_impactParticle);
+					freeProj->setVisuals(m_bulletTextureId, m_bulletBaseSize);
 					freeProj->init(towerCenter, m_angle, 800.0f, m_damage, bestTarget->getId(), m_splashRadius, currentPixelRange);
 				}
 				// партиклы из дула
@@ -249,6 +252,8 @@ bool Tower::upgrade(int& playerMoney) {
 		m_muzzleParticle = nextStats.muzzleParticle;
 		m_trailParticle = nextStats.trailParticle;
 		m_impactParticle = nextStats.impactParticle;
+		m_bulletTextureId = nextStats.bulletTextureId;
+		m_bulletBaseSize = nextStats.bulletBaseSize;
 
 		// формируем посылку с кастомным звуком апгрейда
 		Event e;

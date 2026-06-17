@@ -58,6 +58,9 @@ bool ConfigManager::loadConfigs(const std::string& towerPath, const std::string&
 					stats.trailParticle = lvlJson.value("trailParticle", "");
 					stats.impactParticle = lvlJson.value("impactParticle", "");
 
+					stats.bulletTextureId = lvlJson.value("bulletTextureId", "towerTexture");
+					stats.bulletBaseSize = lvlJson.value("bulletBaseSize", 16.0f);
+
 					// записываем статы в словарь по имени башни
 					s_towerStats[towerName].push_back(stats);
 				}

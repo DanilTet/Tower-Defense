@@ -78,7 +78,7 @@ void EntityManager::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> 
     }
     for (auto& proj : m_projectiles) {
         if (proj.isActive()) {
-            proj.render(renderer, cellTex);
+            proj.render(renderer, gameGrid);
         }
     }
 

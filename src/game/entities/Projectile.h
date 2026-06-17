@@ -24,11 +24,15 @@ public:
 		m_impactParticle = impact;
 	}
 
+	void setVisuals(const std::string& textureId, float baseSize) {
+		m_textureId = textureId;
+		m_baseSize = baseSize;
+	}
+
 	// двигаем пулу и проверяем столкновение
 	void update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies, const Grid& grid, ParticleSystem& particleSystem);
 	// отрисовка
-	void render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture);
-
+	void render(SpriteRenderer* renderer, const Grid& grid);
 	// жива ли еще пуля
 	bool isDestroyed() const {
 		return m_destroyed;
@@ -67,4 +71,7 @@ private:
 	// ефекты
 	std::string m_trailParticle;
 	std::string m_impactParticle;
+	//пуля
+	std::string m_textureId;
+	float m_baseSize;
 };

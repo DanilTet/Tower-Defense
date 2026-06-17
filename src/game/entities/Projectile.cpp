@@ -4,6 +4,7 @@
 #include "world/Grid.h"
 #include "core/ConfigManager.h"
 #include "../../particles/ParticleSystem.h"
+#include "../../resources/ResourceManager.h"
 
 // конструктор задает спящего бизнесмена
 Projectile::Projectile()
@@ -141,15 +142,29 @@ void Projectile::update(float dt, const std::vector<std::unique_ptr<Enemy>>& ene
 
 }
 
-void Projectile::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture) {
+void Projectile::render(SpriteRenderer* renderer, const Grid& grid) {
     if (m_destroyed) return;
 
-    // размер спрайта пули
-    glm::vec2 size(m_radius * 2.0f, m_radius * 2.0f);
-
-    // сдвигаем, чтобы m_pos был центром пули
+    // масштабирование
+    float scaleFactor = grid.getCellSize() / 64.0f;
+    float currentSize = m_baseSize * scaleFactor;
+    // обновляем радиус
+    m_radius = currentSize / 2.0f;
+    // отрисовка
+    glm::vec2 size(currentSize, currentSize);
     glm::vec2 drawPos = m_pos - glm::vec2(m_radius, m_radius);
+    // берем текстурку
+    Texture2D* tex = ResourceManager::getTexture(m_textureId);
+    if (tex == nullptr) {
+        tex = ResourceManager::getTexture("towerTexture");
+    }
 
     // рисуем
-    renderer->drawSprite(texture, drawPos, size, m_angle, glm::vec3(1.0f, 1.0f, 0.0f));
+    if (tex != nullptr) {
+        std::shared_ptr<Texture2D> texPtr(tex, [](Texture2D*) {});
+        renderer->drawSprite(texPtr, drawPos, size, m_angle, glm::vec3(1.0f));
+    }
+    else {
+        renderer->drawSprite(nullptr, drawPos, size, m_angle, glm::vec3(1.0f, 0.0f, 0.0f));
+    }
 }
