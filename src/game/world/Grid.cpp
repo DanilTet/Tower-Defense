@@ -85,24 +85,20 @@ void Grid::updateCellSize(int windowWidth, int windowHeight) {
 	float availableHeight = static_cast<float>(windowHeight) - (2.0f * m_offset.y);
 
 	// защита если окно свернуто
-	if (availableWidth < 0.0f) {
-		availableWidth = 0.0f;
-	}
-	if (availableHeight < 0.0f) {
-		availableHeight = 0.0f;
-	}
+	if (availableWidth < 0.0f) availableWidth = 0.0f;
+	if (availableHeight < 0.0f) availableHeight = 0.0f;
 
 	// считаем сколько пикселей занимает одна клетка в доступной зоне
-	float sizeX = availableWidth / m_width;
-	float sizeY = availableHeight / m_height;
+	float sizeX = availableWidth / static_cast<float>(m_width);
+	float sizeY = availableHeight / static_cast<float>(m_height);
+
+	m_cellSize = std::min(sizeX, sizeY);
 	
-	// Выбираем меньший из этих двух размеров, чтобы клетки всегда были квадратными и сетка занимала все окно
-	if (sizeX < sizeY) {
-		m_cellSize = sizeX;
-	}
-	else {
-		m_cellSize = sizeY;
-	}
+	float actualGridWidth = m_cellSize * m_width;
+	float actualGridHeight = m_cellSize * m_height;
+
+	m_offset.x = (windowWidth - actualGridWidth) / 2.0f;
+	m_offset.y = (windowHeight - actualGridHeight) / 2.0f;
 }
 
 

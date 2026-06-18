@@ -107,7 +107,7 @@ void SpriteRenderer::drawSprite(const std::shared_ptr<Texture2D>& texture,
 
     GLuint programId = m_shader->getId();
     glUniformMatrix4fv(glGetUniformLocation(programId, "u_model"), 1, GL_FALSE, glm::value_ptr(model));
-    glUniform3fv(glGetUniformLocation(programId, "u_color"), 1, glm::value_ptr(color));
+    glUniform4fv(glGetUniformLocation(programId, "u_color"), 1, glm::value_ptr(glm::vec4(color, 1.0f)));
 
     // короче тут новый массив вершин где позиция квадрата таже НО UV координаты наши! УКРАИНСКИЕ!
 
@@ -129,6 +129,45 @@ void SpriteRenderer::drawSprite(const std::shared_ptr<Texture2D>& texture,
 
     texture->bind(0);
 
+    glBindVertexArray(m_quadVAO);
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+    glBindVertexArray(0);
+}
+
+void SpriteRenderer::drawSpriteRGBA(const std::shared_ptr<Texture2D>& texture,
+    glm::vec2 position,
+    glm::vec2 size,
+    float rotation,
+    glm::vec4 color,
+    SpriteUV uv)
+{
+    m_shader->use();
+    glm::mat4 model = glm::mat4(1.0f);
+    model = glm::translate(model, glm::vec3(position, 0.0f));
+
+    if (rotation != 0.0f) {
+        model = glm::translate(model, glm::vec3(0.5f * size.x, 0.5f * size.y, 0.0f));
+        model = glm::rotate(model, glm::radians(rotation), glm::vec3(0.0f, 0.0f, 1.0f));
+        model = glm::translate(model, glm::vec3(-0.5f * size.x, -0.5f * size.y, 0.0f));
+    }
+    model = glm::scale(model, glm::vec3(size, 1.0f));
+
+    GLuint programId = m_shader->getId();
+    glUniformMatrix4fv(glGetUniformLocation(programId, "u_model"), 1, GL_FALSE, glm::value_ptr(model));
+
+    glUniform4fv(glGetUniformLocation(programId, "u_color"), 1, glm::value_ptr(color));
+
+    float vertices[] = {
+        0.0f, 0.0f,     uv.uvMin.x, uv.uvMin.y,
+        1.0f, 0.0f,     uv.uvMax.x, uv.uvMin.y,
+        1.0f, 1.0f,     uv.uvMax.x, uv.uvMax.y,
+        0.0f, 1.0f,     uv.uvMin.x, uv.uvMax.y
+    };
+
+    glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
+
+    texture->bind(0);
     glBindVertexArray(m_quadVAO);
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);

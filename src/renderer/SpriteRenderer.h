@@ -46,6 +46,13 @@ public:
 		glm::vec3 color = glm::vec3(1.0f),
 		SpriteUV uv = SpriteUV());
 
+	void drawSpriteRGBA(const std::shared_ptr<Texture2D>& texture,
+		glm::vec2 position,
+		glm::vec2 size = glm::vec2(10.0f, 10.0f),
+		float rotation = 0.0f,
+		glm::vec4 color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f),
+		SpriteUV uv = SpriteUV());
+
 private:
 	std::shared_ptr<ShaderProgram> m_shader;
 

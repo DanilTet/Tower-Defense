@@ -34,7 +34,7 @@ void GameplayState::init() {
     ResourceManager::loadTexture("arrowTexture", "res/textures/pathArrow.png"); // стрелочка пути
     ResourceManager::loadTexture("particleTexture", "res/textures/particle.png"); // партикл
     ResourceManager::loadTexture("enemyAtlas", "res/textures/enemyAtlas.png"); // атлас для врагов
-
+    ResourceManager::loadTexture("uiBaseTexture", "res/textures/ui_space.png"); // для менюшек белый квадрат
 
     // Получаем указатель на текстура из ResourceManager
     Texture2D* cellTex = ResourceManager::getTexture("towerTexture"); // башня
