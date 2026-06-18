@@ -1,5 +1,6 @@
 #include "GameplayState.h"
 #include "GameStateManager.h"
+#include "PauseState.h"
 #include "../resources/ResourceManager.h"
 #include "../audio/AudioManager.h"
 #include "../core/ConfigManager.h"
@@ -198,6 +199,11 @@ void GameplayState::init() {
 }
 
 void GameplayState::processInput(GLFWwindow* window, float dt) {
+    if (isKeyJustPressed(window, GLFW_KEY_ESCAPE)) {
+        m_stateManager.pushState(std::make_unique<PauseState>(m_stateManager, width, height, m_renderer, m_textRenderer));
+        return;
+    }
+
     if (isKeyJustPressed(window, GLFW_KEY_ENTER)) startNextWave();
     if (isKeyJustPressed(window, GLFW_KEY_M)) m_playerStats.money += 99999;
     if (isKeyJustPressed(window, GLFW_KEY_SPACE)) spawnEnemy("Basic");

@@ -1,6 +1,7 @@
 #include "Game.h"
 #include "resources/ResourceManager.h"
 #include "../states/GameplayState.h" 
+#include "../states/MainMenuState.h"
 #include <GLFW/glfw3.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
@@ -53,7 +54,7 @@ void Game::init() {
         std::cerr << "Failed to load font!" << std::endl;
     }
     // Загружаем шрифт с размером 24 пикселя
-    m_stateManager.setState(std::make_unique<GameplayState>(m_stateManager, width, height, m_renderer, m_textRenderer.get()));
+    m_stateManager.setState(std::make_unique<MainMenuState>(m_stateManager, width, height, m_renderer, m_textRenderer.get()));
 }
 
 // Обработка ввода вызывается каждый кадр

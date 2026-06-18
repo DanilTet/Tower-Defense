@@ -37,9 +37,7 @@ void glfwWindowSizeCallback(GLFWwindow* window, int width, int height)
 
 // Эту функцию вызывет сама система через GLFW, когда пользователь нажимает клавишу
 void glfwKeyCallback(GLFWwindow* window, int key, int scancode, int action, int mode) {
-	// Если пользователь нажал ESC, то мы говорим GLFW, что окно должно закрыться
-    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-		glfwSetWindowShouldClose(window, GL_TRUE); // выход из главного цикла и закрытие окна
+
 }
 
 
