@@ -151,6 +151,10 @@ add_executable(${PROJECT_NAME}
     src/particles/ParticleSystem.cpp
     src/game/states/MainMenuState.cpp
     src/game/states/PauseState.cpp
+
+    src/game/states/GameOverState.cpp
+    src/game/states/VictoryState.cpp
+    src/game/states/LevelSelectState.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE

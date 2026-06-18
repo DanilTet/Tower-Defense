@@ -1,8 +1,10 @@
 #include "MainMenuState.h"
 #include "GameStateManager.h"
+#include "LevelSelectState.h"
 #include "GameplayState.h"
 #include "../renderer/TextRenderer.h"
 #include <GLFW/glfw3.h>
+#include "../resources/ResourceManager.h"
 #include <iostream>
 
 MainMenuState::MainMenuState(GameStateManager& stateManager, int width, int height, std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer)
@@ -11,6 +13,7 @@ MainMenuState::MainMenuState(GameStateManager& stateManager, int width, int heig
 
 void MainMenuState::init() {
     std::cout << "Main Menu Initialized" << std::endl;
+    ResourceManager::loadTexture("uiBaseTexture", "res/textures/ui_space.png");
 }
 
 void MainMenuState::cleanup() {}
@@ -39,7 +42,7 @@ void MainMenuState::processInput(GLFWwindow* window, float dt) {
         // если клик по старт гейм
         if (isButtonClicked(mouseX, mouseY, startBtnX, startBtnY, startBtnW, startBtnH)) {
             // перекоючаем стейт
-            m_stateManager.setState(std::make_unique<GameplayState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));
+            m_stateManager.setState(std::make_unique<LevelSelectState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));
             return;
         }
 

@@ -35,6 +35,8 @@ private:
 
     PlayerStats m_playerStats; // статы игрока
 
+    std::string m_currentLevelPath; // путь на левел который щас играет
+
     /// все указатели мира
     std::unique_ptr<Grid> m_gameGrid;
     std::unique_ptr<Pathfinder> m_pathfinder;
@@ -69,7 +71,9 @@ private:
 
 public:
     // конструктор
-    GameplayState(GameStateManager& stateManager, int windowWidth, int windowHeight, std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer);
+    GameplayState(GameStateManager& stateManager, int windowWidth, int windowHeight, std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer, std::string levelPath);
+
+
     // база всего мать его
     void init() override;
     void cleanup() override;

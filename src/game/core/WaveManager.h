@@ -31,6 +31,10 @@ public:
 	int getCurrentWaveNumber() const { return m_currentWaveIndex + 1; }
 	bool isWaveActive() const { return m_isWaveActive; }
 
+	bool isAllWavesCompleted() const {
+		return !m_isWaveActive && m_currentWaveIndex >= m_waves.size();
+	}
+
 private:
 	std::vector<WaveConfig> m_waves; // Вектор со всеми волнами игры
 	bool m_isWaveActive; // флаг активна ли волна

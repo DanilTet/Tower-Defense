@@ -9,15 +9,20 @@
 #include <GLFW/glfw3.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
+#include "GameOverState.h"
+#include "VictoryState.h"
 
-GameplayState::GameplayState(GameStateManager& stateManager, int windowWidth, int windowHeight, std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer) : m_stateManager(stateManager),
-	width(windowWidth),// запоминаем стартовую ширину окна
-	height(windowHeight),// запоминаем стартовую высоту окна
-	m_renderer(renderer), 
-	m_textRenderer(textRenderer),
-	m_mousePressedLastFrame(false), // изначально мышь не нажата флаг сброшен
-	m_selectedTowerType("") // пустая рука в начале
-{}
+GameplayState::GameplayState(GameStateManager& stateManager, int windowWidth, int windowHeight, std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer, std::string levelPath)
+    : m_stateManager(stateManager),
+    width(windowWidth),
+    height(windowHeight),
+    m_renderer(renderer),
+    m_textRenderer(textRenderer),
+    m_mousePressedLastFrame(false),
+    m_selectedTowerType(""),
+    m_currentLevelPath(levelPath)
+{
+}
 
 void GameplayState::cleanup() {
     EventBus::clear();
@@ -50,8 +55,7 @@ void GameplayState::init() {
 
     // ГРУЗИМ УРОВЕНЬ
     // грузим данные уровня
-    std::string currentLevelPath = "res/levels/level_1.json";
-    LevelMapData levelData = LevelManager::loadLevelMap(currentLevelPath);
+    LevelMapData levelData = LevelManager::loadLevelMap(m_currentLevelPath);
 
     // ПОЛЕ
     // Создаем сетку 10 на 7 клеток, каждая клетка 64 пикселя в размере
@@ -147,7 +151,7 @@ void GameplayState::init() {
 
     // МЕНЕДЖЕР ВОЛН
     m_waveManager = std::make_unique<WaveManager>();
-    m_waveManager->loadLevel(currentLevelPath); // загружаем конфигурацию уровня
+    m_waveManager->loadLevel(m_currentLevelPath); // загружаем конфигурацию уровня
 
     // АУДИО
     AudioManager::playMusic("res/sounds/background.mp3"); // врубаем имбовый трек
@@ -296,6 +300,13 @@ void GameplayState::update(float dt) {
     // проверка на проигрыш
     if (m_playerStats.baseHealth <= 0) {
         m_playerStats.baseHealth = 0;
+        m_stateManager.setState(std::make_unique<GameOverState>(m_stateManager, width, height, m_renderer, m_textRenderer, m_currentLevelPath));
+        return;
+    }
+
+    if (m_waveManager->isAllWavesCompleted() && m_entityManager->getEnemies().empty()) {
+        m_stateManager.setState(std::make_unique<VictoryState>(m_stateManager, width, height, m_renderer, m_textRenderer));
+        return;
     }
 }
 
