@@ -54,6 +54,8 @@ private:
 
 	int m_targetBaseIndex; //индекс базы
 
+	float m_angle = 0.0f; // угол поворота
+
 public:
 
 	// функци для перерасчета пути

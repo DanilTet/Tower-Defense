@@ -61,6 +61,10 @@ void Enemy::update(float dt, const Grid& grid) {
 	// Считаем вектор от текущей позиции врага до контрольной точки
     glm::vec2 toTarget = targetPixelPos - m_pixelPos;
 
+    if (glm::length(toTarget) > 0.001f) {
+        m_angle = glm::degrees(atan2(toTarget.y, toTarget.x));
+    }
+
 	// Считаем расстояние до контрольной точки
     float distance = glm::length(toTarget);
     
@@ -117,7 +121,7 @@ void Enemy::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture,
 
     SpriteUV currentFrameUV = m_animator.getCurrentUV();
 
-    renderer->drawSprite(enemyTexPtr, centeredPos, size, 0.0f, m_color, currentFrameUV);
+    renderer->drawSprite(enemyTexPtr, centeredPos, size, m_angle, m_color, currentFrameUV);
 
     //ЧАТО ГПТИШНОЕ ГОВНО КОТОРОЕ ПОТОМ УБРАТЬ
     // //ЧАТО ГПТИШНОЕ ГОВНО КОТОРОЕ ПОТОМ УБРАТЬ
