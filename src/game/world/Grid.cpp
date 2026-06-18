@@ -11,7 +11,7 @@ Grid::Grid(int width, int height, float cellSize, glm::vec2 offset){
 	m_cellSize = cellSize; // Задаем стартовый размер одной клетки в пикселях
 	m_offset = offset; // запоминаем ссув
 	// Двумерный вектор для хранения типа каждой клетки, изначально все клетки пустые
-	m_grid.resize(m_height, std::vector<CellType>(m_width, CellType::Empty));
+	m_grid.resize(m_height, std::vector<CellType>(m_width, CellType::Ground));
 }
 
 // Перевод из индексов клетки в пиксели экрана
@@ -40,10 +40,11 @@ bool Grid::canBuildAt(int gridX, int gridY) const {
 	if (gridX < 0 || gridX >= m_width || gridY < 0 || gridY >= m_height) {
 		return false;
 	}
-	// получаем тип клетки
+
 	CellType type = getCellType(gridX, gridY);
-	// разрешаем строить на пустой клетке или на пути
-	return (type == CellType::Empty || type == CellType::Path);
+
+	// строить можно
+	return (type == CellType::Ground || type == CellType::Platform);
 }
 
 // Принудительно меняем тип конкретной ячейки
@@ -71,8 +72,8 @@ void Grid::draw(SpriteRenderer* renderer,
 			glm::vec2 pixelPos = gridToPixel(x, y);
 
 			// если ячейка пустая в масиве
-			if (m_grid[y][x] == CellType::Empty || m_grid[y][x] == CellType::Tower || m_grid[y][x] == CellType::Path) {
-				// Рисуем обычную стандартную плитку
+			if (m_grid[y][x] == CellType::Ground || m_grid[y][x] == CellType::Platform || m_grid[y][x] == CellType::Tower || m_grid[y][x] == CellType::Path) {
+				// рисуем обычную стандартную плитку
 				renderer->drawSprite(grassTexture, pixelPos, size, 0.0f, color);
 			}
 		}
@@ -111,5 +112,5 @@ CellType Grid::getCellType(int gridX, int gridY) const {
 	}
 
 	// Если алгоритм спрашивает про клетку за экраном - говорим, что там стена
-	return CellType::Blocked;
+	return CellType::Scenery;
 }

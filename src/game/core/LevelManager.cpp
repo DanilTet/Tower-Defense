@@ -38,6 +38,20 @@ LevelMapData LevelManager::loadLevelMap(const std::string& filepath) {
             for (const auto& base : j["map"]["bases"]) {
                 data.bases.push_back({ base["x"], base["y"] });
             }
+            // парсинг сетки
+            //0 = Земля(Ground)
+            //1 = Дорога(Path)
+            //2 = Платформа(Platform)
+            //3 = Вода / Скала(Scenery)
+            if (j["map"].contains("layout")) {
+                for (const auto& row : j["map"]["layout"]) {
+                    std::vector<int> rowData;
+                    for (const auto& cell : row) {
+                        rowData.push_back(cell.get<int>());
+                    }
+                    data.layout.push_back(rowData);
+                }
+            }
         }
         else {
             std::cerr << "WARNING::LEVELMANAGER: No 'map' section found in " << filepath << std::endl;

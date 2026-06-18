@@ -6,12 +6,14 @@
 #include "entities/Tower.h"
 
 enum class CellType {
-	Empty,
-	Tower,
-	Path,
-	Blocked,
-	Spawner,
-	Base
+	Ground,    // 1: Можно строить, можно ходить (враги могут тут идти, пока ты не поставишь башню)
+	Path,      // 2: Нельзя строить, можно ходить (чистая дорога)
+	Platform,  // 3: Можно строить, нельзя ходить (например, гора для снайпера)
+	Scenery,   // 4: Нельзя строить, нельзя ходить (вода/скалы)
+
+	Tower, // башня
+	Spawner, // точка старта врагов
+	Base // база игрока
 };
 
 class SpriteRenderer;

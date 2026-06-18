@@ -46,7 +46,7 @@ std::vector<Node*> Pathfinder::getNeighbors(Node* node, const Grid& grid) {
 
             // чекаем стен и башен
             CellType cellType = grid.getCellType(checkX, checkY);
-            bool isWalkable = (cellType == CellType::Empty || cellType == CellType::Path ||
+            bool isWalkable = (cellType == CellType::Ground || cellType == CellType::Path ||
                 cellType == CellType::Spawner || cellType == CellType::Base);
 
             if (!isWalkable) {
@@ -59,8 +59,10 @@ std::vector<Node*> Pathfinder::getNeighbors(Node* node, const Grid& grid) {
                 CellType corner1 = grid.getCellType(node->pos.x + x, node->pos.y);
                 CellType corner2 = grid.getCellType(node->pos.x, node->pos.y + y);
 
-                bool isCorner1Walkable = (corner1 == CellType::Empty || corner1 == CellType::Path);
-                bool isCorner2Walkable = (corner2 == CellType::Empty || corner2 == CellType::Path);
+                bool isCorner1Walkable = (corner1 == CellType::Ground || corner1 == CellType::Path ||
+                    corner1 == CellType::Spawner || corner1 == CellType::Base);
+                bool isCorner2Walkable = (corner2 == CellType::Ground || corner2 == CellType::Path ||
+                    corner2 == CellType::Spawner || corner2 == CellType::Base);
 
                 // если хоть один забанен то не идем туда
                 if (!isCorner1Walkable || !isCorner2Walkable) {

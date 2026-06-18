@@ -111,23 +111,6 @@ void BuildManager::tryBuildOrUpgrade(
             paths = newPaths;
             levelPath = paths[0];
 
-            // убираем старый путь с сетки
-            for (int x = 0; x < gameGrid.getWidth(); ++x) {
-                for (int y = 0; y < gameGrid.getHeight(); ++y) {
-                    if (gameGrid.getCellType(x, y) == CellType::Path) {
-                        gameGrid.setCellType(x, y, CellType::Empty);
-                    }
-                }
-            }
-            // записуем новые пути на сетку
-            for (const auto& path : paths) {
-                for (const auto& p : path) {
-                    if (gameGrid.getCellType(p.x, p.y) == CellType::Empty) {
-                        gameGrid.setCellType(p.x, p.y, CellType::Path);
-                    }
-                }
-            }
-
             // даем врагам новый путь
             for (auto& enemy : enemies) {
                 if (enemy) {
@@ -157,7 +140,7 @@ void BuildManager::sellTower(
     stats.money += 50;
 
     // освобождаем клетку на сетке
-    gameGrid.setCellType(tx, ty, CellType::Empty);
+    gameGrid.setCellType(tx, ty, CellType::Ground);
 
     // уничтожаем объект башни
     entityManager.removeTower(tx, ty);
@@ -200,22 +183,6 @@ void BuildManager::sellTower(
     // обновляем пути
     paths = newPaths;
     levelPath = paths[0];
-
-    // очищаем старые пути и рисуем новые на сетке
-    for (int x = 0; x < gameGrid.getWidth(); ++x) {
-        for (int y = 0; y < gameGrid.getHeight(); ++y) {
-            if (gameGrid.getCellType(x, y) == CellType::Path) {
-                gameGrid.setCellType(x, y, CellType::Empty);
-            }
-        }
-    }
-    for (const auto& path : paths) {
-        for (const auto& p : path) {
-            if (gameGrid.getCellType(p.x, p.y) == CellType::Empty) {
-                gameGrid.setCellType(p.x, p.y, CellType::Path);
-            }
-        }
-    }
 
     // перенаправляем врагов по новому маршруту
     for (auto& enemy : entityManager.getEnemies()) {

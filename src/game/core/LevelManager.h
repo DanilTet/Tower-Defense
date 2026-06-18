@@ -18,6 +18,7 @@ struct LevelMapData {
     float offsetY = 20.0f;
     std::vector<SpawnerData> spawners;
     std::vector<glm::ivec2> bases;
+    std::vector<std::vector<int>> layout;
 };
 
 class LevelManager {

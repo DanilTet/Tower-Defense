@@ -55,17 +55,19 @@ void ParticleSystem::emit(const ParticleEmitterProps& props, int count) {
         p.position = props.position;
 
         // генерируем случайный вектор разлета
-        glm::vec2 randomVec = glm::vec2(dis(gen), dis(gen));
+        glm::vec2 baseDir = glm::vec2(0.0f, -1.0f);
 
         // если вектор не нулевой то нормализуем его для ровного круга взрыва
-        if (glm::length(randomVec) > 0.0f) {
-            randomVec = glm::normalize(randomVec);
+        if (glm::length(props.velocityDir) > 0.0f) {
+            baseDir = glm::normalize(props.velocityDir);
         }
-
-        float slowedVelocityVariation = props.velocityVariation * 0.5f;
-
+        // перпендикуляр для разлета
+        glm::vec2 perpDir = glm::vec2(-baseDir.y, baseDir.x);
+        // рандомные отклонения
+        float speedVariation = dis(gen) * props.velocityVariation;
+        float spreadVariation = dis(gen) * (props.velocityVariation * 0.5f);
         // задаем физику
-        p.velocity = props.velocityDir + randomVec * slowedVelocityVariation;
+        p.velocity = props.velocityDir + (baseDir * speedVariation) + (perpDir * spreadVariation);
 
         // задаем визуал
         p.startColor = props.startColor;

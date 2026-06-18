@@ -63,6 +63,21 @@ void GameplayState::init() {
     ); // передаем из levelData инфу про поле
     m_gameGrid->updateCellSize(this->width, this->height);
 
+    if (!levelData.layout.empty()) {
+        for (int y = 0; y < levelData.gridHeight; ++y) {
+            for (int x = 0; x < levelData.gridWidth; ++x) {
+                if (levelData.layout[y][x] == 1) {
+                    m_gameGrid->setCellType(x, y, CellType::Path);
+                }
+                else if (levelData.layout[y][x] == 2) {
+                    m_gameGrid->setCellType(x, y, CellType::Platform);
+                }
+                else if (levelData.layout[y][x] == 3) {
+                    m_gameGrid->setCellType(x, y, CellType::Scenery);
+                }
+            }
+        }
+    }
 
     // ТОЧКИ ПОЯВЛЕНИЯ И БАЗА
     m_spawners = levelData.spawners;
@@ -122,13 +137,6 @@ void GameplayState::init() {
         if (!calculatedPath.empty()) {
             calculatedPath.insert(calculatedPath.begin(), m_spawners[i].pos);
             m_paths.push_back(calculatedPath);
-
-            // блокируем постройку на этом пути
-            for (const auto& p : calculatedPath) {
-                if (m_gameGrid->getCellType(p.x, p.y) == CellType::Empty) {
-                    m_gameGrid->setCellType(p.x, p.y, CellType::Path);
-                }
-            }
         }
     }
 

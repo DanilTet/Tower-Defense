@@ -190,7 +190,12 @@ void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies,
 
 					// вспышка появляется прямо на конце дула башни
 					muzzle.position = towerCenter + shootDirection * (cellSize * 0.4f);
-					muzzle.velocityDir = shootDirection * 50.0f; // искры летят вперед
+
+					// берем силу толчка прямо из конфига
+					float force = glm::length(muzzle.velocityDir);
+
+					// направляем эту силу по текущему повороту дула
+					muzzle.velocityDir = shootDirection * force;
 
 					particleSystem.emit(muzzle, muzzle.spawnCount);
 				}

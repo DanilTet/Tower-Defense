@@ -63,9 +63,9 @@
         "rotationSpeed": 120.0,
         "buildSound": "res/sounds/buildSniper.wav",
         "attackSound": "res/sounds/shoot.wav",
-        "muzzleParticle": "MuzzleSpark",
-        "trailParticle": "BulletTrail",
-        "impactParticle": "SparkImpact",
+        "muzzleParticle": "ShotgunMuzzle",
+        "trailParticle": "ShotgunTrail",
+        "impactParticle": "ShotgunImpact",
         "bulletTextureId": "bulletSniper",
         "bulletBaseSize": 22.0
       },
@@ -78,9 +78,9 @@
         "rotationSpeed": 150.0,
         "buildSound": "res/sounds/buildSniper.wav",
         "attackSound": "res/sounds/shoot.wav",
-        "muzzleParticle": "MuzzleSpark",
-        "trailParticle": "BulletTrail",
-        "impactParticle": "SparkImpact",
+        "muzzleParticle": "ShotgunMuzzle",
+        "trailParticle": "ShotgunTrail",
+        "impactParticle": "ShotgunImpact",
         "bulletTextureId": "bulletSniper",
         "bulletBaseSize": 24.0
       },
@@ -93,9 +93,9 @@
         "rotationSpeed": 180.0,
         "buildSound": "res/sounds/buildSniper.wav",
         "attackSound": "res/sounds/shoot.wav",
-        "muzzleParticle": "MuzzleSpark",
-        "trailParticle": "BulletTrail",
-        "impactParticle": "SparkImpact",
+        "muzzleParticle": "ShotgunMuzzle",
+        "trailParticle": "ShotgunTrail",
+        "impactParticle": "ShotgunImpact",
         "bulletTextureId": "bulletSniper",
         "bulletBaseSize": 26.0
       }
