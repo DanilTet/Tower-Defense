@@ -51,6 +51,12 @@ configure_file(
     COPYONLY
 )
 
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/res/levels/level_2.json
+    ${CMAKE_CURRENT_BINARY_DIR}/res/levels/level_2.json
+    COPYONLY
+)
+
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/res/sounds DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/res)
 
 add_subdirectory(external/glfw)
