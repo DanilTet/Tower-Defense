@@ -44,7 +44,7 @@ Tower::Tower(int gridX, int gridY, const std::string& type)
 	m_shotTimer = 0.0f; // переменная таймер
 }
 
-void Tower::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture, std::shared_ptr<Texture2D> radiusTexture, std::shared_ptr<Texture2D> arrowTexture, const Grid& grid) {
+void Tower::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> atlasTexture, std::shared_ptr<Texture2D> radiusTexture, std::shared_ptr<Texture2D> arrowTexture, const Grid& grid) {
 	float cellSize = grid.getCellSize(); //подтягиваем рязмер чтобы в клетку попала башня
 	glm::vec2 size(cellSize, cellSize); // создаем вектор чтобы башня идеально стала в клетку
 	glm::vec2 pixelPos = grid.gridToPixel(m_gridX, m_gridY); // получаем пиксели клетки
@@ -59,12 +59,14 @@ void Tower::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture,
 
 	// БАШНЯ
 	glm::vec3 color = m_color;
-
-	// зависимо от левела башни меняем цвет
 	if (m_currentLevel == 2) color += glm::vec3(0.2f, 0.2f, 0.2f);
 	if (m_currentLevel == 3) color += glm::vec3(0.4f, 0.4f, 0.4f);
 
-	renderer->drawSprite(texture, pixelPos, size, 0.0f, color);
+	// режем башню
+	SpriteUV towerUV = SpriteUV::fromPixels(1216, 640, 64, 64, 1472, 832);
+
+	// рисуем
+	renderer->drawSprite(atlasTexture, pixelPos, size, 0.0f, color, towerUV);
 
 
 	// debug стрелочка

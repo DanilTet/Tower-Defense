@@ -95,7 +95,8 @@ public:
 
 	//обновление логики
 	void update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies, std::vector<Projectile>& projectiles, const Grid& grid, ParticleSystem& particleSystem);	// отрисовка
-	void render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture, std::shared_ptr<Texture2D> radiusTexture, std::shared_ptr<Texture2D> arrowTexture, const Grid& grid);
+	// отрисовка
+	void render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> atlasTexture, std::shared_ptr<Texture2D> radiusTexture, std::shared_ptr<Texture2D> arrowTexture, const Grid& grid);
 
 	bool upgrade(int& playerMoney);
 	int getUpgradeCost() const;

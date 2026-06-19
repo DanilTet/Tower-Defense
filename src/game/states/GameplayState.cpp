@@ -32,13 +32,16 @@ void GameplayState::init() {
 	// загрузка конфигураций
 	ConfigManager::loadConfigs("res/configs/towers.json", "res/configs/enemies.json", "res/configs/particles.json");
 
+    // загрузка атласов
+    ResourceManager::loadTexture("mainAtlas", "res/textures/mainAtlas.png");
+    ResourceManager::loadTexture("enemyAtlas", "res/textures/enemyAtlas.png");
+
     // ЗАГРУЗКА ФАЙЛОВ ТЕКСТУРОК в VRAM
     ResourceManager::loadTexture("towerTexture", "res/textures/test_sprite.png"); // текстурка башни
     ResourceManager::loadTexture("grassTexture", "res/textures/spr_grass_02.png"); // текстурка тайла траві
     ResourceManager::loadTexture("radiusTexture", "res/textures/radius2.png"); // радиус атаки башни
     ResourceManager::loadTexture("arrowTexture", "res/textures/pathArrow.png"); // стрелочка пути
     ResourceManager::loadTexture("particleTexture", "res/textures/particle.png"); // партикл
-    ResourceManager::loadTexture("enemyAtlas", "res/textures/enemyAtlas.png"); // атлас для врагов
     ResourceManager::loadTexture("uiBaseTexture", "res/textures/ui_space.png"); // для менюшек белый квадрат
 
     // Получаем указатель на текстура из ResourceManager
@@ -52,6 +55,13 @@ void GameplayState::init() {
     m_grassTexture = std::shared_ptr<Texture2D>(grassTex, [](Texture2D*) {}); // тайл земли
     m_radiusTexture = std::shared_ptr<Texture2D>(radTex, [](Texture2D*) {}); // радиус атаки башни
     m_particleTexture = std::shared_ptr<Texture2D>(partTex, [](Texture2D*) {}); // партикл
+
+    // атласы
+    Texture2D* mainAtlasTex = ResourceManager::getTexture("mainAtlas");
+    m_mainAtlas = std::shared_ptr<Texture2D>(mainAtlasTex, [](Texture2D*) {});
+
+    Texture2D* enemyAtlasTex = ResourceManager::getTexture("enemyAtlas");
+    m_enemyAtlas = std::shared_ptr<Texture2D>(enemyAtlasTex, [](Texture2D*) {});
 
     // ГРУЗИМ УРОВЕНЬ
     // грузим данные уровня
@@ -314,8 +324,7 @@ void GameplayState::render() {
     m_renderer->beginBatch(); // открываем пакет
 
     // Малюем игровую сетку передавая туда рендерер, текстуру плитки, сдвиг и белый цвет тонирования
-    m_gameGrid->draw(m_renderer.get(), m_grassTexture, m_cellTexture, { 1.0f, 1.0f, 1.0f });
-
+    m_gameGrid->draw(m_renderer.get(), m_mainAtlas, { 1.0f, 1.0f, 1.0f });
 
     // стрелочки пути   
     Texture2D* arrowTex = ResourceManager::getTexture("arrowTexture"); // достаем там єти стрелочки из ресурсменеджера
@@ -330,7 +339,7 @@ void GameplayState::render() {
     } // рисуем стрелочки пути
 
     // рисуем все башни врагов и пули
-    m_entityManager->render(m_renderer.get(), m_cellTexture, m_radiusTexture, arrowTexPtr, m_particleTexture, *m_gameGrid);
+    m_entityManager->render(m_renderer.get(), m_mainAtlas, m_enemyAtlas, m_radiusTexture, arrowTexPtr, m_particleTexture, *m_gameGrid);
 
     m_renderer->flush();
 

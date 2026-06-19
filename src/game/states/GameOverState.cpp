@@ -83,14 +83,7 @@ void GameOverState::render() {
     m_renderer->drawSpriteRGBA(m_uiTexture, glm::vec2(0.0f), glm::vec2(m_width, m_height), 0.0f, glm::vec4(0.1f, 0.0f, 0.0f, 0.8f));
     // окошник
     m_renderer->drawSprite(m_uiTexture, m_windowPos, m_windowSize, 0.0f, glm::vec3(0.15f, 0.12f, 0.12f));
-    // бам бам бам
-    m_textRenderer->RenderText("GAME OVER!", m_windowPos.x + 100.0f, m_windowPos.y + 40.0f, 1.2f, glm::vec3(1.0f, 0.2f, 0.2f));
 
-    // егор
-    auto drawButton = [&](UIButton& btn, glm::vec3 color, float textXOffset) {
-        m_renderer->drawSprite(m_uiTexture, btn.pos, btn.size, 0.0f, color);
-        m_textRenderer->RenderText(btn.text, btn.pos.x + textXOffset, btn.pos.y + 15.0f, 1.0f, glm::vec3(0.95f));
-    };
 
     // определяем цвет
     glm::vec3 retryColor;
@@ -115,10 +108,15 @@ void GameOverState::render() {
         menuColor = glm::vec3(0.2f);
     }
 
-    drawButton(m_btnRetry, retryColor, 80.0f);
-    drawButton(m_btnMenu, menuColor, 70.0f);
+    m_renderer->drawSprite(m_uiTexture, m_btnRetry.pos, m_btnRetry.size, 0.0f, retryColor);
+    m_renderer->drawSprite(m_uiTexture, m_btnMenu.pos, m_btnMenu.size, 0.0f, menuColor);
 
     m_renderer->endBatch(); // закрываем пакет
+
+    // бам бам бам
+    m_textRenderer->RenderText("GAME OVER!", m_windowPos.x + 100.0f, m_windowPos.y + 40.0f, 1.2f, glm::vec3(1.0f, 0.2f, 0.2f));
+    m_textRenderer->RenderText(m_btnRetry.text, m_btnRetry.pos.x + 80.0f, m_btnRetry.pos.y + 15.0f, 1.0f, glm::vec3(0.95f));
+    m_textRenderer->RenderText(m_btnMenu.text, m_btnMenu.pos.x + 70.0f, m_btnMenu.pos.y + 15.0f, 1.0f, glm::vec3(0.95f));
 }
 
 void GameOverState::resize(int width, int height) {

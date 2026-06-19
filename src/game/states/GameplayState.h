@@ -60,6 +60,8 @@ private:
     std::shared_ptr<Texture2D> m_grassTexture;
     std::shared_ptr<Texture2D> m_radiusTexture;
     std::shared_ptr<Texture2D> m_particleTexture;
+    std::shared_ptr<Texture2D> m_mainAtlas;
+    std::shared_ptr<Texture2D> m_enemyAtlas;
 
     // указатель на рендеры
     std::shared_ptr<SpriteRenderer> m_renderer;

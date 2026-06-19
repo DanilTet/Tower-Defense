@@ -128,6 +128,9 @@ void SpriteRenderer::flush() {
     glBindVertexArray(m_quadVAO);
 
     // загружаем наш массив вершин в память видеокарты
+    glEnable(GL_BLEND);
+    glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+
     glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
     glBufferSubData(GL_ARRAY_BUFFER, 0, m_spriteCount * 4 * sizeof(SpriteVertex), m_vertices.data());
 
@@ -178,14 +181,21 @@ void SpriteRenderer::drawSpriteRGBA(const std::shared_ptr<Texture2D>& texture, g
     // записываем 4 вершины в массив оперативной памяти
     int index = m_spriteCount * 4;
 
-    // левый верхний
-    m_vertices[index + 0] = { transform(tl), glm::vec2(uv.uvMin.x, uv.uvMin.y), color };
-    // правый верхний
-    m_vertices[index + 1] = { transform(tr), glm::vec2(uv.uvMax.x, uv.uvMin.y), color };
-    // правый нижний
-    m_vertices[index + 2] = { transform(br), glm::vec2(uv.uvMax.x, uv.uvMax.y), color };
-    // левый нижний
-    m_vertices[index + 3] = { transform(bl), glm::vec2(uv.uvMin.x, uv.uvMax.y), color };
+    m_vertices[index + 0].position = transform(tl);
+    m_vertices[index + 0].texCoords = glm::vec2(uv.uvMin.x, uv.uvMin.y);
+    m_vertices[index + 0].color = color;
+
+    m_vertices[index + 1].position = transform(tr);
+    m_vertices[index + 1].texCoords = glm::vec2(uv.uvMax.x, uv.uvMin.y);
+    m_vertices[index + 1].color = color;
+
+    m_vertices[index + 2].position = transform(br);
+    m_vertices[index + 2].texCoords = glm::vec2(uv.uvMax.x, uv.uvMax.y);
+    m_vertices[index + 2].color = color;
+
+    m_vertices[index + 3].position = transform(bl);
+    m_vertices[index + 3].texCoords = glm::vec2(uv.uvMin.x, uv.uvMax.y);
+    m_vertices[index + 3].color = color;
 
     m_spriteCount++;
 }

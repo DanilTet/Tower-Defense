@@ -65,15 +65,15 @@ void EntityManager::update(float dt, Grid& gameGrid) {
     );
 }
 
-void EntityManager::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> cellTex, std::shared_ptr<Texture2D> radiusTex, std::shared_ptr<Texture2D> arrowTex, std::shared_ptr<Texture2D> particleTex, Grid& gameGrid) {    // проходим по всем врагам, башням, пулям и рисуем их
-    for (const auto& enemy : m_enemies) {
-        if (enemy) { // Если враг существует
-            enemy->render(renderer, cellTex, radiusTex, gameGrid.getOffset(), gameGrid); // Вызываем его метод отрисовки
-        }
-    }
+void EntityManager::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> mainAtlas, std::shared_ptr<Texture2D> enemyAtlas, std::shared_ptr<Texture2D> radiusTex, std::shared_ptr<Texture2D> arrowTex, std::shared_ptr<Texture2D> particleTex, Grid& gameGrid) {
     for (const auto& tower : m_towers) {
         if (tower) {
-            tower->render(renderer, cellTex, radiusTex, arrowTex, gameGrid);
+            tower->render(renderer, mainAtlas, radiusTex, arrowTex, gameGrid);
+        }
+    }
+    for (const auto& enemy : m_enemies) {
+        if (enemy) {
+            enemy->render(renderer, enemyAtlas, radiusTex, gameGrid.getOffset(), gameGrid);
         }
     }
     for (auto& proj : m_projectiles) {

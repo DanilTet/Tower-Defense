@@ -57,24 +57,35 @@ void Grid::setCellType(int gridX, int gridY, CellType type) {
 }
 
 // Отрисовка всей карты ячейка за ячейкой
-void Grid::draw(SpriteRenderer* renderer,
-	std::shared_ptr<Texture2D> grassTexture,
-	std::shared_ptr<Texture2D> towerTexture,
-	glm::vec3 color) {
+void Grid::draw(SpriteRenderer* renderer, std::shared_ptr<Texture2D> atlasTexture, glm::vec3 color) {
 
 	// Создаем вектор размера: каждая плитка будет шириной и высотой ровно в m_cellSize пикселей
 	glm::vec2 size(m_cellSize, m_cellSize);
+
+	// настройка атласа
+	int atlasW = 1472;
+	int atlasH = 832;
+
+	//fromPixels(X, Y, Ширина, Высота, ШиринаАтласа, ВысотаАтласа)
+	SpriteUV uvGrass = SpriteUV::fromPixels(64, 64, 64, 64, atlasW, atlasH);     // Трава
+	SpriteUV uvPath = SpriteUV::fromPixels(64, 256, 64, 64, atlasW, atlasH);     // Дорога
+	SpriteUV uvPlatform = SpriteUV::fromPixels(256, 704, 64, 64, atlasW, atlasH); // Платформа для башен
 
 	// вложенный цикл для обхода всей матрицы (Y — строки, X — столбцы)
 	for (int y = 0; y < m_height; ++y) {
 		for (int x = 0; x < m_width; ++x) {
 			// Вычисляем, где физически на экране должен стоять этот квадрат (базовая позиция + общий сдвиг сетки)
 			glm::vec2 pixelPos = gridToPixel(x, y);
+			CellType type = m_grid[y][x];
 
-			// если ячейка пустая в масиве
-			if (m_grid[y][x] == CellType::Ground || m_grid[y][x] == CellType::Platform || m_grid[y][x] == CellType::Tower || m_grid[y][x] == CellType::Path) {
-				// рисуем обычную стандартную плитку
-				renderer->drawSprite(grassTexture, pixelPos, size, 0.0f, color);
+			SpriteUV currentUV = uvGrass; // по умолчанию это трава
+
+			if (type == CellType::Path) currentUV = uvPath;
+			if (type == CellType::Platform) currentUV = uvPlatform;
+
+			if (type == CellType::Ground || type == CellType::Platform || type == CellType::Tower || type == CellType::Path) {
+				// ПЕРЕДАЕМ НАШИ UV-КООРДИНАТЫ В БАТЧЕР!
+				renderer->drawSprite(atlasTexture, pixelPos, size, 0.0f, color, currentUV);
 			}
 		}
 	}
