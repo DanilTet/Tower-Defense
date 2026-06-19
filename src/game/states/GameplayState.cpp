@@ -311,6 +311,8 @@ void GameplayState::update(float dt) {
 }
 
 void GameplayState::render() {
+    m_renderer->beginBatch(); // открываем пакет
+
     // Малюем игровую сетку передавая туда рендерер, текстуру плитки, сдвиг и белый цвет тонирования
     m_gameGrid->draw(m_renderer.get(), m_grassTexture, m_cellTexture, { 1.0f, 1.0f, 1.0f });
 
@@ -329,6 +331,8 @@ void GameplayState::render() {
 
     // рисуем все башни врагов и пули
     m_entityManager->render(m_renderer.get(), m_cellTexture, m_radiusTexture, arrowTexPtr, m_particleTexture, *m_gameGrid);
+
+    m_renderer->flush();
 
     // ОТРИСОВКА ИНТЕРФЕЙСА
     // отрисовка меню выбраной или выделеной как это называют башни
@@ -364,6 +368,8 @@ void GameplayState::render() {
         this->height,
         m_selectedTowerType
     );
+
+    m_renderer->endBatch(); // закрываем пакет
 }
 
 void GameplayState::spawnEnemy(const std::string& type, int spawnerIndex) {

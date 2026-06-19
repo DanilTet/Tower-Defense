@@ -10,6 +10,7 @@ SpriteRenderer::SpriteRenderer(std::shared_ptr<ShaderProgram> shader)
     : m_shader(std::move(shader))
 {
     this->initRenderData();
+    m_vertices.resize(MAX_VERTICES);
 }
 
 SpriteRenderer::~SpriteRenderer() {
@@ -67,16 +68,35 @@ void SpriteRenderer::initRenderData() {
     glBindVertexArray(m_quadVAO);
 
     glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, MAX_VERTICES * sizeof(SpriteVertex), nullptr, GL_DYNAMIC_DRAW);
+
+    // генерируем индексы заранее
+    std::vector<unsigned int> generatedIndices(MAX_INDICES);
+    int offset = 0;
+    for (int i = 0; i < MAX_INDICES; i += 6) {
+        generatedIndices[i + 0] = offset + 0;
+        generatedIndices[i + 1] = offset + 1;
+        generatedIndices[i + 2] = offset + 2;
+        generatedIndices[i + 3] = offset + 2;
+        generatedIndices[i + 4] = offset + 3;
+        indicesData: indicesText: generatedIndices[i + 5] = offset + 0;
+        offset += 4;
+    }
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, generatedIndices.size() * sizeof(unsigned int), generatedIndices.data(), GL_STATIC_DRAW);
 
+    // атрибут 0:vec2 позиция
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(SpriteVertex), (void*)offsetof(SpriteVertex, position));
 
+    // атрибут 1: vec2 текстурные координаты
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(SpriteVertex), (void*)offsetof(SpriteVertex, texCoords));
+
+    // атрибут 2: vec4 цвет
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(SpriteVertex), (void*)offsetof(SpriteVertex, color));
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
@@ -87,88 +107,85 @@ void SpriteRenderer::setProjection(const glm::mat4& projection) {
     glUniformMatrix4fv(glGetUniformLocation(m_shader->getId(), "u_projection"), 1, GL_FALSE, glm::value_ptr(projection));
 }
 
-void SpriteRenderer::drawSprite(const std::shared_ptr<Texture2D>& texture,
-    glm::vec2 position,
-    glm::vec2 size,
-    float rotation,
-    glm::vec3 color,
-    SpriteUV uv)
-{
-    m_shader->use();
-    glm::mat4 model = glm::mat4(1.0f);
-    model = glm::translate(model, glm::vec3(position, 0.0f));
-
-    if (rotation != 0.0f) {
-        model = glm::translate(model, glm::vec3(0.5f * size.x, 0.5f * size.y, 0.0f));
-        model = glm::rotate(model, glm::radians(rotation), glm::vec3(0.0f, 0.0f, 1.0f));
-        model = glm::translate(model, glm::vec3(-0.5f * size.x, -0.5f * size.y, 0.0f));
-    }
-    model = glm::scale(model, glm::vec3(size, 1.0f));
-
-    GLuint programId = m_shader->getId();
-    glUniformMatrix4fv(glGetUniformLocation(programId, "u_model"), 1, GL_FALSE, glm::value_ptr(model));
-    glUniform4fv(glGetUniformLocation(programId, "u_color"), 1, glm::value_ptr(glm::vec4(color, 1.0f)));
-
-    // короче тут новый массив вершин где позиция квадрата таже НО UV координаты наши! УКРАИНСКИЕ!
-
-    float vertices[] = {
-        // позиция      // текстурные координаты (U, V)
-        0.0f, 0.0f,     uv.uvMin.x, uv.uvMin.y, // левый верхний
-        1.0f, 0.0f,     uv.uvMax.x, uv.uvMin.y, // правый верхний
-        1.0f, 1.0f,     uv.uvMax.x, uv.uvMax.y, // правый нижний
-        0.0f, 1.0f,     uv.uvMin.x, uv.uvMax.y  // левый нижний
-    };
-
-    // обновляем буфер в видеокарте
-    glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
-
-    // перезаписуем только кусок данных
-    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-
-    texture->bind(0);
-
-    glBindVertexArray(m_quadVAO);
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-    glBindVertexArray(0);
+void SpriteRenderer::beginBatch() {
+    m_spriteCount = 0;
+    m_currentTexture = nullptr;
 }
 
-void SpriteRenderer::drawSpriteRGBA(const std::shared_ptr<Texture2D>& texture,
-    glm::vec2 position,
-    glm::vec2 size,
-    float rotation,
-    glm::vec4 color,
-    SpriteUV uv)
-{
-    m_shader->use();
-    glm::mat4 model = glm::mat4(1.0f);
-    model = glm::translate(model, glm::vec3(position, 0.0f));
+void SpriteRenderer::endBatch() {
+    flush(); // в конце кадра рисуем все что осталось в буфере
+}
 
-    if (rotation != 0.0f) {
-        model = glm::translate(model, glm::vec3(0.5f * size.x, 0.5f * size.y, 0.0f));
-        model = glm::rotate(model, glm::radians(rotation), glm::vec3(0.0f, 0.0f, 1.0f));
-        model = glm::translate(model, glm::vec3(-0.5f * size.x, -0.5f * size.y, 0.0f));
+void SpriteRenderer::flush() {
+    if (m_spriteCount == 0) return; // нету чего рисовать
+
+    // привязываем нужную текстуру
+    if (m_currentTexture) {
+        m_currentTexture->bind(0);
     }
-    model = glm::scale(model, glm::vec3(size, 1.0f));
 
-    GLuint programId = m_shader->getId();
-    glUniformMatrix4fv(glGetUniformLocation(programId, "u_model"), 1, GL_FALSE, glm::value_ptr(model));
+    m_shader->use();
+    glBindVertexArray(m_quadVAO);
 
-    glUniform4fv(glGetUniformLocation(programId, "u_color"), 1, glm::value_ptr(color));
+    // загружаем наш массив вершин в память видеокарты
+    glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, m_spriteCount * 4 * sizeof(SpriteVertex), m_vertices.data());
 
-    float vertices[] = {
-        0.0f, 0.0f,     uv.uvMin.x, uv.uvMin.y,
-        1.0f, 0.0f,     uv.uvMax.x, uv.uvMin.y,
-        1.0f, 1.0f,     uv.uvMax.x, uv.uvMax.y,
-        0.0f, 1.0f,     uv.uvMin.x, uv.uvMax.y
+    // ОДИН ВЫЗОВ ОТРИСОВКИ ДЛЯ ВСЕХ СПРАЙТОВ ЭТОЙ ТЕКСТУРЫ!
+    glDrawElements(GL_TRIANGLES, m_spriteCount * 6, GL_UNSIGNED_INT, nullptr);
+
+    glBindVertexArray(0);
+
+    // сбрасываем счетчик
+    m_spriteCount = 0;
+}
+
+void SpriteRenderer::drawSprite(const std::shared_ptr<Texture2D>& texture, glm::vec2 position, glm::vec2 size, float rotation, glm::vec3 color, SpriteUV uv) {
+    // перенаправляем на RGBA
+    drawSpriteRGBA(texture, position, size, rotation, glm::vec4(color, 1.0f), uv);
+}
+
+void SpriteRenderer::drawSpriteRGBA(const std::shared_ptr<Texture2D>& texture, glm::vec2 position, glm::vec2 size, float rotation, glm::vec4 color, SpriteUV uv) {
+    // рисуем то, что накопили
+    if (m_currentTexture != texture || m_spriteCount >= MAX_SPRITES) {
+        flush();
+        m_currentTexture = texture;
+    }
+
+    // вручную считаем трансформацию матрицы
+    glm::vec2 center = position + size * 0.5f;
+
+    float cosA = cos(glm::radians(rotation));
+    float sinA = sin(glm::radians(rotation));
+
+    float halfW = size.x * 0.5f;
+    float halfH = size.y * 0.5f;
+
+    // углы относительно центра
+    glm::vec2 tl(-halfW, -halfH);
+    glm::vec2 tr(halfW, -halfH);
+    glm::vec2 br(halfW, halfH);
+    glm::vec2 bl(-halfW, halfH);
+
+    // функция поворота и смещения егор
+    auto transform = [&](glm::vec2 p) {
+        return glm::vec2(
+            center.x + (p.x * cosA - p.y * sinA),
+            center.y + (p.x * sinA + p.y * cosA)
+        );
     };
 
-    glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
+    // записываем 4 вершины в массив оперативной памяти
+    int index = m_spriteCount * 4;
 
-    texture->bind(0);
-    glBindVertexArray(m_quadVAO);
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-    glBindVertexArray(0);
+    // левый верхний
+    m_vertices[index + 0] = { transform(tl), glm::vec2(uv.uvMin.x, uv.uvMin.y), color };
+    // правый верхний
+    m_vertices[index + 1] = { transform(tr), glm::vec2(uv.uvMax.x, uv.uvMin.y), color };
+    // правый нижний
+    m_vertices[index + 2] = { transform(br), glm::vec2(uv.uvMax.x, uv.uvMax.y), color };
+    // левый нижний
+    m_vertices[index + 3] = { transform(bl), glm::vec2(uv.uvMin.x, uv.uvMax.y), color };
+
+    m_spriteCount++;
 }

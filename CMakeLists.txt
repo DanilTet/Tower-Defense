@@ -165,4 +165,9 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/external/miniaudio
 )
 
-target_link_libraries(${PROJECT_NAME} PRIVATE glfw glad debug freetype optimized freetyped)
+target_link_libraries(${PROJECT_NAME} PRIVATE 
+    glfw 
+    glad 
+    debug freetyped
+    optimized freetype
+)

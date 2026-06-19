@@ -93,6 +93,7 @@ void LevelSelectState::processInput(GLFWwindow* window, float dt) {
 void LevelSelectState::update(float dt) {}
 
 void LevelSelectState::render() {
+    m_renderer->beginBatch(); // открываем пакет
     // фон
     m_renderer->drawSprite(m_uiTexture, glm::vec2(0.0f), glm::vec2(m_width, m_height), 0.0f, glm::vec3(0.08f, 0.08f, 0.1f));
 
@@ -102,13 +103,25 @@ void LevelSelectState::render() {
     for (const auto& lvlBtn : m_levelButtons) {
         glm::vec3 color = (lvlBtn.btn.state == 0) ? glm::vec3(0.2f, 0.3f, 0.4f) : (lvlBtn.btn.state == 1) ? glm::vec3(0.3f, 0.4f, 0.5f) : glm::vec3(0.1f, 0.2f, 0.3f);
         m_renderer->drawSprite(m_uiTexture, lvlBtn.btn.pos, lvlBtn.btn.size, 0.0f, color);
-        m_textRenderer->RenderText(lvlBtn.btn.text, lvlBtn.btn.pos.x + 35.0f, lvlBtn.btn.pos.y + 65.0f, 1.0f, glm::vec3(1.0f));
     }
 
     // отрисовка кнопки Назад
     glm::vec3 backColor = (m_btnBack.state == 0) ? glm::vec3(0.3f) : (m_btnBack.state == 1) ? glm::vec3(0.5f) : glm::vec3(0.2f);
     m_renderer->drawSprite(m_uiTexture, m_btnBack.pos, m_btnBack.size, 0.0f, backColor);
     m_textRenderer->RenderText(m_btnBack.text, m_btnBack.pos.x + 30.0f, m_btnBack.pos.y + 15.0f, 1.0f, glm::vec3(0.9f));
+    m_renderer->endBatch(); // закрываем пакет
+
+    // заголовок
+    m_textRenderer->RenderText("SELECT LEVEL", m_width / 2.0f - 120.0f, 50.0f, 1.5f, glm::vec3(1.0f, 0.8f, 0.2f));
+
+    // текст на кнопках уровней
+    for (const auto& lvlBtn : m_levelButtons) {
+        m_textRenderer->RenderText(lvlBtn.btn.text, lvlBtn.btn.pos.x + 35.0f, lvlBtn.btn.pos.y + 65.0f, 1.0f, glm::vec3(1.0f));
+    }
+
+    // текст на кнопке Назад
+    m_textRenderer->RenderText(m_btnBack.text, m_btnBack.pos.x + 30.0f, m_btnBack.pos.y + 15.0f, 1.0f, glm::vec3(0.9f));
+
 }
 
 void LevelSelectState::resize(int width, int height) {

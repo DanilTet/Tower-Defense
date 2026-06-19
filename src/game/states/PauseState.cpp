@@ -99,24 +99,18 @@ void PauseState::processInput(GLFWwindow* window, float dt) {
 void PauseState::update(float dt) {}
 
 void PauseState::render() {
+    m_renderer->beginBatch(); // открываем пакет
     // затемнение игры
     m_renderer->drawSpriteRGBA(m_uiTexture, glm::vec2(0.0f), glm::vec2(m_width, m_height), 0.0f, glm::vec4(0.05f, 0.05f, 0.07f, 0.65f));
     // рисуем окно
     m_renderer->drawSprite(m_uiTexture, m_windowPos, m_windowSize, 0.0f, glm::vec3(0.12f, 0.12f, 0.15f));
     // рисуем шапку
     m_renderer->drawSprite(m_uiTexture, m_windowPos, glm::vec2(m_windowSize.x, m_headerHeight), 0.0f, glm::vec3(0.18f, 0.18f, 0.22f));
-    // текст заголовочный
-    m_textRenderer->RenderText("PAUSE MENU", m_windowPos.x + 135.0f, m_windowPos.y + 10.0f, 1.0f, glm::vec3(1.0f, 0.75f, 0.0f));
 
     // кнопки рисуем зависимо от стейта
     auto drawButton = [&](UIButton& btn, glm::vec3 color, float textXOffset) {
         // gодложка кнопки
         m_renderer->drawSprite(m_uiTexture, btn.pos, btn.size, 0.0f, color);
-
-        // текст кнопки
-        float textX = btn.pos.x + textXOffset;
-        float textY = btn.pos.y + 12.0f;
-        m_textRenderer->RenderText(btn.text, textX, textY, 1.0f, glm::vec3(0.95f, 0.95f, 0.95f));
     };
 
     glm::vec3 resumeColor = glm::vec3(0.15f, 0.35f, 0.15f); // Idle
@@ -130,6 +124,13 @@ void PauseState::render() {
 
     drawButton(m_btnResume, resumeColor, 65.0f);
     drawButton(m_btnExit, exitColor, 45.0f);
+
+    m_renderer->endBatch(); // рисуем
+
+    // текст заголовочный
+    m_textRenderer->RenderText("PAUSE MENU", m_windowPos.x + 135.0f, m_windowPos.y + 10.0f, 1.0f, glm::vec3(1.0f, 0.75f, 0.0f));
+    m_textRenderer->RenderText(m_btnResume.text, m_btnResume.pos.x + 65.0f, m_btnResume.pos.y + 12.0f, 1.0f, glm::vec3(0.95f, 0.95f, 0.95f));
+    m_textRenderer->RenderText(m_btnExit.text, m_btnExit.pos.x + 45.0f, m_btnExit.pos.y + 12.0f, 1.0f, glm::vec3(0.95f, 0.95f, 0.95f));
 }
 
 void PauseState::resize(int width, int height) {

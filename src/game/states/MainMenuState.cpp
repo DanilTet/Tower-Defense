@@ -60,12 +60,14 @@ void MainMenuState::processInput(GLFWwindow* window, float dt) {
 void MainMenuState::update(float dt) {}
 
 void MainMenuState::render() {
+    m_renderer->beginBatch(); // открываем пакет
     // рисуем заголовок
     m_textRenderer->RenderText("Donbasyata Tower Defense", m_width / 2.0f - 180.0f, m_height / 2.0f - 100.0f, 1.5f, glm::vec3(1.0f, 1.0f, 0.0f));
 
     // рисуем копки
     m_textRenderer->RenderText("> Start Game <", m_width / 2.0f - 100.0f, m_height / 2.0f, 1.2f, glm::vec3(1.0f, 1.0f, 1.0f));
     m_textRenderer->RenderText("> Exit <", m_width / 2.0f - 50.0f, m_height / 2.0f + 60.0f, 1.2f, glm::vec3(1.0f, 0.3f, 0.3f));
+    m_renderer->endBatch(); // закрываем пакет
 }
 
 void MainMenuState::resize(int width, int height) {

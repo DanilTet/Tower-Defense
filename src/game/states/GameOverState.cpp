@@ -78,6 +78,7 @@ void GameOverState::processInput(GLFWwindow* window, float dt) {
 void GameOverState::update(float dt) {}
 
 void GameOverState::render() {
+    m_renderer->beginBatch(); // открываем пакет
     // фон поражения
     m_renderer->drawSpriteRGBA(m_uiTexture, glm::vec2(0.0f), glm::vec2(m_width, m_height), 0.0f, glm::vec4(0.1f, 0.0f, 0.0f, 0.8f));
     // окошник
@@ -116,6 +117,8 @@ void GameOverState::render() {
 
     drawButton(m_btnRetry, retryColor, 80.0f);
     drawButton(m_btnMenu, menuColor, 70.0f);
+
+    m_renderer->endBatch(); // закрываем пакет
 }
 
 void GameOverState::resize(int width, int height) {

@@ -19,6 +19,9 @@ std::unique_ptr<Game> TowerDefenseGame; //указатель на игру, ко
 */
 void glfwWindowSizeCallback(GLFWwindow* window, int width, int height)
 {
+    // защита от свертывания
+    if (width <= 0 || height <= 0) return;
+
     // обновляем глобальные переменные размера окна
 	windowWidth = width; 
 	windowHeight = height;

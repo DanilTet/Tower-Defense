@@ -74,8 +74,17 @@ void Buildpanel::BuildRenderUI(
 
         // рисуем иконку башни
         renderer->drawSprite(cellTexture, iconPos, glm::vec2(UI_ICON_SIZE * scale), 0.0f, drawColor);
+    }
 
-        // если нету денег текст красный и зеленый если есть
+    renderer->flush(); //рисуем батч на экран
+
+    for (size_t i = 0; i < m_cachedTowers.size(); ++i) {
+        std::string currentType = m_cachedTowers[i];
+        TowerStats towerstats = ConfigManager::getTowerStats(currentType);
+        glm::vec2 iconPos = getTowerIconPos(i, windowWidth, windowHeight);
+
+        bool canAfford = (playerStats.money >= towerstats.cost);
+
         glm::vec3 textColor;
 
         if (canAfford) {
@@ -87,7 +96,6 @@ void Buildpanel::BuildRenderUI(
 
         textRenderer->RenderText(currentType + ": $" + std::to_string(towerstats.cost),
             iconPos.x - (5.0f * scale), iconPos.y + (UI_ICON_SIZE * scale) + (10.0f * scale), 0.5f * scale, textColor);
-
     }
 }
 

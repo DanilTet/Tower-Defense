@@ -22,6 +22,13 @@ struct SpriteUV {
 	}
 };
 
+// структура вершины
+struct SpriteVertex {
+	glm::vec2 position; // позиция 
+	glm::vec2 texCoords; // текстура
+	glm::vec4 color; // цвет
+};
+
 
 
 class SpriteRenderer
@@ -38,6 +45,11 @@ public:
 
 
 	void setProjection(const glm::mat4& projection);
+
+	// новые четенькие методы управления пакетом
+	void beginBatch();
+	void endBatch();
+	void flush();
 
 	void drawSprite(const std::shared_ptr<Texture2D>& texture,
 		glm::vec2 position,
@@ -59,6 +71,15 @@ private:
 	unsigned int m_quadVAO = 0;
 	unsigned int m_vbo = 0;
 	unsigned int m_ebo = 0;
+
+	//  данные для батчинга
+	static const int MAX_SPRITES = 10000; // сколько справтов можем нарисовать за 1 вызов
+	static const int MAX_VERTICES = MAX_SPRITES * 4;
+	static const int MAX_INDICES = MAX_SPRITES * 6;
+
+	std::vector<SpriteVertex> m_vertices;
+	std::shared_ptr<Texture2D> m_currentTexture = nullptr;
+	int m_spriteCount = 0;
 
 	void initRenderData();
 };

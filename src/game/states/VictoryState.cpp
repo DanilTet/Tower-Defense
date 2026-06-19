@@ -66,6 +66,7 @@ void VictoryState::processInput(GLFWwindow* window, float dt) {
 void VictoryState::update(float dt) {}
 
 void VictoryState::render() {
+    m_renderer->beginBatch(); // открываем пакет
     // Темно-синий фон победы
     m_renderer->drawSpriteRGBA(m_uiTexture, glm::vec2(0.0f), glm::vec2(m_width, m_height), 0.0f, glm::vec4(0.0f, 0.1f, 0.2f, 0.8f));
     m_renderer->drawSprite(m_uiTexture, m_windowPos, m_windowSize, 0.0f, glm::vec3(0.12f, 0.15f, 0.2f));
@@ -83,6 +84,7 @@ void VictoryState::render() {
 
     drawButton(m_btnNext, nextColor, 75.0f);
     drawButton(m_btnMenu, menuColor, 90.0f);
+    m_renderer->endBatch(); // закрываем пакет
 }
 
 void VictoryState::resize(int width, int height) {
