@@ -65,10 +65,11 @@ void EntityManager::update(float dt, Grid& gameGrid) {
     );
 }
 
-void EntityManager::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> mainAtlas, std::shared_ptr<Texture2D> enemyAtlas, std::shared_ptr<Texture2D> radiusTex, std::shared_ptr<Texture2D> arrowTex, std::shared_ptr<Texture2D> particleTex, Grid& gameGrid) {
+void EntityManager::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> mainAtlas, std::shared_ptr<Texture2D> enemyAtlas, std::shared_ptr<Texture2D> radiusTex, std::shared_ptr<Texture2D> arrowTex, std::shared_ptr<Texture2D> particleTex, Grid& gameGrid, Tower* selectedTower) {
     for (const auto& tower : m_towers) {
         if (tower) {
-            tower->render(renderer, mainAtlas, radiusTex, arrowTex, gameGrid);
+            bool isSelected = (tower.get() == selectedTower);
+            tower->render(renderer, mainAtlas, radiusTex, arrowTex, gameGrid, isSelected);
         }
     }
     for (const auto& enemy : m_enemies) {
@@ -78,7 +79,7 @@ void EntityManager::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> 
     }
     for (auto& proj : m_projectiles) {
         if (proj.isActive()) {
-            proj.render(renderer, gameGrid);
+            proj.render(renderer, mainAtlas, gameGrid);
         }
     }
 

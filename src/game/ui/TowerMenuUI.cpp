@@ -68,7 +68,7 @@ void TowerMenuUI::render(
     Tower* selectedTower,
     SpriteRenderer* renderer,
     TextRenderer* textRenderer,
-    std::shared_ptr<Texture2D> cellTexture,
+    std::shared_ptr<Texture2D> uiTexture,
     const Grid& gameGrid)
 {
     if (!selectedTower) return;
@@ -84,42 +84,29 @@ void TowerMenuUI::render(
     glm::vec2 sellPos = towerPos + glm::vec2(cellSize * 0.5f, -btnSize.y - 4.0f);
     glm::vec2 targetPos = towerPos + glm::vec2(0.0f, cellSize + 4.0f);
 
+    // рисуем подложки
+    renderer->drawSprite(uiTexture, upgPos, btnSize, 0.0f, glm::vec3(0.2f, 0.8f, 0.2f));
+    renderer->drawSprite(uiTexture, sellPos, btnSize, 0.0f, glm::vec3(0.8f, 0.2f, 0.2f));
+    renderer->drawSprite(uiTexture, targetPos, targetBtnSize, 0.0f, glm::vec3(0.2f, 0.4f, 0.8f));
+
+    renderer->flush();
+
     auto drawCenteredText = [&](const std::string& text, glm::vec2 btnPos, glm::vec2 size) {
-        // узнаем базовую ширину текста при масштабе 1.0
         float baseWidth = textRenderer->CalculateTextWidth(text, 1.0f);
         if (baseWidth == 0.0f) return;
-
-        // рассчитываем динамический масштаб, чтобы текст занял ровно 85% ширины кнопки
         float scale = (size.x * 0.80f) / baseWidth;
-
-        // ставим лимит
         if (scale > 0.55f) scale = 0.55f;
-
-        // считаем итоговую ширину с новым масштабом
         float finalWidth = baseWidth * scale;
-
-        // идеально центрируем по X
         float textX = btnPos.x + (size.x - finalWidth) / 2.0f;
-
-        // идеально центрируем по Y
         float textHeight = textRenderer->Characters['H'].Size.y * scale;
         float textY = btnPos.y + (size.y - textHeight) / 2.0f;
 
         textRenderer->RenderText(text, textX, textY, scale, glm::vec3(1.0f));
     };
 
-    // отрисовка UPGRADE зеленым
-    renderer->drawSprite(cellTexture, upgPos, btnSize, 0.0f, glm::vec3(0.2f, 0.8f, 0.2f));
     int cost = selectedTower->getUpgradeCost();
     std::string upgText = (cost == 0) ? "MAX" : "$" + std::to_string(cost);
     drawCenteredText(upgText, upgPos, btnSize);
-
-    // Отрисовка SELL красным
-    renderer->drawSprite(cellTexture, sellPos, btnSize, 0.0f, glm::vec3(0.8f, 0.2f, 0.2f));
     drawCenteredText("SELL", sellPos, btnSize);
-
-    // Отрисовка TARGET MODE синим
-    renderer->drawSprite(cellTexture, targetPos, targetBtnSize, 0.0f, glm::vec3(0.2f, 0.4f, 0.8f));
-    std::string modeText = selectedTower->getTargetModeString();
-    drawCenteredText(modeText, targetPos, targetBtnSize);
+    drawCenteredText(selectedTower->getTargetModeString(), targetPos, targetBtnSize);
 }

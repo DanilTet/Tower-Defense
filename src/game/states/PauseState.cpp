@@ -1,31 +1,37 @@
 #include "PauseState.h"
 #include "GameStateManager.h"
 #include "MainMenuState.h"
+#include "GameplayState.h"
 #include "../renderer/TextRenderer.h"
 #include "../renderer/SpriteRenderer.h"
 #include "../resources/ResourceManager.h"
 #include <GLFW/glfw3.h>
 
-PauseState::PauseState(GameStateManager& stateManager, int width, int height, std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer)
-    : m_stateManager(stateManager), m_width(width), m_height(height), m_renderer(renderer), m_textRenderer(textRenderer), m_mousePressedLastFrame(false) {
-    
-    
+PauseState::PauseState(GameStateManager& stateManager, int width, int height, std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer, GameplayState* gameplayState)
+    : m_stateManager(stateManager), m_width(width), m_height(height), m_renderer(renderer), m_textRenderer(textRenderer), m_gameplayState(gameplayState), m_mousePressedLastFrame(false) {
+
     m_uiTexture = std::shared_ptr<Texture2D>(ResourceManager::getTexture("uiBaseTexture"), [](Texture2D*) {});
 }
 
 void PauseState::init() {
     // настройка окна
-    m_windowSize = glm::vec2(400.0f, 300.0f);
+    m_windowSize = glm::vec2(400.0f, 350.0f);
     m_windowPos = glm::vec2((m_width - m_windowSize.x) / 2.0f, (m_height - m_windowSize.y) / 2.0f);
     m_headerHeight = 40.0f;
     m_isDragging = false;
     m_dragOffset = glm::vec2(0.0f);
 
-    // настраиваем кнопки относительно окна
-    m_btnResume.size = glm::vec2(200.0f, 50.0f);
+    // настройка Resume
+    m_btnResume.size = glm::vec2(250.0f, 50.0f);
     m_btnResume.text = "Resume";
     m_btnResume.state = 0;
 
+    // настройка Save
+    m_btnSave.size = glm::vec2(250.0f, 50.0f);
+    m_btnSave.text = "Save Game";
+    m_btnSave.state = 0;
+
+    // настройка Exit
     m_btnExit.size = glm::vec2(250.0f, 50.0f);
     m_btnExit.text = "Exit to Menu";
     m_btnExit.state = 0;
@@ -42,8 +48,9 @@ void PauseState::processInput(GLFWwindow* window, float dt) {
     glfwGetCursorPos(window, &mouseX, &mouseY);
     m_currentMousePos = glm::vec2(mouseX, mouseY);
 
-    m_btnResume.pos = m_windowPos + glm::vec2((m_windowSize.x - m_btnResume.size.x) / 2.0f, 100.0f);
-    m_btnExit.pos = m_windowPos + glm::vec2((m_windowSize.x - m_btnExit.size.x) / 2.0f, 180.0f);
+    m_btnResume.pos = m_windowPos + glm::vec2((m_windowSize.x - m_btnResume.size.x) / 2.0f, 80.0f);
+    m_btnSave.pos = m_windowPos + glm::vec2((m_windowSize.x - m_btnSave.size.x) / 2.0f, 150.0f);
+    m_btnExit.pos = m_windowPos + glm::vec2((m_windowSize.x - m_btnExit.size.x) / 2.0f, 220.0f);
 
     int mouseState = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
 
@@ -62,8 +69,9 @@ void PauseState::processInput(GLFWwindow* window, float dt) {
             }
 
             // проверяем клик по кнопкам
-            if (isPointInRect(m_currentMousePos, m_btnResume.pos, m_btnResume.size)) m_btnResume.state = 2; // Pressed
-            if (isPointInRect(m_currentMousePos, m_btnExit.pos, m_btnExit.size)) m_btnExit.state = 2; // Pressed
+            if (isPointInRect(m_currentMousePos, m_btnResume.pos, m_btnResume.size)) m_btnResume.state = 2;
+            if (isPointInRect(m_currentMousePos, m_btnSave.pos, m_btnSave.size)) m_btnSave.state = 2;
+            if (isPointInRect(m_currentMousePos, m_btnExit.pos, m_btnExit.size)) m_btnExit.state = 2;
         }
         else if (m_isDragging) {
             // если мышь зажата и мы тащим окно
@@ -77,6 +85,15 @@ void PauseState::processInput(GLFWwindow* window, float dt) {
         // если отпустили кнопку над Resume
         if (m_btnResume.state == 2 && isPointInRect(m_currentMousePos, m_btnResume.pos, m_btnResume.size)) {
             m_stateManager.popState();
+            return;
+        }
+        // если отпустили кнопку над Save
+        if (m_btnSave.state == 2 && isPointInRect(m_currentMousePos, m_btnSave.pos, m_btnSave.size)) {
+            if (m_gameplayState) {
+                m_gameplayState->saveGame("savegame");
+            }
+            m_btnSave.state = 0;
+            m_mousePressedLastFrame = false;
             return;
         }
 
@@ -108,7 +125,7 @@ void PauseState::render() {
     m_renderer->drawSprite(m_uiTexture, m_windowPos, glm::vec2(m_windowSize.x, m_headerHeight), 0.0f, glm::vec3(0.18f, 0.18f, 0.22f));
 
     // кнопки рисуем зависимо от стейта
-    auto drawButton = [&](UIButton& btn, glm::vec3 color, float textXOffset) {
+    auto drawButton = [&](UIButton& btn, glm::vec3 color) {
         // gодложка кнопки
         m_renderer->drawSprite(m_uiTexture, btn.pos, btn.size, 0.0f, color);
     };
@@ -117,20 +134,32 @@ void PauseState::render() {
     if (m_btnResume.state == 1) resumeColor = glm::vec3(0.22f, 0.55f, 0.22f); // Hover
     if (m_btnResume.state == 2) resumeColor = glm::vec3(0.10f, 0.25f, 0.10f); // Pressed
 
+    glm::vec3 saveColor;
+    if (m_btnSave.state == 2) {
+        saveColor = glm::vec3(0.10f, 0.20f, 0.30f);
+    }
+    else if (m_btnSave.state == 1) {
+        saveColor = glm::vec3(0.20f, 0.40f, 0.60f);
+    }
+    else {
+        saveColor = glm::vec3(0.15f, 0.30f, 0.45f);
+    }
 
     glm::vec3 exitColor = glm::vec3(0.45f, 0.15f, 0.15f); // Idle
     if (m_btnExit.state == 1) exitColor = glm::vec3(0.65f, 0.20f, 0.20f); // Hover
     if (m_btnExit.state == 2) exitColor = glm::vec3(0.30f, 0.10f, 0.10f); // Pressed
 
-    drawButton(m_btnResume, resumeColor, 65.0f);
-    drawButton(m_btnExit, exitColor, 45.0f);
+    drawButton(m_btnResume, resumeColor);
+    drawButton(m_btnSave, saveColor);
+    drawButton(m_btnExit, exitColor);
 
     m_renderer->endBatch(); // рисуем
 
     // текст заголовочный
     m_textRenderer->RenderText("PAUSE MENU", m_windowPos.x + 135.0f, m_windowPos.y + 10.0f, 1.0f, glm::vec3(1.0f, 0.75f, 0.0f));
-    m_textRenderer->RenderText(m_btnResume.text, m_btnResume.pos.x + 65.0f, m_btnResume.pos.y + 12.0f, 1.0f, glm::vec3(0.95f, 0.95f, 0.95f));
-    m_textRenderer->RenderText(m_btnExit.text, m_btnExit.pos.x + 45.0f, m_btnExit.pos.y + 12.0f, 1.0f, glm::vec3(0.95f, 0.95f, 0.95f));
+    m_textRenderer->RenderText(m_btnResume.text, m_btnResume.pos.x + 85.0f, m_btnResume.pos.y + 12.0f, 1.0f, glm::vec3(0.95f, 0.95f, 0.95f));
+    m_textRenderer->RenderText(m_btnSave.text, m_btnSave.pos.x + 75.0f, m_btnSave.pos.y + 12.0f, 1.0f, glm::vec3(0.95f, 0.95f, 0.95f));
+    m_textRenderer->RenderText(m_btnExit.text, m_btnExit.pos.x + 65.0f, m_btnExit.pos.y + 12.0f, 1.0f, glm::vec3(0.95f, 0.95f, 0.95f));
 }
 
 void PauseState::resize(int width, int height) {

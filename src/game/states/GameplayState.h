@@ -71,6 +71,11 @@ private:
     bool isKeyJustPressed(GLFWwindow* window, int key);
     bool m_keysProcessed[1024] = { false };
 
+    // имя файла для загрузки
+    std::string m_saveToLoad = "";
+
+    bool m_isValid = true; // стейт для сохранений
+
 public:
     // конструктор
     GameplayState(GameStateManager& stateManager, int windowWidth, int windowHeight, std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer, std::string levelPath);
@@ -88,6 +93,15 @@ public:
     void spawnEnemy(const std::string& type, int spawnerIndex = 0);
     void startNextWave();
     void restartGame();
+
+    // загрузка сохраненной игры
+    bool loadSavedGame(const std::string& saveName);
+
+    // установка сохранения которое нужно запустить при инициализации
+    void setSaveToLoad(const std::string& saveName) { m_saveToLoad = saveName; }
+
+    // метод вызова сохранения текущего матча
+    void saveGame(const std::string& saveName);
 
     int getPathCount() const { return m_paths.size(); }
 };

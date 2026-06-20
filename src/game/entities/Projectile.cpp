@@ -142,8 +142,8 @@ void Projectile::update(float dt, const std::vector<std::unique_ptr<Enemy>>& ene
 
 }
 
-void Projectile::render(SpriteRenderer* renderer, const Grid& grid) {
-    if (m_destroyed) return;
+void Projectile::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> mainAtlas, const Grid& grid) {
+    if (!m_isActive || m_destroyed) return;
 
     // масштабирование
     float scaleFactor = grid.getCellSize() / 64.0f;
@@ -154,17 +154,20 @@ void Projectile::render(SpriteRenderer* renderer, const Grid& grid) {
     glm::vec2 size(currentSize, currentSize);
     glm::vec2 drawPos = m_pos - glm::vec2(m_radius, m_radius);
     // берем текстурку
-    Texture2D* tex = ResourceManager::getTexture(m_textureId);
-    if (tex == nullptr) {
-        tex = ResourceManager::getTexture("towerTexture");
+    std::string regionName = m_textureId;
+    if (regionName == "bulletBasic") {
+        regionName = "bullet_basic";
     }
 
     // рисуем
-    if (tex != nullptr) {
-        std::shared_ptr<Texture2D> texPtr(tex, [](Texture2D*) {});
-        renderer->drawSprite(texPtr, drawPos, size, m_angle, glm::vec3(1.0f));
+    SpriteUV uv = ConfigManager::getUV("main_atlas", regionName);
+
+    if (mainAtlas != nullptr) {
+        // рисуем пулю
+        renderer->drawSprite(mainAtlas, drawPos, size, m_angle, glm::vec3(1.0f), uv);
     }
     else {
+        // рисуем красный квадрат-заглушку
         renderer->drawSprite(nullptr, drawPos, size, m_angle, glm::vec3(1.0f, 0.0f, 0.0f));
     }
 }

@@ -6,6 +6,8 @@
 #include "../core/ConfigManager.h"
 #include "../core/LevelManager.h"
 #include "../core/EventBus.h"
+#include "../core/SaveManager.h"
+#include "MainMenuState.h"
 #include <GLFW/glfw3.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
@@ -64,6 +66,22 @@ void GameplayState::init() {
     Texture2D* enemyAtlasTex = ResourceManager::getTexture("enemyAtlas");
     m_enemyAtlas = std::shared_ptr<Texture2D>(enemyAtlasTex, [](Texture2D*) {});
 
+
+    // если есть строка сохранения то загружаем его 
+    if (!m_saveToLoad.empty()) {
+        bool success = loadSavedGame(m_saveToLoad);
+        m_saveToLoad = "";
+
+        if (!success) {
+            // файла нет
+            std::cerr << "[ERROR] Файл сохранения не найден! Загрузка отменена." << std::endl;
+            m_isValid = false;
+            return;
+        }
+        else {
+            return;
+        }
+    }
     // ГРУЗИМ УРОВЕНЬ
     // грузим данные уровня
     LevelMapData levelData = LevelManager::loadLevelMap(m_currentLevelPath);
@@ -222,8 +240,10 @@ void GameplayState::init() {
 }
 
 void GameplayState::processInput(GLFWwindow* window, float dt) {
+    if (!m_isValid) return;
+
     if (isKeyJustPressed(window, GLFW_KEY_ESCAPE)) {
-        m_stateManager.pushState(std::make_unique<PauseState>(m_stateManager, width, height, m_renderer, m_textRenderer));
+        m_stateManager.pushState(std::make_unique<PauseState>(m_stateManager, width, height, m_renderer, m_textRenderer, this));
         return;
     }
 
@@ -301,6 +321,11 @@ void GameplayState::processInput(GLFWwindow* window, float dt) {
 }
 
 void GameplayState::update(float dt) {
+    if (!m_isValid) {
+        m_stateManager.setState(std::make_unique<MainMenuState>(m_stateManager, width, height, m_renderer, m_textRenderer));
+        return;
+    }
+
     //обновляем визуализатор пути
     if (m_gameGrid) m_pathVisualizer->update(dt, m_gameGrid->getCellSize());
     // чекаем менеджер волн
@@ -322,6 +347,8 @@ void GameplayState::update(float dt) {
 }
 
 void GameplayState::render() {
+    if (!m_isValid) return;
+
     m_renderer->beginBatch(); // открываем пакет
 
     // Малюем игровую сетку передавая туда рендерер, текстуру плитки, сдвиг и белый цвет тонирования
@@ -345,8 +372,11 @@ void GameplayState::render() {
     m_renderer->flush();
 
     // ОТРИСОВКА ИНТЕРФЕЙСА
+    //берем квадрат 1 на 1
+    Texture2D* uiTex = ResourceManager::getTexture("uiBaseTexture");
+    std::shared_ptr<Texture2D> uiTexPtr(uiTex, [](Texture2D*) {});
     // отрисовка меню выбраной или выделеной как это называют башни
-    m_towerMenuUI->render(m_selectedTowerOnMap, m_renderer.get(), m_textRenderer, m_cellTexture, *m_gameGrid);
+    m_towerMenuUI->render(m_selectedTowerOnMap, m_renderer.get(), m_textRenderer, uiTexPtr, *m_gameGrid);
 
     // рендерим голограмму строительства
     bool hasPath = !m_paths.empty();
@@ -434,6 +464,8 @@ void GameplayState::resize(int windowWidth, int windowHeight) {
     this->width = windowWidth;
     this->height = windowHeight;
 
+    if (!m_isValid) return;
+
     if (m_gameGrid) {
         // запоминаем параметры старой сетки до перерасчета
         Grid oldGrid = *m_gameGrid;
@@ -448,4 +480,165 @@ void GameplayState::resize(int windowWidth, int windowHeight) {
             }
         }
     }
+}
+
+void GameplayState::saveGame(const std::string& saveName) {
+    SaveManager saveManager;
+    saveManager.writeSave(saveName, m_currentLevelPath, m_playerStats, *m_waveManager, *m_entityManager);
+    std::cout << "[GameplayState] Игра сохранена в слот: " << saveName << std::endl;
+}
+
+bool GameplayState::loadSavedGame(const std::string& saveName) {
+    SaveManager saveManager;
+    std::string loadedLevelPath;
+    PlayerStats loadedStats;
+    int loadedWaveIndex = 0;
+    nlohmann::json restoredTowers;
+
+    // пытаемся прочитать файл сохранения
+    if (!saveManager.readSave(saveName, loadedLevelPath, loadedStats, loadedWaveIndex, restoredTowers)) {
+        std::cout << "[LoadGame] Не удалось загрузить файл: " << saveName << std::endl;
+        return false;
+    }
+
+    std::cout << "[LoadGame] Файл прочитан. Начинаем восстановление стейта..." << std::endl;
+
+    // очистка старых подписок
+    cleanup();
+
+    m_currentLevelPath = loadedLevelPath;
+    m_selectedTowerType = "";
+    m_selectedTowerOnMap = nullptr;
+
+    // ИНИЦИАЛИЗАЦИЯ КАРТЫ И СЕТКИ ПОД ЗАГРУЖЕННЫЙ УРОВЕНЬ
+    LevelMapData levelData = LevelManager::loadLevelMap(m_currentLevelPath);
+
+    m_gameGrid = std::make_unique<Grid>(
+        levelData.gridWidth,
+        levelData.gridHeight,
+        levelData.cellSize,
+        glm::vec2(levelData.offsetX, levelData.offsetY)
+    );
+    m_gameGrid->updateCellSize(this->width, this->height);
+
+    if (!levelData.layout.empty()) {
+        for (int y = 0; y < levelData.gridHeight; ++y) {
+            for (int x = 0; x < levelData.gridWidth; ++x) {
+                if (levelData.layout[y][x] == 1) m_gameGrid->setCellType(x, y, CellType::Path);
+                else if (levelData.layout[y][x] == 2) m_gameGrid->setCellType(x, y, CellType::Platform);
+                else if (levelData.layout[y][x] == 3) m_gameGrid->setCellType(x, y, CellType::Scenery);
+            }
+        }
+    }
+
+    m_spawners = levelData.spawners;
+    m_bases = levelData.bases;
+
+    for (const auto& spawner : m_spawners) m_gameGrid->setCellType(spawner.pos.x, spawner.pos.y, CellType::Spawner);
+    for (const auto& base : m_bases) m_gameGrid->setCellType(base.x, base.y, CellType::Base);
+
+    // ВОССТАНОВЛЕНИЕ СТАТИСТИКИ И ИГРОВЫХ СИСТЕМ
+    m_playerStats = loadedStats;
+
+    m_waveManager = std::make_unique<WaveManager>();
+    m_waveManager->loadLevel(m_currentLevelPath);
+    m_waveManager->setCurrentWaveIndex(loadedWaveIndex);
+
+    // Ренициализация менеджеров интерфейса и сущностей
+    AudioManager::playMusic("res/sounds/background.mp3");
+    m_buildPanel = std::make_unique<Buildpanel>();
+    m_buildPanel->initPanelData();
+    m_placementUI = std::make_unique<PlacementUI>();
+    m_pathVisualizer = std::make_unique<PathVisualizer>();
+    m_statsPanel = std::make_unique<StatsPanel>();
+    m_towerMenuUI = std::make_unique<TowerMenuUI>();
+
+    m_buildManager = std::make_unique<BuildManager>();
+    m_entityManager = std::make_unique<EntityManager>();
+
+    // ПОДПИСКИ НА СОБЫТИЯ ШИНЫ EventBus
+    EventBus::clear();
+
+    EventBus::subscribe(EventType::EnemyDied, [this](const Event& e) {
+        this->m_playerStats.money += e.value1;
+        this->m_playerStats.score += e.value2;
+        if (!e.textData.empty()) AudioManager::playSound(e.textData.c_str(), 0.1f);
+        });
+
+    EventBus::subscribe(EventType::EnemyReachedBase, [this](const Event& e) {
+        this->m_playerStats.baseHealth -= e.value1;
+        if (this->m_playerStats.baseHealth <= 0) {
+            this->m_playerStats.baseHealth = 0;
+            std::cout << "GAME OVER!" << std::endl;
+        }
+        });
+
+    EventBus::subscribe(EventType::TowerFired, [](const Event& e) {
+        if (!e.textData.empty()) AudioManager::playSound(e.textData.c_str(), 0.1f);
+        });
+
+    EventBus::subscribe(EventType::TowerBuilt, [](const Event& e) {
+        if (!e.textData.empty()) AudioManager::playSound(e.textData.c_str(), 0.1f);
+        });
+
+    // РЕКОНСТРУКЦИЯ БАШЕН И ИЗМЕНЕНИЕ ТИПА ЯЧЕЕК В СЕТКЕ
+    for (const auto& tData : restoredTowers) {
+        std::string type = tData.at("type").get<std::string>();
+        int gx = tData.at("grid_x").get<int>();
+        int gy = tData.at("grid_y").get<int>();
+        int lvl = tData.at("level").get<int>();
+        int modeInt = tData.at("target_mode").get<int>();
+
+        auto restoredTower = std::make_unique<Tower>(gx, gy, type);
+        restoredTower->forceLevel(lvl);
+        restoredTower->setTargetMode(static_cast<TargetMode>(modeInt));
+
+        m_entityManager->addTower(std::move(restoredTower));
+
+        // блокируем клетку типом Tower
+        m_gameGrid->setCellType(gx, gy, CellType::Tower);
+    }
+
+    // ПЕРЕРАСЧЕТ ПУТЕЙ
+    m_pathfinder = std::make_unique<Pathfinder>(levelData.gridWidth, levelData.gridHeight);
+    m_paths.clear();
+
+    for (size_t i = 0; i < m_spawners.size(); ++i) {
+        int baseIdx = m_spawners[i].targetBaseIndex;
+        std::vector<glm::ivec2> calculatedPath;
+
+        if (baseIdx == -1) {
+            int minCost = 999999;
+            float minEuclideanDist = 999999.0f;
+
+            for (const auto& base : m_bases) {
+                int currentCost = 0;
+                auto path = m_pathfinder->findPath(*m_gameGrid, m_spawners[i].pos, base, currentCost);
+
+                if (!path.empty()) {
+                    float euclideanDist = glm::distance(glm::vec2(m_spawners[i].pos), glm::vec2(base));
+                    if (currentCost < minCost || (currentCost == minCost && euclideanDist < minEuclideanDist)) {
+                        minCost = currentCost;
+                        minEuclideanDist = euclideanDist;
+                        calculatedPath = path;
+                    }
+                }
+            }
+        }
+        else {
+            if (baseIdx < 0 || baseIdx >= m_bases.size()) baseIdx = 0;
+            int dummyCost = 0;
+            calculatedPath = m_pathfinder->findPath(*m_gameGrid, m_spawners[i].pos, m_bases[baseIdx], dummyCost);
+        }
+
+        if (!calculatedPath.empty()) {
+            calculatedPath.insert(calculatedPath.begin(), m_spawners[i].pos);
+            m_paths.push_back(calculatedPath);
+        }
+    }
+
+    if (!m_paths.empty()) m_levelPath = m_paths[0];
+
+    std::cout << "[LoadGame] Мир и маршруты успешно восстановлены с учетом башен!" << std::endl;
+    return true;
 }

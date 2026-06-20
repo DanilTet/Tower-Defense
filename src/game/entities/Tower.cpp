@@ -44,18 +44,11 @@ Tower::Tower(int gridX, int gridY, const std::string& type)
 	m_shotTimer = 0.0f; // переменная таймер
 }
 
-void Tower::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> atlasTexture, std::shared_ptr<Texture2D> radiusTexture, std::shared_ptr<Texture2D> arrowTexture, const Grid& grid) {
+void Tower::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> atlasTexture, std::shared_ptr<Texture2D> radiusTexture, std::shared_ptr<Texture2D> arrowTexture, const Grid& grid, bool isSelected) {
 	float cellSize = grid.getCellSize(); //подтягиваем рязмер чтобы в клетку попала башня
 	glm::vec2 size(cellSize, cellSize); // создаем вектор чтобы башня идеально стала в клетку
 	glm::vec2 pixelPos = grid.gridToPixel(m_gridX, m_gridY); // получаем пиксели клетки
 	glm::vec2 towerCenter = pixelPos + glm::vec2(cellSize / 2.0f);
-
-	// РАДИУС АТАКИ
-	float currentPixelRange = m_range * cellSize; //считаем реальный радиус атаки от размера текущего окна
-	glm::vec2 radiusSize(currentPixelRange * 2.0f, currentPixelRange * 2.0f); // размер спрайта радиуса
-	glm::vec2 radiusPos = towerCenter - glm::vec2(currentPixelRange); // сдвиг по левому верхнему уголу
-	// рисуем радиус атаки
-	renderer->drawSprite(radiusTexture, radiusPos, radiusSize, 0.0f, glm::vec3(1.0f, 1.0f, 1.0f));
 
 	// БАШНЯ
 	glm::vec3 color = m_color;
@@ -68,6 +61,13 @@ void Tower::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> atlasTex
 	// рисуем
 	renderer->drawSprite(atlasTexture, pixelPos, size, 0.0f, color, towerUV);
 
+	if (isSelected) {
+		float currentPixelRange = m_range * cellSize;
+		glm::vec2 radiusSize(currentPixelRange * 2.0f, currentPixelRange * 2.0f);
+		glm::vec2 radiusPos = towerCenter - glm::vec2(currentPixelRange);
+
+		renderer->drawSprite(radiusTexture, radiusPos, radiusSize, 0.0f, glm::vec3(1.0f, 1.0f, 1.0f));
+	}
 
 	// debug стрелочка
 	if (m_showDebugArrow && arrowTexture != nullptr) {
@@ -277,4 +277,25 @@ bool Tower::upgrade(int& playerMoney) {
 int Tower::getUpgradeCost() const {
 	if (m_currentLevel >= m_maxLevel) return 0;
 	return ConfigManager::getTowerStats(m_type, m_currentLevel + 1).cost;
+}
+
+void Tower::forceLevel(int level) {
+	if (level < 1 || level > m_maxLevel) return;
+	m_currentLevel = level;
+	TowerStats stats = Tower::getStatsfromTowerType(m_type); // получаем статы для этого типа
+
+	m_range = stats.range;
+	m_damage = stats.damage;
+	m_fireRate = stats.fireRate;
+	m_rotationSpeed = stats.rotationSpeed;
+	m_splashRadius = stats.splashRadius;
+	m_attackSound = stats.attackSound;
+	m_buildSound = stats.buildSound;
+	m_textureId = stats.textureId;
+	m_color = stats.color;
+	m_muzzleParticle = stats.muzzleParticle;
+	m_trailParticle = stats.trailParticle;
+	m_impactParticle = stats.impactParticle;
+	m_bulletTextureId = stats.bulletTextureId;
+	m_bulletBaseSize = stats.bulletBaseSize;
 }

@@ -32,7 +32,7 @@ public:
 	// двигаем пулу и проверяем столкновение
 	void update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies, const Grid& grid, ParticleSystem& particleSystem);
 	// отрисовка
-	void render(SpriteRenderer* renderer, const Grid& grid);
+	void render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> mainAtlas, const Grid& grid);
 	// жива ли еще пуля
 	bool isDestroyed() const {
 		return m_destroyed;

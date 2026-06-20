@@ -8,6 +8,7 @@ class GameStateManager;
 class SpriteRenderer;
 class TextRenderer;
 class Texture2D;
+class GameplayState;
 
 // кнопка
 struct UIButton {
@@ -20,6 +21,7 @@ struct UIButton {
 class PauseState : public IGameState {
 private:
     GameStateManager& m_stateManager;
+    GameplayState* m_gameplayState; // указатель на стейт игры
     int m_width, m_height;
     std::shared_ptr<SpriteRenderer> m_renderer;
     TextRenderer* m_textRenderer;
@@ -36,12 +38,13 @@ private:
     glm::vec2 m_dragOffset;
     //кнопки
     UIButton m_btnResume;
+    UIButton m_btnSave;
     UIButton m_btnExit;
 
     bool isPointInRect(glm::vec2 point, glm::vec2 rectPos, glm::vec2 rectSize);
 
 public:
-    PauseState(GameStateManager& stateManager, int width, int height, std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer);
+    PauseState(GameStateManager& stateManager, int width, int height, std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer, GameplayState* gameplayState);
 
     void init() override;
     void cleanup() override;

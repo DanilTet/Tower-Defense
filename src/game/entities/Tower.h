@@ -96,7 +96,7 @@ public:
 	//обновление логики
 	void update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies, std::vector<Projectile>& projectiles, const Grid& grid, ParticleSystem& particleSystem);	// отрисовка
 	// отрисовка
-	void render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> atlasTexture, std::shared_ptr<Texture2D> radiusTexture, std::shared_ptr<Texture2D> arrowTexture, const Grid& grid);
+	void render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> atlasTexture, std::shared_ptr<Texture2D> radiusTexture, std::shared_ptr<Texture2D> arrowTexture, const Grid& grid, bool isSelected = false);
 
 	bool upgrade(int& playerMoney);
 	int getUpgradeCost() const;
@@ -122,4 +122,9 @@ public:
 		}
 		return "FIRST";
 	}
+
+	// стетер для заргузки режима наведения
+	void setTargetMode(TargetMode mode) { m_targetMode = mode; }
+	// принудительное изменение уровня бащни
+	void forceLevel(int level);
 };

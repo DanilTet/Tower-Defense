@@ -167,6 +167,7 @@ add_executable(${PROJECT_NAME}
     src/game/states/GameOverState.cpp
     src/game/states/VictoryState.cpp
     src/game/states/LevelSelectState.cpp
+    src/game/core/SaveManager.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE

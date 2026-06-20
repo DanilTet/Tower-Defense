@@ -34,6 +34,8 @@ public:
 	bool isAllWavesCompleted() const {
 		return !m_isWaveActive && m_currentWaveIndex >= m_waves.size();
 	}
+	// сеттер волны
+	void setCurrentWaveIndex(int index) { m_currentWaveIndex = index; }
 
 private:
 	std::vector<WaveConfig> m_waves; // Вектор со всеми волнами игры

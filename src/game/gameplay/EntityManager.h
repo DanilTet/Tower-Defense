@@ -36,7 +36,8 @@ public:
 		std::shared_ptr<Texture2D> radiusTex,
 		std::shared_ptr<Texture2D> arrowTex,
 		std::shared_ptr<Texture2D> particleTex,
-		Grid& gameGrid);
+		Grid& gameGrid,
+		Tower* selectedTower = nullptr);
 	// методы добавления
 	void addEnemy(std::unique_ptr<Enemy> enemy) { m_enemies.push_back(std::move(enemy)); }
 	void addTower(std::unique_ptr<Tower> tower) { m_towers.push_back(std::move(tower)); }

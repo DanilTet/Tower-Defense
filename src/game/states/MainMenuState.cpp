@@ -32,17 +32,30 @@ void MainMenuState::processInput(GLFWwindow* window, float dt) {
 
         // координаты кнопок ОЧЕНЬ ПРИМЕРНО
         float startBtnX = m_width / 2.0f - 100.0f;
-        float startBtnY = m_height / 2.0f;
+        float startBtnY = m_height / 2.0f - 20.0f;
         float startBtnW = 200.0f, startBtnH = 40.0f;
 
+        float loadBtnX = m_width / 2.0f - 100.0f;
+        float loadBtnY = m_height / 2.0f + 40.0f;
+        float loadBtnW = 200.0f, loadBtnH = 40.0f;
+
         float exitBtnX = m_width / 2.0f - 50.0f;
-        float exitBtnY = m_height / 2.0f + 60.0f;
+        float exitBtnY = m_height / 2.0f + 100.0f;
         float exitBtnW = 100.0f, exitBtnH = 40.0f;
 
         // если клик по старт гейм
         if (isButtonClicked(mouseX, mouseY, startBtnX, startBtnY, startBtnW, startBtnH)) {
             // перекоючаем стейт
             m_stateManager.setState(std::make_unique<LevelSelectState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));
+            return;
+        }
+
+        // Клик по Load Game
+        if (isButtonClicked(mouseX, mouseY, loadBtnX, loadBtnY, loadBtnW, loadBtnH)) {
+            auto loadState = std::make_unique<GameplayState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer, "");
+            loadState->setSaveToLoad("savegame");
+
+            m_stateManager.setState(std::move(loadState));
             return;
         }
 
@@ -65,8 +78,9 @@ void MainMenuState::render() {
     m_textRenderer->RenderText("Donbasyata Tower Defense", m_width / 2.0f - 180.0f, m_height / 2.0f - 100.0f, 1.5f, glm::vec3(1.0f, 1.0f, 0.0f));
 
     // рисуем копки
-    m_textRenderer->RenderText("> Start Game <", m_width / 2.0f - 100.0f, m_height / 2.0f, 1.2f, glm::vec3(1.0f, 1.0f, 1.0f));
-    m_textRenderer->RenderText("> Exit <", m_width / 2.0f - 50.0f, m_height / 2.0f + 60.0f, 1.2f, glm::vec3(1.0f, 0.3f, 0.3f));
+    m_textRenderer->RenderText("> Start Game <", m_width / 2.0f - 100.0f, m_height / 2.0f - 20.0f, 1.2f, glm::vec3(1.0f, 1.0f, 1.0f));
+    m_textRenderer->RenderText("> Load Game <", m_width / 2.0f - 100.0f, m_height / 2.0f + 40.0f, 1.2f, glm::vec3(0.2f, 0.8f, 1.0f)); // Подсветим бирюзовым
+    m_textRenderer->RenderText("> Exit <", m_width / 2.0f - 50.0f, m_height / 2.0f + 100.0f, 1.2f, glm::vec3(1.0f, 0.3f, 0.3f));
     m_renderer->endBatch(); // закрываем пакет
 }
 
