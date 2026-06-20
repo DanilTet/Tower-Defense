@@ -17,7 +17,7 @@ private:
 public:
     void renderHologram(
         SpriteRenderer* renderer,
-        std::shared_ptr<Texture2D> cellTexture,// текстурка башни
+        std::shared_ptr<Texture2D> mainAtlas,// текстурка башни
         std::shared_ptr<Texture2D> radiusTexture, // текстурка радиуса атаки
         const Grid& gameGrid, // ссылка на сетку поля
         glm::vec2 currentMousePos, // курсор позиция

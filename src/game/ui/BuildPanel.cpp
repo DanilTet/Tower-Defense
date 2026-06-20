@@ -36,7 +36,8 @@ void Buildpanel::BuildRenderUI(
     const PlayerStats& playerStats,
     SpriteRenderer* renderer,
     TextRenderer* textRenderer,
-    std::shared_ptr<Texture2D> cellTexture,
+    std::shared_ptr<Texture2D> mainAtlas,
+    std::shared_ptr<Texture2D> uiTexture,
     int windowWidth,
     int windowHeight,
     const std::string& selectedTower)
@@ -45,7 +46,10 @@ void Buildpanel::BuildRenderUI(
     glm::vec2 panelPos = getUIPanelPos(windowWidth, windowHeight); // позиция менюшки
 
     // рисуем фон панели
-    renderer->drawSprite(cellTexture, panelPos, glm::vec2(m_cachedPanelWidth * scale, UI_PANEL_HEIGHT * scale), 0.0f, glm::vec3(0.1f, 0.1f, 0.1f));
+    renderer->drawSprite(uiTexture, panelPos, glm::vec2(m_cachedPanelWidth * scale, UI_PANEL_HEIGHT * scale), 0.0f, glm::vec3(0.12f, 0.12f, 0.15f));
+
+    // режем дефолтную башню
+    SpriteUV towerUV = ConfigManager::getUV("main_atlas", "tower_basic");
 
     // рисуем каждую башню
     for (size_t i = 0; i < m_cachedTowers.size(); ++i) {
@@ -69,11 +73,11 @@ void Buildpanel::BuildRenderUI(
 
         // выделяем желтой рамкой выбраную башню
         if (selectedTower == currentType) {
-            renderer->drawSprite(cellTexture, iconPos - glm::vec2(4.0f * scale), glm::vec2((UI_ICON_SIZE + 8.0f) * scale), 0.0f, glm::vec3(1.0f, 1.0f, 0.0f));
+            renderer->drawSprite(uiTexture, iconPos - glm::vec2(4.0f * scale), glm::vec2((UI_ICON_SIZE + 8.0f) * scale), 0.0f, glm::vec3(1.0f, 1.0f, 0.0f));
         }
 
         // рисуем иконку башни
-        renderer->drawSprite(cellTexture, iconPos, glm::vec2(UI_ICON_SIZE * scale), 0.0f, drawColor);
+        renderer->drawSprite(mainAtlas, iconPos, glm::vec2(UI_ICON_SIZE * scale), 0.0f, drawColor, towerUV);
     }
 
     renderer->flush(); //рисуем батч на экран

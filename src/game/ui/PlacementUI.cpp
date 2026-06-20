@@ -7,14 +7,14 @@
 
 void PlacementUI::renderHologram(
     SpriteRenderer* renderer,
-    std::shared_ptr<Texture2D> cellTexture,
+    std::shared_ptr<Texture2D> mainAtlas,
     std::shared_ptr<Texture2D> radiusTexture,
     const Grid& gameGrid,
     glm::vec2 currentMousePos,
     const std::string& selectedTower,
     const PlayerStats& stats,
     glm::vec2 panelPos,
-    bool hasValidPath){
+    bool hasValidPath) {
 
     // если рука пустая то выходим
     if (selectedTower.empty()) {
@@ -64,8 +64,11 @@ void PlacementUI::renderHologram(
     // рисуем радиус цвета голограммы
     renderer->drawSprite(radiusTexture, radiusPos, radiusSize, 0.0f, holoColor);
 
+    // вырезаем башню из атласа
+    SpriteUV towerUV = ConfigManager::getUV("main_atlas", "tower_basic");
+
     // отрисовка самой башни
-    renderer->drawSprite(cellTexture, cellPixelPos, glm::vec2(cellSize), 0.0f, holoColor);
+    renderer->drawSprite(mainAtlas, cellPixelPos, glm::vec2(cellSize), 0.0f, holoColor, towerUV);
 
     // выключаем свечение
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);

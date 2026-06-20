@@ -367,7 +367,7 @@ void GameplayState::render() {
     } // рисуем стрелочки пути
 
     // рисуем все башни врагов и пули
-    m_entityManager->render(m_renderer.get(), m_mainAtlas, m_enemyAtlas, m_radiusTexture, arrowTexPtr, m_particleTexture, *m_gameGrid);
+    m_entityManager->render(m_renderer.get(), m_mainAtlas, m_enemyAtlas, m_radiusTexture, arrowTexPtr, m_particleTexture, *m_gameGrid, m_selectedTowerOnMap);
 
     m_renderer->flush();
 
@@ -386,7 +386,7 @@ void GameplayState::render() {
     //тут рисуем голограмму для строительсва 
     m_placementUI->renderHologram(
         m_renderer.get(),
-        m_cellTexture,
+        m_mainAtlas,
         m_radiusTexture,
         *m_gameGrid,
         m_currentMousePos,
@@ -403,7 +403,8 @@ void GameplayState::render() {
         m_playerStats,
         m_renderer.get(),
         m_textRenderer,
-        m_cellTexture,
+        m_mainAtlas,
+        uiTexPtr,
         this->width,
         this->height,
         m_selectedTowerType
