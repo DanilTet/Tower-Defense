@@ -3,6 +3,7 @@
 #include "textures/Texture2D.h"
 #include "resources/ResourceManager.h"
 #include "entities/Enemy.h"
+#include "../core/ConfigManager.h"
 
 // конструктор создает пустую сетку заданого размера
 Grid::Grid(int width, int height, float cellSize, glm::vec2 offset){
@@ -67,9 +68,10 @@ void Grid::draw(SpriteRenderer* renderer, std::shared_ptr<Texture2D> atlasTextur
 	int atlasH = 832;
 
 	//fromPixels(X, Y, Ширина, Высота, ШиринаАтласа, ВысотаАтласа)
-	SpriteUV uvGrass = SpriteUV::fromPixels(64, 64, 64, 64, atlasW, atlasH);     // Трава
-	SpriteUV uvPath = SpriteUV::fromPixels(64, 256, 64, 64, atlasW, atlasH);     // Дорога
-	SpriteUV uvPlatform = SpriteUV::fromPixels(256, 704, 64, 64, atlasW, atlasH); // Платформа для башен
+	SpriteUV uvGrass = ConfigManager::getUV("main_atlas", "grass");
+	SpriteUV uvPath = ConfigManager::getUV("main_atlas", "path");
+	SpriteUV uvPlatform = ConfigManager::getUV("main_atlas", "platform");
+	SpriteUV uvScenery = ConfigManager::getUV("main_atlas", "scenery");
 
 	// вложенный цикл для обхода всей матрицы (Y — строки, X — столбцы)
 	for (int y = 0; y < m_height; ++y) {

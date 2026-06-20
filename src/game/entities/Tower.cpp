@@ -63,7 +63,7 @@ void Tower::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> atlasTex
 	if (m_currentLevel == 3) color += glm::vec3(0.4f, 0.4f, 0.4f);
 
 	// режем башню
-	SpriteUV towerUV = SpriteUV::fromPixels(1216, 640, 64, 64, 1472, 832);
+	SpriteUV towerUV = ConfigManager::getUV("main_atlas", "tower_basic");
 
 	// рисуем
 	renderer->drawSprite(atlasTexture, pixelPos, size, 0.0f, color, towerUV);

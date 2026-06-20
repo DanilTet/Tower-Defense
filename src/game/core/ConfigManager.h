@@ -6,6 +6,18 @@
 #include "entities/Enemy.h"
 #include "../../particles/ParticleSystem.h"
 #include "core/Animator.h"
+#include "renderer/SpriteRenderer.h"
+
+struct AtlasRegion {
+    int x, y, w, h;
+};
+
+struct AtlasConfig {
+    std::string filePath;
+    int width;
+    int height;
+    std::unordered_map<std::string, AtlasRegion> regions;
+};
 
 class ConfigManager {
 public:
@@ -19,6 +31,9 @@ public:
     static std::vector<std::string> getAllTowerTypes();
     // геттер конфига партиклов
     static ParticleEmitterProps getParticleProps(const std::string& name);
+
+    static bool loadTextureConfig(const std::string& filepath);
+    static SpriteUV getUV(const std::string& atlasName, const std::string& regionName);
 
 private:
     static std::map<std::string, std::vector<TowerStats>> s_towerStats; // виды статы башен

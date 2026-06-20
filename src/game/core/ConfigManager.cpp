@@ -9,6 +9,47 @@ using json = nlohmann::json;
 std::map<std::string, std::vector<TowerStats>> ConfigManager::s_towerStats;
 std::map<std::string, EnemyStats> ConfigManager::s_enemyStats;
 std::map<std::string, ParticleEmitterProps> ConfigManager::s_particleProps;
+static std::unordered_map<std::string, AtlasConfig> s_atlases;
+
+bool ConfigManager::loadTextureConfig(const std::string& filepath) {
+	std::ifstream file(filepath);
+	if (!file.is_open()) return false;
+
+	nlohmann::json j;
+	file >> j;
+
+	for (auto& [atlasName, atlasData] : j["texture_atlases"].items()) {
+		AtlasConfig atlas;
+		atlas.filePath = atlasData["file_path"].get<std::string>();
+		atlas.width = atlasData["width"].get<int>();
+		atlas.height = atlasData["height"].get<int>();
+
+		for (auto& [regionName, regionData] : atlasData["regions"].items()) {
+			AtlasRegion reg;
+			reg.x = regionData["x"].get<int>();
+			reg.y = regionData["y"].get<int>();
+			reg.w = regionData["w"].get<int>();
+			reg.h = regionData["h"].get<int>();
+			atlas.regions[regionName] = reg;
+		}
+		s_atlases[atlasName] = atlas;
+	}
+	return true;
+}
+
+// функция получения готового UV для рендерера
+SpriteUV ConfigManager::getUV(const std::string& atlasName, const std::string& regionName) {
+	auto atlasIt = s_atlases.find(atlasName);
+	if (atlasIt != s_atlases.end()) {
+		auto regIt = atlasIt->second.regions.find(regionName);
+		if (regIt != atlasIt->second.regions.end()) {
+			AtlasRegion r = regIt->second;
+			return SpriteUV::fromPixels(r.x, r.y, r.w, r.h, atlasIt->second.width, atlasIt->second.height);
+		}
+	}
+	// если чет не то тогда возращаем все вообще
+	return SpriteUV::fromPixels(0, 0, 64, 64, 1472, 832);
+}
 
 bool ConfigManager::loadConfigs(const std::string& towerPath, const std::string& enemiesPath, const std::string& particlesPath) {
 	s_towerStats.clear();

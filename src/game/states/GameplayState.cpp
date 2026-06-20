@@ -31,6 +31,7 @@ void GameplayState::cleanup() {
 void GameplayState::init() {
 	// загрузка конфигураций
 	ConfigManager::loadConfigs("res/configs/towers.json", "res/configs/enemies.json", "res/configs/particles.json");
+    ConfigManager::loadTextureConfig("res/levels/textures.json");
 
     // загрузка атласов
     ResourceManager::loadTexture("mainAtlas", "res/textures/mainAtlas.png");
