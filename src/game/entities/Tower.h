@@ -37,6 +37,7 @@ struct TowerStats {
 	// пуля
 	std::string bulletTextureId;
 	float bulletBaseSize;
+	float bulletSpeed;
 
 };
 
@@ -82,6 +83,7 @@ private:
 	std::string m_impactParticle;
 	std::string m_bulletTextureId;
 	float m_bulletBaseSize;
+	float m_bulletSpeed;
 
 	// режим наводки
 	TargetMode m_targetMode = TargetMode::First;

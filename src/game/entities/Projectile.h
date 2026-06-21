@@ -41,6 +41,8 @@ public:
 	bool isActive() const { return m_isActive; } // проверяет активна ли пуля
 	void setActive(bool active) { m_isActive = active; } // устанавливает состояние пули
 
+	void recalculatePosition(const Grid& oldGrid, const Grid& newGrid);
+
 private:
 	glm::vec2 m_pos; // текущая позиция пули
 	glm::vec2 m_direction; // нормализированій вектор направления

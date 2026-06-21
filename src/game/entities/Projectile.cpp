@@ -145,19 +145,22 @@ void Projectile::update(float dt, const std::vector<std::unique_ptr<Enemy>>& ene
 void Projectile::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> mainAtlas, const Grid& grid) {
     if (!m_isActive || m_destroyed) return;
 
-    // масштабирование
     float scaleFactor = grid.getCellSize() / 64.0f;
-    float currentSize = m_baseSize * scaleFactor;
-    // обновляем радиус
-    m_radius = currentSize / 2.0f;
-    // отрисовка
-    glm::vec2 size(currentSize, currentSize);
-    glm::vec2 drawPos = m_pos - glm::vec2(m_radius, m_radius);
+    m_radius = (m_baseSize * scaleFactor) / 2.0f;
+
+    float paddingCompensation = 3.5f;
+    float visualSize = m_baseSize * scaleFactor * paddingCompensation;
+
+    // центрируем увеличенный визуальный квад относительно физической точки m_pos
+    glm::vec2 size(visualSize, visualSize);
+    glm::vec2 drawPos = m_pos - glm::vec2(visualSize / 2.0f, visualSize / 2.0f);
+
     // берем текстурку
     std::string regionName = m_textureId;
-    if (regionName == "bulletBasic") {
-        regionName = "bullet_basic";
-    }
+    if (regionName == "bulletBasic")   regionName = "bullet_basic";
+    if (regionName == "bulletSniper")  regionName = "bullet_sniper";
+    if (regionName == "bulletCannon")  regionName = "bullet_cannon";
+    if (regionName == "bulletMinigun") regionName = "bullet_minigun";
 
     // рисуем
     SpriteUV uv = ConfigManager::getUV("main_atlas", regionName);
@@ -170,4 +173,22 @@ void Projectile::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> mai
         // рисуем красный квадрат-заглушку
         renderer->drawSprite(nullptr, drawPos, size, m_angle, glm::vec3(1.0f, 0.0f, 0.0f));
     }
+}
+
+void Projectile::recalculatePosition(const Grid& oldGrid, const Grid& newGrid) {
+    if (!m_isActive || m_destroyed) return;
+
+    // коэф изменения размера ячеек
+    float ratio = newGrid.getCellSize() / oldGrid.getCellSize();
+
+    // пересчитываем текущую позицию пули
+    glm::vec2 localPos = (m_pos - oldGrid.getOffset()) / oldGrid.getCellSize();
+    m_pos = (localPos * newGrid.getCellSize()) + newGrid.getOffset();
+
+    // пересчитываем точку старта
+    glm::vec2 localOrigin = (m_originPoint - oldGrid.getOffset()) / oldGrid.getCellSize();
+    m_originPoint = (localOrigin * newGrid.getCellSize()) + newGrid.getOffset();
+
+    // масштабируем пиксельную скорость полета под новую плотность пикселей на клетку
+    m_speed *= ratio;
 }

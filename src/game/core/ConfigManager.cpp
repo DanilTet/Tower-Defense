@@ -99,8 +99,21 @@ bool ConfigManager::loadConfigs(const std::string& towerPath, const std::string&
 					stats.trailParticle = lvlJson.value("trailParticle", "");
 					stats.impactParticle = lvlJson.value("impactParticle", "");
 
-					stats.bulletTextureId = lvlJson.value("bulletTextureId", "towerTexture");
-					stats.bulletBaseSize = lvlJson.value("bulletBaseSize", 16.0f);
+					stats.bulletTextureId = lvlJson.value("bulletTextureId", "bulletBasic");
+
+					if (lvlJson.contains("bulletBaseSize")) {
+						stats.bulletBaseSize = lvlJson["bulletBaseSize"].get<float>();
+					}
+					else {
+						stats.bulletBaseSize = 16.0f;
+					}
+
+					if (lvlJson.contains("bulletSpeed")) {
+						stats.bulletSpeed = lvlJson["bulletSpeed"].get<float>();
+					}
+					else {
+						stats.bulletSpeed = 800.0f;
+					}
 
 					// записываем статы в словарь по имени башни
 					s_towerStats[towerName].push_back(stats);

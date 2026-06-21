@@ -40,6 +40,7 @@ Tower::Tower(int gridX, int gridY, const std::string& type)
 	m_impactParticle = stats.impactParticle;
 	m_bulletTextureId = stats.bulletTextureId;
 	m_bulletBaseSize = stats.bulletBaseSize;
+	m_bulletSpeed = stats.bulletSpeed;
 
 	m_shotTimer = 0.0f; // переменная таймер
 }
@@ -181,7 +182,7 @@ void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies,
 				if (freeProj) {
 					freeProj->setParticleEffects(m_trailParticle, m_impactParticle);
 					freeProj->setVisuals(m_bulletTextureId, m_bulletBaseSize);
-					freeProj->init(towerCenter, m_angle, 800.0f, m_damage, bestTarget->getId(), m_splashRadius, currentPixelRange);
+					freeProj->init(towerCenter, m_angle, m_bulletSpeed, m_damage, bestTarget->getId(), m_splashRadius, currentPixelRange);
 				}
 				// партиклы из дула
 				if (!m_muzzleParticle.empty()) {
@@ -261,6 +262,7 @@ bool Tower::upgrade(int& playerMoney) {
 		m_impactParticle = nextStats.impactParticle;
 		m_bulletTextureId = nextStats.bulletTextureId;
 		m_bulletBaseSize = nextStats.bulletBaseSize;
+		m_bulletSpeed = nextStats.bulletSpeed;
 
 		// формируем посылку с кастомным звуком апгрейда
 		Event e;
@@ -282,7 +284,7 @@ int Tower::getUpgradeCost() const {
 void Tower::forceLevel(int level) {
 	if (level < 1 || level > m_maxLevel) return;
 	m_currentLevel = level;
-	TowerStats stats = Tower::getStatsfromTowerType(m_type); // получаем статы для этого типа
+	TowerStats stats = ConfigManager::getTowerStats(m_type, level);// получаем статы для этого типа
 
 	m_range = stats.range;
 	m_damage = stats.damage;
@@ -298,4 +300,5 @@ void Tower::forceLevel(int level) {
 	m_impactParticle = stats.impactParticle;
 	m_bulletTextureId = stats.bulletTextureId;
 	m_bulletBaseSize = stats.bulletBaseSize;
+	m_bulletSpeed = stats.bulletSpeed;
 }

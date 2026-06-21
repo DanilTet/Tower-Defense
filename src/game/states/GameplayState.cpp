@@ -480,6 +480,10 @@ void GameplayState::resize(int windowWidth, int windowHeight) {
                 enemy->recalculatePosition(oldGrid, *m_gameGrid);
             }
         }
+
+        for (auto& proj : m_entityManager->getProjectilePool()) {
+            proj.recalculatePosition(oldGrid, *m_gameGrid);
+        }
     }
 }
 
