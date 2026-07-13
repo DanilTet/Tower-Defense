@@ -34,6 +34,7 @@ public:
 
     static bool loadTextureConfig(const std::string& filepath);
     static SpriteUV getUV(const std::string& atlasName, const std::string& regionName);
+    static bool hasUV(const std::string& atlasName, const std::string& regionName);
 
 private:
     static std::map<std::string, std::vector<TowerStats>> s_towerStats; // виды статы башен

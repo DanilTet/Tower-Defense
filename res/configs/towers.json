@@ -16,8 +16,8 @@
         "trailParticle": "BulletTrail",
         "impactParticle": "SparkImpact",
         "bulletTextureId": "bulletBasic",
-        "bulletBaseSize": 20.0,
-        "bulletSpeed": 450.0
+        "bulletBaseSize": 30.0,
+        "bulletSpeed": 200.0
       },
       {
         "range": 3.0,
@@ -32,8 +32,8 @@
         "trailParticle": "BulletTrail",
         "impactParticle": "SparkImpact",
         "bulletTextureId": "bulletBasic",
-        "bulletBaseSize": 23.0,
-        "bulletSpeed": 500.0
+        "bulletBaseSize": 35.0,
+        "bulletSpeed": 225.0
       },
       {
         "range": 3.5,
@@ -48,8 +48,8 @@
         "trailParticle": "BulletTrail",
         "impactParticle": "SparkImpact",
         "bulletTextureId": "bulletBasic",
-        "bulletBaseSize": 26.0,
-        "bulletSpeed": 550.0
+        "bulletBaseSize": 40.0,
+        "bulletSpeed": 250.0
       }
     ]
   },
@@ -66,12 +66,12 @@
         "rotationSpeed": 120.0,
         "buildSound": "res/sounds/buildSniper.wav",
         "attackSound": "res/sounds/shoot.wav",
-        "muzzleParticle": "ShotgunMuzzle",
+        "muzzleParticle": "SniperMuzzle",
         "trailParticle": "ShotgunTrail",
         "impactParticle": "ShotgunImpact",
         "bulletTextureId": "bulletSniper",
         "bulletBaseSize": 12.0,
-        "bulletSpeed": 1800.0
+        "bulletSpeed": 500.0
       },
       {
         "range": 6.5,
@@ -82,12 +82,12 @@
         "rotationSpeed": 150.0,
         "buildSound": "res/sounds/buildSniper.wav",
         "attackSound": "res/sounds/shoot.wav",
-        "muzzleParticle": "ShotgunMuzzle",
+        "muzzleParticle": "SniperMuzzle",
         "trailParticle": "ShotgunTrail",
         "impactParticle": "ShotgunImpact",
         "bulletTextureId": "bulletSniper",
         "bulletBaseSize": 14.0,
-        "bulletSpeed": 2100.0
+        "bulletSpeed": 550.0
       },
       {
         "range": 8.0,
@@ -98,12 +98,12 @@
         "rotationSpeed": 180.0,
         "buildSound": "res/sounds/buildSniper.wav",
         "attackSound": "res/sounds/shoot.wav",
-        "muzzleParticle": "ShotgunMuzzle",
+        "muzzleParticle": "SniperMuzzle",
         "trailParticle": "ShotgunTrail",
         "impactParticle": "ShotgunImpact",
         "bulletTextureId": "bulletSniper",
-        "bulletBaseSize": 16.0,
-        "bulletSpeed": 2400.0
+        "bulletBaseSize": 12.0,
+        "bulletSpeed": 600.0
       }
     ]
   },
@@ -125,7 +125,7 @@
         "impactParticle": "SparkImpact",
         "bulletTextureId": "bulletCannon",
         "bulletBaseSize": 28.0,
-        "bulletSpeed": 350.0
+        "bulletSpeed": 200.0
       },
       {
         "range": 2.5,
@@ -141,7 +141,7 @@
         "impactParticle": "SparkImpact",
         "bulletTextureId": "bulletCannon",
         "bulletBaseSize": 33.0,
-        "bulletSpeed": 400.0
+        "bulletSpeed": 230.0
       },
       {
         "range": 3.0,
@@ -157,7 +157,7 @@
         "impactParticle": "SparkImpact",
         "bulletTextureId": "bulletCannon",
         "bulletBaseSize": 38.0,
-        "bulletSpeed": 450.0
+        "bulletSpeed": 260.0
       }
     ]
   },
@@ -179,7 +179,7 @@
         "impactParticle": "SparkImpact",
         "bulletTextureId": "bulletMinigun",
         "bulletBaseSize": 8.0,
-        "bulletSpeed": 1200.0
+        "bulletSpeed": 500.0
       },
       {
         "range": 3.2,
@@ -195,7 +195,7 @@
         "impactParticle": "SparkImpact",
         "bulletTextureId": "bulletMinigun",
         "bulletBaseSize": 8.0,
-        "bulletSpeed": 1350.0
+        "bulletSpeed": 550.0
       },
       {
         "range": 3.5,
@@ -211,7 +211,7 @@
         "impactParticle": "SparkImpact",
         "bulletTextureId": "bulletMinigun",
         "bulletBaseSize": 10.0,
-        "bulletSpeed": 1500.0
+        "bulletSpeed": 600.0
       }
     ]
   }

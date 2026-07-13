@@ -2,8 +2,6 @@
 #include <vector>
 #include <memory>
 #include <glm/glm.hpp>
-#include "entities/Enemy.h"
-#include "entities/Tower.h"
 
 enum class CellType {
 	Ground,    // 1: Можно строить, можно ходить (враги могут тут идти, пока ты не поставишь башню)
@@ -29,10 +27,13 @@ private:
 	glm::vec2 m_offset; // ссув поля
 
 	std::vector<std::vector<CellType>> m_grid; // 2D вектор для хранения типа каждой клетки
-	//std::vector<std::unique_ptr<Tower>> m_towers; // 2D вектор для хранения башен
+	std::vector<std::vector<CellType>> m_originalGrid; // Хранилище исходных типов клеток (до постройки башен)
 
 public:
 	Grid(int width, int height, float cellSize, glm::vec2 offset = glm::vec2(0.0f, 0.0f));
+
+	void saveOriginalGrid();
+	CellType getOriginalCellType(int gridX, int gridY) const;
 
 	glm::vec2 gridToPixel(int gridX, int gridY) const; // тут получаем левый верхний угол клетки
 	glm::ivec2 pixelToGrid(glm::vec2 pixelPos) const; // получаем кординаты мыши и возращаем индекс клетки в масиве
@@ -42,6 +43,7 @@ public:
 
 	void draw(SpriteRenderer* renderer,
 		std::shared_ptr<Texture2D> atlasTexture, // только атлас
+		std::shared_ptr<Texture2D> transitionsTexture, // текстура переходов
 		glm::vec3 color = glm::vec3(1.0f, 1.0f, 1.0f));
 
 	void updateCellSize(int windowWidth, int windowHeight); // обновляем размер клеток при изменении размера окна, чтобы сетка всегда занимала все окно

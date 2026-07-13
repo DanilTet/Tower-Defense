@@ -100,6 +100,8 @@ add_executable(${PROJECT_NAME}
     src/game/world/Grid.cpp
     src/game/world/Pathfinder.h
     src/game/world/Pathfinder.cpp
+    src/game/world/GameWorld.h
+    src/game/world/GameWorld.cpp
 
     # === СИСТЕМНЫЕ МОДУЛИ ДВИЖКА ===
 

@@ -17,7 +17,7 @@ void EntityManager::update(float dt, Grid& gameGrid) {
     // пробегаемся по всему вектору активных башен на карте
     for (const auto& tower : m_towers) {
         if (tower) {
-            tower->update(dt, m_enemies, m_projectiles, gameGrid, *m_particleSystem);
+            tower->update(dt, m_enemies, *this, gameGrid, *m_particleSystem);
         }
     }
     // Пробегаемся по всему вектору активных врагов на карте
