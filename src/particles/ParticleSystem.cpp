@@ -63,14 +63,23 @@ void ParticleSystem::emit(const ParticleEmitterProps& props, int count) {
         // если вектор не нулевой то нормализуем его для ровного круга взрыва
         if (glm::length(props.velocityDir) > 0.0f) {
             baseDir = glm::normalize(props.velocityDir);
+            float speed = glm::length(props.velocityDir) + dis(gen) * props.velocityVariation * 0.5f;
+            // вычисляем угол конуса в радианах на основе вариации
+            float maxAngle = props.velocityVariation / glm::length(props.velocityDir);
+            float angle = dis(gen) * maxAngle;
+            
+            float cosA = cos(angle);
+            float sinA = sin(angle);
+            glm::vec2 rotatedDir = glm::vec2(
+                baseDir.x * cosA - baseDir.y * sinA,
+                baseDir.x * sinA + baseDir.y * cosA
+            );
+            p.velocity = rotatedDir * speed;
+        } else {
+            float speed = abs(dis(gen) * props.velocityVariation);
+            float angle = dis(gen) * 3.14159265f;
+            p.velocity = glm::vec2(cos(angle), sin(angle)) * speed;
         }
-        // перпендикуляр для разлета
-        glm::vec2 perpDir = glm::vec2(-baseDir.y, baseDir.x);
-        // рандомные отклонения
-        float speedVariation = dis(gen) * props.velocityVariation;
-        float spreadVariation = dis(gen) * (props.velocityVariation * 0.5f);
-        // задаем физику
-        p.velocity = props.velocityDir + (baseDir * speedVariation) + (perpDir * spreadVariation);
 
         // задаем визуал
         p.startColor = props.startColor;

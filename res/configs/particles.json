@@ -80,14 +80,14 @@
     "spawnCount": 40
   },
   "SniperMuzzle": {
-    "velocityDir": [ 0.0, -800.0 ],
-    "velocityVariation": 80.0,
-    "startColor": [ 1.0, 0.95, 0.7 ],
-    "endColor": [ 1.0, 0.3, 0.0 ],
-    "startSize": 10.0,
+    "velocityDir": [ 0.0, -350.0 ],
+    "velocityVariation": 120.0,
+    "startColor": [ 1.0, 1.0, 0.0 ],
+    "endColor": [ 1.0, 0.4, 0.0 ],
+    "startSize": 8.0,
     "endSize": 1.0,
-    "lifeTime": 0.6,
-    "spawnCount": 50
+    "lifeTime": 0.2,
+    "spawnCount": 40
   },
   "SniperSmoke": {
     "velocityDir": [ 0.0, -350.0 ],
