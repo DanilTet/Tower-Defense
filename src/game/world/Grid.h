@@ -40,6 +40,7 @@ public:
 
 	void draw(SpriteRenderer* renderer,
 		std::shared_ptr<Texture2D> atlasTexture, // только атлас
+		std::shared_ptr<Texture2D> transitionsTexture, // текстура переходов
 		glm::vec3 color = glm::vec3(1.0f, 1.0f, 1.0f));
 
 	void updateCellSize(int windowWidth, int windowHeight); // обновляем размер клеток при изменении размера окна, чтобы сетка всегда занимала все окно

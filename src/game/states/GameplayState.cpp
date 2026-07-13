@@ -38,6 +38,7 @@ void GameplayState::init() {
     // загрузка атласов
     ResourceManager::loadTexture("mainAtlas", "res/textures/mainAtlas.png");
     ResourceManager::loadTexture("enemyAtlas", "res/textures/enemyAtlas.png");
+    ResourceManager::loadTexture("transitionsAtlas", "res/textures/Frame 1 (1).png");
 
     // ЗАГРУЗКА ФАЙЛОВ ТЕКСТУРОК в VRAM
     ResourceManager::loadTexture("towerTexture", "res/textures/test_sprite.png"); // текстурка башни
@@ -61,6 +62,9 @@ void GameplayState::init() {
 
     Texture2D* enemyAtlasTex = ResourceManager::getTexture("enemyAtlas");
     m_enemyAtlas = std::shared_ptr<Texture2D>(enemyAtlasTex, [](Texture2D*) {});
+
+    Texture2D* transAtlasTex = ResourceManager::getTexture("transitionsAtlas");
+    m_transitionsAtlas = std::shared_ptr<Texture2D>(transAtlasTex, [](Texture2D*) {});
 
     m_world = std::make_unique<GameWorld>();
 
@@ -227,7 +231,7 @@ void GameplayState::render() {
     m_renderer->beginBatch(); // открываем пакет
 
     // Малюем игровую сетку
-    m_world->grid->draw(m_renderer.get(), m_mainAtlas, { 1.0f, 1.0f, 1.0f });
+    m_world->grid->draw(m_renderer.get(), m_mainAtlas, m_transitionsAtlas, { 1.0f, 1.0f, 1.0f });
 
     // стрелочки пути   
     Texture2D* arrowTex = ResourceManager::getTexture("arrowTexture");

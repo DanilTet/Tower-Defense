@@ -57,7 +57,7 @@ void Grid::setCellType(int gridX, int gridY, CellType type) {
 }
 
 // Отрисовка всей карты ячейка за ячейкой
-void Grid::draw(SpriteRenderer* renderer, std::shared_ptr<Texture2D> atlasTexture, glm::vec3 color) {
+void Grid::draw(SpriteRenderer* renderer, std::shared_ptr<Texture2D> atlasTexture, std::shared_ptr<Texture2D> transitionsTexture, glm::vec3 color) {
 
 	// Создаем вектор размера: каждая плитка будет шириной и высотой ровно в m_cellSize пикселей
 	glm::vec2 size(m_cellSize, m_cellSize);
@@ -68,6 +68,19 @@ void Grid::draw(SpriteRenderer* renderer, std::shared_ptr<Texture2D> atlasTextur
 	SpriteUV uvPlatform = ConfigManager::getUV("main_atlas", "platform");
 	SpriteUV uvScenery = ConfigManager::getUV("main_atlas", "scenery");
 
+	// Текстурные координаты из Frame 1 (1).png (размер 192 x 128)
+	int transW = 192;
+	int transH = 128;
+
+	// Каменный переход: 0, 0, 64, 64 (смотрит снизу вверх)
+	SpriteUV uvStoneTrans = SpriteUV::fromPixels(0, 0, 64, 64, transW, transH);
+
+	// Травяные переходы (4 отдельные текстуры):
+	SpriteUV uvGrassTransN = SpriteUV::fromPixels(64, 0, 64, 64, transW, transH);
+	SpriteUV uvGrassTransS = SpriteUV::fromPixels(128, 0, 64, 64, transW, transH);
+	SpriteUV uvGrassTransE = SpriteUV::fromPixels(64, 64, 64, 64, transW, transH);
+	SpriteUV uvGrassTransW = SpriteUV::fromPixels(128, 64, 64, 64, transW, transH);
+
 	auto getPriority = [](CellType t) {
 		switch (t) {
 			case CellType::Platform: return 3; // Камень (самый высокий)
@@ -75,16 +88,6 @@ void Grid::draw(SpriteRenderer* renderer, std::shared_ptr<Texture2D> atlasTextur
 			case CellType::Tower:    return 2; // Башня (на траве)
 			case CellType::Path:     return 1; // Земля / Дорога
 			default:                 return 0; // Вода / Скалы
-		}
-	};
-
-	auto getTypeName = [](CellType t) {
-		switch (t) {
-			case CellType::Platform: return "platform";
-			case CellType::Ground:   return "grass";
-			case CellType::Tower:    return "grass";
-			case CellType::Path:     return "path";
-			default:                 return "";
 		}
 	};
 
@@ -108,57 +111,55 @@ void Grid::draw(SpriteRenderer* renderer, std::shared_ptr<Texture2D> atlasTextur
 			if (type == CellType::Platform) currentUV = uvPlatform;
 			if (type == CellType::Scenery) currentUV = uvScenery;
 
-			if (type == CellType::Ground || type == CellType::Platform || type == CellType::Tower || type == CellType::Path) {
-				int currPriority = getPriority(type);
-				std::string currName = getTypeName(type);
+			// 1. Рисуем базовый тайл
+			renderer->drawSprite(atlasTexture, pixelPos, size, 0.0f, color, currentUV);
 
-				if (!currName.empty()) {
-					// 1. Ищем максимальный приоритет среди соседей, который ниже текущего
-					int targetPriority = -1;
-					CellType targetType = type;
+			// 2. Накладываем переходы поверх базового тайла
+			int currPriority = getPriority(type);
 
-					CellType nType = getNeighborType(x, y - 1, type);
-					CellType sType = getNeighborType(x, y + 1, type);
-					CellType eType = getNeighborType(x + 1, y, type);
-					CellType wType = getNeighborType(x - 1, y, type);
+			// Проверяем соседей
+			CellType nType = getNeighborType(x, y - 1, type);
+			CellType sType = getNeighborType(x, y + 1, type);
+			CellType eType = getNeighborType(x + 1, y, type);
+			CellType wType = getNeighborType(x - 1, y, type);
 
-					int np = getPriority(nType);
-					int sp = getPriority(sType);
-					int ep = getPriority(eType);
-					int wp = getPriority(wType);
+			int np = getPriority(nType);
+			int sp = getPriority(sType);
+			int ep = getPriority(eType);
+			int wp = getPriority(wType);
 
-					if (np < currPriority && np > targetPriority) { targetPriority = np; targetType = nType; }
-					if (sp < currPriority && sp > targetPriority) { targetPriority = sp; targetType = sType; }
-					if (ep < currPriority && ep > targetPriority) { targetPriority = ep; targetType = eType; }
-					if (wp < currPriority && wp > targetPriority) { targetPriority = wp; targetType = wType; }
-
-					// 2. Если найден сосед с более низким приоритетом, строим направление перехода
-					if (targetPriority != -1) {
-						std::string targetName = getTypeName(targetType);
-						if (!targetName.empty()) {
-							bool n = (np <= targetPriority && nType != type);
-							bool s = (sp <= targetPriority && sType != type);
-							bool e = (ep <= targetPriority && eType != type);
-							bool w = (wp <= targetPriority && wType != type);
-
-							std::string dir = "";
-							if (n) dir += "n";
-							if (s) dir += "s";
-							if (e) dir += "e";
-							if (w) dir += "w";
-
-							if (!dir.empty()) {
-								std::string transitionRegion = currName + "_" + targetName + "_" + dir;
-								if (ConfigManager::hasUV("main_atlas", transitionRegion)) {
-									currentUV = ConfigManager::getUV("main_atlas", transitionRegion);
-								}
-							}
-						}
-					}
+			// --- Каменный переход (Platform) ---
+			// Рисуем на любых клетках ниже камня, которые с ним граничат
+			if (currPriority < 3 && transitionsTexture) {
+				if (np == 3) {
+					renderer->drawSprite(transitionsTexture, pixelPos, size, 180.0f, color, uvStoneTrans);
 				}
+				if (sp == 3) {
+					renderer->drawSprite(transitionsTexture, pixelPos, size, 0.0f, color, uvStoneTrans);
+				}
+				if (ep == 3) {
+					renderer->drawSprite(transitionsTexture, pixelPos, size, -90.0f, color, uvStoneTrans);
+				}
+				if (wp == 3) {
+					renderer->drawSprite(transitionsTexture, pixelPos, size, 90.0f, color, uvStoneTrans);
+				}
+			}
 
-				// ПЕРЕДАЕМ НАШИ UV-КООРДИНАТЫ В БАТЧЕР!
-				renderer->drawSprite(atlasTexture, pixelPos, size, 0.0f, color, currentUV);
+			// --- Травяной переход (Ground/Tower) ---
+			// Рисуем только на земле (дороге), которая граничит с травой
+			if (currPriority == 1 && transitionsTexture) {
+				if (np == 2) {
+					renderer->drawSprite(transitionsTexture, pixelPos, size, 0.0f, color, uvGrassTransN);
+				}
+				if (sp == 2) {
+					renderer->drawSprite(transitionsTexture, pixelPos, size, 0.0f, color, uvGrassTransS);
+				}
+				if (ep == 2) {
+					renderer->drawSprite(transitionsTexture, pixelPos, size, 0.0f, color, uvGrassTransE);
+				}
+				if (wp == 2) {
+					renderer->drawSprite(transitionsTexture, pixelPos, size, 0.0f, color, uvGrassTransW);
+				}
 			}
 		}
 	}

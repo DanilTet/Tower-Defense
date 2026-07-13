@@ -44,6 +44,7 @@ private:
     std::shared_ptr<Texture2D> m_particleTexture;
     std::shared_ptr<Texture2D> m_mainAtlas;
     std::shared_ptr<Texture2D> m_enemyAtlas;
+    std::shared_ptr<Texture2D> m_transitionsAtlas;
 
     // указатель на рендеры
     std::shared_ptr<SpriteRenderer> m_renderer;
