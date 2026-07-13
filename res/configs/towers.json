@@ -70,7 +70,7 @@
         "trailParticle": "ShotgunTrail",
         "impactParticle": "ShotgunImpact",
         "bulletTextureId": "bulletSniper",
-        "bulletBaseSize": 24.0,
+        "bulletBaseSize": 12.0,
         "bulletSpeed": 350.0
       },
       {
@@ -86,7 +86,7 @@
         "trailParticle": "ShotgunTrail",
         "impactParticle": "ShotgunImpact",
         "bulletTextureId": "bulletSniper",
-        "bulletBaseSize": 28.0,
+        "bulletBaseSize": 14.0,
         "bulletSpeed": 400.0
       },
       {
@@ -102,8 +102,8 @@
         "trailParticle": "ShotgunTrail",
         "impactParticle": "ShotgunImpact",
         "bulletTextureId": "bulletSniper",
-        "bulletBaseSize": 32.0,
-        "bulletSpeed": 450.0
+        "bulletBaseSize": 12.0,
+        "bulletSpeed": 350.0
       }
     ]
   },

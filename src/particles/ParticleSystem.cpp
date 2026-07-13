@@ -25,6 +25,9 @@ void ParticleSystem::update(float dt) {
             continue;
         }
 
+        // Применяем торможение (затухание скорости)
+        p.velocity *= glm::exp(-6.0f * dt);
+
         // двигаем гада
         p.position += p.velocity * dt;
     }

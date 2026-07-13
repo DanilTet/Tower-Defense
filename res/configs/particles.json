@@ -80,23 +80,23 @@
     "spawnCount": 40
   },
   "SniperMuzzle": {
-    "velocityDir": [ 0.0, -1400.0 ],
-    "velocityVariation": 150.0,
+    "velocityDir": [ 0.0, -800.0 ],
+    "velocityVariation": 80.0,
     "startColor": [ 1.0, 0.95, 0.7 ],
     "endColor": [ 1.0, 0.3, 0.0 ],
-    "startSize": 36.0,
-    "endSize": 2.0,
-    "lifeTime": 1.5,
-    "spawnCount": 100
+    "startSize": 10.0,
+    "endSize": 1.0,
+    "lifeTime": 0.6,
+    "spawnCount": 50
   },
   "SniperSmoke": {
-    "velocityDir": [ 0.0, -200.0 ],
-    "velocityVariation": 40.0,
+    "velocityDir": [ 0.0, -350.0 ],
+    "velocityVariation": 30.0,
     "startColor": [ 0.6, 0.6, 0.6 ],
     "endColor": [ 0.2, 0.2, 0.2 ],
-    "startSize": 12.0,
-    "endSize": 32.0,
-    "lifeTime": 2.0,
-    "spawnCount": 20
+    "startSize": 8.0,
+    "endSize": 20.0,
+    "lifeTime": 1.0,
+    "spawnCount": 15
   }
 }
