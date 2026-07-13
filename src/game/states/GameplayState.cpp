@@ -38,7 +38,7 @@ void GameplayState::init() {
     // загрузка атласов
     ResourceManager::loadTexture("mainAtlas", "res/textures/mainAtlas.png");
     ResourceManager::loadTexture("enemyAtlas", "res/textures/enemyAtlas.png");
-    ResourceManager::loadTexture("transitionsAtlas", "res/textures/Frame 1 (1).png");
+    ResourceManager::loadTexture("transitionsAtlas", "res/textures/Frame 1 (2).png");
 
     // ЗАГРУЗКА ФАЙЛОВ ТЕКСТУРОК в VRAM
     ResourceManager::loadTexture("towerTexture", "res/textures/test_sprite.png"); // текстурка башни

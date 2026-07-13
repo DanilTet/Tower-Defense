@@ -68,18 +68,17 @@ void Grid::draw(SpriteRenderer* renderer, std::shared_ptr<Texture2D> atlasTextur
 	SpriteUV uvPlatform = ConfigManager::getUV("main_atlas", "platform");
 	SpriteUV uvScenery = ConfigManager::getUV("main_atlas", "scenery");
 
-	// Текстурные координаты из Frame 1 (1).png (размер 192 x 128)
-	int transW = 192;
-	int transH = 128;
+	// Текстурные координаты из Frame 1 (2).png (реальный размер 256 x 64)
+	int transW = 256;
+	int transH = 64;
 
-	// Каменный переход: 0, 0, 64, 64 (смотрит снизу вверх)
+	// Каменные переходы (прямой и угловой):
 	SpriteUV uvStoneTrans = SpriteUV::fromPixels(0, 0, 64, 64, transW, transH);
+	SpriteUV uvStoneCorner = SpriteUV::fromPixels(64, 0, 64, 64, transW, transH);
 
-	// Травяные переходы (4 отдельные текстуры):
-	SpriteUV uvGrassTransN = SpriteUV::fromPixels(64, 0, 64, 64, transW, transH);
-	SpriteUV uvGrassTransS = SpriteUV::fromPixels(128, 0, 64, 64, transW, transH);
-	SpriteUV uvGrassTransE = SpriteUV::fromPixels(64, 64, 64, 64, transW, transH);
-	SpriteUV uvGrassTransW = SpriteUV::fromPixels(128, 64, 64, 64, transW, transH);
+	// Травяные переходы (прямой и угловой):
+	SpriteUV uvGrassTrans = SpriteUV::fromPixels(128, 0, 64, 64, transW, transH);
+	SpriteUV uvGrassCorner = SpriteUV::fromPixels(192, 0, 64, 64, transW, transH);
 
 	auto getPriority = [](CellType t) {
 		switch (t) {
@@ -131,6 +130,7 @@ void Grid::draw(SpriteRenderer* renderer, std::shared_ptr<Texture2D> atlasTextur
 			// --- Каменный переход (Platform) ---
 			// Рисуем на любых клетках ниже камня, которые с ним граничат
 			if (currPriority < 3 && transitionsTexture) {
+				// Прямые переходы
 				if (np == 3) {
 					renderer->drawSprite(transitionsTexture, pixelPos, size, 180.0f, color, uvStoneTrans);
 				}
@@ -143,22 +143,61 @@ void Grid::draw(SpriteRenderer* renderer, std::shared_ptr<Texture2D> atlasTextur
 				if (wp == 3) {
 					renderer->drawSprite(transitionsTexture, pixelPos, size, 90.0f, color, uvStoneTrans);
 				}
+
+				// Угловые переходы (диагональные)
+				int nwp = getPriority(getNeighborType(x - 1, y - 1, type));
+				int nep = getPriority(getNeighborType(x + 1, y - 1, type));
+				int swp = getPriority(getNeighborType(x - 1, y + 1, type));
+				int sep = getPriority(getNeighborType(x + 1, y + 1, type));
+
+				if (swp == 3 && sp != 3 && wp != 3) {
+					renderer->drawSprite(transitionsTexture, pixelPos, size, 0.0f, color, uvStoneCorner);
+				}
+				if (sep == 3 && sp != 3 && ep != 3) {
+					renderer->drawSprite(transitionsTexture, pixelPos, size, -90.0f, color, uvStoneCorner);
+				}
+				if (nwp == 3 && np != 3 && wp != 3) {
+					renderer->drawSprite(transitionsTexture, pixelPos, size, 90.0f, color, uvStoneCorner);
+				}
+				if (nep == 3 && np != 3 && ep != 3) {
+					renderer->drawSprite(transitionsTexture, pixelPos, size, 180.0f, color, uvStoneCorner);
+				}
 			}
 
 			// --- Травяной переход (Ground/Tower) ---
 			// Рисуем только на земле (дороге), которая граничит с травой
 			if (currPriority == 1 && transitionsTexture) {
+				// Прямые переходы
 				if (np == 2) {
-					renderer->drawSprite(transitionsTexture, pixelPos, size, 0.0f, color, uvGrassTransN);
+					renderer->drawSprite(transitionsTexture, pixelPos, size, 180.0f, color, uvGrassTrans);
 				}
 				if (sp == 2) {
-					renderer->drawSprite(transitionsTexture, pixelPos, size, 0.0f, color, uvGrassTransS);
+					renderer->drawSprite(transitionsTexture, pixelPos, size, 0.0f, color, uvGrassTrans);
 				}
 				if (ep == 2) {
-					renderer->drawSprite(transitionsTexture, pixelPos, size, 0.0f, color, uvGrassTransE);
+					renderer->drawSprite(transitionsTexture, pixelPos, size, -90.0f, color, uvGrassTrans);
 				}
 				if (wp == 2) {
-					renderer->drawSprite(transitionsTexture, pixelPos, size, 0.0f, color, uvGrassTransW);
+					renderer->drawSprite(transitionsTexture, pixelPos, size, 90.0f, color, uvGrassTrans);
+				}
+
+				// Угловые переходы (диагональные)
+				int nwp = getPriority(getNeighborType(x - 1, y - 1, type));
+				int nep = getPriority(getNeighborType(x + 1, y - 1, type));
+				int swp = getPriority(getNeighborType(x - 1, y + 1, type));
+				int sep = getPriority(getNeighborType(x + 1, y + 1, type));
+
+				if (swp == 2 && sp != 2 && wp != 2) {
+					renderer->drawSprite(transitionsTexture, pixelPos, size, 0.0f, color, uvGrassCorner);
+				}
+				if (sep == 2 && sp != 2 && ep != 2) {
+					renderer->drawSprite(transitionsTexture, pixelPos, size, -90.0f, color, uvGrassCorner);
+				}
+				if (nwp == 2 && np != 2 && wp != 2) {
+					renderer->drawSprite(transitionsTexture, pixelPos, size, 90.0f, color, uvGrassCorner);
+				}
+				if (nep == 2 && np != 2 && ep != 2) {
+					renderer->drawSprite(transitionsTexture, pixelPos, size, 180.0f, color, uvGrassCorner);
 				}
 			}
 		}
