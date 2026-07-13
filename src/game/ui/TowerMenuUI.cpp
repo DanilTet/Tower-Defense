@@ -4,7 +4,7 @@
 #include "../renderer/TextRenderer.h"
 #include "../world/Grid.h"
 #include "../gameplay/BuildManager.h"
-#include "../gameplay/PlayerStats.h"
+#include "../world/GameWorld.h"
 #include <iostream>
 #include <string>
 
@@ -12,20 +12,13 @@ bool TowerMenuUI::processClick(
     double mouseX, double mouseY,
     Tower* selectedTower,
     BuildManager* buildManager,
-    PlayerStats& stats,
-    EntityManager& entityManager,
-    Grid& gameGrid,
-    Pathfinder& pathfinder,
-    const std::vector<SpawnerData>& spawners,
-    const std::vector<glm::ivec2>& bases,
-    std::vector<std::vector<glm::ivec2>>& paths,
-    std::vector<glm::ivec2>& levelPath,
+    GameWorld& world,
     Tower*& outSelectedTower)
 {
     if (!selectedTower) return false;
 
-    float cellSize = gameGrid.getCellSize();
-    glm::vec2 towerPos = gameGrid.gridToPixel(selectedTower->getGridX(), selectedTower->getGridY());
+    float cellSize = world.grid->getCellSize();
+    glm::vec2 towerPos = world.grid->gridToPixel(selectedTower->getGridX(), selectedTower->getGridY());
 
     // размеры и позиции кнопок
     glm::vec2 btnSize(cellSize * 0.5f, cellSize * 0.5f);
@@ -38,7 +31,7 @@ bool TowerMenuUI::processClick(
     // клик по кнопке UPGRADE?
     if (mouseX >= upgPos.x && mouseX <= upgPos.x + btnSize.x && mouseY >= upgPos.y && mouseY <= upgPos.y + btnSize.y) {
         int cost = selectedTower->getUpgradeCost();
-        if (selectedTower->upgrade(stats.money)) {
+        if (selectedTower->upgrade(world.playerStats.money)) {
             std::cout << "Tower upgraded!" << std::endl;
         }
         else {
@@ -49,7 +42,7 @@ bool TowerMenuUI::processClick(
 
     // клик по кнопке SELL?
     if (mouseX >= sellPos.x && mouseX <= sellPos.x + btnSize.x && mouseY >= sellPos.y && mouseY <= sellPos.y + btnSize.y) {
-        buildManager->sellTower(selectedTower, stats, entityManager, gameGrid, pathfinder, spawners, bases, paths, levelPath);
+        buildManager->sellTower(selectedTower, world);
         outSelectedTower = nullptr; // снимаем выделение после продажи
         return true; // клик обработан
     }

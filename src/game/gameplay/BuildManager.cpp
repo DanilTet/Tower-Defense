@@ -1,4 +1,5 @@
 #include "BuildManager.h"
+#include "world/GameWorld.h"
 #include "audio/AudioManager.h"
 #include <iostream>
 #include "entities/Tower.h"
@@ -11,23 +12,15 @@
 #include "../core/EventBus.h"
 
 void BuildManager::tryBuildOrUpgrade(
-    glm::vec2 mousePos, // позиция мыши
-    const std::string& selectedType,// выбраный тип башни
-    PlayerStats& stats, // деньки игрока
-    std::vector<std::unique_ptr<Tower>>& towers,
-    std::vector<std::unique_ptr<Enemy>>& enemies,// башни
-    Grid& gameGrid, // сетка
-    Pathfinder& pathfinder, // поиск пути
-    const std::vector<SpawnerData>& spawners, // спавны
-    const std::vector<glm::ivec2>& bases,// базы блять
-    std::vector<std::vector<glm::ivec2>>& paths,
-    std::vector<glm::ivec2>& levelPath) {
+    glm::vec2 mousePos,
+    const std::string& selectedType,
+    GameWorld& world) {
 
-    glm::ivec2 clickedCell = gameGrid.pixelToGrid(mousePos);
+    glm::ivec2 clickedCell = world.grid->pixelToGrid(mousePos);
 
     // если клик поза поля
-    if (clickedCell.x < 0 || clickedCell.x >= gameGrid.getWidth() ||
-        clickedCell.y < 0 || clickedCell.y >= gameGrid.getHeight()) {
+    if (clickedCell.x < 0 || clickedCell.x >= world.grid->getWidth() ||
+        clickedCell.y < 0 || clickedCell.y >= world.grid->getHeight()) {
         return;
     }
 
@@ -38,32 +31,32 @@ void BuildManager::tryBuildOrUpgrade(
 
     int currentCost = ConfigManager::getTowerStats(selectedType).cost;
 
-    if (stats.money >= currentCost && gameGrid.canBuildAt(clickedCell.x, clickedCell.y)) {
+    if (world.playerStats.money >= currentCost && world.grid->canBuildAt(clickedCell.x, clickedCell.y)) {
 
         // запоминаем какая клетка была до клика
-        CellType oldCellType = gameGrid.getCellType(clickedCell.x, clickedCell.y);
+        CellType oldCellType = world.grid->getCellType(clickedCell.x, clickedCell.y);
 
         // виртуально ставим башню
-        gameGrid.setCellType(clickedCell.x, clickedCell.y, CellType::Tower);
+        world.grid->setCellType(clickedCell.x, clickedCell.y, CellType::Tower);
 
         // проверяем пути для всех спавнеров
         bool isPathBlocked = false;
         std::vector<std::vector<glm::ivec2>> newPaths; // временное хранилище для новых путей
 
-        for (size_t i = 0; i < spawners.size(); ++i) {
-            int baseIdx = spawners[i].targetBaseIndex;
+        for (size_t i = 0; i < world.spawners.size(); ++i) {
+            int baseIdx = world.spawners[i].targetBaseIndex;
             std::vector<glm::ivec2> bestPath;
 
             if (baseIdx == -1) {
                 int minCost = 999999;
                 float minEuclideanDist = 999999.0f;
 
-                for (const auto& base : bases) {
+                for (const auto& base : world.bases) {
                     int currentCost = 0;
-                    auto path = pathfinder.findPath(gameGrid, spawners[i].pos, base, currentCost);
+                    auto path = world.pathfinder->findPath(*world.grid, world.spawners[i].pos, base, currentCost);
 
                     if (!path.empty()) {
-                        float euclideanDist = glm::distance(glm::vec2(spawners[i].pos), glm::vec2(base));
+                        float euclideanDist = glm::distance(glm::vec2(world.spawners[i].pos), glm::vec2(base));
 
                         if (currentCost < minCost || (currentCost == minCost && euclideanDist < minEuclideanDist)) {
                             minCost = currentCost;
@@ -74,9 +67,9 @@ void BuildManager::tryBuildOrUpgrade(
                 }
             }
             else {
-                if (baseIdx < 0 || baseIdx >= bases.size()) baseIdx = 0;
+                if (baseIdx < 0 || baseIdx >= world.bases.size()) baseIdx = 0;
                 int dummyCost = 0;
-                bestPath = pathfinder.findPath(gameGrid, spawners[i].pos, bases[baseIdx], dummyCost);
+                bestPath = world.pathfinder->findPath(*world.grid, world.spawners[i].pos, world.bases[baseIdx], dummyCost);
             }
 
             if (bestPath.empty()) {
@@ -84,21 +77,21 @@ void BuildManager::tryBuildOrUpgrade(
                 break;
             }
 
-            bestPath.insert(bestPath.begin(), spawners[i].pos); // добавляем точку старта
+            bestPath.insert(bestPath.begin(), world.spawners[i].pos); // добавляем точку старта
             newPaths.push_back(bestPath); // сохраняем успешный путь
         }
 
         // если пути нету значит игрок заблокировал маршрут
         if (isPathBlocked) {
-            gameGrid.setCellType(clickedCell.x, clickedCell.y, oldCellType); // Откатываем сетку
+            world.grid->setCellType(clickedCell.x, clickedCell.y, oldCellType); // Откатываем сетку
             std::cout << "Path Blocked! Cannot build here." << std::endl;
         }
         else { // иначе пути свободны
-            stats.money -= currentCost;
+            world.playerStats.money -= currentCost;
 
-            // спавним башню
+            // спавнить башню через entityManager
             auto newTower = std::make_unique<Tower>(clickedCell.x, clickedCell.y, selectedType);
-            towers.push_back(std::move(newTower));
+            world.entityManager->addTower(std::move(newTower));
 
             // звук постройки
             TowerStats towerstats = Tower::getStatsfromTowerType(selectedType);
@@ -108,13 +101,13 @@ void BuildManager::tryBuildOrUpgrade(
             EventBus::publish(e);
 
             // обновляем все маршруты
-            paths = newPaths;
-            levelPath = paths[0];
+            world.paths = newPaths;
+            world.levelPath = world.paths[0];
 
             // даем врагам новый путь
-            for (auto& enemy : enemies) {
+            for (auto& enemy : world.entityManager->getEnemies()) {
                 if (enemy) {
-                    enemy->recalculatePath(&pathfinder, gameGrid, bases);
+                    enemy->recalculatePath(world.pathfinder.get(), *world.grid, world.bases);
                 }
             }
         }
@@ -123,71 +116,64 @@ void BuildManager::tryBuildOrUpgrade(
 
 void BuildManager::sellTower(
     Tower* tower,
-    PlayerStats& stats,
-    EntityManager& entityManager,
-    Grid& gameGrid,
-    Pathfinder& pathfinder,
-    const std::vector<SpawnerData>& spawners,
-    const std::vector<glm::ivec2>& bases,
-    std::vector<std::vector<glm::ivec2>>& paths,
-    std::vector<glm::ivec2>& levelPath) {
+    GameWorld& world) {
 
     if (!tower) return;
 
     int tx = tower->getGridX();
     int ty = tower->getGridY();
 
-    stats.money += 50;
+    world.playerStats.money += 50;
 
     // освобождаем клетку на сетке
-    gameGrid.setCellType(tx, ty, CellType::Ground);
+    world.grid->setCellType(tx, ty, CellType::Ground);
 
     // уничтожаем объект башни
-    entityManager.removeTower(tx, ty);
+    world.entityManager->removeTower(tx, ty);
 
     // считаем заново пути с учетом геометрической близости
     std::vector<std::vector<glm::ivec2>> newPaths;
-    for (size_t i = 0; i < spawners.size(); ++i) {
-        int baseIdx = spawners[i].targetBaseIndex;
+    for (size_t i = 0; i < world.spawners.size(); ++i) {
+        int baseIdx = world.spawners[i].targetBaseIndex;
         std::vector<glm::ivec2> testPath;
 
         if (baseIdx == -1) {
             int minCost = 999999;
             float minEuclideanDist = 999999.0f;
 
-            for (const auto& base : bases) {
+            for (const auto& base : world.bases) {
                 int currentCost = 0;
-                auto path = pathfinder.findPath(gameGrid, spawners[i].pos, base, currentCost);
+                auto path = world.pathfinder->findPath(*world.grid, world.spawners[i].pos, base, currentCost);
 
                 if (!path.empty()) {
-                    float euclideanDist = glm::distance(glm::vec2(spawners[i].pos), glm::vec2(base));
+                    float euclideanDist = glm::distance(glm::vec2(world.spawners[i].pos), glm::vec2(base));
 
                     if (currentCost < minCost || (currentCost == minCost && euclideanDist < minEuclideanDist)) {
                         minCost = currentCost;
                         minEuclideanDist = euclideanDist;
-                        testPath = path;;
+                        testPath = path;
                     }
                 }
             }
         }
         else {
-            if (baseIdx < 0 || baseIdx >= bases.size()) baseIdx = 0;
+            if (baseIdx < 0 || baseIdx >= world.bases.size()) baseIdx = 0;
             int dummyCost = 0;
-            testPath = pathfinder.findPath(gameGrid, spawners[i].pos, bases[baseIdx], dummyCost);
+            testPath = world.pathfinder->findPath(*world.grid, world.spawners[i].pos, world.bases[baseIdx], dummyCost);
         }
 
-        testPath.insert(testPath.begin(), spawners[i].pos);
+        testPath.insert(testPath.begin(), world.spawners[i].pos);
         newPaths.push_back(testPath);
     }
 
     // обновляем пути
-    paths = newPaths;
-    levelPath = paths[0];
+    world.paths = newPaths;
+    world.levelPath = world.paths[0];
 
     // перенаправляем врагов по новому маршруту
-    for (auto& enemy : entityManager.getEnemies()) {
+    for (auto& enemy : world.entityManager->getEnemies()) {
         if (enemy) {
-            enemy->recalculatePath(&pathfinder, gameGrid, bases);
+            enemy->recalculatePath(world.pathfinder.get(), *world.grid, world.bases);
         }
     }
 }

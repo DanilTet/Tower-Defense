@@ -1,5 +1,5 @@
 #include "WaveManager.h"
-#include "../states/GameplayState.h"
+#include "../world/GameWorld.h"
 #include <iostream>
 #include <fstream>
 #include <nlohmann/json.hpp>
@@ -73,7 +73,7 @@ void WaveManager::startNextWave() {
 	std::cout << "Wave " << (m_currentWaveIndex + 1) << " started!" << std::endl;
 }
 
-void WaveManager::update(float dt, GameplayState& gameState) {	// если перерыв между волнами или они заончились
+void WaveManager::update(float dt, GameWorld& world) {	// если перерыв между волнами или они заончились
 	if (!m_isWaveActive || m_currentWaveIndex >= m_waves.size()) {
 		return;
 	}
@@ -86,9 +86,9 @@ void WaveManager::update(float dt, GameplayState& gameState) {	// если пе�
 		const WavePart& currentPart = currentWave.parts[m_currentPartIndex];
 
 		// выбор спавнера
-		int totalSpawners = gameState.getPathCount();
+		int totalSpawners = world.paths.size();
 		if (totalSpawners > 0) {
-			gameState.spawnEnemy(currentPart.type, m_currentSpawnerIndex);
+			world.spawnEnemy(currentPart.type, m_currentSpawnerIndex);
 			// крутим в каком спавнере спавнить
 			m_currentSpawnerIndex++;
 			if (m_currentSpawnerIndex >= totalSpawners) {
