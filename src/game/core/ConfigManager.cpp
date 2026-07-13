@@ -51,6 +51,14 @@ SpriteUV ConfigManager::getUV(const std::string& atlasName, const std::string& r
 	return SpriteUV::fromPixels(0, 0, 64, 64, 1472, 832);
 }
 
+bool ConfigManager::hasUV(const std::string& atlasName, const std::string& regionName) {
+	auto atlasIt = s_atlases.find(atlasName);
+	if (atlasIt != s_atlases.end()) {
+		return atlasIt->second.regions.find(regionName) != atlasIt->second.regions.end();
+	}
+	return false;
+}
+
 bool ConfigManager::loadConfigs(const std::string& towerPath, const std::string& enemiesPath, const std::string& particlesPath) {
 	s_towerStats.clear();
 	s_enemyStats.clear();

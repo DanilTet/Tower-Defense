@@ -70,7 +70,7 @@ private:
 	float m_rotationSpeed;
 
 	// debug
-	bool m_showDebugArrow = true;
+	bool m_showDebugArrow = false;
 
 	// кеш
 	float m_splashRadius;

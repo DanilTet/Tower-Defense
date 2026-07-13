@@ -62,15 +62,38 @@ void Grid::draw(SpriteRenderer* renderer, std::shared_ptr<Texture2D> atlasTextur
 	// Создаем вектор размера: каждая плитка будет шириной и высотой ровно в m_cellSize пикселей
 	glm::vec2 size(m_cellSize, m_cellSize);
 
-	// настройка атласа
-	int atlasW = 1472;
-	int atlasH = 832;
-
 	//fromPixels(X, Y, Ширина, Высота, ШиринаАтласа, ВысотаАтласа)
 	SpriteUV uvGrass = ConfigManager::getUV("main_atlas", "grass");
 	SpriteUV uvPath = ConfigManager::getUV("main_atlas", "path");
 	SpriteUV uvPlatform = ConfigManager::getUV("main_atlas", "platform");
 	SpriteUV uvScenery = ConfigManager::getUV("main_atlas", "scenery");
+
+	auto getPriority = [](CellType t) {
+		switch (t) {
+			case CellType::Platform: return 3; // Камень (самый высокий)
+			case CellType::Ground:   return 2; // Трава
+			case CellType::Tower:    return 2; // Башня (на траве)
+			case CellType::Path:     return 1; // Земля / Дорога
+			default:                 return 0; // Вода / Скалы
+		}
+	};
+
+	auto getTypeName = [](CellType t) {
+		switch (t) {
+			case CellType::Platform: return "platform";
+			case CellType::Ground:   return "grass";
+			case CellType::Tower:    return "grass";
+			case CellType::Path:     return "path";
+			default:                 return "";
+		}
+	};
+
+	auto getNeighborType = [&](int cx, int cy, CellType currentType) {
+		if (cx >= 0 && cx < m_width && cy >= 0 && cy < m_height) {
+			return m_grid[cy][cx];
+		}
+		return currentType; // на границах берем тип текущего тайла
+	};
 
 	// вложенный цикл для обхода всей матрицы (Y — строки, X — столбцы)
 	for (int y = 0; y < m_height; ++y) {
@@ -83,8 +106,57 @@ void Grid::draw(SpriteRenderer* renderer, std::shared_ptr<Texture2D> atlasTextur
 
 			if (type == CellType::Path) currentUV = uvPath;
 			if (type == CellType::Platform) currentUV = uvPlatform;
+			if (type == CellType::Scenery) currentUV = uvScenery;
 
 			if (type == CellType::Ground || type == CellType::Platform || type == CellType::Tower || type == CellType::Path) {
+				int currPriority = getPriority(type);
+				std::string currName = getTypeName(type);
+
+				if (!currName.empty()) {
+					// 1. Ищем максимальный приоритет среди соседей, который ниже текущего
+					int targetPriority = -1;
+					CellType targetType = type;
+
+					CellType nType = getNeighborType(x, y - 1, type);
+					CellType sType = getNeighborType(x, y + 1, type);
+					CellType eType = getNeighborType(x + 1, y, type);
+					CellType wType = getNeighborType(x - 1, y, type);
+
+					int np = getPriority(nType);
+					int sp = getPriority(sType);
+					int ep = getPriority(eType);
+					int wp = getPriority(wType);
+
+					if (np < currPriority && np > targetPriority) { targetPriority = np; targetType = nType; }
+					if (sp < currPriority && sp > targetPriority) { targetPriority = sp; targetType = sType; }
+					if (ep < currPriority && ep > targetPriority) { targetPriority = ep; targetType = eType; }
+					if (wp < currPriority && wp > targetPriority) { targetPriority = wp; targetType = wType; }
+
+					// 2. Если найден сосед с более низким приоритетом, строим направление перехода
+					if (targetPriority != -1) {
+						std::string targetName = getTypeName(targetType);
+						if (!targetName.empty()) {
+							bool n = (np <= targetPriority && nType != type);
+							bool s = (sp <= targetPriority && sType != type);
+							bool e = (ep <= targetPriority && eType != type);
+							bool w = (wp <= targetPriority && wType != type);
+
+							std::string dir = "";
+							if (n) dir += "n";
+							if (s) dir += "s";
+							if (e) dir += "e";
+							if (w) dir += "w";
+
+							if (!dir.empty()) {
+								std::string transitionRegion = currName + "_" + targetName + "_" + dir;
+								if (ConfigManager::hasUV("main_atlas", transitionRegion)) {
+									currentUV = ConfigManager::getUV("main_atlas", transitionRegion);
+								}
+							}
+						}
+					}
+				}
+
 				// ПЕРЕДАЕМ НАШИ UV-КООРДИНАТЫ В БАТЧЕР!
 				renderer->drawSprite(atlasTexture, pixelPos, size, 0.0f, color, currentUV);
 			}

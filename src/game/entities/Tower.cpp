@@ -42,7 +42,7 @@ void Tower::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> atlasTex
 	SpriteUV towerUV = ConfigManager::getUV("main_atlas", "tower_basic");
 
 	// рисуем
-	renderer->drawSprite(atlasTexture, pixelPos, size, 0.0f, color, towerUV);
+	renderer->drawSprite(atlasTexture, pixelPos, size, m_angle, color, towerUV);
 
 	if (isSelected) {
 		float currentPixelRange = m_range * cellSize;
