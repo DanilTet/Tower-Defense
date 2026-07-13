@@ -177,6 +177,23 @@ void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies,
 					muzzle.velocityDir = shootDirection * force;
 
 					particleSystem.emit(muzzle, muzzle.spawnCount);
+
+					// Дополнительный спецэффект для снайпера: дым в бока от дула
+					if (m_muzzleParticle == "SniperMuzzle") {
+						ParticleEmitterProps smoke = ConfigManager::getParticleProps("SniperSmoke");
+						smoke.position = muzzle.position;
+						float smokeForce = glm::length(smoke.velocityDir);
+
+						// Направление влево (перпендикулярно выстрелу)
+						glm::vec2 leftDir(-shootDirection.y, shootDirection.x);
+						smoke.velocityDir = leftDir * smokeForce;
+						particleSystem.emit(smoke, smoke.spawnCount);
+
+						// Направление вправо (перпендикулярно выстрелу)
+						glm::vec2 rightDir(shootDirection.y, -shootDirection.x);
+						smoke.velocityDir = rightDir * smokeForce;
+						particleSystem.emit(smoke, smoke.spawnCount);
+					}
 				}
 
 				// формируем поссылку

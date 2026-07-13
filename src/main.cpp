@@ -6,8 +6,8 @@
 #include "game/core/Game.h"
 #include "audio/AudioManager.h"
 
-int windowWidth = 640; // начальная ширина окна
-int windowHeight = 480; // начальная высота окна
+int windowWidth = 1280; // начальная ширина окна
+int windowHeight = 720; // начальная высота окна
 
 std::unique_ptr<Game> TowerDefenseGame; //указатель на игру, который будет использоваться в коллбеках и главном цикле
 
