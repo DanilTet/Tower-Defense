@@ -230,6 +230,17 @@ void GameplayState::render() {
 
     m_renderer->beginBatch(); // открываем пакет
 
+    // ОТРИСОВКА ФОНА
+    if (m_mainAtlas) {
+        SpriteUV uvBg = ConfigManager::getUV("main_atlas", "background");
+        int bgSize = 64;
+        for (int y = 0; y < this->height + bgSize; y += bgSize) {
+            for (int x = 0; x < this->width + bgSize; x += bgSize) {
+                m_renderer->drawSprite(m_mainAtlas, glm::vec2(x, y), glm::vec2(bgSize, bgSize), 0.0f, glm::vec3(1.0f, 1.0f, 1.0f), uvBg);
+            }
+        }
+    }
+
     // Малюем игровую сетку
     m_world->grid->draw(m_renderer.get(), m_mainAtlas, m_transitionsAtlas, { 1.0f, 1.0f, 1.0f });
 

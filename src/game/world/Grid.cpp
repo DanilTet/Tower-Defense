@@ -124,13 +124,16 @@ void Grid::draw(SpriteRenderer* renderer, std::shared_ptr<Texture2D> atlasTextur
 			}
 
 			SpriteUV currentUV = uvGrass; // по умолчанию это трава
+			bool drawBase = true;
 
 			if (type == CellType::Path) currentUV = uvPath;
-			if (type == CellType::Platform) currentUV = uvPlatform;
-			if (type == CellType::Scenery) currentUV = uvScenery;
+			else if (type == CellType::Platform) currentUV = uvPlatform;
+			else if (type == CellType::Scenery) drawBase = false; // не рисуем камни поверх фона
 
 			// 1. Рисуем базовый тайл
-			renderer->drawSprite(atlasTexture, pixelPos, size, 0.0f, color, currentUV);
+			if (drawBase) {
+				renderer->drawSprite(atlasTexture, pixelPos, size, 0.0f, color, currentUV);
+			}
 
 			// 2. Накладываем переходы поверх базового тайла
 			int currPriority = getPriority(type);
@@ -184,8 +187,8 @@ void Grid::draw(SpriteRenderer* renderer, std::shared_ptr<Texture2D> atlasTextur
 			}
 
 			// --- Травяной переход (Ground/Tower) ---
-			// Рисуем только на земле (дороге), которая граничит с травой
-			if (currPriority == 1 && transitionsTexture) {
+			// Рисуем на любых клетках ниже травы, которые с ней граничат
+			if (currPriority < 2 && transitionsTexture) {
 				// Прямые переходы
 				if (np == 2) {
 					renderer->drawSprite(transitionsTexture, pixelPos, size, 180.0f, color, uvGrassTrans);

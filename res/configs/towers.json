@@ -16,8 +16,8 @@
         "trailParticle": "BulletTrail",
         "impactParticle": "SparkImpact",
         "bulletTextureId": "bulletBasic",
-        "bulletBaseSize": 20.0,
-        "bulletSpeed": 250.0
+        "bulletBaseSize": 30.0,
+        "bulletSpeed": 200.0
       },
       {
         "range": 3.0,
@@ -32,8 +32,8 @@
         "trailParticle": "BulletTrail",
         "impactParticle": "SparkImpact",
         "bulletTextureId": "bulletBasic",
-        "bulletBaseSize": 23.0,
-        "bulletSpeed": 280.0
+        "bulletBaseSize": 35.0,
+        "bulletSpeed": 225.0
       },
       {
         "range": 3.5,
@@ -48,8 +48,8 @@
         "trailParticle": "BulletTrail",
         "impactParticle": "SparkImpact",
         "bulletTextureId": "bulletBasic",
-        "bulletBaseSize": 26.0,
-        "bulletSpeed": 310.0
+        "bulletBaseSize": 40.0,
+        "bulletSpeed": 250.0
       }
     ]
   },
@@ -70,8 +70,8 @@
         "trailParticle": "ShotgunTrail",
         "impactParticle": "ShotgunImpact",
         "bulletTextureId": "bulletSniper",
-        "bulletBaseSize": 12.0,
-        "bulletSpeed": 700.0
+        "bulletBaseSize": 24.0,
+        "bulletSpeed": 350.0
       },
       {
         "range": 6.5,
@@ -86,8 +86,8 @@
         "trailParticle": "ShotgunTrail",
         "impactParticle": "ShotgunImpact",
         "bulletTextureId": "bulletSniper",
-        "bulletBaseSize": 14.0,
-        "bulletSpeed": 800.0
+        "bulletBaseSize": 28.0,
+        "bulletSpeed": 400.0
       },
       {
         "range": 8.0,
@@ -102,8 +102,8 @@
         "trailParticle": "ShotgunTrail",
         "impactParticle": "ShotgunImpact",
         "bulletTextureId": "bulletSniper",
-        "bulletBaseSize": 16.0,
-        "bulletSpeed": 900.0
+        "bulletBaseSize": 32.0,
+        "bulletSpeed": 450.0
       }
     ]
   },
