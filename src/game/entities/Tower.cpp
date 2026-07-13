@@ -41,8 +41,8 @@ void Tower::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> atlasTex
 	// режем башню
 	SpriteUV towerUV = ConfigManager::getUV("main_atlas", "tower_basic");
 
-	// рисуем
-	renderer->drawSprite(atlasTexture, pixelPos, size, m_angle, color, towerUV);
+	// рисуем (добавляем 90 градусов, чтобы выровнять текстуру дула с направлением выстрела)
+	renderer->drawSprite(atlasTexture, pixelPos, size, m_angle + 90.0f, color, towerUV);
 
 	if (isSelected) {
 		float currentPixelRange = m_range * cellSize;
