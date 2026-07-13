@@ -4,7 +4,10 @@
 #include <string>
 #include "entities/Enemy.h"
 
-struct GameWorld;
+struct SpawnRequest {
+	std::string type;
+	int spawnerIndex;
+};
 
 struct WavePart {
 	std::string type; // тип врага для спавна
@@ -25,7 +28,7 @@ public:
 	bool loadLevel(const std::string& filepath); // считываем левел с файла
 
 	void startNextWave(); // начинаем новую волну
-	void update(float dt, GameWorld& world); // обновляем менеджер врагов
+	std::vector<SpawnRequest> update(float dt, int totalSpawners); // обновляем менеджер врагов
 
 	// гетері для дебага потом убрать
 	int getCurrentWaveNumber() const { return m_currentWaveIndex + 1; }

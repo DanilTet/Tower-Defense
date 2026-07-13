@@ -205,8 +205,6 @@ void GameplayState::update(float dt) {
 
     //обновляем визуализатор пути
     if (m_world->grid) m_pathVisualizer->update(dt, m_world->grid->getCellSize());
-    // чекаем менеджер волн
-    if (m_world->waveManager) m_world->waveManager->update(dt, *m_world);
     // обновляем башни, пули и другое
     m_world->update(dt);
 

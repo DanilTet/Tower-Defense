@@ -7,6 +7,7 @@
 #include <string>
 
 class ParticleSystem;
+class EntityManager;
 
 enum class TargetMode {
 	First, // ближе всего к базе
@@ -88,6 +89,8 @@ private:
 	// режим наводки
 	TargetMode m_targetMode = TargetMode::First;
 
+	void applyStats(const TowerStats& stats);
+
 public:
 	// получаем характеристики башни
 	static TowerStats getStatsfromTowerType(const std::string& type);
@@ -96,7 +99,7 @@ public:
 	Tower(int gridX, int gridY, const std::string& type);
 
 	//обновление логики
-	void update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies, std::vector<Projectile>& projectiles, const Grid& grid, ParticleSystem& particleSystem);	// отрисовка
+	void update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies, EntityManager& entityManager, const Grid& grid, ParticleSystem& particleSystem);	// отрисовка
 	// отрисовка
 	void render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> atlasTexture, std::shared_ptr<Texture2D> radiusTexture, std::shared_ptr<Texture2D> arrowTexture, const Grid& grid, bool isSelected = false);
 

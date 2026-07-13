@@ -6,6 +6,7 @@
 #include "core/ConfigManager.h"
 #include "../core/EventBus.h"
 #include "../../particles/ParticleSystem.h"
+#include "../gameplay/EntityManager.h"
 
 TowerStats Tower::getStatsfromTowerType(const std::string& type) {
 	return ConfigManager::getTowerStats(type);
@@ -21,26 +22,7 @@ Tower::Tower(int gridX, int gridY, const std::string& type)
 {
 	// считываем статистику
 	TowerStats stats = Tower::getStatsfromTowerType(type);
-	m_range = stats.range; // присваеваем радиус атаки
-	m_damage = stats.damage; // присваиваем урон
-	m_fireRate = stats.fireRate; // присваеваем скорость атаки
-	m_rotationSpeed = stats.rotationSpeed; // присвоение скорости поворота башни
-	//m_currentTarget = nullptr; // текущая цель это нулпоинтер
-
-	// кеш
-	m_splashRadius = stats.splashRadius;
-	m_attackSound = stats.attackSound;
-	m_buildSound = stats.buildSound;
-
-	m_textureId = stats.textureId;
-	m_color = stats.color;
-	// и партиклы ефектов кешируем
-	m_muzzleParticle = stats.muzzleParticle;
-	m_trailParticle = stats.trailParticle;
-	m_impactParticle = stats.impactParticle;
-	m_bulletTextureId = stats.bulletTextureId;
-	m_bulletBaseSize = stats.bulletBaseSize;
-	m_bulletSpeed = stats.bulletSpeed;
+	applyStats(stats);
 
 	m_shotTimer = 0.0f; // переменная таймер
 }
@@ -79,7 +61,7 @@ void Tower::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> atlasTex
 
 }
 
-void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies, std::vector<Projectile>& projectiles, const Grid& grid, ParticleSystem& particleSystem) {
+void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies, EntityManager& entityManager, const Grid& grid, ParticleSystem& particleSystem) {
 	//если башня еще не перезарядилась, перезаряжаем
 	if (m_shotTimer > 0.0f) {
 		m_shotTimer -= dt;
@@ -169,14 +151,8 @@ void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies,
 			m_angle = targetAngle; // фиксируем прицел на враге
 			// проверяем перезарядку
 			if (m_shotTimer <= 0.0f) {
-				// ищем свободную пулю в масиве
-				Projectile* freeProj = nullptr;
-				for (auto& proj : projectiles) {
-					if (!proj.isActive()) {
-						freeProj = &proj;
-						break;
-					}
-				}
+				// ищем свободную пулю
+				Projectile* freeProj = entityManager.getFreeProjectile();
 
 				// если нашли пулю то будим этого бизнесмена
 				if (freeProj) {
@@ -245,24 +221,7 @@ bool Tower::upgrade(int& playerMoney) {
 		playerMoney -= nextStats.cost; // заберяем деняк
 		m_currentLevel = nextLevel;
 
-		// теперь новые статы
-		m_range = nextStats.range;
-		m_damage = nextStats.damage;
-		m_fireRate = nextStats.fireRate;
-		m_rotationSpeed = nextStats.rotationSpeed;
-
-		// обновляем кеш
-		m_splashRadius = nextStats.splashRadius;
-		m_attackSound = nextStats.attackSound;
-		m_buildSound = nextStats.buildSound;
-		m_textureId = nextStats.textureId;
-		m_color = nextStats.color;
-		m_muzzleParticle = nextStats.muzzleParticle;
-		m_trailParticle = nextStats.trailParticle;
-		m_impactParticle = nextStats.impactParticle;
-		m_bulletTextureId = nextStats.bulletTextureId;
-		m_bulletBaseSize = nextStats.bulletBaseSize;
-		m_bulletSpeed = nextStats.bulletSpeed;
+		applyStats(nextStats);
 
 		// формируем посылку с кастомным звуком апгрейда
 		Event e;
@@ -286,6 +245,10 @@ void Tower::forceLevel(int level) {
 	m_currentLevel = level;
 	TowerStats stats = ConfigManager::getTowerStats(m_type, level);// получаем статы для этого типа
 
+	applyStats(stats);
+}
+
+void Tower::applyStats(const TowerStats& stats) {
 	m_range = stats.range;
 	m_damage = stats.damage;
 	m_fireRate = stats.fireRate;

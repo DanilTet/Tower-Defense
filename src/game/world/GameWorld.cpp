@@ -96,6 +96,12 @@ void GameWorld::recalculateAllPaths() {
 }
 
 void GameWorld::update(float dt) {
+    if (waveManager) {
+        auto requests = waveManager->update(dt, paths.size());
+        for (const auto& req : requests) {
+            spawnEnemy(req.type, req.spawnerIndex);
+        }
+    }
     entityManager->update(dt, *grid);
 }
 
