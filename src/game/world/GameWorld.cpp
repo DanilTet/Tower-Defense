@@ -44,6 +44,8 @@ bool GameWorld::loadLevel(const std::string& levelPath, int windowWidth, int win
         grid->setCellType(base.x, base.y, CellType::Base);
     }
 
+    grid->saveOriginalGrid();
+
     pathfinder = std::make_unique<Pathfinder>(levelData.gridWidth, levelData.gridHeight);
     waveManager = std::make_unique<WaveManager>();
     waveManager->loadLevel(currentLevelPath);

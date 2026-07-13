@@ -27,10 +27,13 @@ private:
 	glm::vec2 m_offset; // ссув поля
 
 	std::vector<std::vector<CellType>> m_grid; // 2D вектор для хранения типа каждой клетки
-	//std::vector<std::unique_ptr<Tower>> m_towers; // 2D вектор для хранения башен
+	std::vector<std::vector<CellType>> m_originalGrid; // Хранилище исходных типов клеток (до постройки башен)
 
 public:
 	Grid(int width, int height, float cellSize, glm::vec2 offset = glm::vec2(0.0f, 0.0f));
+
+	void saveOriginalGrid();
+	CellType getOriginalCellType(int gridX, int gridY) const;
 
 	glm::vec2 gridToPixel(int gridX, int gridY) const; // тут получаем левый верхний угол клетки
 	glm::ivec2 pixelToGrid(glm::vec2 pixelPos) const; // получаем кординаты мыши и возращаем индекс клетки в масиве

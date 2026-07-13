@@ -125,8 +125,8 @@ void BuildManager::sellTower(
 
     world.playerStats.money += 50;
 
-    // освобождаем клетку на сетке
-    world.grid->setCellType(tx, ty, CellType::Ground);
+    // освобождаем клетку на сетке (возвращаем исходный тип террейна)
+    world.grid->setCellType(tx, ty, world.grid->getOriginalCellType(tx, ty));
 
     // уничтожаем объект башни
     world.entityManager->removeTower(tx, ty);

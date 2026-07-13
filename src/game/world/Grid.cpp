@@ -12,6 +12,18 @@ Grid::Grid(int width, int height, float cellSize, glm::vec2 offset){
 	m_offset = offset; // запоминаем ссув
 	// Двумерный вектор для хранения типа каждой клетки, изначально все клетки пустые
 	m_grid.resize(m_height, std::vector<CellType>(m_width, CellType::Ground));
+	m_originalGrid.resize(m_height, std::vector<CellType>(m_width, CellType::Ground));
+}
+
+void Grid::saveOriginalGrid() {
+	m_originalGrid = m_grid;
+}
+
+CellType Grid::getOriginalCellType(int gridX, int gridY) const {
+	if (gridX >= 0 && gridX < m_width && gridY >= 0 && gridY < m_height) {
+		return m_originalGrid[gridY][gridX];
+	}
+	return CellType::Ground;
 }
 
 // Перевод из индексов клетки в пиксели экрана
@@ -103,6 +115,9 @@ void Grid::draw(SpriteRenderer* renderer, std::shared_ptr<Texture2D> atlasTextur
 			// Вычисляем, где физически на экране должен стоять этот квадрат (базовая позиция + общий сдвиг сетки)
 			glm::vec2 pixelPos = gridToPixel(x, y);
 			CellType type = m_grid[y][x];
+			if (type == CellType::Tower) {
+				type = m_originalGrid[y][x];
+			}
 
 			SpriteUV currentUV = uvGrass; // по умолчанию это трава
 
