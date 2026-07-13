@@ -104,7 +104,11 @@ void Grid::draw(SpriteRenderer* renderer, std::shared_ptr<Texture2D> atlasTextur
 
 	auto getNeighborType = [&](int cx, int cy, CellType currentType) {
 		if (cx >= 0 && cx < m_width && cy >= 0 && cy < m_height) {
-			return m_grid[cy][cx];
+			CellType t = m_grid[cy][cx];
+			if (t == CellType::Tower) {
+				return m_originalGrid[cy][cx];
+			}
+			return t;
 		}
 		return currentType; // на границах берем тип текущего тайла
 	};
