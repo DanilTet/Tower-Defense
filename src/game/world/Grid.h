@@ -2,8 +2,6 @@
 #include <vector>
 #include <memory>
 #include <glm/glm.hpp>
-#include "entities/Enemy.h"
-#include "entities/Tower.h"
 
 enum class CellType {
 	Ground,    // 1: Можно строить, можно ходить (враги могут тут идти, пока ты не поставишь башню)

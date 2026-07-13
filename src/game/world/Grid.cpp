@@ -2,7 +2,6 @@
 #include "renderer/SpriteRenderer.h"
 #include "textures/Texture2D.h"
 #include "resources/ResourceManager.h"
-#include "entities/Enemy.h"
 #include "../core/ConfigManager.h"
 
 // конструктор создает пустую сетку заданого размера
