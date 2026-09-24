@@ -1,7 +1,6 @@
 #pragma once
 #include "IGameState.h"
 #include <memory>
-#include <vector>
 #include <string>
 #include <glm/glm.hpp>
 #include "../world/GameWorld.h"
@@ -9,62 +8,53 @@
 #include "../ui/PlacementUI.h"
 #include "../ui/StatsPanel.h"
 #include "../ui/TowerMenuUI.h"
-#include "../gameplay/BuildManager.h"
-#include "../renderer/TextRenderer.h"
 #include "../ui/PathRenderer.h"
+#include "../gameplay/BuildManager.h"
+#include "GameplayInputHandler.h"
+#include "../../renderer/GameplayRenderer.h"
 
 class SpriteRenderer;
-class Texture2D;
+class TextRenderer;
 class GameStateManager;
+class Tower;
 
 class GameplayState : public IGameState {
 private:
-    GameStateManager& m_stateManager; // ссылка для смены экранов
+    GameStateManager& m_stateManager;
 
-    int width, height; // ширина высота экрана
-    bool m_mousePressedLastFrame; // фиксик
-    glm::vec2 m_currentMousePos; // позиция мыши
-    std::string m_selectedTowerType; // башня в руке
-    Tower* m_selectedTowerOnMap = nullptr; // выбраная башня на карте
+    int width, height;
+    std::string m_selectedTowerType;
+    Tower* m_selectedTowerOnMap = nullptr;
+    std::string m_currentLevelPath;
 
-    std::string m_currentLevelPath; // путь на левел который щас играет
-
-    /// все указатели мира
+    // Игровой мир и менеджеры
     std::unique_ptr<GameWorld> m_world;
+    std::unique_ptr<BuildManager> m_buildManager;
 
+    // Выделенные подсистемы (декомпозиция God Object)
+    std::unique_ptr<GameplayInputHandler> m_inputHandler;
+    std::unique_ptr<GameplayRenderer> m_gameplayRenderer;
+
+    // UI элементы
     std::unique_ptr<Buildpanel> m_buildPanel;
     std::unique_ptr<PlacementUI> m_placementUI;
     std::unique_ptr<PathVisualizer> m_pathVisualizer;
     std::unique_ptr<StatsPanel> m_statsPanel;
     std::unique_ptr<TowerMenuUI> m_towerMenuUI;
-    std::unique_ptr<BuildManager> m_buildManager;
 
-    // текстуры
-    std::shared_ptr<Texture2D> m_radiusTexture;
-    std::shared_ptr<Texture2D> m_particleTexture;
-    std::shared_ptr<Texture2D> m_mainAtlas;
-    std::shared_ptr<Texture2D> m_enemyAtlas;
-    std::shared_ptr<Texture2D> m_transitionsAtlas;
-
-    // указатель на рендеры
+    // Рендереры для передачи в дочерние стейты
     std::shared_ptr<SpriteRenderer> m_renderer;
     TextRenderer* m_textRenderer;
 
-    // Вспомогательные методы, которые относятся только к бою
-    bool isKeyJustPressed(GLFWwindow* window, int key);
-    bool m_keysProcessed[1024] = { false };
-
-    // имя файла для загрузки
     std::string m_saveToLoad = "";
+    bool m_isValid = true;
 
-    bool m_isValid = true; // стейт для сохранений
+    void setupUI();
+    void setupEventListeners();
 
 public:
-    // конструктор
     GameplayState(GameStateManager& stateManager, int windowWidth, int windowHeight, std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer, std::string levelPath);
 
-
-    // база всего мать его
     void init() override;
     void cleanup() override;
     void processInput(GLFWwindow* window, float dt) override;
@@ -72,16 +62,11 @@ public:
     void render() override;
     void resize(int width, int height) override;
 
-    // методы для геймплея
     void startNextWave();
     void restartGame();
 
-    // загрузка сохраненной игры
     bool loadSavedGame(const std::string& saveName);
-
-    // установка сохранения которое нужно запустить при инициализации
     void setSaveToLoad(const std::string& saveName) { m_saveToLoad = saveName; }
-
-    // метод вызова сохранения текущего матча
     void saveGame(const std::string& saveName);
+};
 };

@@ -7,6 +7,7 @@
 #include "../core/EventBus.h"
 #include "../../particles/ParticleSystem.h"
 #include "../gameplay/EntityManager.h"
+#include "TowerTargetingSystem.h"
 
 TowerStats Tower::getStatsfromTowerType(const std::string& type) {
 	return ConfigManager::getTowerStats(type);
@@ -71,158 +72,56 @@ void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies,
 	// считаем центр башни
 	float cellSize = grid.getCellSize();
 	glm::vec2 towerCenter = grid.gridToPixel(m_gridX, m_gridY) + glm::vec2(cellSize / 2.0f);
-	
-	float currentPixelRange = m_range * cellSize; // считаем радиус атаки в пикселях
+	float currentPixelRange = m_range * cellSize;
 
-	// создание хитбокса башни в понимании зоны поражения
-	CircleCollider towerCollider = { towerCenter, currentPixelRange };
+	Enemy* bestTarget = TowerTargetingSystem::selectTarget(towerCenter, currentPixelRange, m_targetMode, enemies, grid);
 
-	// ПЕРЕМЕННІЕ ДЛЯ ПОИСКА ЛУЧШЕЙ ЦЕЛИ
-	Enemy* bestTarget = nullptr; // указатели на лучшую цель
-	float maxTraveled = -1.0f; // для режима First
-	float minTraveled = 999999.0f; // для режима Last
-	float minDistance = 999999.0f; // для режима Close
-	int minHealth = 999999; // для режима Weak
-
-
-	// проходим по врагам
-	for (const auto& enemy : enemies) {
-		// пропускаем мертвіх или тех кто дошел до финала
-		if (!enemy || enemy->isReachedEnd() || enemy->isDead()) continue;
-
-		// берем хитбокс врага и проверяем столкновение с зоной башни
-		if (towerCollider.intersects(enemy->getCollider(grid))) {
-
-			// выбираем логику в зависимости от текущего режима башни
-			switch (m_targetMode) {
-			case TargetMode::First:
-				if (enemy->getDistanceTraveled() > maxTraveled) {
-					maxTraveled = enemy->getDistanceTraveled();
-					bestTarget = enemy.get();
-				}
-				break;
-
-			case TargetMode::Last:
-				if (enemy->getDistanceTraveled() < minTraveled) {
-					minTraveled = enemy->getDistanceTraveled();
-					bestTarget = enemy.get();
-				}
-				break;
-
-			case TargetMode::Close: {
-				// Считаем дистанцию от центра башни до врага
-				float dist = glm::distance(towerCenter, enemy->getCollider(grid).center);
-				if (dist < minDistance) {
-					minDistance = dist;
-					bestTarget = enemy.get();
-				}
-				break;
-			}
-
-			case TargetMode::Weak:
-				if (enemy->getHealth() < minHealth) {
-					minHealth = enemy->getHealth();
-					bestTarget = enemy.get();
-				}
-				break;
-			}
-		}
-	}
-		
-	// если нашли врага то наводимся на него
 	if (bestTarget != nullptr) {
-		// получаем центр врага
 		glm::vec2 enemyCenter = bestTarget->getCollider(grid).center;
-		// вектор направления к цели от башни до врага
-		glm::vec2 dir = enemyCenter - towerCenter;
-		// получаем градусы на которые надо повернуться
-		float targetAngle = glm::degrees(atan2(dir.y, dir.x));
+		bool isAimed = TowerTargetingSystem::updateAim(m_angle, towerCenter, enemyCenter, m_rotationSpeed, dt);
 
-		// вычисляем разницу между текущим углом башни и нужным углом -180 до 180
-		float angleDiff = targetAngle - m_angle;
-		while (angleDiff > 180.0f) angleDiff -= 360.0f;
-		while (angleDiff < -180.0f) angleDiff += 360.0f;
-
-		// если дуло почти смотрит на врага и разница меньше того что мы проверяем за этот кадр
-		if (abs(angleDiff) <= m_rotationSpeed * dt) {
-			
+		if (isAimed) {
 			float currentSplash = ConfigManager::getTowerStats(m_type, m_currentLevel).splashRadius;
 
-			m_angle = targetAngle; // фиксируем прицел на враге
-			// проверяем перезарядку
 			if (m_shotTimer <= 0.0f) {
-				// ищем свободную пулю
 				Projectile* freeProj = entityManager.getFreeProjectile();
-
-				// если нашли пулю то будим этого бизнесмена
 				if (freeProj) {
 					freeProj->setParticleEffects(m_trailParticle, m_impactParticle);
 					freeProj->setVisuals(m_bulletTextureId, m_bulletBaseSize);
 					freeProj->init(towerCenter, m_angle, m_bulletSpeed, m_damage, bestTarget->getId(), m_splashRadius, currentPixelRange);
 				}
-				// партиклы из дула
+
 				if (!m_muzzleParticle.empty()) {
 					ParticleEmitterProps muzzle = ConfigManager::getParticleProps(m_muzzleParticle);
-
-					// вычисляем вектор направления выстрела
 					glm::vec2 shootDirection = glm::vec2(cos(glm::radians(m_angle)), sin(glm::radians(m_angle)));
-
-					// вспышка появляется прямо на конце дула башни
 					muzzle.position = towerCenter + shootDirection * (cellSize * 0.4f);
-
-					// берем силу толчка прямо из конфига
 					float force = glm::length(muzzle.velocityDir);
-
-					// направляем эту силу по текущему повороту дула
 					muzzle.velocityDir = shootDirection * force;
-
 					particleSystem.emit(muzzle, muzzle.spawnCount);
 
-					// Дополнительный спецэффект для снайпера: дым в бока от дула
 					if (m_muzzleParticle == "SniperMuzzle") {
 						ParticleEmitterProps smoke = ConfigManager::getParticleProps("SniperSmoke");
 						smoke.position = muzzle.position;
 						float smokeForce = glm::length(smoke.velocityDir);
 
-						// Направление влево (перпендикулярно выстрелу)
 						glm::vec2 leftDir(-shootDirection.y, shootDirection.x);
 						smoke.velocityDir = leftDir * smokeForce;
 						particleSystem.emit(smoke, smoke.spawnCount);
 
-						// Направление вправо (перпендикулярно выстрелу)
 						glm::vec2 rightDir(shootDirection.y, -shootDirection.x);
 						smoke.velocityDir = rightDir * smokeForce;
 						particleSystem.emit(smoke, smoke.spawnCount);
 					}
 				}
 
-				// формируем поссылку
 				Event e;
 				e.type = EventType::TowerFired;
 				e.textData = m_attackSound;
 				EventBus::publish(e);
 
 				m_shotTimer = m_fireRate;
-
-
-
 			}
 		}
-		else {
-			float direction = 0.0f;
-			if (angleDiff > 0) {
-				direction = 1.0f;
-			}
-			else {
-				direction = -1.0f;
-			}
-
-			float rotationStep = direction * m_rotationSpeed * dt;
-
-			m_angle += rotationStep;
-			if (m_angle > 180.0f) m_angle -= 360.0f;
-			if (m_angle < -180.0f) m_angle += 360.0f;
-		}	
 	}
 }
 

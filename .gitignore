@@ -1,2 +1,4 @@
-build
+build/
+out/
+.vs/
 llm_context.md

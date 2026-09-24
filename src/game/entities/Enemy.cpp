@@ -6,6 +6,7 @@
 #include "core/ConfigManager.h"
 #include "world/Pathfinder.h"
 #include "../../resources/ResourceManager.h"
+#include "../ui/HealthBarRenderer.h"
 
 int Enemy::s_nextId = 0; // инициализация общего счетчика
 
@@ -123,21 +124,8 @@ void Enemy::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture,
 
     renderer->drawSprite(enemyTexPtr, centeredPos, size, m_angle, m_color, currentFrameUV);
 
-    //ЧАТО ГПТИШНОЕ ГОВНО КОТОРОЕ ПОТОМ УБРАТЬ
-    // //ЧАТО ГПТИШНОЕ ГОВНО КОТОРОЕ ПОТОМ УБРАТЬ
-    // //ЧАТО ГПТИШНОЕ ГОВНО КОТОРОЕ ПОТОМ УБРАТЬ
-    // --- ОТРИСОВКА ПОЛОСКИ ЗДОРОВЬЯ (HEALTH BAR) ---
-
-    float hpPercent = static_cast<float>(m_health) / static_cast<float>(stats.Maxhealth);
-    if (hpPercent < 0.0f) hpPercent = 0.0f;
-
-    float barWidth = enemySizeDim;
-    float barHeight = 6.0f;
-
-    glm::vec2 barPos = centeredPos + glm::vec2(0.0f, -10.0f);
-
-    renderer->drawSprite(texture, barPos, glm::vec2(barWidth, barHeight), 0.0f, glm::vec3(1.0f, 0.0f, 0.0f));
-    renderer->drawSprite(texture, barPos, glm::vec2(barWidth * hpPercent, barHeight), 0.0f, glm::vec3(0.0f, 1.0f, 0.0f));
+    // --- ОТРИСОВКА ПОЛОСКИ ЗДОРОВЬЯ (HEALTH BAR) ЧЕРЕЗ HealthBarRenderer ---
+    HealthBarRenderer::draw(renderer, texture, centeredPos, enemySizeDim, m_health, stats.Maxhealth);
 
     // --- ОТРИСОВКА ХИТБОКСА (ДЕБАГ) ---
 

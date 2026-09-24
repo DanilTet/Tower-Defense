@@ -55,45 +55,20 @@ bool GameWorld::loadLevel(const std::string& levelPath, int windowWidth, int win
     return true;
 }
 
+#include "PathService.h"
+
 void GameWorld::recalculateAllPaths() {
-    paths.clear();
-    for (size_t i = 0; i < spawners.size(); ++i) {
-        int baseIdx = spawners[i].targetBaseIndex;
-        std::vector<glm::ivec2> calculatedPath;
-
-        if (baseIdx == -1) {
-            int minCost = 999999;
-            float minEuclideanDist = 999999.0f;
-
-            for (const auto& base : bases) {
-                int currentCost = 0;
-                auto path = pathfinder->findPath(*grid, spawners[i].pos, base, currentCost);
-
-                if (!path.empty()) {
-                    float euclideanDist = glm::distance(glm::vec2(spawners[i].pos), glm::vec2(base));
-
-                    if (currentCost < minCost || (currentCost == minCost && euclideanDist < minEuclideanDist)) {
-                        minCost = currentCost;
-                        minEuclideanDist = euclideanDist;
-                        calculatedPath = path;
-                    }
-                }
-            }
-        }
-        else {
-            if (baseIdx < 0 || baseIdx >= bases.size()) baseIdx = 0;
-            int dummyCost = 0;
-            calculatedPath = pathfinder->findPath(*grid, spawners[i].pos, bases[baseIdx], dummyCost);
-        }
-
-        if (!calculatedPath.empty()) {
-            calculatedPath.insert(calculatedPath.begin(), spawners[i].pos);
-            paths.push_back(calculatedPath);
-        }
-    }
-
+    paths = PathService::calculateAllPaths(*grid, *pathfinder, spawners, bases);
     if (!paths.empty()) {
         levelPath = paths[0];
+    }
+}
+
+void GameWorld::notifyEnemiesPathChanged() {
+    for (auto& enemy : entityManager->getEnemies()) {
+        if (enemy) {
+            enemy->recalculatePath(pathfinder.get(), *grid, bases);
+        }
     }
 }
 

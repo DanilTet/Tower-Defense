@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 4.3.2 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.28 FATAL_ERROR)
 
 set(PROJECT_NAME TD)
 project(${PROJECT_NAME})
@@ -11,59 +11,7 @@ set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_INSTALL OFF CACHE BOOL "" FORCE)
 
-configure_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/res/shaders/vertex_shader.vert
-    ${CMAKE_CURRENT_BINARY_DIR}/res/shaders/vertex_shader.vert
-    COPYONLY
-)
-
-configure_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/res/shaders/fragment_shader.frag
-    ${CMAKE_CURRENT_BINARY_DIR}/res/shaders/fragment_shader.frag
-    COPYONLY
-)
-configure_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/res/textures/test_sprite.png
-    ${CMAKE_CURRENT_BINARY_DIR}/res/textures/test_sprite.png
-    COPYONLY
-)
-
-configure_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/res/shaders/text_shader.vert
-    ${CMAKE_CURRENT_BINARY_DIR}/res/shaders/text_shader.vert
-    COPYONLY
-)
-configure_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/res/shaders/text_shader.frag
-    ${CMAKE_CURRENT_BINARY_DIR}/res/shaders/text_shader.frag
-    COPYONLY
-)
-
-configure_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/res/fonts/Roboto-Regular.ttf
-    ${CMAKE_CURRENT_BINARY_DIR}/res/fonts/Roboto-Regular.ttf
-    COPYONLY
-)
-
-configure_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/res/levels/level_1.json
-    ${CMAKE_CURRENT_BINARY_DIR}/res/levels/level_1.json
-    COPYONLY
-)
-
-configure_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/res/levels/level_2.json
-    ${CMAKE_CURRENT_BINARY_DIR}/res/levels/level_2.json
-    COPYONLY
-)
-
-configure_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/res/levels/textures.json
-    ${CMAKE_CURRENT_BINARY_DIR}/res/levels/textures.json
-    COPYONLY
-)
-
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/res/sounds DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/res)
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/res DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 add_subdirectory(external/glfw)
 add_subdirectory(external/glad)
@@ -91,6 +39,8 @@ add_executable(${PROJECT_NAME}
     src/game/entities/Enemy.cpp
     src/game/entities/Tower.h
     src/game/entities/Tower.cpp
+    src/game/entities/TowerTargetingSystem.h
+    src/game/entities/TowerTargetingSystem.cpp
     src/game/entities/Projectile.h
     src/game/entities/Projectile.cpp
     src/game/entities/CircleCollider.h
@@ -100,6 +50,8 @@ add_executable(${PROJECT_NAME}
     src/game/world/Grid.cpp
     src/game/world/Pathfinder.h
     src/game/world/Pathfinder.cpp
+    src/game/world/PathService.h
+    src/game/world/PathService.cpp
     src/game/world/GameWorld.h
     src/game/world/GameWorld.cpp
 
@@ -110,6 +62,8 @@ add_executable(${PROJECT_NAME}
     src/renderer/SpriteRenderer.cpp
     src/renderer/TextRenderer.h
     src/renderer/TextRenderer.cpp
+    src/renderer/GameplayRenderer.h
+    src/renderer/GameplayRenderer.cpp
 
     # Resources (Ресурсы)
     src/resources/ResourceManager.h
@@ -126,6 +80,8 @@ add_executable(${PROJECT_NAME}
     # Audio (Аудио)
     src/audio/AudioManager.h
     src/audio/AudioManager.cpp
+    src/audio/AudioEventSystem.h
+    src/audio/AudioEventSystem.cpp
 
     # панелька для строительства
     src/game/ui/BuildPanel.h
@@ -142,6 +98,9 @@ add_executable(${PROJECT_NAME}
 
     src/game/ui/TowerMenuUI.h
     src/game/ui/TowerMenuUI.cpp
+
+    src/game/ui/HealthBarRenderer.h
+    src/game/ui/HealthBarRenderer.cpp
 
     src/game/gameplay/BuildManager.h
     src/game/gameplay/BuildManager.cpp
@@ -160,6 +119,9 @@ add_executable(${PROJECT_NAME}
     src/game/states/IGameState.h
     src/game/states/GameStateManager.h
     src/game/states/GameStateManager.cpp
+    src/game/states/GameplayInputHandler.h
+    src/game/states/GameplayInputHandler.cpp
+    src/game/states/GameplayState.h
     src/game/states/GameplayState.cpp
 
     src/particles/ParticleSystem.cpp
@@ -180,9 +142,18 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/external/miniaudio
 )
 
+target_link_directories(${PROJECT_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/freetype/lib
+)
+
 target_link_libraries(${PROJECT_NAME} PRIVATE 
     glfw 
     glad 
-    debug freetyped
-    optimized freetype
+    freetype
+)
+
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "${CMAKE_CURRENT_SOURCE_DIR}/external/freetype/lib/freetype.dll"
+    $<TARGET_FILE_DIR:${PROJECT_NAME}>
 )
