@@ -60,8 +60,10 @@ public:
 
 	// функци для перерасчета пути
 	void recalculatePath(Pathfinder* pathfinder, const Grid& grid, const std::vector<glm::ivec2>& bases);
+	bool isPathIntersecting(glm::ivec2 cell) const;
 
 	glm::ivec2 getTargetBase() const { return m_path.empty() ? glm::ivec2(0) : m_path.back(); }
+	int getTargetBaseIndex() const { return m_targetBaseIndex; }
 
 	// Функция для получения характеристик врага в зависимости от его типа
 	static EnemyStats getStatsfromEnemyType(const std::string& type);

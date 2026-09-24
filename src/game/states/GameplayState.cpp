@@ -233,4 +233,3 @@ bool GameplayState::loadSavedGame(const std::string& saveName) {
     std::cout << "[LoadGame] Мир и маршруты успешно восстановлены с учетом башен!" << std::endl;
     return true;
 }
-}

@@ -4,6 +4,7 @@
 #include "world/Grid.h"
 #include "core/ConfigManager.h"
 #include "gameplay/PlayerStats.h"
+#include "entities/Enemy.h"
 
 void PlacementUI::renderHologram(
     SpriteRenderer* renderer,
@@ -14,7 +15,8 @@ void PlacementUI::renderHologram(
     const std::string& selectedTower,
     const PlayerStats& stats,
     glm::vec2 panelPos,
-    bool hasValidPath) {
+    bool hasValidPath,
+    const std::vector<std::unique_ptr<Enemy>>* activeEnemies) {
 
     // если рука пустая то выходим
     if (selectedTower.empty()) {
@@ -38,10 +40,22 @@ void PlacementUI::renderHologram(
     bool hasMoney = (stats.money >= towerstats.cost);
     bool canBuildHere = gameGrid.canBuildAt(gridPos.x, gridPos.y);
 
+    // проверяем, не стоит ли на этой клетке живой враг
+    bool hasEnemyHere = false;
+    if (activeEnemies) {
+        for (const auto& enemy : *activeEnemies) {
+            if (!enemy || enemy->isDead() || enemy->isReachedEnd()) continue;
+            if (gameGrid.pixelToGrid(enemy->getPixelPos()) == gridPos) {
+                hasEnemyHere = true;
+                break;
+            }
+        }
+    }
+
     // задаем цвет голограмы
     glm::vec3 holoColor;
 
-    if (hasMoney && canBuildHere) {
+    if (hasMoney && canBuildHere && !hasEnemyHere) {
         holoColor = glm::vec3(0.2f, 1.0f, 0.2f); // Зелёная голограмма все ок
     }
     else {

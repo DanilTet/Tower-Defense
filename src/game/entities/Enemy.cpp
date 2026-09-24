@@ -51,6 +51,16 @@ void Enemy::update(float dt, const Grid& grid) {
     // Если враг достиг конца или нету пути - выходим
     if (m_reachedEnd || m_path.empty()) return;
 
+    // Проверка безопасности: если целевая клетка заблокирована башней, останавливаемся
+    if (m_currentWayPoint < m_path.size()) {
+        glm::ivec2 checkCell = m_path[m_currentWayPoint];
+        if (!Pathfinder::isCellWalkable(grid, checkCell.x, checkCell.y)) {
+            m_path.clear();
+            m_currentWayPoint = 0;
+            return;
+        }
+    }
+
     m_animator.update(dt); // прокрутка анимации
 
     // Определяем контрольную точку маршрута к которой идем
@@ -179,35 +189,51 @@ CircleCollider Enemy::getCollider(const Grid& grid) const {
     // возвращаем готовую структуру центр врага и его динамический радиус
     return { center, currentRadius };
 }
-// функция для нахождения новго пути
-void Enemy::recalculatePath(Pathfinder* pathfinder, const Grid& grid, const std::vector<glm::ivec2>& bases) {
-    glm::ivec2 currentGridPos = grid.pixelToGrid(m_pixelPos);
-    std::vector<glm::ivec2> bestPath;
-
-    if (m_targetBaseIndex == -1) {
-        // ищем кратчайший путь с учетом стоимости
-        int minCost = 999999;
-
-        for (const auto& base : bases) {
-            int currentCost = 0; // переменная для сохранения стоимости
-            auto path = pathfinder->findPath(grid, currentGridPos, base, currentCost);
-            if (!path.empty()) {
-                if (currentCost < minCost) {
-                    minCost = currentCost;
-                    bestPath = path;
+bool Enemy::isPathIntersecting(glm::ivec2 cell) const {
+    if (m_path.empty()) return false;
+    for (size_t i = m_currentWayPoint; i < m_path.size(); ++i) {
+        if (m_path[i] == cell) {
+            return true;
+        }
+        // Проверяем диагональный срез угла между точками i и i+1
+        if (i + 1 < m_path.size()) {
+            int dx = m_path[i + 1].x - m_path[i].x;
+            int dy = m_path[i + 1].y - m_path[i].y;
+            if (std::abs(dx) == 1 && std::abs(dy) == 1) {
+                if ((cell.x == m_path[i].x + dx && cell.y == m_path[i].y) ||
+                    (cell.x == m_path[i].x && cell.y == m_path[i].y + dy)) {
+                    return true;
                 }
             }
         }
     }
+    return false;
+}
+
+// функция для нахождения нового пути
+void Enemy::recalculatePath(Pathfinder* pathfinder, const Grid& grid, const std::vector<glm::ivec2>& bases) {
+    if (!pathfinder || bases.empty()) return;
+
+    glm::ivec2 currentGridPos = grid.pixelToGrid(m_pixelPos);
+    std::vector<glm::ivec2> bestPath;
+    int dummyCost = 0;
+
+    if (m_targetBaseIndex == -1) {
+        // Ищем кратчайший путь сразу ко всем доступным базам за 1 A* поиск
+        bestPath = pathfinder->findPathToAny(grid, currentGridPos, bases, dummyCost);
+    }
     else {
         int idx = m_targetBaseIndex;
-        if (idx < 0 || idx >= bases.size()) idx = 0;
-        int dummyCost = 0;
+        if (idx < 0 || idx >= static_cast<int>(bases.size())) idx = 0;
         bestPath = pathfinder->findPath(grid, currentGridPos, bases[idx], dummyCost);
     }
 
     if (!bestPath.empty()) {
         m_path = bestPath;
+        m_currentWayPoint = 0;
+    } else {
+        // Тупик: пути нет. Очищаем маршрут, чтобы моб не шел сквозь башни!
+        m_path.clear();
         m_currentWayPoint = 0;
     }
 }

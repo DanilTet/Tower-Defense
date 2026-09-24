@@ -35,12 +35,15 @@ void BuildManager::tryBuildOrUpgrade(
     if (world.playerStats.money >= currentCost && world.grid->canBuildAt(clickedCell.x, clickedCell.y)) {
 
         std::vector<std::vector<glm::ivec2>> newPaths;
-        if (!PathService::isPlacementValid(*world.grid, *world.pathfinder, world.spawners, world.bases, clickedCell.x, clickedCell.y, newPaths)) {
+        if (!PathService::isPlacementValid(*world.grid, *world.pathfinder, world.spawners, world.bases, clickedCell.x, clickedCell.y, newPaths, &world.paths, &world.entityManager->getEnemies())) {
             std::cout << "Path Blocked! Cannot build here." << std::endl;
             return;
         }
 
         world.playerStats.money -= currentCost;
+
+        // Помечаем клетку как занятую башней на сетке
+        world.grid->setCellType(clickedCell.x, clickedCell.y, CellType::Tower);
 
         // спавнить башню через entityManager
         auto newTower = std::make_unique<Tower>(clickedCell.x, clickedCell.y, selectedType);
@@ -57,8 +60,8 @@ void BuildManager::tryBuildOrUpgrade(
         world.paths = newPaths;
         world.levelPath = world.paths[0];
 
-        // даем врагам новый путь
-        world.notifyEnemiesPathChanged();
+        // даем врагам новый путь (только тем, чей маршрут пересекает новую башню)
+        world.notifyEnemiesPathChanged(clickedCell);
     }
 }
 

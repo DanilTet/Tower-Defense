@@ -122,7 +122,8 @@ void GameplayRenderer::renderFrame(
             selectedTowerType,
             world.playerStats,
             currentPanelPos,
-            hasPath
+            hasPath,
+            world.entityManager ? &world.entityManager->getEnemies() : nullptr
         );
     }
 

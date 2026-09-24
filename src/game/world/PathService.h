@@ -1,10 +1,12 @@
 #pragma once
 #include <vector>
+#include <memory>
 #include <glm/glm.hpp>
 #include "../core/LevelManager.h"
 
 class Grid;
 class Pathfinder;
+class Enemy;
 
 class PathService {
 public:
@@ -22,7 +24,9 @@ public:
         const std::vector<glm::ivec2>& bases,
         int gridX,
         int gridY,
-        std::vector<std::vector<glm::ivec2>>& outNewPaths
+        std::vector<std::vector<glm::ivec2>>& outNewPaths,
+        const std::vector<std::vector<glm::ivec2>>* currentPaths = nullptr,
+        const std::vector<std::unique_ptr<Enemy>>* activeEnemies = nullptr
     );
 };
 

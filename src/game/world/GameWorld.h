@@ -30,7 +30,7 @@ struct GameWorld {
 
     bool loadLevel(const std::string& levelPath, int windowWidth, int windowHeight);
     void recalculateAllPaths();
-    void notifyEnemiesPathChanged();
+    void notifyEnemiesPathChanged(glm::ivec2 blockedCell = glm::ivec2(-1, -1));
     void update(float dt);
     void resize(int windowWidth, int windowHeight);
     void spawnEnemy(const std::string& type, int spawnerIndex = 0);

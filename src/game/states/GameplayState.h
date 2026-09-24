@@ -69,4 +69,3 @@ public:
     void setSaveToLoad(const std::string& saveName) { m_saveToLoad = saveName; }
     void saveGame(const std::string& saveName);
 };
-};

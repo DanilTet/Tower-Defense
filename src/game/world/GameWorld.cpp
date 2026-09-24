@@ -64,11 +64,17 @@ void GameWorld::recalculateAllPaths() {
     }
 }
 
-void GameWorld::notifyEnemiesPathChanged() {
+void GameWorld::notifyEnemiesPathChanged(glm::ivec2 blockedCell) {
+    bool filterByCell = (blockedCell.x >= 0 && blockedCell.y >= 0);
     for (auto& enemy : entityManager->getEnemies()) {
-        if (enemy) {
-            enemy->recalculatePath(pathfinder.get(), *grid, bases);
+        if (!enemy || enemy->isDead() || enemy->isReachedEnd()) continue;
+
+        // Если задана заблокированная клетка, проверяем пересечение с оставшимся путем
+        if (filterByCell && !enemy->isPathIntersecting(blockedCell)) {
+            continue; // Путь врага не затронут постройкой башни!
         }
+
+        enemy->recalculatePath(pathfinder.get(), *grid, bases);
     }
 }
 

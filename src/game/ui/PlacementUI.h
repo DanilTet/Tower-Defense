@@ -9,6 +9,7 @@
 class SpriteRenderer;
 class Texture2D;
 class Grid;
+class Enemy;
 struct PlayerStats;
 
 class PlacementUI {
@@ -24,6 +25,7 @@ public:
         const std::string& selectedTower, // выбраная башня
         const PlayerStats& stats, // деняк
         glm::vec2 panelPos, // позиция менбшки
-        bool hasValidPath // есть ли путь чтобы пк не взорвался
+        bool hasValidPath, // есть ли путь чтобы пк не взорвался
+        const std::vector<std::unique_ptr<Enemy>>* activeEnemies = nullptr
     );
 };

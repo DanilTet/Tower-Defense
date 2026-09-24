@@ -1,185 +1,223 @@
 #include "Pathfinder.h"
-#include <vector>
-#include <glm/glm.hpp>
-#include "Grid.h"
 #include <algorithm>
 #include <cmath>
 
-Pathfinder::Pathfinder(int width, int height) {
-	m_allNodes.resize(width); // задаем количество столбцов
-
-	for (int x = 0; x < width; x++) {
-		m_allNodes[x].resize(height); // в каждом столбце задаем колво строк
-		for (int y = 0; y < height; y++) {
-			m_allNodes[x][y] = Node(glm::ivec2(x, y)); // кладем ноду в ячейку
-		}
-	}
+Pathfinder::Pathfinder(int width, int height)
+    : m_width(width), m_height(height), m_currentEpoch(0)
+{
+    m_nodes.resize(m_width * m_height);
 }
 
-int Pathfinder::getDistance(Node* A, Node* B) {
-	int distX = std::abs(A->pos.x - B->pos.x); // ищем разницу по х
-	int distY = std::abs(A->pos.y - B->pos.y); // ищем разницу по у
-
-	// и тут
-	if (distX > distY) {
-		return 14 * distY + 10 * (distX - distY);
-	}
-	return 14 * distX + 10 * (distY - distX);
+int Pathfinder::getOctileDistance(glm::ivec2 a, glm::ivec2 b) const {
+    int distX = std::abs(a.x - b.x);
+    int distY = std::abs(a.y - b.y);
+    if (distX > distY) {
+        return 14 * distY + 10 * (distX - distY);
+    }
+    return 14 * distX + 10 * (distY - distX);
 }
 
-std::vector<Node*> Pathfinder::getNeighbors(Node* node, const Grid& grid) {
-    std::vector<Node*> neighbors;
+bool Pathfinder::isCellWalkable(const Grid& grid, int x, int y) {
+    if (x < 0 || x >= grid.getWidth() || y < 0 || y >= grid.getHeight()) return false;
+    CellType t = grid.getCellType(x, y);
+    return t == CellType::Ground || t == CellType::Path || t == CellType::Spawner || t == CellType::Base;
+}
 
-    // двигаемся в 8 направлений
-    for (int x = -1; x <= 1; ++x) {
-        for (int y = -1; y <= 1; ++y) {
+bool Pathfinder::canMove(const Grid& grid, glm::ivec2 from, glm::ivec2 to) {
+    if (!isCellWalkable(grid, to.x, to.y)) return false;
 
-            if (x == 0 && y == 0) continue; // скип себя
+    int dx = to.x - from.x;
+    int dy = to.y - from.y;
+    if (std::abs(dx) == 1 && std::abs(dy) == 1) {
+        // Проверка срезания углов: обе ортогональные соседние клетки должны быть проходимыми
+        if (!isCellWalkable(grid, from.x + dx, from.y) || !isCellWalkable(grid, from.x, from.y + dy)) {
+            return false;
+        }
+    }
+    return true;
+}
 
-            int checkX = node->pos.x + x;
-            int checkY = node->pos.y + y;
+DijkstraMap Pathfinder::generateDijkstraMap(const Grid& grid, const std::vector<glm::ivec2>& targetBases) const {
+    DijkstraMap dmap;
+    dmap.width = m_width;
+    dmap.height = m_height;
+    int totalCells = m_width * m_height;
+    dmap.distances.assign(totalCells, 999999);
+    dmap.bestNext.assign(totalCells, glm::ivec2(-1, -1));
 
-            // чекаем не вышли ли за границу
-            if (checkX < 0 || checkX >= grid.getWidth() || checkY < 0 || checkY >= grid.getHeight()) {
-                continue;
-            }
+    if (targetBases.empty()) return dmap;
 
-            // чекаем стен и башен
-            CellType cellType = grid.getCellType(checkX, checkY);
-            bool isWalkable = (cellType == CellType::Ground || cellType == CellType::Path ||
-                cellType == CellType::Spawner || cellType == CellType::Base);
+    typedef std::pair<int, int> PQElement;
+    std::priority_queue<PQElement, std::vector<PQElement>, std::greater<PQElement>> pq;
 
-            if (!isWalkable) {
-                continue; // туда нельзя
-            }
-
-            // чекаем не срезаем ли мы угол
-            if (std::abs(x) == 1 && std::abs(y) == 1) {
-                // если идем по диагонали то чекам нету ли там челов по краям
-                CellType corner1 = grid.getCellType(node->pos.x + x, node->pos.y);
-                CellType corner2 = grid.getCellType(node->pos.x, node->pos.y + y);
-
-                bool isCorner1Walkable = (corner1 == CellType::Ground || corner1 == CellType::Path ||
-                    corner1 == CellType::Spawner || corner1 == CellType::Base);
-                bool isCorner2Walkable = (corner2 == CellType::Ground || corner2 == CellType::Path ||
-                    corner2 == CellType::Spawner || corner2 == CellType::Base);
-
-                // если хоть один забанен то не идем туда
-                if (!isCorner1Walkable || !isCorner2Walkable) {
-                    continue;
-                }
-            }
-
-            // если все четенько то добавляем в список 
-            neighbors.push_back(&m_allNodes[checkX][checkY]);
+    for (const auto& base : targetBases) {
+        if (base.x >= 0 && base.x < m_width && base.y >= 0 && base.y < m_height) {
+            int idx = base.y * m_width + base.x;
+            dmap.distances[idx] = 0;
+            dmap.bestNext[idx] = base;
+            pq.push({0, idx});
         }
     }
 
-    return neighbors;
+    const int dx[8] = {-1, 0, 1, -1, 1, -1, 0, 1};
+    const int dy[8] = {-1, -1, -1, 0, 0, 1, 1, 1};
+    const int stepCosts[8] = {14, 10, 14, 10, 10, 14, 10, 14};
+
+    while (!pq.empty()) {
+        auto top = pq.top();
+        int cost = top.first;
+        int uIdx = top.second;
+        pq.pop();
+
+        if (cost > dmap.distances[uIdx]) continue;
+
+        int ux = uIdx % m_width;
+        int uy = uIdx / m_width;
+        glm::ivec2 uPos(ux, uy);
+
+        for (int i = 0; i < 8; ++i) {
+            int vx = ux + dx[i];
+            int vy = uy + dy[i];
+
+            if (vx < 0 || vx >= m_width || vy < 0 || vy >= m_height) continue;
+
+            glm::ivec2 vPos(vx, vy);
+            // В обратном поиске от базы проверяем возможность движения от v к u
+            if (!canMove(grid, vPos, uPos)) continue;
+
+            int newCost = cost + stepCosts[i];
+            int vIdx = vy * m_width + vx;
+
+            if (newCost < dmap.distances[vIdx]) {
+                dmap.distances[vIdx] = newCost;
+                dmap.bestNext[vIdx] = uPos; // Следующий шаг из v в сторону базы ведет в u
+                pq.push({newCost, vIdx});
+            }
+        }
+    }
+
+    return dmap;
+}
+
+std::vector<glm::ivec2> Pathfinder::tracePath(const DijkstraMap& dmap, const Grid& grid, glm::ivec2 startPos) const {
+    std::vector<glm::ivec2> path;
+    if (!dmap.isReachable(startPos.x, startPos.y)) {
+        return path;
+    }
+
+    int totalCells = dmap.width * dmap.height;
+    glm::ivec2 curr = startPos;
+    int steps = 0;
+
+    // Двигаемся по цепочке bestNext, пока не достигнем базы (где distance == 0)
+    while (dmap.getDistance(curr.x, curr.y) > 0 && steps < totalCells) {
+        glm::ivec2 next = dmap.getNext(curr.x, curr.y);
+        if (next.x < 0 || next == curr) break;
+        path.push_back(next);
+        curr = next;
+        steps++;
+    }
+
+    return path;
+}
+
+std::vector<glm::ivec2> Pathfinder::findPathToAny(const Grid& grid, glm::ivec2 startPos, const std::vector<glm::ivec2>& targetBases, int& outTotalCost) {
+    outTotalCost = 999999;
+    std::vector<glm::ivec2> path;
+
+    if (startPos.x < 0 || startPos.x >= m_width || startPos.y < 0 || startPos.y >= m_height || targetBases.empty()) {
+        return path;
+    }
+
+    m_currentEpoch++;
+    uint32_t epoch = m_currentEpoch;
+
+    auto getH = [&](glm::ivec2 pos) -> int {
+        int minH = 999999;
+        for (const auto& b : targetBases) {
+            int d = getOctileDistance(pos, b);
+            if (d < minH) minH = d;
+        }
+        return minH;
+    };
+
+    int startIdx = startPos.y * m_width + startPos.x;
+    AStarNode& sNode = m_nodes[startIdx];
+    sNode.epoch = epoch;
+    sNode.gCost = 0;
+    sNode.hCost = getH(startPos);
+    sNode.parent = glm::ivec2(-1, -1);
+    sNode.isClosed = false;
+
+    typedef std::pair<int, int> PQNode;
+    std::priority_queue<PQNode, std::vector<PQNode>, std::greater<PQNode>> openQueue;
+    openQueue.push({sNode.fCost(), startIdx});
+
+    const int dx[8] = {-1, 0, 1, -1, 1, -1, 0, 1};
+    const int dy[8] = {-1, -1, -1, 0, 0, 1, 1, 1};
+    const int stepCosts[8] = {14, 10, 14, 10, 10, 14, 10, 14};
+
+    while (!openQueue.empty()) {
+        auto top = openQueue.top();
+        int uIdx = top.second;
+        openQueue.pop();
+
+        AStarNode& uNode = m_nodes[uIdx];
+        if (uNode.epoch != epoch || uNode.isClosed) continue;
+        uNode.isClosed = true;
+
+        int ux = uIdx % m_width;
+        int uy = uIdx / m_width;
+        glm::ivec2 uPos(ux, uy);
+
+        // Проверяем, достигнута ли любая из целевых баз
+        for (const auto& b : targetBases) {
+            if (uPos == b) {
+                outTotalCost = uNode.gCost;
+                glm::ivec2 cur = uPos;
+                while (cur != startPos && cur != glm::ivec2(-1, -1)) {
+                    path.push_back(cur);
+                    int curIdx = cur.y * m_width + cur.x;
+                    cur = m_nodes[curIdx].parent;
+                }
+                std::reverse(path.begin(), path.end());
+                return path;
+            }
+        }
+
+        for (int i = 0; i < 8; ++i) {
+            int vx = ux + dx[i];
+            int vy = uy + dy[i];
+            if (vx < 0 || vx >= m_width || vy < 0 || vy >= m_height) continue;
+
+            glm::ivec2 vPos(vx, vy);
+            if (!canMove(grid, uPos, vPos)) continue;
+
+            int vIdx = vy * m_width + vx;
+            AStarNode& vNode = m_nodes[vIdx];
+
+            if (vNode.epoch != epoch) {
+                vNode.epoch = epoch;
+                vNode.gCost = 999999;
+                vNode.hCost = getH(vPos);
+                vNode.parent = glm::ivec2(-1, -1);
+                vNode.isClosed = false;
+            }
+
+            if (vNode.isClosed) continue;
+
+            int newG = uNode.gCost + stepCosts[i];
+            if (newG < vNode.gCost) {
+                vNode.gCost = newG;
+                vNode.parent = uPos;
+                openQueue.push({vNode.fCost(), vIdx});
+            }
+        }
+    }
+
+    return path;
 }
 
 std::vector<glm::ivec2> Pathfinder::findPath(const Grid& grid, glm::ivec2 startPos, glm::ivec2 targetPos, int& outTotalCost) {
-    // очищаем открытый и закрытый список
-    m_openList.clear();
-    m_closedList.clear();
-
-    // обнуляем все клетки в двумерном масиве
-    for (size_t x = 0; x < m_allNodes.size(); x++) {
-        for (size_t y = 0; y < m_allNodes[x].size(); y++) {
-            m_allNodes[x][y].gCost = 0;
-            m_allNodes[x][y].hCost = 0;
-            m_allNodes[x][y].parent = nullptr;
-        }
-    }
-    // защита от не существующих координат
-    if (startPos.x < 0 || startPos.x >= m_allNodes.size() ||
-        startPos.y < 0 || startPos.y >= m_allNodes[0].size() ||
-        targetPos.x < 0 || targetPos.x >= m_allNodes.size() ||
-        targetPos.y < 0 || targetPos.y >= m_allNodes[0].size()) {
-
-        return std::vector<glm::ivec2>(); // если координаты бредовые
-    }
-
-
-    // получаем укащатели на стартовый и финишный узел
-    Node* startNode = &m_allNodes[startPos.x][startPos.y];
-    Node* targetNode = &m_allNodes[targetPos.x][targetPos.y];
-    // добавляем startNode в открітій список
-    m_openList.push_back(startNode);
-
-    // пока открытый список не пустой
-    while (!m_openList.empty()) {
-        // берем самый лучший елемент это первый елемент списка
-        Node* currentNode = m_openList[0];
-        int currentIndex = 0;
-
-        // пробегаемся по всем остальным елементам в открытом списке
-        for (int i = 1; i < m_openList.size(); i++) {
-            // сравниваем если у текущего елемента в цикле F меньше или если F одинаковій но растояние H меньше
-            if (m_openList[i]->fCost() < currentNode->fCost() ||
-                (m_openList[i]->fCost() == currentNode->fCost() && m_openList[i]->hCost < currentNode->hCost)) {
-                // то теперь он становитья лучшей следующей клеткой???
-                currentNode = m_openList[i];
-                currentIndex = i;
-            }
-        }
-
-        //удаляем клетку из открітого списка
-        m_openList.erase(m_openList.begin() + currentIndex);
-        // добавляем ее в закрітій список
-        m_closedList.push_back(currentNode);
-
-        //если дошли до конца
-        if (currentNode == targetNode) {
-            std::vector<glm::ivec2> path;
-
-            // востанавливаем маршрут до старта идем по отцам
-
-            outTotalCost = targetNode->gCost;
-
-            while (currentNode != startNode) {
-                path.push_back(currentNode->pos);
-                currentNode = currentNode->parent;
-            }
-            // разворачиваем вектор
-            std::reverse(path.begin(), path.end());
-            // возращаем маршрут
-            return path;
-            
-        }
-
-        // считіваем соседей
-        std::vector<Node*> neighbors = getNeighbors(currentNode, grid);
-
-        // проходимся по соседям
-        for (size_t i = 0; i < neighbors.size(); i++) {
-            Node* neighbor = neighbors[i];
-
-            // если сосед уже в закрытом списке - ШКИП
-            if (std::find(m_closedList.begin(), m_closedList.end(), neighbor) != m_closedList.end()) {
-                continue;
-            }
-            
-            // считаем новую стоимость пути
-            int newMovementCostToNeighbor = currentNode->gCost + getDistance(currentNode, neighbor);
-
-            // проверяем есть ли сосед в открытом списке
-            bool inOpenList = std::find(m_openList.begin(), m_openList.end(), neighbor) != m_openList.end();
-
-            // если путь выгоднее или соседа нету в открытом списке 
-            if (newMovementCostToNeighbor < neighbor->gCost || !inOpenList) {
-                neighbor->gCost = newMovementCostToNeighbor;
-                neighbor->hCost = getDistance(neighbor, targetNode);
-                neighbor->parent = currentNode; // запоминаем откуда пришлимы
-
-                // если его небыло в открытом списке то добавляем
-                if (!inOpenList) {
-                    m_openList.push_back(neighbor);
-                }
-            }
-
-        }   
-    }
-    outTotalCost = 999999;
-    return std::vector<glm::ivec2>(); // возвращаем пустой маршрут
+    return findPathToAny(grid, startPos, {targetPos}, outTotalCost);
 }
