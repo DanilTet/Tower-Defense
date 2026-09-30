@@ -1,9 +1,14 @@
 #include "LevelManager.h"
 #include <fstream>
 #include <iostream>
+#include <filesystem>
+#include <algorithm>
+#include <unordered_set>
+#include <cctype>
 #include <nlohmann/json.hpp>
 
 using json = nlohmann::json;
+namespace fs = std::filesystem;
 
 LevelMapData LevelManager::loadLevelMap(const std::string& filepath) {
     LevelMapData data;
@@ -178,4 +183,275 @@ bool LevelManager::saveLevelMap(const std::string& filepath, const LevelMapData&
     outFile.close();
     std::cout << "SUCCESS::LEVELMANAGER: Level map saved to " << filepath << std::endl;
     return true;
+}
+
+std::string LevelManager::sanitizeLevelFileName(const std::string& name) {
+    if (name.empty()) return "custom_map.json";
+
+    std::string clean = fs::path(name).filename().string();
+    if (clean.length() >= 5 && clean.substr(clean.length() - 5) == ".json") {
+        clean = clean.substr(0, clean.length() - 5);
+    }
+
+    std::string result;
+    for (char c : clean) {
+        if (std::isalnum(static_cast<unsigned char>(c)) || c == '_' || c == '-') {
+            result += c;
+        } else if (c == ' ') {
+            result += '_';
+        }
+    }
+
+    if (result.empty()) {
+        result = "custom_map";
+    }
+
+    return result + ".json";
+}
+
+std::vector<std::string> LevelManager::getLevelDirectories() {
+    std::vector<std::string> candidates = {
+        "res/levels",
+        "../../res/levels",
+        "../res/levels",
+        "../../../res/levels",
+        "out/build/x64-Debug/res/levels",
+        "out/build/x64-Release/res/levels",
+        "build/res/levels"
+    };
+
+    std::vector<std::string> validDirs;
+    std::vector<std::string> canonicalPaths;
+
+    for (const auto& c : candidates) {
+        std::error_code ec;
+        if (fs::exists(c, ec) && fs::is_directory(c, ec)) {
+            std::string can = fs::canonical(c, ec).string();
+            if (!ec) {
+                if (std::find(canonicalPaths.begin(), canonicalPaths.end(), can) == canonicalPaths.end()) {
+                    canonicalPaths.push_back(can);
+                    validDirs.push_back(c);
+                }
+            } else {
+                validDirs.push_back(c);
+            }
+        }
+    }
+
+    if (validDirs.empty()) {
+        validDirs.push_back("res/levels");
+    }
+
+    return validDirs;
+}
+
+void LevelManager::syncLevelsBetweenSourceAndBuild() {
+    auto dirs = getLevelDirectories();
+    if (dirs.size() < 2) return;
+
+    for (size_t i = 0; i < dirs.size(); ++i) {
+        for (size_t j = i + 1; j < dirs.size(); ++j) {
+            std::error_code ec;
+            if (!fs::exists(dirs[i], ec) || !fs::exists(dirs[j], ec)) continue;
+
+            // Синхронизируем из dirs[i] в dirs[j]
+            for (const auto& entry : fs::directory_iterator(dirs[i], ec)) {
+                if (entry.is_regular_file() && entry.path().extension() == ".json") {
+                    std::string fname = entry.path().filename().string();
+                    if (fname == "textures.json") continue;
+
+                    fs::path target = fs::path(dirs[j]) / fname;
+                    if (!fs::exists(target, ec)) {
+                        fs::copy_file(entry.path(), target, fs::copy_options::overwrite_existing, ec);
+                    } else {
+                        auto t1 = fs::last_write_time(entry.path(), ec);
+                        auto t2 = fs::last_write_time(target, ec);
+                        if (t1 > t2) {
+                            fs::copy_file(entry.path(), target, fs::copy_options::overwrite_existing, ec);
+                        } else if (t2 > t1) {
+                            fs::copy_file(target, entry.path(), fs::copy_options::overwrite_existing, ec);
+                        }
+                    }
+                }
+            }
+
+            // Синхронизируем из dirs[j] в dirs[i]
+            for (const auto& entry : fs::directory_iterator(dirs[j], ec)) {
+                if (entry.is_regular_file() && entry.path().extension() == ".json") {
+                    std::string fname = entry.path().filename().string();
+                    if (fname == "textures.json") continue;
+
+                    fs::path target = fs::path(dirs[i]) / fname;
+                    if (!fs::exists(target, ec)) {
+                        fs::copy_file(entry.path(), target, fs::copy_options::overwrite_existing, ec);
+                    }
+                }
+            }
+        }
+    }
+}
+
+std::vector<LevelInfo> LevelManager::getAvailableLevels() {
+    syncLevelsBetweenSourceAndBuild();
+
+    std::vector<LevelInfo> levels;
+    std::unordered_set<std::string> seen;
+
+    std::vector<std::string> builtIns = { "level_1.json", "level_2.json" };
+    auto dirs = getLevelDirectories();
+
+    for (const auto& bi : builtIns) {
+        for (const auto& dir : dirs) {
+            fs::path p = fs::path(dir) / bi;
+            std::error_code ec;
+            if (fs::exists(p, ec)) {
+                LevelInfo info;
+                info.filename = bi;
+                info.name = (bi == "level_1.json") ? "LEVEL 1" : "LEVEL 2";
+                info.fullPath = "res/levels/" + bi;
+                info.isBuiltIn = true;
+                levels.push_back(info);
+                seen.insert(bi);
+                break;
+            }
+        }
+    }
+
+    for (const auto& dir : dirs) {
+        std::error_code ec;
+        for (const auto& entry : fs::directory_iterator(dir, ec)) {
+            if (entry.is_regular_file() && entry.path().extension() == ".json") {
+                std::string fname = entry.path().filename().string();
+                if (fname == "textures.json") continue;
+                if (seen.find(fname) != seen.end()) continue;
+
+                LevelMapData mapData = loadLevelMap(entry.path().string());
+                if (mapData.gridWidth <= 0 || mapData.gridHeight <= 0) continue;
+
+                LevelInfo info;
+                info.filename = fname;
+                std::string stem = entry.path().stem().string();
+                if (stem == "level_editor") {
+                    info.name = "MY MAP";
+                } else {
+                    info.name = stem;
+                }
+                info.fullPath = "res/levels/" + fname;
+                info.isBuiltIn = false;
+                levels.push_back(info);
+                seen.insert(fname);
+            }
+        }
+    }
+
+    return levels;
+}
+
+bool LevelManager::saveLevel(const std::string& levelFileName, const LevelMapData& data) {
+    std::string cleanName = sanitizeLevelFileName(levelFileName);
+    auto dirs = getLevelDirectories();
+    bool anySaved = false;
+
+    for (const auto& dir : dirs) {
+        std::error_code ec;
+        fs::create_directories(dir, ec);
+        fs::path p = fs::path(dir) / cleanName;
+        if (saveLevelMap(p.string(), data)) {
+            anySaved = true;
+        }
+    }
+
+    syncLevelsBetweenSourceAndBuild();
+    return anySaved;
+}
+
+bool LevelManager::renameLevel(const std::string& oldFileName, const std::string& newFileName) {
+    std::string oldClean = sanitizeLevelFileName(oldFileName);
+    std::string newClean = sanitizeLevelFileName(newFileName);
+
+    if (oldClean == newClean) return true;
+
+    auto dirs = getLevelDirectories();
+    bool anyRenamed = false;
+
+    for (const auto& dir : dirs) {
+        fs::path oldP = fs::path(dir) / oldClean;
+        fs::path newP = fs::path(dir) / newClean;
+        std::error_code ec;
+        if (fs::exists(oldP, ec)) {
+            fs::rename(oldP, newP, ec);
+            if (!ec) anyRenamed = true;
+        }
+    }
+
+    syncLevelsBetweenSourceAndBuild();
+    return anyRenamed;
+}
+
+bool LevelManager::deleteLevel(const std::string& levelFileName) {
+    std::string clean = sanitizeLevelFileName(levelFileName);
+    if (clean == "level_1.json" || clean == "level_2.json") return false;
+
+    auto dirs = getLevelDirectories();
+    bool anyDeleted = false;
+
+    for (const auto& dir : dirs) {
+        fs::path p = fs::path(dir) / clean;
+        std::error_code ec;
+        if (fs::exists(p, ec)) {
+            fs::remove(p, ec);
+            if (!ec) anyDeleted = true;
+        }
+    }
+
+    syncLevelsBetweenSourceAndBuild();
+    return anyDeleted;
+}
+
+std::string LevelManager::createNewLevel(const std::string& baseName) {
+    std::string cleanBase = baseName;
+    if (cleanBase.length() >= 5 && cleanBase.substr(cleanBase.length() - 5) == ".json") {
+        cleanBase = cleanBase.substr(0, cleanBase.length() - 5);
+    }
+    if (cleanBase.empty()) cleanBase = "custom_map";
+
+    auto dirs = getLevelDirectories();
+    auto existsAcrossDirs = [&](const std::string& fname) -> bool {
+        for (const auto& dir : dirs) {
+            fs::path p = fs::path(dir) / fname;
+            std::error_code ec;
+            if (fs::exists(p, ec)) return true;
+        }
+        return false;
+    };
+
+    std::string candidate = cleanBase + ".json";
+    int counter = 1;
+    while (existsAcrossDirs(candidate)) {
+        candidate = cleanBase + "_" + std::to_string(counter++) + ".json";
+    }
+
+    LevelMapData newMap;
+    newMap.gridWidth = 20;
+    newMap.gridHeight = 12;
+    newMap.cellSize = 64.0f;
+    newMap.offsetX = 20.0f;
+    newMap.offsetY = 20.0f;
+    newMap.layout.assign(12, std::vector<int>(20, 0));
+
+    newMap.bases.push_back(BaseData(17, 6, 0));
+    newMap.layout[6][17] = 0;
+
+    SpawnerData sp;
+    sp.pos = glm::ivec2(2, 6);
+    sp.targetBaseIndex = 0;
+    newMap.spawners.push_back(sp);
+    newMap.layout[6][2] = 0;
+
+    WaveConfig wave;
+    wave.parts.push_back({ "Basic", 10, 0.8f, 2.0f });
+    newMap.waves.push_back(wave);
+
+    saveLevel(candidate, newMap);
+    return candidate;
 }

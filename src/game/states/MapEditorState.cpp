@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <filesystem>
 
 static const std::vector<glm::ivec2> c_sizePresets = {
     { 10, 7 },
@@ -65,15 +66,38 @@ void MapEditorState::init() {
 void MapEditorState::cleanup() {
 }
 
-void MapEditorState::loadInitialMap() {
-    std::string path = m_editorSavePath;
-    std::ifstream testFile(path);
-    if (!testFile.good()) {
-        path = "res/levels/level_1.json";
+void MapEditorState::updateCurrentLevelDisplayName() {
+    std::string stem = m_currentLevelFileName;
+    if (stem.length() >= 5 && stem.substr(stem.length() - 5) == ".json") {
+        stem = stem.substr(0, stem.length() - 5);
     }
-    testFile.close();
+    if (stem == "level_editor") {
+        m_currentLevelDisplayName = "MY MAP";
+    } else {
+        m_currentLevelDisplayName = stem;
+    }
+    m_editorSavePath = "res/levels/" + m_currentLevelFileName;
+}
 
+void MapEditorState::loadLevelByName(const std::string& fileName) {
+    m_currentLevelFileName = LevelManager::sanitizeLevelFileName(fileName);
+    updateCurrentLevelDisplayName();
+
+    std::string path = "res/levels/" + m_currentLevelFileName;
     LevelMapData data = LevelManager::loadLevelMap(path);
+    if (data.gridWidth <= 0 || data.gridHeight <= 0) {
+        auto dirs = LevelManager::getLevelDirectories();
+        for (const auto& d : dirs) {
+            std::string p = (std::filesystem::path(d) / m_currentLevelFileName).string();
+            data = LevelManager::loadLevelMap(p);
+            if (data.gridWidth > 0 && data.gridHeight > 0) break;
+        }
+    }
+
+    if (data.gridWidth <= 0 || data.gridHeight <= 0) {
+        data = LevelManager::loadLevelMap("res/levels/level_1.json");
+    }
+
     if (data.gridWidth > 0 && data.gridHeight > 0) {
         m_gridWidth = data.gridWidth;
         m_gridHeight = data.gridHeight;
@@ -82,6 +106,14 @@ void MapEditorState::loadInitialMap() {
         m_bases = data.bases;
         m_rawLayout = data.layout;
         m_waves = data.waves;
+    } else {
+        m_gridWidth = 20;
+        m_gridHeight = 12;
+        m_cellSize = 64.0f;
+        m_spawners.clear();
+        m_bases.clear();
+        m_rawLayout.assign(12, std::vector<int>(20, 0));
+        m_waves.clear();
     }
 
     if (m_waves.empty()) {
@@ -98,10 +130,8 @@ void MapEditorState::loadInitialMap() {
     float dockH = std::clamp(54.0f * scale, 48.0f, 58.0f);
 
     m_grid = std::make_unique<Grid>(m_gridWidth, m_gridHeight, m_cellSize);
-    // Отступ сверху 46px (для хедера), отступ снизу dockH + 6px (для тулбара)
     m_grid->updateCellSize(m_width, m_height, dockH + 6.0f, 46.0f);
 
-    // Применяем layout к сетке
     for (int y = 0; y < m_gridHeight; ++y) {
         for (int x = 0; x < m_gridWidth; ++x) {
             int cellVal = m_rawLayout[y][x];
@@ -132,6 +162,12 @@ void MapEditorState::loadInitialMap() {
     m_grid->saveOriginalGrid();
     m_pathfinder = std::make_unique<Pathfinder>(m_gridWidth, m_gridHeight);
     recalculatePaths();
+
+    updateButtonLayout();
+}
+
+void MapEditorState::loadInitialMap() {
+    loadLevelByName(m_currentLevelFileName);
 }
 
 void MapEditorState::resizeMap(int newW, int newH) {
@@ -227,11 +263,50 @@ void MapEditorState::updateButtonLayout() {
     m_bottomButtons.clear();
     m_topButtons.clear();
 
-    // 1. КНОПКИ ВЕРХНЕГО ХЕДЕРА (Выбор размера карты справа)
+    // 1. КНОПКИ ВЕРХНЕГО ХЕДЕРА
     float topY = 6.0f;
     float topH = 32.0f;
     float topPadding = 5.0f;
 
+    // Слева: отображение имени карты, кнопка Rename, кнопка +New, кнопка Maps
+    float leftX = 142.0f;
+
+    EditorButton btnCurrentMap;
+    btnCurrentMap.pos = glm::vec2(leftX, topY);
+    btnCurrentMap.size = glm::vec2(130.0f, topH);
+    btnCurrentMap.label = m_currentLevelDisplayName;
+    btnCurrentMap.isAction = true;
+    btnCurrentMap.actionId = 16; // Открыть список карт
+    m_topButtons.push_back(btnCurrentMap);
+    leftX += 130.0f + topPadding;
+
+    EditorButton btnRename;
+    btnRename.pos = glm::vec2(leftX, topY);
+    btnRename.size = glm::vec2(66.0f, topH);
+    btnRename.label = "Rename";
+    btnRename.isAction = true;
+    btnRename.actionId = 14; // Переименовать
+    m_topButtons.push_back(btnRename);
+    leftX += 66.0f + topPadding;
+
+    EditorButton btnNewMap;
+    btnNewMap.pos = glm::vec2(leftX, topY);
+    btnNewMap.size = glm::vec2(52.0f, topH);
+    btnNewMap.label = "+New";
+    btnNewMap.isAction = true;
+    btnNewMap.actionId = 15; // Создать новую карту
+    m_topButtons.push_back(btnNewMap);
+    leftX += 52.0f + topPadding;
+
+    EditorButton btnMaps;
+    btnMaps.pos = glm::vec2(leftX, topY);
+    btnMaps.size = glm::vec2(54.0f, topH);
+    btnMaps.label = "Maps";
+    btnMaps.isAction = true;
+    btnMaps.actionId = 16; // Список карт
+    m_topButtons.push_back(btnMaps);
+
+    // Справа: Выбор размера карты
     float currentTopX = static_cast<float>(m_width) - 260.0f;
 
     EditorButton btnPreset;
@@ -549,11 +624,10 @@ void MapEditorState::saveMap() {
     data.layout = m_rawLayout;
     data.waves = m_waves;
 
-    bool okSrc = LevelManager::saveLevelMap(m_editorSavePath, data);
-    LevelManager::saveLevelMap("out/build/x64-Debug/" + m_editorSavePath, data);
+    bool ok = LevelManager::saveLevel(m_currentLevelFileName, data);
 
-    if (okSrc) {
-        m_statusMessage = "Map saved successfully (" + std::to_string(m_gridWidth) + "x" + std::to_string(m_gridHeight) + ")!";
+    if (ok) {
+        m_statusMessage = "Map saved: " + m_currentLevelDisplayName + " (" + std::to_string(m_gridWidth) + "x" + std::to_string(m_gridHeight) + ")!";
         m_statusColor = glm::vec3(0.2f, 1.0f, 0.3f);
     } else {
         m_statusMessage = "Error saving map file!";
@@ -594,8 +668,9 @@ void MapEditorState::testMap() {
     }
 
     saveMap();
-    std::cout << "[MapEditor] Launching test gameplay with " << m_editorSavePath << std::endl;
-    m_stateManager.pushState(std::make_unique<GameplayState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer, m_editorSavePath));
+    std::string testPath = "res/levels/" + m_currentLevelFileName;
+    std::cout << "[MapEditor] Launching test gameplay with " << testPath << std::endl;
+    m_stateManager.pushState(std::make_unique<GameplayState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer, testPath));
 }
 
 void MapEditorState::processInput(GLFWwindow* window, float dt) {
@@ -603,6 +678,25 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
     glfwGetCursorPos(window, &mouseX, &mouseY);
     glm::vec2 mousePos(static_cast<float>(mouseX), static_cast<float>(mouseY));
     m_mousePos = mousePos;
+
+    bool leftDown = (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS);
+    bool rightDown = (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS);
+
+    // Если открыто модальное окно переименования
+    if (m_isRenameModalOpen) {
+        bool handled = processRenameModalInput(window, mousePos, leftDown, dt);
+        m_isLeftMouseDown = leftDown;
+        m_isRightMouseDown = rightDown;
+        if (handled) return;
+    }
+
+    // Если открыто модальное окно списка карт
+    if (m_isMapsModalOpen) {
+        bool handled = processMapsModalInput(window, mousePos, leftDown, dt);
+        m_isLeftMouseDown = leftDown;
+        m_isRightMouseDown = rightDown;
+        if (handled) return;
+    }
 
     // Горячая клавиша Waves (W)
     bool keyW = (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS);
@@ -619,6 +713,16 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
     // Горячая клавиша Escape
     bool keyEsc = (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS);
     if (keyEsc && !m_keyEscPressedLastFrame) {
+        if (m_isRenameModalOpen) {
+            m_isRenameModalOpen = false;
+            m_keyEscPressedLastFrame = keyEsc;
+            return;
+        }
+        if (m_isMapsModalOpen) {
+            m_isMapsModalOpen = false;
+            m_keyEscPressedLastFrame = keyEsc;
+            return;
+        }
         if (m_isWaveEditorOpen) {
             if (m_openDropdownPartIdx >= 0) {
                 m_openDropdownPartIdx = -1;
@@ -634,9 +738,6 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
         return;
     }
     m_keyEscPressedLastFrame = keyEsc;
-
-    bool leftDown = (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS);
-    bool rightDown = (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS);
 
     // Если открыт редактор волн, перехватываем ввод
     if (m_isWaveEditorOpen) {
@@ -702,6 +803,18 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
                 else if (btn.actionId == 10) resizeMap(m_gridWidth + 2, m_gridHeight);
                 else if (btn.actionId == 11) resizeMap(m_gridWidth, m_gridHeight - 2);
                 else if (btn.actionId == 12) resizeMap(m_gridWidth, m_gridHeight + 2);
+                else if (btn.actionId == 14) openRenameModal();
+                else if (btn.actionId == 15) {
+                    std::string newF = LevelManager::createNewLevel("custom_map");
+                    loadLevelByName(newF);
+                    m_statusMessage = "Created map: " + m_currentLevelDisplayName;
+                    m_statusColor = glm::vec3(0.2f, 1.0f, 0.4f);
+                    m_statusTimer = 3.5f;
+                }
+                else if (btn.actionId == 16) {
+                    m_isMapsModalOpen = true;
+                    m_mapsScrollOffset = 0;
+                }
                 break;
             }
         }
@@ -840,6 +953,15 @@ void MapEditorState::render() {
         glm::vec3 borderColor = glm::vec3(0.32f, 0.36f, 0.44f);
         if (btn.actionId == 8) {
             borderColor = glm::vec3(0.3f, 0.8f, 1.0f);
+        } else if (btn.actionId == 14) { // Rename
+            borderColor = glm::vec3(1.0f, 0.85f, 0.3f);
+            btnBg = glm::vec3(0.22f, 0.20f, 0.12f);
+        } else if (btn.actionId == 15) { // +New
+            borderColor = glm::vec3(0.3f, 0.9f, 0.4f);
+            btnBg = glm::vec3(0.12f, 0.22f, 0.14f);
+        } else if (btn.actionId == 16) { // Maps / MapName
+            borderColor = glm::vec3(0.4f, 0.7f, 1.0f);
+            btnBg = glm::vec3(0.14f, 0.20f, 0.28f);
         }
         m_renderer->drawSprite(m_whiteTexture, btn.pos, btn.size, 0.0f, borderColor);
         m_renderer->drawSprite(m_whiteTexture, btn.pos + glm::vec2(2.0f), btn.size - glm::vec2(4.0f), 0.0f, btnBg);
@@ -900,7 +1022,7 @@ void MapEditorState::render() {
     // 7. ТЕКСТ (Хедер, кнопки, клетки)
     if (m_textRenderer) {
         // Текст верхнего хедера
-        m_textRenderer->RenderText("MAP EDITOR", 15.0f, 13.0f, 1.05f, glm::vec3(1.0f, 0.85f, 0.2f));
+        m_textRenderer->RenderText("MAP EDITOR", 15.0f, 14.0f, 0.85f, glm::vec3(1.0f, 0.85f, 0.2f));
 
         std::string fullStatus = m_statusMessage;
         if (m_hasInvalidSpawner) {
@@ -909,12 +1031,17 @@ void MapEditorState::render() {
             fullStatus += " | [i] Base #" + std::to_string(m_missingBaseId) + " missing (using nearest)";
         }
         glm::vec3 curColor = m_hasInvalidSpawner ? glm::vec3(1.0f, 0.25f, 0.25f) : (m_missingBaseWarning ? glm::vec3(1.0f, 0.75f, 0.2f) : m_statusColor);
-        m_textRenderer->RenderText(fullStatus, 160.0f, 15.0f, 0.68f, curColor);
+        m_textRenderer->RenderText(fullStatus, 480.0f, 15.0f, 0.54f, curColor);
 
         // Текст на кнопках верхнего бара
         for (const auto& btn : m_topButtons) {
-            glm::vec3 textColor = (btn.actionId == 8) ? glm::vec3(0.4f, 0.9f, 1.0f) : glm::vec3(0.9f);
-            m_textRenderer->RenderText(btn.label, btn.pos.x + 6.0f, btn.pos.y + 8.0f, 0.68f, textColor);
+            glm::vec3 textColor = (btn.actionId == 8) ? glm::vec3(0.4f, 0.9f, 1.0f) :
+                                  (btn.actionId == 14) ? glm::vec3(1.0f, 0.9f, 0.35f) :
+                                  (btn.actionId == 15) ? glm::vec3(0.4f, 1.0f, 0.5f) :
+                                  (btn.actionId == 16) ? glm::vec3(0.7f, 0.9f, 1.0f) : glm::vec3(0.9f);
+            float tw = m_textRenderer->CalculateTextWidth(btn.label, 0.55f);
+            float tx = btn.pos.x + (btn.size.x - tw) * 0.5f;
+            m_textRenderer->RenderText(btn.label, tx, btn.pos.y + 8.0f, 0.55f, textColor);
         }
 
         // Текст на кнопках нижнего бара
@@ -973,6 +1100,20 @@ void MapEditorState::render() {
     if (m_isWaveEditorOpen) {
         m_renderer->beginBatch();
         renderWaveEditor();
+        m_renderer->endBatch();
+    }
+
+    // 9. МОДАЛЬНОЕ ОКНО СПИСКА КАРТ (если активно)
+    if (m_isMapsModalOpen) {
+        m_renderer->beginBatch();
+        renderMapsModal();
+        m_renderer->endBatch();
+    }
+
+    // 10. МОДАЛЬНОЕ ОКНО ПЕРЕИМЕНОВАНИЯ КАРТЫ (если активно)
+    if (m_isRenameModalOpen) {
+        m_renderer->beginBatch();
+        renderRenameModal();
         m_renderer->endBatch();
     }
 }
@@ -1848,6 +1989,401 @@ void MapEditorState::renderWaveEditor() {
                 m_textRenderer->RenderText("Tank",  dropX + 12.0f, dropY + itemH * 2.0f + 7.0f, 0.58f, glm::vec3(1.0f, 0.45f, 0.45f));
             }
         }
+    }
+}
+
+void MapEditorState::openRenameModal(const std::string& targetFileName) {
+    m_renameTargetFileName = targetFileName.empty() ? m_currentLevelFileName : targetFileName;
+    std::string stem = m_renameTargetFileName;
+    if (stem.length() >= 5 && stem.substr(stem.length() - 5) == ".json") {
+        stem = stem.substr(0, stem.length() - 5);
+    }
+    m_renameInputText = stem;
+    m_isRenameModalOpen = true;
+    m_cursorBlinkTimer = 0.0f;
+}
+
+void MapEditorState::confirmRename() {
+    if (m_renameInputText.empty()) {
+        m_isRenameModalOpen = false;
+        return;
+    }
+
+    std::string newFileName = LevelManager::sanitizeLevelFileName(m_renameInputText);
+    if (newFileName != m_renameTargetFileName) {
+        bool ok = LevelManager::renameLevel(m_renameTargetFileName, newFileName);
+        if (ok) {
+            if (m_renameTargetFileName == m_currentLevelFileName) {
+                m_currentLevelFileName = newFileName;
+                updateCurrentLevelDisplayName();
+            }
+            m_statusMessage = "Renamed to: " + newFileName;
+            m_statusColor = glm::vec3(0.2f, 1.0f, 0.3f);
+            m_statusTimer = 3.5f;
+        } else {
+            m_statusMessage = "Failed to rename level!";
+            m_statusColor = glm::vec3(1.0f, 0.3f, 0.3f);
+            m_statusTimer = 3.0f;
+        }
+    }
+    m_isRenameModalOpen = false;
+    updateButtonLayout();
+}
+
+bool MapEditorState::processRenameModalInput(GLFWwindow* window, glm::vec2 mousePos, bool leftDown, float dt) {
+    if (!m_isRenameModalOpen) return false;
+
+    glm::vec2 modalSize(440.0f, 210.0f);
+    glm::vec2 modalPos((static_cast<float>(m_width) - modalSize.x) * 0.5f, (static_cast<float>(m_height) - modalSize.y) * 0.5f);
+
+    glm::vec2 btnSavePos(modalPos.x + 30.0f, modalPos.y + 148.0f);
+    glm::vec2 btnSaveSize(190.0f, 40.0f);
+    glm::vec2 btnCancelPos(modalPos.x + 240.0f, modalPos.y + 148.0f);
+    glm::vec2 btnCancelSize(170.0f, 40.0f);
+
+    auto checkKeyInput = [&](int key) -> bool {
+        bool down = (glfwGetKey(window, key) == GLFW_PRESS);
+        auto& ks = m_keyStates[key];
+        if (down) {
+            if (!ks.isDown) {
+                ks.isDown = true;
+                ks.holdTimer = 0.0f;
+                ks.repeatTimer = 0.0f;
+                return true;
+            } else {
+                ks.holdTimer += dt;
+                if (ks.holdTimer >= 0.38f) {
+                    ks.repeatTimer += dt;
+                    if (ks.repeatTimer >= 0.05f) {
+                        ks.repeatTimer = 0.0f;
+                        return true;
+                    }
+                }
+            }
+        } else {
+            ks.isDown = false;
+            ks.holdTimer = 0.0f;
+            ks.repeatTimer = 0.0f;
+        }
+        return false;
+    };
+
+    if (checkKeyInput(GLFW_KEY_ESCAPE)) {
+        m_isRenameModalOpen = false;
+        return true;
+    }
+    if (checkKeyInput(GLFW_KEY_ENTER) || checkKeyInput(GLFW_KEY_KP_ENTER)) {
+        confirmRename();
+        return true;
+    }
+    if (checkKeyInput(GLFW_KEY_BACKSPACE)) {
+        if (!m_renameInputText.empty()) {
+            m_renameInputText.pop_back();
+        }
+        m_cursorBlinkTimer = 0.0f;
+        return true;
+    }
+
+    bool isShift = (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS);
+
+    for (int k = GLFW_KEY_A; k <= GLFW_KEY_Z; ++k) {
+        if (checkKeyInput(k) && m_renameInputText.length() < 30) {
+            char ch = isShift ? static_cast<char>('A' + (k - GLFW_KEY_A)) : static_cast<char>('a' + (k - GLFW_KEY_A));
+            m_renameInputText += ch;
+            m_cursorBlinkTimer = 0.0f;
+            return true;
+        }
+    }
+
+    for (int k = GLFW_KEY_0; k <= GLFW_KEY_9; ++k) {
+        if (checkKeyInput(k) && m_renameInputText.length() < 30) {
+            m_renameInputText += static_cast<char>('0' + (k - GLFW_KEY_0));
+            m_cursorBlinkTimer = 0.0f;
+            return true;
+        }
+    }
+    for (int k = GLFW_KEY_KP_0; k <= GLFW_KEY_KP_9; ++k) {
+        if (checkKeyInput(k) && m_renameInputText.length() < 30) {
+            m_renameInputText += static_cast<char>('0' + (k - GLFW_KEY_KP_0));
+            m_cursorBlinkTimer = 0.0f;
+            return true;
+        }
+    }
+
+    if ((checkKeyInput(GLFW_KEY_SPACE) || checkKeyInput(GLFW_KEY_MINUS)) && m_renameInputText.length() < 30) {
+        m_renameInputText += '_';
+        m_cursorBlinkTimer = 0.0f;
+        return true;
+    }
+
+    if (leftDown && !m_isLeftMouseDown) {
+        if (isPointInRect(mousePos, btnSavePos, btnSaveSize)) {
+            confirmRename();
+            return true;
+        }
+        if (isPointInRect(mousePos, btnCancelPos, btnCancelSize)) {
+            m_isRenameModalOpen = false;
+            return true;
+        }
+        if (!isPointInRect(mousePos, modalPos, modalSize)) {
+            m_isRenameModalOpen = false;
+            return true;
+        }
+    }
+
+    return true;
+}
+
+bool MapEditorState::processMapsModalInput(GLFWwindow* window, glm::vec2 mousePos, bool leftDown, float dt) {
+    if (!m_isMapsModalOpen) return false;
+
+    glm::vec2 modalSize(580.0f, 500.0f);
+    glm::vec2 modalPos((static_cast<float>(m_width) - modalSize.x) * 0.5f, (static_cast<float>(m_height) - modalSize.y) * 0.5f);
+
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS && !m_keyEscPressedLastFrame) {
+        m_isMapsModalOpen = false;
+        return true;
+    }
+
+    glm::vec2 btnNewPos(modalPos.x + modalSize.x - 180.0f, modalPos.y + 50.0f);
+    glm::vec2 btnNewSize(160.0f, 32.0f);
+    glm::vec2 btnClosePos(modalPos.x + (modalSize.x - 140.0f) * 0.5f, modalPos.y + modalSize.y - 48.0f);
+    glm::vec2 btnCloseSize(140.0f, 36.0f);
+
+    auto levels = LevelManager::getAvailableLevels();
+    float itemStartY = modalPos.y + 92.0f;
+    float itemH = 48.0f;
+    float itemGap = 6.0f;
+    int maxVisible = 6;
+
+    if (leftDown && !m_isLeftMouseDown) {
+        if (isPointInRect(mousePos, btnNewPos, btnNewSize)) {
+            std::string newF = LevelManager::createNewLevel("custom_map");
+            loadLevelByName(newF);
+            m_isMapsModalOpen = false;
+            m_statusMessage = "Created and loaded: " + m_currentLevelDisplayName;
+            m_statusColor = glm::vec3(0.2f, 1.0f, 0.4f);
+            m_statusTimer = 3.5f;
+            return true;
+        }
+
+        if (isPointInRect(mousePos, btnClosePos, btnCloseSize)) {
+            m_isMapsModalOpen = false;
+            return true;
+        }
+
+        for (int i = 0; i < maxVisible && (i + m_mapsScrollOffset) < static_cast<int>(levels.size()); ++i) {
+            int idx = i + m_mapsScrollOffset;
+            const auto& lvl = levels[idx];
+            glm::vec2 itemPos(modalPos.x + 20.0f, itemStartY + i * (itemH + itemGap));
+            glm::vec2 itemSize(modalSize.x - 40.0f, itemH);
+
+            glm::vec2 btnLoadPos(itemPos.x + itemSize.x - 220.0f, itemPos.y + 9.0f);
+            glm::vec2 btnLoadSize(68.0f, 30.0f);
+
+            glm::vec2 btnRenPos(itemPos.x + itemSize.x - 144.0f, itemPos.y + 9.0f);
+            glm::vec2 btnRenSize(76.0f, 30.0f);
+
+            glm::vec2 btnDelPos(itemPos.x + itemSize.x - 60.0f, itemPos.y + 9.0f);
+            glm::vec2 btnDelSize(46.0f, 30.0f);
+
+            if (isPointInRect(mousePos, btnLoadPos, btnLoadSize)) {
+                loadLevelByName(lvl.filename);
+                m_isMapsModalOpen = false;
+                m_statusMessage = "Loaded map: " + m_currentLevelDisplayName;
+                m_statusColor = glm::vec3(0.3f, 0.9f, 1.0f);
+                m_statusTimer = 3.0f;
+                return true;
+            }
+
+            if (isPointInRect(mousePos, btnRenPos, btnRenSize)) {
+                openRenameModal(lvl.filename);
+                return true;
+            }
+
+            if (!lvl.isBuiltIn && isPointInRect(mousePos, btnDelPos, btnDelSize)) {
+                LevelManager::deleteLevel(lvl.filename);
+                if (lvl.filename == m_currentLevelFileName) {
+                    loadLevelByName("level_editor.json");
+                }
+                return true;
+            }
+        }
+
+        if (!isPointInRect(mousePos, modalPos, modalSize)) {
+            m_isMapsModalOpen = false;
+            return true;
+        }
+    }
+
+    return true;
+}
+
+void MapEditorState::renderRenameModal() {
+    m_renderer->drawSpriteRGBA(m_whiteTexture, glm::vec2(0.0f), glm::vec2(m_width, m_height), 0.0f, glm::vec4(0.04f, 0.05f, 0.07f, 0.75f));
+
+    glm::vec2 modalSize(440.0f, 210.0f);
+    glm::vec2 modalPos((static_cast<float>(m_width) - modalSize.x) * 0.5f, (static_cast<float>(m_height) - modalSize.y) * 0.5f);
+
+    m_renderer->drawSprite(m_whiteTexture, modalPos, modalSize, 0.0f, glm::vec3(0.12f, 0.13f, 0.17f));
+    m_renderer->drawSprite(m_whiteTexture, modalPos, glm::vec2(modalSize.x, 1.0f), 0.0f, glm::vec3(0.35f, 0.85f, 1.0f));
+    m_renderer->drawSprite(m_whiteTexture, modalPos + glm::vec2(0.0f, modalSize.y - 1.0f), glm::vec2(modalSize.x, 1.0f), 0.0f, glm::vec3(0.35f, 0.85f, 1.0f));
+    m_renderer->drawSprite(m_whiteTexture, modalPos, glm::vec2(1.0f, modalSize.y), 0.0f, glm::vec3(0.35f, 0.85f, 1.0f));
+    m_renderer->drawSprite(m_whiteTexture, modalPos + glm::vec2(modalSize.x - 1.0f, 0.0f), glm::vec2(1.0f, modalSize.y), 0.0f, glm::vec3(0.35f, 0.85f, 1.0f));
+
+    float headerH = 38.0f;
+    m_renderer->drawSprite(m_whiteTexture, modalPos, glm::vec2(modalSize.x, headerH), 0.0f, glm::vec3(0.16f, 0.18f, 0.24f));
+    m_renderer->drawSprite(m_whiteTexture, modalPos + glm::vec2(0.0f, headerH), glm::vec2(modalSize.x, 2.0f), 0.0f, glm::vec3(0.35f, 0.85f, 1.0f));
+
+    glm::vec2 boxPos(modalPos.x + 30.0f, modalPos.y + 88.0f);
+    glm::vec2 boxSize(modalSize.x - 60.0f, 38.0f);
+    m_renderer->drawSprite(m_whiteTexture, boxPos, boxSize, 0.0f, glm::vec3(0.35f, 0.85f, 1.0f));
+    m_renderer->drawSprite(m_whiteTexture, boxPos + glm::vec2(1.0f), boxSize - glm::vec2(2.0f), 0.0f, glm::vec3(0.08f, 0.10f, 0.14f));
+
+    glm::vec2 btnSavePos(modalPos.x + 30.0f, modalPos.y + 148.0f);
+    glm::vec2 btnSaveSize(190.0f, 40.0f);
+    bool hovSave = isPointInRect(m_mousePos, btnSavePos, btnSaveSize);
+    m_renderer->drawSprite(m_whiteTexture, btnSavePos, btnSaveSize, 0.0f, hovSave ? glm::vec3(0.3f, 0.9f, 0.45f) : glm::vec3(0.2f, 0.7f, 0.35f));
+    m_renderer->drawSprite(m_whiteTexture, btnSavePos + glm::vec2(1.0f), btnSaveSize - glm::vec2(2.0f), 0.0f, hovSave ? glm::vec3(0.18f, 0.38f, 0.22f) : glm::vec3(0.14f, 0.30f, 0.18f));
+
+    glm::vec2 btnCancelPos(modalPos.x + 240.0f, modalPos.y + 148.0f);
+    glm::vec2 btnCancelSize(170.0f, 40.0f);
+    bool hovCancel = isPointInRect(m_mousePos, btnCancelPos, btnCancelSize);
+    m_renderer->drawSprite(m_whiteTexture, btnCancelPos, btnCancelSize, 0.0f, hovCancel ? glm::vec3(0.6f, 0.25f, 0.25f) : glm::vec3(0.45f, 0.20f, 0.20f));
+    m_renderer->drawSprite(m_whiteTexture, btnCancelPos + glm::vec2(1.0f), btnCancelSize - glm::vec2(2.0f), 0.0f, hovCancel ? glm::vec3(0.28f, 0.14f, 0.14f) : glm::vec3(0.22f, 0.11f, 0.11f));
+
+    m_renderer->flush();
+
+    if (m_textRenderer) {
+        float titleW = m_textRenderer->CalculateTextWidth("RENAME MAP", 0.70f);
+        m_textRenderer->RenderText("RENAME MAP", modalPos.x + (modalSize.x - titleW) * 0.5f, modalPos.y + 10.0f, 0.70f, glm::vec3(1.0f, 0.85f, 0.25f));
+
+        std::string sub = "Old: " + m_renameTargetFileName;
+        m_textRenderer->RenderText(sub, modalPos.x + 32.0f, modalPos.y + 55.0f, 0.50f, glm::vec3(0.70f, 0.75f, 0.85f));
+
+        bool showCursor = (m_cursorBlinkTimer < 0.5f);
+        std::string displayText = m_renameInputText + (showCursor ? "|" : "");
+        m_textRenderer->RenderText(displayText, boxPos.x + 12.0f, boxPos.y + 10.0f, 0.62f, glm::vec3(0.40f, 0.95f, 1.0f));
+
+        float sTxtW = m_textRenderer->CalculateTextWidth("Save (Enter)", 0.55f);
+        m_textRenderer->RenderText("Save (Enter)", btnSavePos.x + (btnSaveSize.x - sTxtW) * 0.5f, btnSavePos.y + 12.0f, 0.55f, glm::vec3(0.95f));
+
+        float cTxtW = m_textRenderer->CalculateTextWidth("Cancel (Esc)", 0.55f);
+        m_textRenderer->RenderText("Cancel (Esc)", btnCancelPos.x + (btnCancelSize.x - cTxtW) * 0.5f, btnCancelPos.y + 12.0f, 0.55f, glm::vec3(0.95f));
+    }
+}
+
+void MapEditorState::renderMapsModal() {
+    m_renderer->drawSpriteRGBA(m_whiteTexture, glm::vec2(0.0f), glm::vec2(m_width, m_height), 0.0f, glm::vec4(0.04f, 0.05f, 0.07f, 0.75f));
+
+    glm::vec2 modalSize(580.0f, 500.0f);
+    glm::vec2 modalPos((static_cast<float>(m_width) - modalSize.x) * 0.5f, (static_cast<float>(m_height) - modalSize.y) * 0.5f);
+
+    m_renderer->drawSprite(m_whiteTexture, modalPos, modalSize, 0.0f, glm::vec3(0.12f, 0.13f, 0.17f));
+    m_renderer->drawSprite(m_whiteTexture, modalPos, glm::vec2(modalSize.x, 1.0f), 0.0f, glm::vec3(0.35f, 0.70f, 1.0f));
+    m_renderer->drawSprite(m_whiteTexture, modalPos + glm::vec2(0.0f, modalSize.y - 1.0f), glm::vec2(modalSize.x, 1.0f), 0.0f, glm::vec3(0.35f, 0.70f, 1.0f));
+    m_renderer->drawSprite(m_whiteTexture, modalPos, glm::vec2(1.0f, modalSize.y), 0.0f, glm::vec3(0.35f, 0.70f, 1.0f));
+    m_renderer->drawSprite(m_whiteTexture, modalPos + glm::vec2(modalSize.x - 1.0f, 0.0f), glm::vec2(1.0f, modalSize.y), 0.0f, glm::vec3(0.35f, 0.70f, 1.0f));
+
+    float headerH = 40.0f;
+    m_renderer->drawSprite(m_whiteTexture, modalPos, glm::vec2(modalSize.x, headerH), 0.0f, glm::vec3(0.16f, 0.18f, 0.24f));
+    m_renderer->drawSprite(m_whiteTexture, modalPos + glm::vec2(0.0f, headerH), glm::vec2(modalSize.x, 2.0f), 0.0f, glm::vec3(0.35f, 0.70f, 1.0f));
+
+    glm::vec2 btnNewPos(modalPos.x + modalSize.x - 180.0f, modalPos.y + 50.0f);
+    glm::vec2 btnNewSize(160.0f, 32.0f);
+    bool hovNew = isPointInRect(m_mousePos, btnNewPos, btnNewSize);
+    m_renderer->drawSprite(m_whiteTexture, btnNewPos, btnNewSize, 0.0f, hovNew ? glm::vec3(0.35f, 0.95f, 0.50f) : glm::vec3(0.25f, 0.80f, 0.40f));
+    m_renderer->drawSprite(m_whiteTexture, btnNewPos + glm::vec2(1.0f), btnNewSize - glm::vec2(2.0f), 0.0f, hovNew ? glm::vec3(0.16f, 0.36f, 0.20f) : glm::vec3(0.12f, 0.28f, 0.16f));
+
+    auto levels = LevelManager::getAvailableLevels();
+    float itemStartY = modalPos.y + 92.0f;
+    float itemH = 48.0f;
+    float itemGap = 6.0f;
+    int maxVisible = 6;
+
+    for (int i = 0; i < maxVisible && (i + m_mapsScrollOffset) < static_cast<int>(levels.size()); ++i) {
+        int idx = i + m_mapsScrollOffset;
+        const auto& lvl = levels[idx];
+        glm::vec2 itemPos(modalPos.x + 20.0f, itemStartY + i * (itemH + itemGap));
+        glm::vec2 itemSize(modalSize.x - 40.0f, itemH);
+
+        bool isCurrent = (lvl.filename == m_currentLevelFileName);
+        glm::vec3 cardBg = isCurrent ? glm::vec3(0.18f, 0.24f, 0.35f) : glm::vec3(0.15f, 0.16f, 0.21f);
+        glm::vec3 cardBorder = isCurrent ? glm::vec3(0.40f, 0.85f, 1.0f) : glm::vec3(0.28f, 0.30f, 0.38f);
+
+        m_renderer->drawSprite(m_whiteTexture, itemPos, itemSize, 0.0f, cardBorder);
+        m_renderer->drawSprite(m_whiteTexture, itemPos + glm::vec2(1.0f), itemSize - glm::vec2(2.0f), 0.0f, cardBg);
+
+        glm::vec2 btnLoadPos(itemPos.x + itemSize.x - 220.0f, itemPos.y + 9.0f);
+        glm::vec2 btnLoadSize(68.0f, 30.0f);
+        bool hovLoad = isPointInRect(m_mousePos, btnLoadPos, btnLoadSize);
+        m_renderer->drawSprite(m_whiteTexture, btnLoadPos, btnLoadSize, 0.0f, hovLoad ? glm::vec3(0.40f, 0.85f, 1.0f) : glm::vec3(0.25f, 0.55f, 0.80f));
+        m_renderer->drawSprite(m_whiteTexture, btnLoadPos + glm::vec2(1.0f), btnLoadSize - glm::vec2(2.0f), 0.0f, hovLoad ? glm::vec3(0.16f, 0.30f, 0.45f) : glm::vec3(0.12f, 0.22f, 0.35f));
+
+        glm::vec2 btnRenPos(itemPos.x + itemSize.x - 144.0f, itemPos.y + 9.0f);
+        glm::vec2 btnRenSize(76.0f, 30.0f);
+        bool hovRen = isPointInRect(m_mousePos, btnRenPos, btnRenSize);
+        m_renderer->drawSprite(m_whiteTexture, btnRenPos, btnRenSize, 0.0f, hovRen ? glm::vec3(1.0f, 0.85f, 0.35f) : glm::vec3(0.75f, 0.65f, 0.25f));
+        m_renderer->drawSprite(m_whiteTexture, btnRenPos + glm::vec2(1.0f), btnRenSize - glm::vec2(2.0f), 0.0f, hovRen ? glm::vec3(0.38f, 0.30f, 0.14f) : glm::vec3(0.28f, 0.22f, 0.10f));
+
+        if (!lvl.isBuiltIn) {
+            glm::vec2 btnDelPos(itemPos.x + itemSize.x - 60.0f, itemPos.y + 9.0f);
+            glm::vec2 btnDelSize(46.0f, 30.0f);
+            bool hovDel = isPointInRect(m_mousePos, btnDelPos, btnDelSize);
+            m_renderer->drawSprite(m_whiteTexture, btnDelPos, btnDelSize, 0.0f, hovDel ? glm::vec3(0.95f, 0.30f, 0.30f) : glm::vec3(0.70f, 0.20f, 0.20f));
+            m_renderer->drawSprite(m_whiteTexture, btnDelPos + glm::vec2(1.0f), btnDelSize - glm::vec2(2.0f), 0.0f, hovDel ? glm::vec3(0.40f, 0.15f, 0.15f) : glm::vec3(0.28f, 0.10f, 0.10f));
+        }
+    }
+
+    glm::vec2 btnClosePos(modalPos.x + (modalSize.x - 140.0f) * 0.5f, modalPos.y + modalSize.y - 48.0f);
+    glm::vec2 btnCloseSize(140.0f, 36.0f);
+    bool hovClose = isPointInRect(m_mousePos, btnClosePos, btnCloseSize);
+    m_renderer->drawSprite(m_whiteTexture, btnClosePos, btnCloseSize, 0.0f, hovClose ? glm::vec3(0.50f, 0.55f, 0.65f) : glm::vec3(0.35f, 0.38f, 0.45f));
+    m_renderer->drawSprite(m_whiteTexture, btnClosePos + glm::vec2(1.0f), btnCloseSize - glm::vec2(2.0f), 0.0f, hovClose ? glm::vec3(0.22f, 0.25f, 0.30f) : glm::vec3(0.16f, 0.18f, 0.22f));
+
+    m_renderer->flush();
+
+    if (m_textRenderer) {
+        float titleW = m_textRenderer->CalculateTextWidth("LEVELS LIST", 0.70f);
+        m_textRenderer->RenderText("LEVELS LIST", modalPos.x + (modalSize.x - titleW) * 0.5f, modalPos.y + 11.0f, 0.70f, glm::vec3(1.0f, 0.85f, 0.25f));
+
+        m_textRenderer->RenderText("Select, rename, or create maps:", modalPos.x + 22.0f, modalPos.y + 57.0f, 0.52f, glm::vec3(0.70f, 0.75f, 0.85f));
+
+        float newTxtW = m_textRenderer->CalculateTextWidth("+ New Map", 0.52f);
+        m_textRenderer->RenderText("+ New Map", btnNewPos.x + (btnNewSize.x - newTxtW) * 0.5f, btnNewPos.y + 8.0f, 0.52f, glm::vec3(0.95f));
+
+        for (int i = 0; i < maxVisible && (i + m_mapsScrollOffset) < static_cast<int>(levels.size()); ++i) {
+            int idx = i + m_mapsScrollOffset;
+            const auto& lvl = levels[idx];
+            glm::vec2 itemPos(modalPos.x + 20.0f, itemStartY + i * (itemH + itemGap));
+            glm::vec2 itemSize(modalSize.x - 40.0f, itemH);
+
+            bool isCurrent = (lvl.filename == m_currentLevelFileName);
+            std::string label = lvl.name;
+            if (isCurrent) label += "  [ACTIVE]";
+            glm::vec3 nameCol = isCurrent ? glm::vec3(0.40f, 1.0f, 0.60f) : (lvl.isBuiltIn ? glm::vec3(1.0f, 0.85f, 0.3f) : glm::vec3(0.92f, 0.94f, 0.98f));
+            m_textRenderer->RenderText(label, itemPos.x + 14.0f, itemPos.y + 8.0f, 0.58f, nameCol);
+
+            std::string sub = lvl.filename + (lvl.isBuiltIn ? " (Campaign)" : " (Custom)");
+            m_textRenderer->RenderText(sub, itemPos.x + 14.0f, itemPos.y + 28.0f, 0.44f, glm::vec3(0.60f, 0.65f, 0.75f));
+
+            glm::vec2 btnLoadPos(itemPos.x + itemSize.x - 220.0f, itemPos.y + 9.0f);
+            float loadW = m_textRenderer->CalculateTextWidth("Load", 0.52f);
+            m_textRenderer->RenderText("Load", btnLoadPos.x + (68.0f - loadW) * 0.5f, btnLoadPos.y + 7.0f, 0.52f, glm::vec3(0.95f));
+
+            glm::vec2 btnRenPos(itemPos.x + itemSize.x - 144.0f, itemPos.y + 9.0f);
+            float renW = m_textRenderer->CalculateTextWidth("Rename", 0.52f);
+            m_textRenderer->RenderText("Rename", btnRenPos.x + (76.0f - renW) * 0.5f, btnRenPos.y + 7.0f, 0.52f, glm::vec3(0.95f));
+
+            if (!lvl.isBuiltIn) {
+                glm::vec2 btnDelPos(itemPos.x + itemSize.x - 60.0f, itemPos.y + 9.0f);
+                float delW = m_textRenderer->CalculateTextWidth("Del", 0.52f);
+                m_textRenderer->RenderText("Del", btnDelPos.x + (46.0f - delW) * 0.5f, btnDelPos.y + 7.0f, 0.52f, glm::vec3(0.95f));
+            }
+        }
+
+        float closeW = m_textRenderer->CalculateTextWidth("Close", 0.55f);
+        m_textRenderer->RenderText("Close", btnClosePos.x + (btnCloseSize.x - closeW) * 0.5f, btnClosePos.y + 10.0f, 0.55f, glm::vec3(0.95f));
     }
 }
 

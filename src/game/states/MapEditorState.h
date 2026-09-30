@@ -86,6 +86,16 @@ private:
     std::vector<EditorButton> m_topButtons;
 
     std::string m_editorSavePath = "res/levels/level_editor.json";
+    std::string m_currentLevelFileName = "level_editor.json";
+    std::string m_currentLevelDisplayName = "level_editor";
+
+    // Состояния модальных окон управления картами
+    bool m_isRenameModalOpen = false;
+    std::string m_renameInputText = "";
+    std::string m_renameTargetFileName = "";
+    bool m_isMapsModalOpen = false;
+    int m_mapsScrollOffset = 0;
+
     std::string m_statusMessage = "Map Editor: [1-6] Brushes | [0/E] Eraser | [W] Waves | [S] Save | [T] Test";
     float m_statusTimer = 0.0f;
     glm::vec3 m_statusColor = glm::vec3(0.9f, 0.9f, 0.9f);
@@ -97,11 +107,20 @@ private:
     void eraseCell(int gridX, int gridY);
     void saveMap();
     void loadInitialMap();
+    void loadLevelByName(const std::string& fileName);
+    void updateCurrentLevelDisplayName();
     void testMap();
     void clearMap();
     void cycleSelectedId(int step);
     void resizeMap(int newW, int newH);
     void cycleMapSizePreset();
+
+    void openRenameModal(const std::string& targetFileName = "");
+    void confirmRename();
+    void renderRenameModal();
+    void renderMapsModal();
+    bool processRenameModalInput(GLFWwindow* window, glm::vec2 mousePos, bool leftDown, float dt);
+    bool processMapsModalInput(GLFWwindow* window, glm::vec2 mousePos, bool leftDown, float dt);
 
     enum class FocusedField {
         None,

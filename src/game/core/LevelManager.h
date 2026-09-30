@@ -40,8 +40,26 @@ struct LevelMapData {
     std::vector<WaveConfig> waves;
 };
 
+// Информация об уровне для отображения в меню и редакторе
+struct LevelInfo {
+    std::string filename; // например: "level_1.json", "custom_map.json"
+    std::string name;     // отображаемое имя, например: "LEVEL 1", "My Defense"
+    std::string fullPath; // путь для запуска: "res/levels/level_1.json"
+    bool isBuiltIn = false; // true для сюжетных уровней
+};
+
 class LevelManager {
 public:
     static LevelMapData loadLevelMap(const std::string& filepath);
     static bool saveLevelMap(const std::string& filepath, const LevelMapData& data);
+
+    // Управление и синхронизация уровней
+    static std::vector<std::string> getLevelDirectories();
+    static void syncLevelsBetweenSourceAndBuild();
+    static std::vector<LevelInfo> getAvailableLevels();
+    static bool saveLevel(const std::string& levelFileName, const LevelMapData& data);
+    static bool renameLevel(const std::string& oldFileName, const std::string& newFileName);
+    static bool deleteLevel(const std::string& levelFileName);
+    static std::string createNewLevel(const std::string& baseName = "custom_map");
+    static std::string sanitizeLevelFileName(const std::string& name);
 };

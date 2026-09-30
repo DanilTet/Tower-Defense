@@ -3,18 +3,23 @@
 #include <memory>
 #include <vector>
 #include <string>
+#include <unordered_map>
 #include <glm/glm.hpp>
 #include "PauseState.h"
+#include "../core/LevelManager.h"
 
 class GameStateManager;
 class SpriteRenderer;
 class TextRenderer;
 class Texture2D;
 
-// структура привязует джейсон к уровню короче ты понял влад
-struct LevelButton {
-    UIButton btn;
+struct LevelCardUI {
+    UIButton cardBtn;
     std::string levelPath;
+    std::string filename;
+    std::string displayName;
+    bool isBuiltIn = false;
+    UIButton renameBtn;
 };
 
 class LevelSelectState : public IGameState {
@@ -24,13 +29,38 @@ private:
     std::shared_ptr<SpriteRenderer> m_renderer;
     TextRenderer* m_textRenderer;
     std::shared_ptr<Texture2D> m_uiTexture;
+    std::shared_ptr<Texture2D> m_whiteTexture;
 
     bool m_mousePressedLastFrame = false;
-    // все кнопки
-    std::vector<LevelButton> m_levelButtons;
-    UIButton m_btnBack; // камбек в главное меню
+    glm::vec2 m_mousePos{ 0.0f, 0.0f };
+
+    std::vector<LevelCardUI> m_levelCards;
+    UIButton m_btnBack;
+    UIButton m_btnEditor;
+
+    int m_currentPage = 0;
+    int m_totalPages = 1;
+    UIButton m_btnPrevPage;
+    UIButton m_btnNextPage;
+
+    // Модальное окно переименования
+    bool m_isRenameModalOpen = false;
+    std::string m_renameInputText = "";
+    std::string m_renameTargetFileName = "";
+    float m_cursorBlinkTimer = 0.0f;
+
+    struct KeyRepeatState {
+        bool isDown = false;
+        float holdTimer = 0.0f;
+        float repeatTimer = 0.0f;
+    };
+    std::unordered_map<int, KeyRepeatState> m_keyStates;
 
     bool isPointInRect(glm::vec2 point, glm::vec2 rectPos, glm::vec2 rectSize);
+    void openRenameModal(const std::string& targetFileName);
+    void confirmRename();
+    bool processRenameModalInput(GLFWwindow* window, glm::vec2 mousePos, bool leftDown, float dt);
+    void renderRenameModal();
 
 public:
     LevelSelectState(GameStateManager& stateManager, int width, int height, std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer);
