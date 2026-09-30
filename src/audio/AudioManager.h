@@ -12,4 +12,12 @@ public:
     // для фоновой музыки
     static void playMusic(const std::string& filepath);
     static void stopMusic();
+
+    // Глобальное управление громкостью и отключением звука (Mute)
+    static void setMasterVolume(float volume);
+    static float getMasterVolume();
+    static float getRawVolume();
+    static bool isMuted();
+    static void setMuted(bool mute);
+    static void toggleMute();
 };

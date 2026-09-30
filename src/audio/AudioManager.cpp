@@ -17,6 +17,11 @@ static ma_sound sfxPool[MAX_SOUNDS]; // массив звуковых объек
 static bool sfxAllocated[MAX_SOUNDS]; // флаг занят ли слот
 static int currentSfxIndex = 0; // текущий слод для нового звука
 
+// глобальная громкость и состояние mute
+static float s_masterVolume = 1.0f;
+static float s_savedVolume = 1.0f;
+static bool s_isMuted = false;
+
 bool AudioManager::init() {
 	// инициализация аудиодвижка с настройками по умолчанию
 	ma_result result = ma_engine_init(NULL, &engine);
@@ -32,6 +37,7 @@ bool AudioManager::init() {
     }
 
     isInitialized = true;
+    ma_engine_set_volume(&engine, s_isMuted ? 0.0f : s_masterVolume);
     std::cout << "Audio Engine initialized successfully!" << std::endl;
     return true;
 }
@@ -115,4 +121,50 @@ void AudioManager::stopMusic() {
     if (isMusicLoaded) {
         ma_sound_stop(&bgmSound);
     }
+}
+
+void AudioManager::setMasterVolume(float volume) {
+    if (volume < 0.0f) volume = 0.0f;
+    if (volume > 1.0f) volume = 1.0f;
+
+    s_masterVolume = volume;
+    if (volume > 0.001f) {
+        s_savedVolume = volume;
+        s_isMuted = false;
+    }
+
+    if (isInitialized) {
+        ma_engine_set_volume(&engine, s_isMuted ? 0.0f : s_masterVolume);
+    }
+}
+
+float AudioManager::getMasterVolume() {
+    return s_isMuted ? 0.0f : s_masterVolume;
+}
+
+float AudioManager::getRawVolume() {
+    return s_savedVolume;
+}
+
+bool AudioManager::isMuted() {
+    return s_isMuted || s_masterVolume <= 0.001f;
+}
+
+void AudioManager::setMuted(bool mute) {
+    s_isMuted = mute;
+    if (isInitialized) {
+        if (s_isMuted) {
+            ma_engine_set_volume(&engine, 0.0f);
+        }
+        else {
+            if (s_masterVolume <= 0.001f) {
+                s_masterVolume = (s_savedVolume > 0.05f) ? s_savedVolume : 0.8f;
+            }
+            ma_engine_set_volume(&engine, s_masterVolume);
+        }
+    }
+}
+
+void AudioManager::toggleMute() {
+    setMuted(!isMuted());
 }

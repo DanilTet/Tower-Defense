@@ -10,6 +10,8 @@ class TextRenderer;
 class Texture2D;
 class GameplayState;
 
+#include "../ui/VolumeSliderWidget.h"
+
 // кнопка
 struct UIButton {
     glm::vec2 pos;
@@ -27,6 +29,7 @@ private:
     TextRenderer* m_textRenderer;
     // Ui текстурка
     std::shared_ptr<Texture2D> m_uiTexture;
+    std::shared_ptr<Texture2D> m_whiteTexture;
     //переменные мыши
     bool m_mousePressedLastFrame;
     glm::vec2 m_currentMousePos;
@@ -40,6 +43,8 @@ private:
     UIButton m_btnResume;
     UIButton m_btnSave;
     UIButton m_btnExit;
+
+    VolumeSliderWidget m_volumeWidget;
 
     bool isPointInRect(glm::vec2 point, glm::vec2 rectPos, glm::vec2 rectSize);
 

@@ -11,28 +11,32 @@ PauseState::PauseState(GameStateManager& stateManager, int width, int height, st
     : m_stateManager(stateManager), m_width(width), m_height(height), m_renderer(renderer), m_textRenderer(textRenderer), m_gameplayState(gameplayState), m_mousePressedLastFrame(false) {
 
     m_uiTexture = std::shared_ptr<Texture2D>(ResourceManager::getTexture("uiBaseTexture"), [](Texture2D*) {});
+    m_whiteTexture = std::shared_ptr<Texture2D>(ResourceManager::getWhiteTexture(), [](Texture2D*) {});
 }
 
 void PauseState::init() {
     // настройка окна
-    m_windowSize = glm::vec2(400.0f, 350.0f);
+    m_windowSize = glm::vec2(420.0f, 335.0f);
     m_windowPos = glm::vec2((m_width - m_windowSize.x) / 2.0f, (m_height - m_windowSize.y) / 2.0f);
     m_headerHeight = 40.0f;
     m_isDragging = false;
     m_dragOffset = glm::vec2(0.0f);
 
     // настройка Resume
-    m_btnResume.size = glm::vec2(250.0f, 50.0f);
+    m_btnResume.size = glm::vec2(260.0f, 42.0f);
     m_btnResume.text = "Resume";
     m_btnResume.state = 0;
 
     // настройка Save
-    m_btnSave.size = glm::vec2(250.0f, 50.0f);
+    m_btnSave.size = glm::vec2(260.0f, 42.0f);
     m_btnSave.text = "Save Game";
     m_btnSave.state = 0;
 
+    // настройка ползунка громкости
+    m_volumeWidget = VolumeSliderWidget(m_windowPos + glm::vec2(30.0f, 170.0f), 360.0f, true, "Громкость звука:");
+
     // настройка Exit
-    m_btnExit.size = glm::vec2(250.0f, 50.0f);
+    m_btnExit.size = glm::vec2(260.0f, 42.0f);
     m_btnExit.text = "Exit to Menu";
     m_btnExit.state = 0;
 }
@@ -48,38 +52,45 @@ void PauseState::processInput(GLFWwindow* window, float dt) {
     glfwGetCursorPos(window, &mouseX, &mouseY);
     m_currentMousePos = glm::vec2(mouseX, mouseY);
 
-    m_btnResume.pos = m_windowPos + glm::vec2((m_windowSize.x - m_btnResume.size.x) / 2.0f, 80.0f);
-    m_btnSave.pos = m_windowPos + glm::vec2((m_windowSize.x - m_btnSave.size.x) / 2.0f, 150.0f);
-    m_btnExit.pos = m_windowPos + glm::vec2((m_windowSize.x - m_btnExit.size.x) / 2.0f, 220.0f);
+    m_btnResume.pos = m_windowPos + glm::vec2((m_windowSize.x - m_btnResume.size.x) / 2.0f, 55.0f);
+    m_btnSave.pos = m_windowPos + glm::vec2((m_windowSize.x - m_btnSave.size.x) / 2.0f, 108.0f);
+    m_volumeWidget.setPosition(m_windowPos + glm::vec2(30.0f, 165.0f));
+    m_btnExit.pos = m_windowPos + glm::vec2((m_windowSize.x - m_btnExit.size.x) / 2.0f, 255.0f);
 
     int mouseState = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
+    bool isPressed = (mouseState == GLFW_PRESS);
+    bool justPressed = (isPressed && !m_mousePressedLastFrame);
 
-    // Drag & Drop
-    if (mouseState == GLFW_PRESS) {
-        if (!m_mousePressedLastFrame) {
-            // кликнули в этом кадре
-            m_mousePressedLastFrame = true;
+    if (justPressed) {
+        m_mousePressedLastFrame = true;
 
-            // проверяем клик по шапке окна
-            glm::vec2 headerSize(m_windowSize.x, m_headerHeight);
-            if (isPointInRect(m_currentMousePos, m_windowPos, headerSize)) {
-                m_isDragging = true;
-                // запоминаем разницу между мышью и углом окна
-                m_dragOffset = m_currentMousePos - m_windowPos;
-            }
-
-            // проверяем клик по кнопкам
-            if (isPointInRect(m_currentMousePos, m_btnResume.pos, m_btnResume.size)) m_btnResume.state = 2;
-            if (isPointInRect(m_currentMousePos, m_btnSave.pos, m_btnSave.size)) m_btnSave.state = 2;
-            if (isPointInRect(m_currentMousePos, m_btnExit.pos, m_btnExit.size)) m_btnExit.state = 2;
+        if (m_volumeWidget.handleInput(m_currentMousePos, isPressed, justPressed)) {
+            return;
         }
-        else if (m_isDragging) {
-            // если мышь зажата и мы тащим окно
+
+        // проверяем клик по шапке окна
+        glm::vec2 headerSize(m_windowSize.x, m_headerHeight);
+        if (isPointInRect(m_currentMousePos, m_windowPos, headerSize)) {
+            m_isDragging = true;
+            m_dragOffset = m_currentMousePos - m_windowPos;
+            return;
+        }
+
+        // проверяем клик по кнопкам
+        if (isPointInRect(m_currentMousePos, m_btnResume.pos, m_btnResume.size)) m_btnResume.state = 2;
+        if (isPointInRect(m_currentMousePos, m_btnSave.pos, m_btnSave.size)) m_btnSave.state = 2;
+        if (isPointInRect(m_currentMousePos, m_btnExit.pos, m_btnExit.size)) m_btnExit.state = 2;
+    }
+    else if (isPressed) {
+        if (m_volumeWidget.handleInput(m_currentMousePos, isPressed, false)) {
+            return;
+        }
+        if (m_isDragging) {
             m_windowPos = m_currentMousePos - m_dragOffset;
         }
     }
     else if (mouseState == GLFW_RELEASE) {
-        // отпустили кнопку мыши
+        m_volumeWidget.handleInput(m_currentMousePos, false, false);
         m_isDragging = false;
 
         // если отпустили кнопку над Resume
@@ -96,20 +107,16 @@ void PauseState::processInput(GLFWwindow* window, float dt) {
             m_mousePressedLastFrame = false;
             return;
         }
-
         // если отпустили кнопку над Exit
         if (m_btnExit.state == 2 && isPointInRect(m_currentMousePos, m_btnExit.pos, m_btnExit.size)) {
             m_stateManager.setState(std::make_unique<MainMenuState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));
             return;
         }
 
-        m_mousePressedLastFrame = false;
-    }
-
-    // обработка Hover
-    if (mouseState == GLFW_RELEASE) {
         m_btnResume.state = isPointInRect(m_currentMousePos, m_btnResume.pos, m_btnResume.size) ? 1 : 0;
+        m_btnSave.state = isPointInRect(m_currentMousePos, m_btnSave.pos, m_btnSave.size) ? 1 : 0;
         m_btnExit.state = isPointInRect(m_currentMousePos, m_btnExit.pos, m_btnExit.size) ? 1 : 0;
+        m_mousePressedLastFrame = false;
     }
 }
 
@@ -126,7 +133,6 @@ void PauseState::render() {
 
     // кнопки рисуем зависимо от стейта
     auto drawButton = [&](UIButton& btn, glm::vec3 color) {
-        // gодложка кнопки
         m_renderer->drawSprite(m_uiTexture, btn.pos, btn.size, 0.0f, color);
     };
 
@@ -134,16 +140,9 @@ void PauseState::render() {
     if (m_btnResume.state == 1) resumeColor = glm::vec3(0.22f, 0.55f, 0.22f); // Hover
     if (m_btnResume.state == 2) resumeColor = glm::vec3(0.10f, 0.25f, 0.10f); // Pressed
 
-    glm::vec3 saveColor;
-    if (m_btnSave.state == 2) {
-        saveColor = glm::vec3(0.10f, 0.20f, 0.30f);
-    }
-    else if (m_btnSave.state == 1) {
-        saveColor = glm::vec3(0.20f, 0.40f, 0.60f);
-    }
-    else {
-        saveColor = glm::vec3(0.15f, 0.30f, 0.45f);
-    }
+    glm::vec3 saveColor = glm::vec3(0.15f, 0.30f, 0.45f);
+    if (m_btnSave.state == 1) saveColor = glm::vec3(0.20f, 0.40f, 0.60f);
+    if (m_btnSave.state == 2) saveColor = glm::vec3(0.10f, 0.20f, 0.30f);
 
     glm::vec3 exitColor = glm::vec3(0.45f, 0.15f, 0.15f); // Idle
     if (m_btnExit.state == 1) exitColor = glm::vec3(0.65f, 0.20f, 0.20f); // Hover
@@ -156,10 +155,20 @@ void PauseState::render() {
     m_renderer->endBatch(); // рисуем
 
     // текст заголовочный
-    m_textRenderer->RenderText("PAUSE MENU", m_windowPos.x + 135.0f, m_windowPos.y + 10.0f, 1.0f, glm::vec3(1.0f, 0.75f, 0.0f));
-    m_textRenderer->RenderText(m_btnResume.text, m_btnResume.pos.x + 85.0f, m_btnResume.pos.y + 12.0f, 1.0f, glm::vec3(0.95f, 0.95f, 0.95f));
-    m_textRenderer->RenderText(m_btnSave.text, m_btnSave.pos.x + 75.0f, m_btnSave.pos.y + 12.0f, 1.0f, glm::vec3(0.95f, 0.95f, 0.95f));
-    m_textRenderer->RenderText(m_btnExit.text, m_btnExit.pos.x + 65.0f, m_btnExit.pos.y + 12.0f, 1.0f, glm::vec3(0.95f, 0.95f, 0.95f));
+    float titleW = m_textRenderer->CalculateTextWidth("PAUSE MENU", 0.90f);
+    m_textRenderer->RenderText("PAUSE MENU", m_windowPos.x + (m_windowSize.x - titleW) * 0.5f, m_windowPos.y + 10.0f, 0.90f, glm::vec3(1.0f, 0.75f, 0.0f));
+
+    auto drawBtnText = [&](const UIButton& btn, const std::string& text) {
+        float tw = m_textRenderer->CalculateTextWidth(text, 0.55f);
+        m_textRenderer->RenderText(text, btn.pos.x + (btn.size.x - tw) * 0.5f, btn.pos.y + 12.0f, 0.55f, glm::vec3(0.95f, 0.95f, 0.95f));
+    };
+
+    drawBtnText(m_btnResume, m_btnResume.text);
+    drawBtnText(m_btnSave, m_btnSave.text);
+    drawBtnText(m_btnExit, m_btnExit.text);
+
+    // Отрисовка виджета громкости
+    m_volumeWidget.render(m_renderer.get(), m_textRenderer, m_whiteTexture);
 }
 
 void PauseState::resize(int width, int height) {

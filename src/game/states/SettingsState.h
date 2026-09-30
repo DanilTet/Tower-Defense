@@ -1,0 +1,48 @@
+#pragma once
+#include "IGameState.h"
+#include <memory>
+#include <glm/glm.hpp>
+#include "../ui/VolumeSliderWidget.h"
+
+class GameStateManager;
+class SpriteRenderer;
+class TextRenderer;
+class Texture2D;
+
+class SettingsState : public IGameState {
+private:
+    GameStateManager& m_stateManager;
+    int m_width, m_height;
+    std::shared_ptr<SpriteRenderer> m_renderer;
+    TextRenderer* m_textRenderer;
+    std::shared_ptr<Texture2D> m_whiteTexture;
+    std::shared_ptr<Texture2D> m_uiTexture;
+
+    glm::vec2 m_windowPos;
+    glm::vec2 m_windowSize;
+    float m_headerHeight = 40.0f;
+    bool m_isDragging = false;
+    glm::vec2 m_dragOffset{ 0.0f, 0.0f };
+
+    bool m_mousePressedLastFrame = false;
+    glm::vec2 m_currentMousePos{ 0.0f, 0.0f };
+
+    VolumeSliderWidget m_volumeWidget;
+
+    glm::vec2 m_closeBtnPos{ 0.0f, 0.0f };
+    glm::vec2 m_closeBtnSize{ 180.0f, 42.0f };
+    int m_closeBtnState = 0; // 0=Idle, 1=Hover, 2=Pressed
+
+    bool isPointInRect(glm::vec2 point, glm::vec2 rectPos, glm::vec2 rectSize);
+
+public:
+    SettingsState(GameStateManager& stateManager, int width, int height, std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer);
+
+    void init() override;
+    void cleanup() override;
+    void processInput(GLFWwindow* window, float dt) override;
+    void update(float dt) override;
+    void render() override;
+    void resize(int width, int height) override;
+};
+

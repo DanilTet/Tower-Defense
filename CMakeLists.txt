@@ -102,6 +102,9 @@ add_executable(${PROJECT_NAME}
     src/game/ui/HealthBarRenderer.h
     src/game/ui/HealthBarRenderer.cpp
 
+    src/game/ui/VolumeSliderWidget.h
+    src/game/ui/VolumeSliderWidget.cpp
+
     src/game/gameplay/BuildManager.h
     src/game/gameplay/BuildManager.cpp
 
@@ -133,6 +136,8 @@ add_executable(${PROJECT_NAME}
     src/game/states/LevelSelectState.cpp
     src/game/states/MapEditorState.h
     src/game/states/MapEditorState.cpp
+    src/game/states/SettingsState.h
+    src/game/states/SettingsState.cpp
     src/game/core/SaveManager.cpp
 )
 

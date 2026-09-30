@@ -3,6 +3,7 @@
 #include "LevelSelectState.h"
 #include "GameplayState.h"
 #include "MapEditorState.h"
+#include "SettingsState.h"
 #include "../renderer/TextRenderer.h"
 #include <GLFW/glfw3.h>
 #include "../resources/ResourceManager.h"
@@ -31,30 +32,24 @@ void MainMenuState::processInput(GLFWwindow* window, float dt) {
     if (mouseState == GLFW_PRESS && !m_mousePressedLastFrame) {
         m_mousePressedLastFrame = true;
 
-        float startBtnX = m_width / 2.0f - 110.0f;
-        float startBtnY = m_height / 2.0f - 40.0f;
-        float startBtnW = 220.0f, startBtnH = 38.0f;
+        float btnW = 240.0f;
+        float btnH = 38.0f;
+        float btnX = (m_width - btnW) * 0.5f;
 
-        float loadBtnX = m_width / 2.0f - 110.0f;
-        float loadBtnY = m_height / 2.0f + 15.0f;
-        float loadBtnW = 220.0f, loadBtnH = 38.0f;
-
-        float editorBtnX = m_width / 2.0f - 110.0f;
-        float editorBtnY = m_height / 2.0f + 70.0f;
-        float editorBtnW = 220.0f, editorBtnH = 38.0f;
-
-        float exitBtnX = m_width / 2.0f - 60.0f;
-        float exitBtnY = m_height / 2.0f + 125.0f;
-        float exitBtnW = 120.0f, exitBtnH = 38.0f;
+        float startBtnY = m_height / 2.0f - 60.0f;
+        float loadBtnY = m_height / 2.0f - 5.0f;
+        float editorBtnY = m_height / 2.0f + 50.0f;
+        float settingsBtnY = m_height / 2.0f + 105.0f;
+        float exitBtnY = m_height / 2.0f + 160.0f;
 
         // если клик по старт гейм
-        if (isButtonClicked(mouseX, mouseY, startBtnX, startBtnY, startBtnW, startBtnH)) {
+        if (isButtonClicked(mouseX, mouseY, btnX, startBtnY, btnW, btnH)) {
             m_stateManager.setState(std::make_unique<LevelSelectState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));
             return;
         }
 
         // Клик по Load Game
-        if (isButtonClicked(mouseX, mouseY, loadBtnX, loadBtnY, loadBtnW, loadBtnH)) {
+        if (isButtonClicked(mouseX, mouseY, btnX, loadBtnY, btnW, btnH)) {
             auto loadState = std::make_unique<GameplayState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer, "");
             loadState->setSaveToLoad("savegame");
 
@@ -63,13 +58,19 @@ void MainMenuState::processInput(GLFWwindow* window, float dt) {
         }
 
         // Клик по Map Editor
-        if (isButtonClicked(mouseX, mouseY, editorBtnX, editorBtnY, editorBtnW, editorBtnH)) {
+        if (isButtonClicked(mouseX, mouseY, btnX, editorBtnY, btnW, btnH)) {
             m_stateManager.setState(std::make_unique<MapEditorState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));
             return;
         }
 
+        // Клик по Settings
+        if (isButtonClicked(mouseX, mouseY, btnX, settingsBtnY, btnW, btnH)) {
+            m_stateManager.pushState(std::make_unique<SettingsState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));
+            return;
+        }
+
         // если выход
-        if (isButtonClicked(mouseX, mouseY, exitBtnX, exitBtnY, exitBtnW, exitBtnH)) {
+        if (isButtonClicked(mouseX, mouseY, btnX, exitBtnY, btnW, btnH)) {
             glfwSetWindowShouldClose(window, true);
         }
     }
@@ -82,14 +83,27 @@ void MainMenuState::update(float dt) {}
 
 void MainMenuState::render() {
     m_renderer->beginBatch(); // открываем пакет
-    // рисуем заголовок
-    m_textRenderer->RenderText("Donbasyata Tower Defense", m_width / 2.0f - 180.0f, m_height / 2.0f - 110.0f, 1.5f, glm::vec3(1.0f, 1.0f, 0.0f));
 
-    // рисуем кнопки
-    m_textRenderer->RenderText("> Start Game <", m_width / 2.0f - 100.0f, m_height / 2.0f - 40.0f, 1.2f, glm::vec3(1.0f, 1.0f, 1.0f));
-    m_textRenderer->RenderText("> Load Game <", m_width / 2.0f - 100.0f, m_height / 2.0f + 15.0f, 1.2f, glm::vec3(0.2f, 0.8f, 1.0f));
-    m_textRenderer->RenderText("> Map Editor <", m_width / 2.0f - 100.0f, m_height / 2.0f + 70.0f, 1.2f, glm::vec3(0.9f, 0.8f, 0.2f)); // Золотистый
-    m_textRenderer->RenderText("> Exit <", m_width / 2.0f - 50.0f, m_height / 2.0f + 125.0f, 1.2f, glm::vec3(1.0f, 0.3f, 0.3f));
+    // рисуем заголовок
+    float titleW = m_textRenderer->CalculateTextWidth("Donbasyata Tower Defense", 1.5f);
+    m_textRenderer->RenderText("Donbasyata Tower Defense", (m_width - titleW) * 0.5f, m_height / 2.0f - 130.0f, 1.5f, glm::vec3(1.0f, 1.0f, 0.0f));
+
+    // рисуем кнопки с автоцентрированием текста
+    float startW = m_textRenderer->CalculateTextWidth("> Start Game <", 1.2f);
+    m_textRenderer->RenderText("> Start Game <", (m_width - startW) * 0.5f, m_height / 2.0f - 60.0f, 1.2f, glm::vec3(1.0f, 1.0f, 1.0f));
+
+    float loadW = m_textRenderer->CalculateTextWidth("> Load Game <", 1.2f);
+    m_textRenderer->RenderText("> Load Game <", (m_width - loadW) * 0.5f, m_height / 2.0f - 5.0f, 1.2f, glm::vec3(0.2f, 0.8f, 1.0f));
+
+    float editorW = m_textRenderer->CalculateTextWidth("> Map Editor <", 1.2f);
+    m_textRenderer->RenderText("> Map Editor <", (m_width - editorW) * 0.5f, m_height / 2.0f + 50.0f, 1.2f, glm::vec3(0.9f, 0.8f, 0.2f)); // Золотистый
+
+    float settingsW = m_textRenderer->CalculateTextWidth("> Settings <", 1.2f);
+    m_textRenderer->RenderText("> Settings <", (m_width - settingsW) * 0.5f, m_height / 2.0f + 105.0f, 1.2f, glm::vec3(0.75f, 0.88f, 1.0f)); // Светло-голубой
+
+    float exitW = m_textRenderer->CalculateTextWidth("> Exit <", 1.2f);
+    m_textRenderer->RenderText("> Exit <", (m_width - exitW) * 0.5f, m_height / 2.0f + 160.0f, 1.2f, glm::vec3(1.0f, 0.3f, 0.3f));
+
     m_renderer->endBatch(); // закрываем пакет
 }
 
