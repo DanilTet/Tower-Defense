@@ -23,7 +23,13 @@ static const std::vector<glm::ivec2> c_sizePresets = {
     { 16, 10 },
     { 20, 12 },
     { 24, 14 },
-    { 30, 16 }
+    { 30, 18 },
+    { 40, 24 },
+    { 50, 30 },
+    { 64, 36 },
+    { 80, 48 },
+    { 100, 60 },
+    { 128, 72 }
 };
 
 MapEditorState::MapEditorState(GameStateManager& stateManager, int width, int height,
@@ -179,8 +185,8 @@ void MapEditorState::loadInitialMap() {
 }
 
 void MapEditorState::resizeMap(int newW, int newH) {
-    newW = std::clamp(newW, 8, 40);
-    newH = std::clamp(newH, 6, 25);
+    newW = std::clamp(newW, 2, 250);
+    newH = std::clamp(newH, 2, 250);
     if (newW == m_gridWidth && newH == m_gridHeight) return;
 
     // Сохраняем существующие тайлы
@@ -857,11 +863,13 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
         for (const auto& btn : m_topButtons) {
             if (isPointInRect(mousePos, btn.pos, btn.size)) {
                 clickedUI = true;
+                bool isShift = (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS);
+                int step = isShift ? 10 : 2;
                 if (btn.actionId == 8) cycleMapSizePreset();
-                else if (btn.actionId == 9) resizeMap(m_gridWidth - 2, m_gridHeight);
-                else if (btn.actionId == 10) resizeMap(m_gridWidth + 2, m_gridHeight);
-                else if (btn.actionId == 11) resizeMap(m_gridWidth, m_gridHeight - 2);
-                else if (btn.actionId == 12) resizeMap(m_gridWidth, m_gridHeight + 2);
+                else if (btn.actionId == 9) resizeMap(m_gridWidth - step, m_gridHeight);
+                else if (btn.actionId == 10) resizeMap(m_gridWidth + step, m_gridHeight);
+                else if (btn.actionId == 11) resizeMap(m_gridWidth, m_gridHeight - step);
+                else if (btn.actionId == 12) resizeMap(m_gridWidth, m_gridHeight + step);
                 else if (btn.actionId == 14) openRenameModal();
                 else if (btn.actionId == 15) {
                     std::string newF = LevelManager::createNewLevel("custom_map");
