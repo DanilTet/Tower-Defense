@@ -727,6 +727,14 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
     bool leftDown = (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS);
     bool rightDown = (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS);
 
+    // Если открыто модальное окно подтверждения выхода
+    if (m_isExitModalOpen) {
+        bool handled = processExitModalInput(window, mousePos, leftDown, dt);
+        m_isLeftMouseDown = leftDown;
+        m_isRightMouseDown = rightDown;
+        if (handled) return;
+    }
+
     // Если открыто модальное окно переименования
     if (m_isRenameModalOpen) {
         bool handled = processRenameModalInput(window, mousePos, leftDown, dt);
@@ -758,6 +766,11 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
     // Горячая клавиша Escape
     bool keyEsc = (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS);
     if (keyEsc && !m_keyEscPressedLastFrame) {
+        if (m_isExitModalOpen) {
+            closeExitModal();
+            m_keyEscPressedLastFrame = keyEsc;
+            return;
+        }
         if (m_isRenameModalOpen) {
             m_isRenameModalOpen = false;
             m_keyEscPressedLastFrame = keyEsc;
@@ -779,7 +792,8 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
             m_keyEscPressedLastFrame = keyEsc;
             return;
         }
-        m_stateManager.setState(std::make_unique<MainMenuState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));
+        openExitModal();
+        m_keyEscPressedLastFrame = keyEsc;
         return;
     }
     m_keyEscPressedLastFrame = keyEsc;
@@ -888,7 +902,7 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
                     else if (btn.actionId == 2) { testMap(); return; }
                     else if (btn.actionId == 3) clearMap();
                     else if (btn.actionId == 4) {
-                        m_stateManager.setState(std::make_unique<MainMenuState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));
+                        openExitModal();
                         return;
                     }
                     else if (btn.actionId == 5) cycleSelectedId(-1);
@@ -1201,6 +1215,13 @@ void MapEditorState::render() {
     if (m_isRenameModalOpen) {
         m_renderer->beginBatch();
         renderRenameModal();
+        m_renderer->endBatch();
+    }
+
+    // 11. МОДАЛЬНОЕ ОКНО ПОДТВЕРЖДЕНИЯ ВЫХОДА (если активно)
+    if (m_isExitModalOpen) {
+        m_renderer->beginBatch();
+        renderExitModal();
         m_renderer->endBatch();
     }
 }
@@ -2458,4 +2479,179 @@ void MapEditorState::renderMapsModal() {
         m_textRenderer->RenderText("Close", btnClosePos.x + (btnCloseSize.x - closeW) * 0.5f, btnClosePos.y + 10.0f, 0.55f, glm::vec3(0.95f));
     }
 }
+
+void MapEditorState::openExitModal() {
+    m_isExitModalOpen = true;
+    m_suppressPlacementUntilRelease = true;
+}
+
+void MapEditorState::closeExitModal() {
+    m_isExitModalOpen = false;
+    m_suppressPlacementUntilRelease = true;
+}
+
+bool MapEditorState::processExitModalInput(GLFWwindow* window, glm::vec2 mousePos, bool leftDown, float dt) {
+    if (!m_isExitModalOpen) return false;
+
+    // Горячие клавиши
+    bool keyEsc = (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS);
+    if (keyEsc && !m_keyEscPressedLastFrame) {
+        closeExitModal();
+        m_keyEscPressedLastFrame = keyEsc;
+        return true;
+    }
+
+    bool keyEnter = (glfwGetKey(window, GLFW_KEY_ENTER) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_KP_ENTER) == GLFW_PRESS);
+    if (keyEnter) {
+        saveMap();
+        m_stateManager.setState(std::make_unique<MainMenuState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));
+        return true;
+    }
+
+    glm::vec2 modalSize(520.0f, 220.0f);
+    glm::vec2 modalPos((static_cast<float>(m_width) - modalSize.x) * 0.5f,
+                       (static_cast<float>(m_height) - modalSize.y) * 0.5f);
+
+    float btnY = modalPos.y + 145.0f;
+    float btnH = 42.0f;
+
+    glm::vec2 btnSaveExitPos(modalPos.x + 20.0f, btnY);
+    glm::vec2 btnSaveExitSize(200.0f, btnH);
+
+    glm::vec2 btnDiscardPos(modalPos.x + 230.0f, btnY);
+    glm::vec2 btnDiscardSize(170.0f, btnH);
+
+    glm::vec2 btnCancelPos(modalPos.x + 410.0f, btnY);
+    glm::vec2 btnCancelSize(90.0f, btnH);
+
+    glm::vec2 btnCloseCrossPos(modalPos.x + modalSize.x - 36.0f, modalPos.y + 8.0f);
+    glm::vec2 btnCloseCrossSize(26.0f, 26.0f);
+
+    if (leftDown && !m_isLeftMouseDown) {
+        // Кнопка [ Сохранить и выйти ]
+        if (isPointInRect(mousePos, btnSaveExitPos, btnSaveExitSize)) {
+            saveMap();
+            m_stateManager.setState(std::make_unique<MainMenuState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));
+            return true;
+        }
+
+        // Кнопка [ Выйти без сохранения ]
+        if (isPointInRect(mousePos, btnDiscardPos, btnDiscardSize)) {
+            m_stateManager.setState(std::make_unique<MainMenuState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));
+            return true;
+        }
+
+        // Кнопка [ Отмена ]
+        if (isPointInRect(mousePos, btnCancelPos, btnCancelSize)) {
+            closeExitModal();
+            return true;
+        }
+
+        // Крестик [X]
+        if (isPointInRect(mousePos, btnCloseCrossPos, btnCloseCrossSize)) {
+            closeExitModal();
+            return true;
+        }
+
+        // Клик вне модального окна -> закрываем
+        if (!isPointInRect(mousePos, modalPos, modalSize)) {
+            closeExitModal();
+            return true;
+        }
+    }
+
+    return true;
+}
+
+void MapEditorState::renderExitModal() {
+    // Полупрозрачный фон-затемнение
+    m_renderer->drawSpriteRGBA(m_whiteTexture, glm::vec2(0.0f), glm::vec2(m_width, m_height), 0.0f, glm::vec4(0.04f, 0.05f, 0.07f, 0.78f));
+
+    glm::vec2 modalSize(520.0f, 220.0f);
+    glm::vec2 modalPos((static_cast<float>(m_width) - modalSize.x) * 0.5f,
+                       (static_cast<float>(m_height) - modalSize.y) * 0.5f);
+
+    // Основная подложка и обводка
+    m_renderer->drawSprite(m_whiteTexture, modalPos, modalSize, 0.0f, glm::vec3(0.12f, 0.13f, 0.18f));
+    m_renderer->drawSprite(m_whiteTexture, modalPos, glm::vec2(modalSize.x, 2.0f), 0.0f, glm::vec3(0.40f, 0.75f, 1.0f));
+    m_renderer->drawSprite(m_whiteTexture, modalPos + glm::vec2(0.0f, modalSize.y - 2.0f), glm::vec2(modalSize.x, 2.0f), 0.0f, glm::vec3(0.40f, 0.75f, 1.0f));
+    m_renderer->drawSprite(m_whiteTexture, modalPos, glm::vec2(2.0f, modalSize.y), 0.0f, glm::vec3(0.40f, 0.75f, 1.0f));
+    m_renderer->drawSprite(m_whiteTexture, modalPos + glm::vec2(modalSize.x - 2.0f, 0.0f), glm::vec2(2.0f, modalSize.y), 0.0f, glm::vec3(0.40f, 0.75f, 1.0f));
+
+    // Шапка
+    float headerH = 40.0f;
+    m_renderer->drawSprite(m_whiteTexture, modalPos, glm::vec2(modalSize.x, headerH), 0.0f, glm::vec3(0.16f, 0.18f, 0.25f));
+    m_renderer->drawSprite(m_whiteTexture, modalPos + glm::vec2(0.0f, headerH), glm::vec2(modalSize.x, 2.0f), 0.0f, glm::vec3(0.40f, 0.75f, 1.0f));
+
+    // Кнопка-крестик [X]
+    glm::vec2 btnCloseCrossPos(modalPos.x + modalSize.x - 36.0f, modalPos.y + 7.0f);
+    glm::vec2 btnCloseCrossSize(26.0f, 26.0f);
+    bool hovCross = isPointInRect(m_mousePos, btnCloseCrossPos, btnCloseCrossSize);
+    m_renderer->drawSprite(m_whiteTexture, btnCloseCrossPos, btnCloseCrossSize, 0.0f, hovCross ? glm::vec3(0.85f, 0.25f, 0.25f) : glm::vec3(0.35f, 0.38f, 0.45f));
+    m_renderer->drawSprite(m_whiteTexture, btnCloseCrossPos + glm::vec2(1.0f), btnCloseCrossSize - glm::vec2(2.0f), 0.0f, hovCross ? glm::vec3(0.35f, 0.12f, 0.12f) : glm::vec3(0.20f, 0.22f, 0.28f));
+
+    // Кнопки действий
+    float btnY = modalPos.y + 145.0f;
+    float btnH = 42.0f;
+
+    // 1. [ Сохранить и выйти ]
+    glm::vec2 btnSaveExitPos(modalPos.x + 20.0f, btnY);
+    glm::vec2 btnSaveExitSize(200.0f, btnH);
+    bool hovSaveExit = isPointInRect(m_mousePos, btnSaveExitPos, btnSaveExitSize);
+    m_renderer->drawSprite(m_whiteTexture, btnSaveExitPos, btnSaveExitSize, 0.0f, hovSaveExit ? glm::vec3(0.35f, 0.95f, 0.50f) : glm::vec3(0.25f, 0.75f, 0.38f));
+    m_renderer->drawSprite(m_whiteTexture, btnSaveExitPos + glm::vec2(2.0f), btnSaveExitSize - glm::vec2(4.0f), 0.0f, hovSaveExit ? glm::vec3(0.18f, 0.42f, 0.24f) : glm::vec3(0.13f, 0.30f, 0.18f));
+
+    // 2. [ Выйти без сохранения ]
+    glm::vec2 btnDiscardPos(modalPos.x + 230.0f, btnY);
+    glm::vec2 btnDiscardSize(170.0f, btnH);
+    bool hovDiscard = isPointInRect(m_mousePos, btnDiscardPos, btnDiscardSize);
+    m_renderer->drawSprite(m_whiteTexture, btnDiscardPos, btnDiscardSize, 0.0f, hovDiscard ? glm::vec3(0.95f, 0.35f, 0.35f) : glm::vec3(0.75f, 0.25f, 0.25f));
+    m_renderer->drawSprite(m_whiteTexture, btnDiscardPos + glm::vec2(2.0f), btnDiscardSize - glm::vec2(4.0f), 0.0f, hovDiscard ? glm::vec3(0.40f, 0.16f, 0.16f) : glm::vec3(0.28f, 0.12f, 0.12f));
+
+    // 3. [ Отмена ]
+    glm::vec2 btnCancelPos(modalPos.x + 410.0f, btnY);
+    glm::vec2 btnCancelSize(90.0f, btnH);
+    bool hovCancel = isPointInRect(m_mousePos, btnCancelPos, btnCancelSize);
+    m_renderer->drawSprite(m_whiteTexture, btnCancelPos, btnCancelSize, 0.0f, hovCancel ? glm::vec3(0.60f, 0.65f, 0.75f) : glm::vec3(0.40f, 0.44f, 0.52f));
+    m_renderer->drawSprite(m_whiteTexture, btnCancelPos + glm::vec2(2.0f), btnCancelSize - glm::vec2(4.0f), 0.0f, hovCancel ? glm::vec3(0.25f, 0.28f, 0.34f) : glm::vec3(0.18f, 0.20f, 0.25f));
+
+    m_renderer->flush();
+
+    // Тексты в модальном окне
+    if (m_textRenderer) {
+        // Заголовок в шапке
+        std::string titleStr = LOC("EDITOR_EXIT_TITLE");
+        float tW = m_textRenderer->CalculateTextWidth(titleStr, 0.68f);
+        m_textRenderer->RenderText(titleStr, modalPos.x + (modalSize.x - tW) * 0.5f, modalPos.y + 11.0f, 0.68f, glm::vec3(1.0f, 0.85f, 0.25f));
+
+        // Крестик [X]
+        m_textRenderer->RenderText("x", btnCloseCrossPos.x + 8.0f, btnCloseCrossPos.y + 5.0f, 0.55f, glm::vec3(0.9f));
+
+        // Основной вопрос
+        std::string questionStr = LOC("EDITOR_EXIT_QUESTION");
+        float qW = m_textRenderer->CalculateTextWidth(questionStr, 0.72f);
+        m_textRenderer->RenderText(questionStr, modalPos.x + (modalSize.x - qW) * 0.5f, modalPos.y + 60.0f, 0.72f, glm::vec3(1.0f, 1.0f, 1.0f));
+
+        // Поясняющий подтекст
+        std::string subStr = LOC("EDITOR_EXIT_SUB");
+        float sW = m_textRenderer->CalculateTextWidth(subStr, 0.50f);
+        m_textRenderer->RenderText(subStr, modalPos.x + (modalSize.x - sW) * 0.5f, modalPos.y + 98.0f, 0.50f, glm::vec3(0.85f, 0.65f, 0.65f));
+
+        // Текст кнопки 1: Сохранить и выйти
+        std::string saveExitStr = LOC("EDITOR_EXIT_SAVE_AND_EXIT");
+        float seW = m_textRenderer->CalculateTextWidth(saveExitStr, 0.50f);
+        m_textRenderer->RenderText(saveExitStr, btnSaveExitPos.x + (btnSaveExitSize.x - seW) * 0.5f, btnSaveExitPos.y + 12.0f, 0.50f, glm::vec3(0.95f, 1.0f, 0.95f));
+
+        // Текст кнопки 2: Выйти без сохранения
+        std::string discardStr = LOC("EDITOR_EXIT_DISCARD");
+        float dW = m_textRenderer->CalculateTextWidth(discardStr, 0.48f);
+        m_textRenderer->RenderText(discardStr, btnDiscardPos.x + (btnDiscardSize.x - dW) * 0.5f, btnDiscardPos.y + 13.0f, 0.48f, glm::vec3(1.0f, 0.90f, 0.90f));
+
+        // Текст кнопки 3: Отмена
+        std::string cancelStr = LOC("EDITOR_EXIT_CANCEL");
+        float cW = m_textRenderer->CalculateTextWidth(cancelStr, 0.50f);
+        m_textRenderer->RenderText(cancelStr, btnCancelPos.x + (btnCancelSize.x - cW) * 0.5f, btnCancelPos.y + 12.0f, 0.50f, glm::vec3(0.90f, 0.92f, 0.96f));
+    }
+}
+
 

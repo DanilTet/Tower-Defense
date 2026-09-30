@@ -67,7 +67,13 @@ static const std::unordered_map<std::string, std::string> s_dictRu = {
     { "EDITOR_NEW_MAP", "+ Новый" },
     { "EDITOR_MAPS_LIST", "Карты" },
     { "EDITOR_TYPE_CAMPAIGN", "Кампания" },
-    { "EDITOR_TYPE_TEST", "Тестовый" }
+    { "EDITOR_TYPE_TEST", "Тестовый" },
+    { "EDITOR_EXIT_TITLE", "ВЫХОД ИЗ РЕДАКТОРА" },
+    { "EDITOR_EXIT_QUESTION", "Вы точно хотите выйти?" },
+    { "EDITOR_EXIT_SUB", "Несохранённые изменения будут потеряны." },
+    { "EDITOR_EXIT_SAVE_AND_EXIT", "Сохранить и выйти" },
+    { "EDITOR_EXIT_DISCARD", "Выйти без сохранения" },
+    { "EDITOR_EXIT_CANCEL", "Отмена" }
 };
 
 static const std::unordered_map<std::string, std::string> s_dictUa = {
@@ -132,7 +138,13 @@ static const std::unordered_map<std::string, std::string> s_dictUa = {
     { "EDITOR_NEW_MAP", "+ Новий" },
     { "EDITOR_MAPS_LIST", "Карти" },
     { "EDITOR_TYPE_CAMPAIGN", "Кампанія" },
-    { "EDITOR_TYPE_TEST", "Тестовий" }
+    { "EDITOR_TYPE_TEST", "Тестовий" },
+    { "EDITOR_EXIT_TITLE", "ВИХІД З РЕДАКТОРА" },
+    { "EDITOR_EXIT_QUESTION", "Ви точно хочете вийти?" },
+    { "EDITOR_EXIT_SUB", "Незбережені зміни буде втрачено." },
+    { "EDITOR_EXIT_SAVE_AND_EXIT", "Зберегти і вийти" },
+    { "EDITOR_EXIT_DISCARD", "Вийти без збереження" },
+    { "EDITOR_EXIT_CANCEL", "Скасувати" }
 };
 
 static const std::unordered_map<std::string, std::string> s_dictEn = {
@@ -197,7 +209,13 @@ static const std::unordered_map<std::string, std::string> s_dictEn = {
     { "EDITOR_NEW_MAP", "+ New" },
     { "EDITOR_MAPS_LIST", "Maps" },
     { "EDITOR_TYPE_CAMPAIGN", "Campaign" },
-    { "EDITOR_TYPE_TEST", "Test" }
+    { "EDITOR_TYPE_TEST", "Test" },
+    { "EDITOR_EXIT_TITLE", "EXIT EDITOR" },
+    { "EDITOR_EXIT_QUESTION", "Are you sure you want to exit?" },
+    { "EDITOR_EXIT_SUB", "Unsaved changes will be lost." },
+    { "EDITOR_EXIT_SAVE_AND_EXIT", "Save & Exit" },
+    { "EDITOR_EXIT_DISCARD", "Exit without saving" },
+    { "EDITOR_EXIT_CANCEL", "Cancel" }
 };
 
 void LocalizationManager::init() {

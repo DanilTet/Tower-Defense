@@ -98,6 +98,7 @@ private:
     std::string m_renameTargetFileName = "";
     bool m_isMapsModalOpen = false;
     int m_mapsScrollOffset = 0;
+    bool m_isExitModalOpen = false;
 
     std::string m_statusMessage = "";
     float m_statusTimer = 0.0f;
@@ -126,6 +127,11 @@ private:
     void renderMapsModal();
     bool processRenameModalInput(GLFWwindow* window, glm::vec2 mousePos, bool leftDown, float dt);
     bool processMapsModalInput(GLFWwindow* window, glm::vec2 mousePos, bool leftDown, float dt);
+
+    void openExitModal();
+    void closeExitModal();
+    void renderExitModal();
+    bool processExitModalInput(GLFWwindow* window, glm::vec2 mousePos, bool leftDown, float dt);
 
     enum class FocusedField {
         None,
