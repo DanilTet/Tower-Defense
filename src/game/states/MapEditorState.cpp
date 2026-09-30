@@ -914,6 +914,7 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
                     else if (btn.actionId == 3) clearMap();
                     else if (btn.actionId == 4) {
                         openExitModal();
+                        m_isLeftMouseDown = leftDown;
                         return;
                     }
                     else if (btn.actionId == 5) cycleSelectedId(-1);
@@ -2494,24 +2495,40 @@ void MapEditorState::renderMapsModal() {
 void MapEditorState::openExitModal() {
     m_isExitModalOpen = true;
     m_suppressPlacementUntilRelease = true;
+    m_exitModalEscReleased = false;
 }
 
 void MapEditorState::closeExitModal() {
     m_isExitModalOpen = false;
     m_suppressPlacementUntilRelease = true;
+    m_exitModalEscReleased = false;
+    m_keyEscPressedLastFrame = true;
 }
 
 bool MapEditorState::processExitModalInput(GLFWwindow* window, glm::vec2 mousePos, bool leftDown, float dt) {
     if (!m_isExitModalOpen) return false;
 
-    // Горячие клавиши
+    // 1. Подавление клика мыши, которым открыли модалку
+    if (m_suppressPlacementUntilRelease) {
+        if (!leftDown) {
+            m_suppressPlacementUntilRelease = false;
+        }
+    }
+
+    // 2. Горячая клавиша Escape:
+    // При открытии m_exitModalEscReleased = false.
+    // Когда пользователь отпустит Escape (если открыл окно по Escape), взводится m_exitModalEscReleased = true.
+    // При следующем нажатии Escape — подтверждаем выход без сохранения!
     bool keyEsc = (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS);
-    if (keyEsc && !m_keyEscPressedLastFrame) {
-        closeExitModal();
-        m_keyEscPressedLastFrame = keyEsc;
+    if (!keyEsc) {
+        m_exitModalEscReleased = true;
+        m_keyEscPressedLastFrame = false;
+    } else if (m_exitModalEscReleased) {
+        m_stateManager.setState(std::make_unique<MainMenuState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));
         return true;
     }
 
+    // 3. Горячая клавиша Enter — сохранить и выйти
     bool keyEnter = (glfwGetKey(window, GLFW_KEY_ENTER) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_KP_ENTER) == GLFW_PRESS);
     if (keyEnter) {
         saveMap();
@@ -2519,7 +2536,7 @@ bool MapEditorState::processExitModalInput(GLFWwindow* window, glm::vec2 mousePo
         return true;
     }
 
-    glm::vec2 modalSize(520.0f, 220.0f);
+    glm::vec2 modalSize(540.0f, 220.0f);
     glm::vec2 modalPos((static_cast<float>(m_width) - modalSize.x) * 0.5f,
                        (static_cast<float>(m_height) - modalSize.y) * 0.5f);
 
@@ -2530,15 +2547,16 @@ bool MapEditorState::processExitModalInput(GLFWwindow* window, glm::vec2 mousePo
     glm::vec2 btnSaveExitSize(200.0f, btnH);
 
     glm::vec2 btnDiscardPos(modalPos.x + 230.0f, btnY);
-    glm::vec2 btnDiscardSize(170.0f, btnH);
+    glm::vec2 btnDiscardSize(190.0f, btnH);
 
-    glm::vec2 btnCancelPos(modalPos.x + 410.0f, btnY);
+    glm::vec2 btnCancelPos(modalPos.x + 430.0f, btnY);
     glm::vec2 btnCancelSize(90.0f, btnH);
 
     glm::vec2 btnCloseCrossPos(modalPos.x + modalSize.x - 36.0f, modalPos.y + 8.0f);
     glm::vec2 btnCloseCrossSize(26.0f, 26.0f);
 
-    if (leftDown && !m_isLeftMouseDown) {
+    // 4. Клики мыши обрабатываются только после отпускания кнопки мыши после открытия
+    if (!m_suppressPlacementUntilRelease && leftDown && !m_isLeftMouseDown) {
         // Кнопка [ Сохранить и выйти ]
         if (isPointInRect(mousePos, btnSaveExitPos, btnSaveExitSize)) {
             saveMap();
@@ -2564,7 +2582,7 @@ bool MapEditorState::processExitModalInput(GLFWwindow* window, glm::vec2 mousePo
             return true;
         }
 
-        // Клик вне модального окна -> закрываем
+        // Клик вне модального окна -> закрываем (Отмена)
         if (!isPointInRect(mousePos, modalPos, modalSize)) {
             closeExitModal();
             return true;
@@ -2578,7 +2596,7 @@ void MapEditorState::renderExitModal() {
     // Полупрозрачный фон-затемнение
     m_renderer->drawSpriteRGBA(m_whiteTexture, glm::vec2(0.0f), glm::vec2(m_width, m_height), 0.0f, glm::vec4(0.04f, 0.05f, 0.07f, 0.78f));
 
-    glm::vec2 modalSize(520.0f, 220.0f);
+    glm::vec2 modalSize(540.0f, 220.0f);
     glm::vec2 modalPos((static_cast<float>(m_width) - modalSize.x) * 0.5f,
                        (static_cast<float>(m_height) - modalSize.y) * 0.5f);
 
@@ -2614,13 +2632,13 @@ void MapEditorState::renderExitModal() {
 
     // 2. [ Выйти без сохранения ]
     glm::vec2 btnDiscardPos(modalPos.x + 230.0f, btnY);
-    glm::vec2 btnDiscardSize(170.0f, btnH);
+    glm::vec2 btnDiscardSize(190.0f, btnH);
     bool hovDiscard = isPointInRect(m_mousePos, btnDiscardPos, btnDiscardSize);
     m_renderer->drawSprite(m_whiteTexture, btnDiscardPos, btnDiscardSize, 0.0f, hovDiscard ? glm::vec3(0.95f, 0.35f, 0.35f) : glm::vec3(0.75f, 0.25f, 0.25f));
     m_renderer->drawSprite(m_whiteTexture, btnDiscardPos + glm::vec2(2.0f), btnDiscardSize - glm::vec2(4.0f), 0.0f, hovDiscard ? glm::vec3(0.40f, 0.16f, 0.16f) : glm::vec3(0.28f, 0.12f, 0.12f));
 
     // 3. [ Отмена ]
-    glm::vec2 btnCancelPos(modalPos.x + 410.0f, btnY);
+    glm::vec2 btnCancelPos(modalPos.x + 430.0f, btnY);
     glm::vec2 btnCancelSize(90.0f, btnH);
     bool hovCancel = isPointInRect(m_mousePos, btnCancelPos, btnCancelSize);
     m_renderer->drawSprite(m_whiteTexture, btnCancelPos, btnCancelSize, 0.0f, hovCancel ? glm::vec3(0.60f, 0.65f, 0.75f) : glm::vec3(0.40f, 0.44f, 0.52f));
@@ -2650,13 +2668,13 @@ void MapEditorState::renderExitModal() {
 
         // Текст кнопки 1: Сохранить и выйти
         std::string saveExitStr = LOC("EDITOR_EXIT_SAVE_AND_EXIT");
-        float seW = m_textRenderer->CalculateTextWidth(saveExitStr, 0.50f);
-        m_textRenderer->RenderText(saveExitStr, btnSaveExitPos.x + (btnSaveExitSize.x - seW) * 0.5f, btnSaveExitPos.y + 12.0f, 0.50f, glm::vec3(0.95f, 1.0f, 0.95f));
+        float seW = m_textRenderer->CalculateTextWidth(saveExitStr, 0.48f);
+        m_textRenderer->RenderText(saveExitStr, btnSaveExitPos.x + (btnSaveExitSize.x - seW) * 0.5f, btnSaveExitPos.y + 12.0f, 0.48f, glm::vec3(0.95f, 1.0f, 0.95f));
 
         // Текст кнопки 2: Выйти без сохранения
         std::string discardStr = LOC("EDITOR_EXIT_DISCARD");
-        float dW = m_textRenderer->CalculateTextWidth(discardStr, 0.48f);
-        m_textRenderer->RenderText(discardStr, btnDiscardPos.x + (btnDiscardSize.x - dW) * 0.5f, btnDiscardPos.y + 13.0f, 0.48f, glm::vec3(1.0f, 0.90f, 0.90f));
+        float dW = m_textRenderer->CalculateTextWidth(discardStr, 0.46f);
+        m_textRenderer->RenderText(discardStr, btnDiscardPos.x + (btnDiscardSize.x - dW) * 0.5f, btnDiscardPos.y + 13.0f, 0.46f, glm::vec3(1.0f, 0.90f, 0.90f));
 
         // Текст кнопки 3: Отмена
         std::string cancelStr = LOC("EDITOR_EXIT_CANCEL");

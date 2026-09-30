@@ -99,6 +99,7 @@ private:
     bool m_isMapsModalOpen = false;
     int m_mapsScrollOffset = 0;
     bool m_isExitModalOpen = false;
+    bool m_exitModalEscReleased = false;
 
     std::string m_statusMessage = "";
     float m_statusTimer = 0.0f;
