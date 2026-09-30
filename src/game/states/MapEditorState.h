@@ -99,9 +99,11 @@ private:
     bool m_isMapsModalOpen = false;
     int m_mapsScrollOffset = 0;
 
-    std::string m_statusMessage = "Map Editor: [1-6] Brushes | [0/E] Eraser | [W] Waves | [S] Save | [T] Test";
+    std::string m_statusMessage = "";
     float m_statusTimer = 0.0f;
     glm::vec3 m_statusColor = glm::vec3(0.9f, 0.9f, 0.9f);
+    float m_topBarLeftEndX = 540.0f;
+    float m_bottomFontScale = 0.48f;
 
     void updateButtonLayout();
     bool isPointInRect(glm::vec2 point, glm::vec2 rectPos, glm::vec2 rectSize) const;

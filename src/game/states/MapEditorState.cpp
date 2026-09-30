@@ -271,69 +271,93 @@ void MapEditorState::updateButtonLayout() {
     m_bottomButtons.clear();
     m_topButtons.clear();
 
+    auto getTextW = [this](const std::string& str, float sc) -> float {
+        if (m_textRenderer) return m_textRenderer->CalculateTextWidth(str, sc);
+        return static_cast<float>(str.length()) * 8.5f * sc;
+    };
+
     // 1. КНОПКИ ВЕРХНЕГО ХЕДЕРА
     float topY = 6.0f;
     float topH = 32.0f;
-    float topPadding = 5.0f;
+    float topPadding = 6.0f;
+    float topFontScale = 0.50f;
 
-    // Слева: отображение имени карты, кнопка Rename, кнопка +New, кнопка Maps
-    float leftX = 142.0f;
+    // Слева: заголовок "MAP EDITOR" (x: 15..135)
+    float leftX = 140.0f;
 
+    // btnCurrentMap: Отображение текущего имени карты
+    float nameW = getTextW(m_currentLevelDisplayName, topFontScale);
+    float mapBtnW = std::clamp(nameW + 24.0f, 110.0f, 220.0f);
     EditorButton btnCurrentMap;
     btnCurrentMap.pos = glm::vec2(leftX, topY);
-    btnCurrentMap.size = glm::vec2(130.0f, topH);
+    btnCurrentMap.size = glm::vec2(mapBtnW, topH);
     btnCurrentMap.label = m_currentLevelDisplayName;
     btnCurrentMap.isAction = true;
     btnCurrentMap.actionId = 16; // Открыть список карт
     m_topButtons.push_back(btnCurrentMap);
-    leftX += 130.0f + topPadding;
+    leftX += mapBtnW + topPadding;
 
+    // btnRename
+    std::string renLabel = LOC("LEVEL_BTN_RENAME");
+    float renW = std::max(56.0f, getTextW(renLabel, topFontScale) + 20.0f);
     EditorButton btnRename;
     btnRename.pos = glm::vec2(leftX, topY);
-    btnRename.size = glm::vec2(66.0f, topH);
-    btnRename.label = LOC("LEVEL_BTN_RENAME");
+    btnRename.size = glm::vec2(renW, topH);
+    btnRename.label = renLabel;
     btnRename.isAction = true;
     btnRename.actionId = 14; // Переименовать
     m_topButtons.push_back(btnRename);
-    leftX += 66.0f + topPadding;
+    leftX += renW + topPadding;
 
+    // btnType
+    std::string typeLabel = m_isCampaign ? LOC("EDITOR_TYPE_CAMPAIGN") : LOC("EDITOR_TYPE_TEST");
+    float typeW = std::max(86.0f, getTextW(typeLabel, topFontScale) + 22.0f);
     EditorButton btnType;
     btnType.pos = glm::vec2(leftX, topY);
-    btnType.size = glm::vec2(86.0f, topH);
-    btnType.label = m_isCampaign ? LOC("EDITOR_TYPE_CAMPAIGN") : LOC("EDITOR_TYPE_TEST");
+    btnType.size = glm::vec2(typeW, topH);
+    btnType.label = typeLabel;
     btnType.isAction = true;
     btnType.actionId = 17; // Переключить Кампания/Тест
     m_topButtons.push_back(btnType);
-    leftX += 86.0f + topPadding;
+    leftX += typeW + topPadding;
 
+    // btnNewMap
+    std::string newLabel = LOC("EDITOR_NEW_MAP");
+    float newW = std::max(74.0f, getTextW(newLabel, topFontScale) + 20.0f);
     EditorButton btnNewMap;
     btnNewMap.pos = glm::vec2(leftX, topY);
-    btnNewMap.size = glm::vec2(58.0f, topH);
-    btnNewMap.label = LOC("EDITOR_NEW_MAP");
+    btnNewMap.size = glm::vec2(newW, topH);
+    btnNewMap.label = newLabel;
     btnNewMap.isAction = true;
     btnNewMap.actionId = 15; // Создать новую карту
     m_topButtons.push_back(btnNewMap);
-    leftX += 58.0f + topPadding;
+    leftX += newW + topPadding;
 
+    // btnMaps
+    std::string mapsLabel = LOC("EDITOR_MAPS_LIST");
+    float mapsW = std::max(64.0f, getTextW(mapsLabel, topFontScale) + 20.0f);
     EditorButton btnMaps;
     btnMaps.pos = glm::vec2(leftX, topY);
-    btnMaps.size = glm::vec2(58.0f, topH);
-    btnMaps.label = LOC("EDITOR_MAPS_LIST");
+    btnMaps.size = glm::vec2(mapsW, topH);
+    btnMaps.label = mapsLabel;
     btnMaps.isAction = true;
     btnMaps.actionId = 16; // Список карт
     m_topButtons.push_back(btnMaps);
+    leftX += mapsW + topPadding;
+
+    m_topBarLeftEndX = leftX;
 
     // Справа: Выбор размера карты
-    float currentTopX = static_cast<float>(m_width) - 260.0f;
+    float currentTopX = static_cast<float>(m_width) - 250.0f;
 
     EditorButton btnPreset;
     btnPreset.pos = glm::vec2(currentTopX, topY);
-    btnPreset.size = glm::vec2(90.0f, topH);
+    btnPreset.size = glm::vec2(86.0f, topH);
     btnPreset.label = std::to_string(m_gridWidth) + "x" + std::to_string(m_gridHeight);
     btnPreset.isAction = true;
     btnPreset.actionId = 8; // Preset cycle
     m_topButtons.push_back(btnPreset);
-    currentTopX += 90.0f + topPadding;
+    currentTopX += 86.0f + topPadding;
 
     EditorButton btnWDec;
     btnWDec.pos = glm::vec2(currentTopX, topY);
@@ -375,93 +399,94 @@ void MapEditorState::updateButtonLayout() {
     float dockH = std::clamp(54.0f * scale, 48.0f, 58.0f);
     float btnH = dockH - 14.0f;
     float bottomY = static_cast<float>(m_height) - dockH + 7.0f;
-    float startX = 8.0f;
+    float startX = 10.0f;
     float padding = 4.0f;
 
-    struct BrushInfo {
-        EditorBrush brush;
+    float bottomFontScale = 0.48f;
+    m_bottomFontScale = bottomFontScale;
+
+    struct BottomItem {
         std::string label;
+        bool isAction;
+        EditorBrush brush;
+        int actionId;
         float width;
     };
 
-    std::vector<BrushInfo> brushes = {
-        { EditorBrush::Ground,   "1:" + LOC("EDITOR_GROUND"),   70.0f },
-        { EditorBrush::Wall,     "2:" + LOC("EDITOR_WALL"),     64.0f },
-        { EditorBrush::Platform, "3:" + LOC("EDITOR_PLATFORM"), 72.0f },
-        { EditorBrush::Path,     "4:" + LOC("EDITOR_PATH"),     64.0f },
-        { EditorBrush::Spawner,  "5:" + LOC("EDITOR_SPAWNER"),  72.0f },
-        { EditorBrush::Base,     "6:" + LOC("EDITOR_BASE"),     64.0f },
-        { EditorBrush::Eraser,   "0:" + LOC("EDITOR_ERASER"),   72.0f }
-    };
+    std::vector<BottomItem> items;
+    // Кисти (1-6 + 0)
+    items.push_back({ "1:" + LOC("EDITOR_GROUND"),   false, EditorBrush::Ground,   0, 0.0f });
+    items.push_back({ "2:" + LOC("EDITOR_WALL"),     false, EditorBrush::Wall,     0, 0.0f });
+    items.push_back({ "3:" + LOC("EDITOR_PLATFORM"), false, EditorBrush::Platform, 0, 0.0f });
+    items.push_back({ "4:" + LOC("EDITOR_PATH"),     false, EditorBrush::Path,     0, 0.0f });
+    items.push_back({ "5:" + LOC("EDITOR_SPAWNER"),  false, EditorBrush::Spawner,  0, 0.0f });
+    items.push_back({ "6:" + LOC("EDITOR_BASE"),     false, EditorBrush::Base,     0, 0.0f });
+    items.push_back({ "0:" + LOC("EDITOR_ERASER"),   false, EditorBrush::Eraser,   0, 0.0f });
 
-    float currentX = startX;
-    for (const auto& b : brushes) {
-        EditorButton btn;
-        btn.pos = glm::vec2(currentX, bottomY);
-        btn.size = glm::vec2(b.width, btnH);
-        btn.label = b.label;
-        btn.brush = b.brush;
-        btn.isAction = false;
-        m_bottomButtons.push_back(btn);
-        currentX += b.width + padding;
+    // ID блок
+    items.push_back({ "[-]", true, EditorBrush::Wall, 5, 0.0f });
+    std::string idText = (m_selectedId == -1) ? "ID:Auto" : ("ID:#" + std::to_string(m_selectedId));
+    items.push_back({ idText, true, EditorBrush::Wall, 6, 0.0f });
+    items.push_back({ "[+]", true, EditorBrush::Wall, 7, 0.0f });
+
+    // Действия
+    items.push_back({ LOC("EDITOR_WAVES"), true, EditorBrush::Wall, 13, 0.0f });
+    items.push_back({ LOC("EDITOR_SAVE"),  true, EditorBrush::Wall, 1,  0.0f });
+    items.push_back({ LOC("EDITOR_TEST"),  true, EditorBrush::Wall, 2,  0.0f });
+    items.push_back({ LOC("EDITOR_CLEAR"), true, EditorBrush::Wall, 3,  0.0f });
+    items.push_back({ LOC("EDITOR_EXIT"),  true, EditorBrush::Wall, 4,  0.0f });
+
+    // Вычисляем ширину для каждого элемента с запасом по краям
+    float totalWidth = startX;
+    for (size_t i = 0; i < items.size(); ++i) {
+        auto& it = items[i];
+        float tw = getTextW(it.label, bottomFontScale);
+        if (it.actionId == 5 || it.actionId == 7) {
+            it.width = 28.0f;
+        } else if (it.actionId == 6) {
+            it.width = std::max(68.0f, tw + 18.0f);
+        } else {
+            it.width = std::max(56.0f, tw + 18.0f);
+        }
+        totalWidth += it.width + padding;
+        if (i == 6 || i == 9) totalWidth += 6.0f; // Разделители
     }
 
-    currentX += 6.0f; // Разделитель для блока выбора ID
+    // Если всё вместе шире экрана (например, на маленьком разрешении 1024x768), пропорционально уменьшаем
+    float maxAvailW = static_cast<float>(m_width) - 20.0f;
+    if (totalWidth > maxAvailW && totalWidth > 0.0f) {
+        float factor = maxAvailW / totalWidth;
+        bottomFontScale = std::max(0.36f, bottomFontScale * factor);
+        m_bottomFontScale = bottomFontScale;
+        padding = std::max(2.0f, padding * factor);
+        for (auto& it : items) {
+            float tw = getTextW(it.label, bottomFontScale);
+            if (it.actionId == 5 || it.actionId == 7) {
+                it.width = std::max(22.0f, 28.0f * factor);
+            } else if (it.actionId == 6) {
+                it.width = std::max(50.0f, tw + 10.0f);
+            } else {
+                it.width = std::max(44.0f, tw + 10.0f);
+            }
+        }
+    }
 
-    // Кнопки управления ID
-    EditorButton btnIdDec;
-    btnIdDec.pos = glm::vec2(currentX, bottomY);
-    btnIdDec.size = glm::vec2(30.0f, btnH);
-    btnIdDec.label = "[-]";
-    btnIdDec.isAction = true;
-    btnIdDec.actionId = 5; // ID Dec
-    m_bottomButtons.push_back(btnIdDec);
-    currentX += 30.0f + padding;
-
-    std::string idText = (m_selectedId == -1) ? "ID:Auto" : ("ID:#" + std::to_string(m_selectedId));
-    EditorButton btnIdVal;
-    btnIdVal.pos = glm::vec2(currentX, bottomY);
-    btnIdVal.size = glm::vec2(68.0f, btnH);
-    btnIdVal.label = idText;
-    btnIdVal.isAction = true;
-    btnIdVal.actionId = 6; // ID Cycle
-    m_bottomButtons.push_back(btnIdVal);
-    currentX += 68.0f + padding;
-
-    EditorButton btnIdInc;
-    btnIdInc.pos = glm::vec2(currentX, bottomY);
-    btnIdInc.size = glm::vec2(30.0f, btnH);
-    btnIdInc.label = "[+]";
-    btnIdInc.isAction = true;
-    btnIdInc.actionId = 7; // ID Inc
-    m_bottomButtons.push_back(btnIdInc);
-    currentX += 30.0f + padding;
-
-    currentX += 6.0f; // Разделитель перед действиями
-
-    struct ActionInfo {
-        int actionId;
-        std::string label;
-        float width;
-    };
-
-    std::vector<ActionInfo> actions = {
-        { 13, LOC("EDITOR_WAVES"), 76.0f },
-        { 1,  LOC("EDITOR_SAVE"),  76.0f },
-        { 2,  LOC("EDITOR_TEST"),  66.0f },
-        { 3,  LOC("EDITOR_CLEAR"), 72.0f },
-        { 4,  LOC("EDITOR_EXIT"),  78.0f }
-    };
-
-    for (const auto& a : actions) {
+    // Размещаем кнопки
+    float currentX = startX;
+    for (size_t i = 0; i < items.size(); ++i) {
+        if (i == 7 || i == 10) {
+            currentX += 6.0f; // Визуальный разделитель
+        }
+        const auto& it = items[i];
         EditorButton btn;
         btn.pos = glm::vec2(currentX, bottomY);
-        btn.size = glm::vec2(a.width, btnH);
-        btn.label = a.label;
-        btn.isAction = true;
-        btn.actionId = a.actionId;
+        btn.size = glm::vec2(it.width, btnH);
+        btn.label = it.label;
+        btn.isAction = it.isAction;
+        btn.brush = it.brush;
+        btn.actionId = it.actionId;
         m_bottomButtons.push_back(btn);
-        currentX += a.width + padding;
+        currentX += it.width + padding;
     }
 }
 
@@ -922,7 +947,7 @@ void MapEditorState::update(float dt) {
     if (m_statusTimer > 0.0f) {
         m_statusTimer -= dt;
         if (m_statusTimer <= 0.0f) {
-            m_statusMessage = "Map Editor: [1-6] Brushes | [0/E] Eraser | [W] Waves | [S] Save | [T] Test";
+            m_statusMessage = "";
             m_statusColor = glm::vec3(0.9f, 0.9f, 0.9f);
         }
     }
@@ -1061,27 +1086,49 @@ void MapEditorState::render() {
         // Текст верхнего хедера
         m_textRenderer->RenderText("MAP EDITOR", 15.0f, 14.0f, 0.85f, glm::vec3(1.0f, 0.85f, 0.2f));
 
-        std::string fullStatus = m_statusMessage;
-        if (m_hasInvalidSpawner) {
-            fullStatus += " | [!] SPAWNER BLOCKED!";
-        } else if (m_missingBaseWarning) {
-            fullStatus += " | [i] Base #" + std::to_string(m_missingBaseId) + " missing (using nearest)";
-        }
-        glm::vec3 curColor = m_hasInvalidSpawner ? glm::vec3(1.0f, 0.25f, 0.25f) : (m_missingBaseWarning ? glm::vec3(1.0f, 0.75f, 0.2f) : m_statusColor);
-        m_textRenderer->RenderText(fullStatus, 480.0f, 15.0f, 0.54f, curColor);
-
         // Текст на кнопках верхнего бара
         for (const auto& btn : m_topButtons) {
             glm::vec3 textColor = (btn.actionId == 8) ? glm::vec3(0.4f, 0.9f, 1.0f) :
                                   (btn.actionId == 14) ? glm::vec3(1.0f, 0.9f, 0.35f) :
                                   (btn.actionId == 15) ? glm::vec3(0.4f, 1.0f, 0.5f) :
                                   (btn.actionId == 16) ? glm::vec3(0.7f, 0.9f, 1.0f) : glm::vec3(0.9f);
-            float tw = m_textRenderer->CalculateTextWidth(btn.label, 0.55f);
+            float tw = m_textRenderer->CalculateTextWidth(btn.label, 0.50f);
             float tx = btn.pos.x + (btn.size.x - tw) * 0.5f;
-            m_textRenderer->RenderText(btn.label, tx, btn.pos.y + 8.0f, 0.55f, textColor);
+            float ty = btn.pos.y + (btn.size.y - 13.0f) * 0.5f;
+            m_textRenderer->RenderText(btn.label, tx, ty, 0.50f, textColor);
         }
 
-        // Текст на кнопках нижнего бара
+        // Статус / предупреждения строго между кнопками слева и размерными кнопками справа
+        float rightControlsX = static_cast<float>(m_width) - 250.0f;
+        float statusStartX = m_topBarLeftEndX + 16.0f;
+        float maxStatusWidth = (rightControlsX - 16.0f) - statusStartX;
+
+        if (maxStatusWidth > 60.0f) {
+            std::string statusText = "";
+            glm::vec3 curColor = m_statusColor;
+
+            if (m_hasInvalidSpawner) {
+                statusText = "[!] SPAWNER BLOCKED (NO PATH)";
+                curColor = glm::vec3(1.0f, 0.25f, 0.25f);
+            } else if (m_missingBaseWarning) {
+                statusText = "[i] Base #" + std::to_string(m_missingBaseId) + " missing (using nearest)";
+                curColor = glm::vec3(1.0f, 0.75f, 0.2f);
+            } else if (m_statusTimer > 0.0f && !m_statusMessage.empty()) {
+                statusText = m_statusMessage;
+                curColor = m_statusColor;
+            }
+
+            if (!statusText.empty()) {
+                float sScale = 0.50f;
+                float sw = m_textRenderer->CalculateTextWidth(statusText, sScale);
+                if (sw > maxStatusWidth) {
+                    sScale = std::max(0.35f, sScale * (maxStatusWidth / sw));
+                }
+                m_textRenderer->RenderText(statusText, statusStartX, 15.0f, sScale, curColor);
+            }
+        }
+
+        // Текст на кнопках нижнего бара (центрирован по горизонтали и вертикали)
         for (const auto& btn : m_bottomButtons) {
             glm::vec3 textColor = glm::vec3(0.95f);
             if (!btn.isAction && btn.brush == m_currentBrush) {
@@ -1091,7 +1138,10 @@ void MapEditorState::render() {
             } else if (btn.actionId == 13) {
                 textColor = m_isWaveEditorOpen ? glm::vec3(0.4f, 1.0f, 1.0f) : glm::vec3(0.6f, 0.85f, 1.0f);
             }
-            m_textRenderer->RenderText(btn.label, btn.pos.x + 5.0f, btn.pos.y + 10.0f, 0.64f, textColor);
+            float tw = m_textRenderer->CalculateTextWidth(btn.label, m_bottomFontScale);
+            float tx = btn.pos.x + (btn.size.x - tw) * 0.5f;
+            float ty = btn.pos.y + (btn.size.y - 12.0f) * 0.5f;
+            m_textRenderer->RenderText(btn.label, tx, ty, m_bottomFontScale, textColor);
         }
 
         // Текст на клетках спавнеров и баз
