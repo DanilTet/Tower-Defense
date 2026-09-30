@@ -18,8 +18,8 @@ LevelSelectState::LevelSelectState(GameStateManager& stateManager, int width, in
 void LevelSelectState::init() {
     m_levelButtons.clear();
 
-    // сетка кнопок выбора уровней
-    float startX = m_width / 2.0f - 250.0f;
+    // сетка кнопок выбора уровней (3 уровня в ряд)
+    float startX = m_width / 2.0f - 260.0f;
     float startY = 150.0f;
 
     // кнопка Уровня 1
@@ -33,6 +33,12 @@ void LevelSelectState::init() {
     lvl2.btn = { glm::vec2(startX + 180.0f, startY), glm::vec2(150.0f, 150.0f), "LEVEL 2", 0 };
     lvl2.levelPath = "res/levels/level_2.json";
     m_levelButtons.push_back(lvl2);
+
+    // кнопка Созданной карты (Custom Map)
+    LevelButton lvlCustom;
+    lvlCustom.btn = { glm::vec2(startX + 360.0f, startY), glm::vec2(150.0f, 150.0f), "MY MAP", 0 };
+    lvlCustom.levelPath = "res/levels/level_editor.json";
+    m_levelButtons.push_back(lvlCustom);
 
     // кнопка возврата в меню
     m_btnBack = { glm::vec2(m_width / 2.0f - 100.0f, m_height - 100.0f), glm::vec2(200.0f, 50.0f), "BACK TO MENU", 0 };
@@ -102,13 +108,15 @@ void LevelSelectState::render() {
     // отрисовка кнопок уровней
     for (const auto& lvlBtn : m_levelButtons) {
         glm::vec3 color = (lvlBtn.btn.state == 0) ? glm::vec3(0.2f, 0.3f, 0.4f) : (lvlBtn.btn.state == 1) ? glm::vec3(0.3f, 0.4f, 0.5f) : glm::vec3(0.1f, 0.2f, 0.3f);
+        if (lvlBtn.btn.text == "MY MAP") {
+            color = (lvlBtn.btn.state == 0) ? glm::vec3(0.25f, 0.32f, 0.42f) : (lvlBtn.btn.state == 1) ? glm::vec3(0.35f, 0.45f, 0.55f) : glm::vec3(0.15f, 0.22f, 0.32f);
+        }
         m_renderer->drawSprite(m_uiTexture, lvlBtn.btn.pos, lvlBtn.btn.size, 0.0f, color);
     }
 
     // отрисовка кнопки Назад
     glm::vec3 backColor = (m_btnBack.state == 0) ? glm::vec3(0.3f) : (m_btnBack.state == 1) ? glm::vec3(0.5f) : glm::vec3(0.2f);
     m_renderer->drawSprite(m_uiTexture, m_btnBack.pos, m_btnBack.size, 0.0f, backColor);
-    m_textRenderer->RenderText(m_btnBack.text, m_btnBack.pos.x + 30.0f, m_btnBack.pos.y + 15.0f, 1.0f, glm::vec3(0.9f));
     m_renderer->endBatch(); // закрываем пакет
 
     // заголовок
@@ -116,12 +124,16 @@ void LevelSelectState::render() {
 
     // текст на кнопках уровней
     for (const auto& lvlBtn : m_levelButtons) {
-        m_textRenderer->RenderText(lvlBtn.btn.text, lvlBtn.btn.pos.x + 35.0f, lvlBtn.btn.pos.y + 65.0f, 1.0f, glm::vec3(1.0f));
+        float textW = m_textRenderer->CalculateTextWidth(lvlBtn.btn.text, 0.85f);
+        float textX = lvlBtn.btn.pos.x + (lvlBtn.btn.size.x - textW) / 2.0f;
+        glm::vec3 textColor = (lvlBtn.btn.text == "MY MAP") ? glm::vec3(1.0f, 0.85f, 0.25f) : glm::vec3(1.0f);
+        m_textRenderer->RenderText(lvlBtn.btn.text, textX, lvlBtn.btn.pos.y + 62.0f, 0.85f, textColor);
     }
 
     // текст на кнопке Назад
-    m_textRenderer->RenderText(m_btnBack.text, m_btnBack.pos.x + 30.0f, m_btnBack.pos.y + 15.0f, 1.0f, glm::vec3(0.9f));
-
+    float backTextW = m_textRenderer->CalculateTextWidth(m_btnBack.text, 0.9f);
+    float backTextX = m_btnBack.pos.x + (m_btnBack.size.x - backTextW) / 2.0f;
+    m_textRenderer->RenderText(m_btnBack.text, backTextX, m_btnBack.pos.y + 16.0f, 0.9f, glm::vec3(0.9f));
 }
 
 void LevelSelectState::resize(int width, int height) {

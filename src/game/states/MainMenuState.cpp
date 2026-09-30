@@ -2,6 +2,7 @@
 #include "GameStateManager.h"
 #include "LevelSelectState.h"
 #include "GameplayState.h"
+#include "MapEditorState.h"
 #include "../renderer/TextRenderer.h"
 #include <GLFW/glfw3.h>
 #include "../resources/ResourceManager.h"
@@ -30,22 +31,24 @@ void MainMenuState::processInput(GLFWwindow* window, float dt) {
     if (mouseState == GLFW_PRESS && !m_mousePressedLastFrame) {
         m_mousePressedLastFrame = true;
 
-        // координаты кнопок ОЧЕНЬ ПРИМЕРНО
-        float startBtnX = m_width / 2.0f - 100.0f;
-        float startBtnY = m_height / 2.0f - 20.0f;
-        float startBtnW = 200.0f, startBtnH = 40.0f;
+        float startBtnX = m_width / 2.0f - 110.0f;
+        float startBtnY = m_height / 2.0f - 40.0f;
+        float startBtnW = 220.0f, startBtnH = 38.0f;
 
-        float loadBtnX = m_width / 2.0f - 100.0f;
-        float loadBtnY = m_height / 2.0f + 40.0f;
-        float loadBtnW = 200.0f, loadBtnH = 40.0f;
+        float loadBtnX = m_width / 2.0f - 110.0f;
+        float loadBtnY = m_height / 2.0f + 15.0f;
+        float loadBtnW = 220.0f, loadBtnH = 38.0f;
 
-        float exitBtnX = m_width / 2.0f - 50.0f;
-        float exitBtnY = m_height / 2.0f + 100.0f;
-        float exitBtnW = 100.0f, exitBtnH = 40.0f;
+        float editorBtnX = m_width / 2.0f - 110.0f;
+        float editorBtnY = m_height / 2.0f + 70.0f;
+        float editorBtnW = 220.0f, editorBtnH = 38.0f;
+
+        float exitBtnX = m_width / 2.0f - 60.0f;
+        float exitBtnY = m_height / 2.0f + 125.0f;
+        float exitBtnW = 120.0f, exitBtnH = 38.0f;
 
         // если клик по старт гейм
         if (isButtonClicked(mouseX, mouseY, startBtnX, startBtnY, startBtnW, startBtnH)) {
-            // перекоючаем стейт
             m_stateManager.setState(std::make_unique<LevelSelectState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));
             return;
         }
@@ -59,9 +62,14 @@ void MainMenuState::processInput(GLFWwindow* window, float dt) {
             return;
         }
 
+        // Клик по Map Editor
+        if (isButtonClicked(mouseX, mouseY, editorBtnX, editorBtnY, editorBtnW, editorBtnH)) {
+            m_stateManager.setState(std::make_unique<MapEditorState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));
+            return;
+        }
+
         // если выход
         if (isButtonClicked(mouseX, mouseY, exitBtnX, exitBtnY, exitBtnW, exitBtnH)) {
-            // закрываем нахер
             glfwSetWindowShouldClose(window, true);
         }
     }
@@ -75,12 +83,13 @@ void MainMenuState::update(float dt) {}
 void MainMenuState::render() {
     m_renderer->beginBatch(); // открываем пакет
     // рисуем заголовок
-    m_textRenderer->RenderText("Donbasyata Tower Defense", m_width / 2.0f - 180.0f, m_height / 2.0f - 100.0f, 1.5f, glm::vec3(1.0f, 1.0f, 0.0f));
+    m_textRenderer->RenderText("Donbasyata Tower Defense", m_width / 2.0f - 180.0f, m_height / 2.0f - 110.0f, 1.5f, glm::vec3(1.0f, 1.0f, 0.0f));
 
-    // рисуем копки
-    m_textRenderer->RenderText("> Start Game <", m_width / 2.0f - 100.0f, m_height / 2.0f - 20.0f, 1.2f, glm::vec3(1.0f, 1.0f, 1.0f));
-    m_textRenderer->RenderText("> Load Game <", m_width / 2.0f - 100.0f, m_height / 2.0f + 40.0f, 1.2f, glm::vec3(0.2f, 0.8f, 1.0f)); // Подсветим бирюзовым
-    m_textRenderer->RenderText("> Exit <", m_width / 2.0f - 50.0f, m_height / 2.0f + 100.0f, 1.2f, glm::vec3(1.0f, 0.3f, 0.3f));
+    // рисуем кнопки
+    m_textRenderer->RenderText("> Start Game <", m_width / 2.0f - 100.0f, m_height / 2.0f - 40.0f, 1.2f, glm::vec3(1.0f, 1.0f, 1.0f));
+    m_textRenderer->RenderText("> Load Game <", m_width / 2.0f - 100.0f, m_height / 2.0f + 15.0f, 1.2f, glm::vec3(0.2f, 0.8f, 1.0f));
+    m_textRenderer->RenderText("> Map Editor <", m_width / 2.0f - 100.0f, m_height / 2.0f + 70.0f, 1.2f, glm::vec3(0.9f, 0.8f, 0.2f)); // Золотистый
+    m_textRenderer->RenderText("> Exit <", m_width / 2.0f - 50.0f, m_height / 2.0f + 125.0f, 1.2f, glm::vec3(1.0f, 0.3f, 0.3f));
     m_renderer->endBatch(); // закрываем пакет
 }
 

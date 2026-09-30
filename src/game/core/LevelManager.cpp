@@ -36,7 +36,11 @@ LevelMapData LevelManager::loadLevelMap(const std::string& filepath) {
 
             // читаем базы
             for (const auto& base : j["map"]["bases"]) {
-                data.bases.push_back({ base["x"], base["y"] });
+                BaseData bd;
+                bd.x = base["x"];
+                bd.y = base["y"];
+                bd.id = base.value("id", 0);
+                data.bases.push_back(bd);
             }
             // парсинг сетки
             //0 = Земля(Ground)
@@ -56,9 +60,122 @@ LevelMapData LevelManager::loadLevelMap(const std::string& filepath) {
         else {
             std::cerr << "WARNING::LEVELMANAGER: No 'map' section found in " << filepath << std::endl;
         }
+
+        // читаем волны если есть
+        if (j.contains("waves") && j["waves"].is_array()) {
+            for (const auto& waveJson : j["waves"]) {
+                WaveConfig wave;
+                if (waveJson.contains("parts") && waveJson["parts"].is_array()) {
+                    for (const auto& partJson : waveJson["parts"]) {
+                        WavePart part;
+                        part.type = partJson.value("type", "Basic");
+                        part.count = partJson.value("count", 10);
+                        if (partJson.contains("interval")) {
+                            part.spawnInterwal = partJson["interval"].get<float>();
+                        } else if (partJson.contains("spawnInterwal")) {
+                            part.spawnInterwal = partJson["spawnInterwal"].get<float>();
+                        }
+                        part.delayAfter = partJson.value("delayAfter", 2.0f);
+                        wave.parts.push_back(part);
+                    }
+                }
+                data.waves.push_back(wave);
+            }
+        }
     }
     catch (json::parse_error& e) {
         std::cerr << "ERROR::LEVELMANAGER: JSON parse error: " << e.what() << std::endl;
     }
     return data;
+}
+
+bool LevelManager::saveLevelMap(const std::string& filepath, const LevelMapData& data) {
+    json j;
+    // Попытаться прочесть существующий файл чтобы сохранить прочие секции (например waves)
+    std::ifstream inFile(filepath);
+    if (inFile.is_open()) {
+        try {
+            inFile >> j;
+        }
+        catch (...) {
+            j = json::object();
+        }
+        inFile.close();
+    }
+
+    if (!j.is_object()) {
+        j = json::object();
+    }
+
+    j["map"]["width"] = data.gridWidth;
+    j["map"]["height"] = data.gridHeight;
+    j["map"]["cellSize"] = data.cellSize;
+    j["map"]["offsetX"] = data.offsetX;
+    j["map"]["offsetY"] = data.offsetY;
+    j["map"]["layout"] = data.layout;
+
+    json spawnersJson = json::array();
+    for (const auto& spawner : data.spawners) {
+        spawnersJson.push_back({
+            { "x", spawner.pos.x },
+            { "y", spawner.pos.y },
+            { "targetBaseIndex", spawner.targetBaseIndex }
+        });
+    }
+    j["map"]["spawners"] = spawnersJson;
+
+    json basesJson = json::array();
+    for (const auto& base : data.bases) {
+        basesJson.push_back({
+            { "x", base.x },
+            { "y", base.y },
+            { "id", base.id }
+        });
+    }
+    j["map"]["bases"] = basesJson;
+
+    // Сохраняем волны
+    if (!data.waves.empty()) {
+        json wavesJson = json::array();
+        for (const auto& wave : data.waves) {
+            json partsJson = json::array();
+            for (const auto& part : wave.parts) {
+                partsJson.push_back({
+                    { "type", part.type },
+                    { "count", part.count },
+                    { "interval", part.spawnInterwal },
+                    { "delayAfter", part.delayAfter }
+                });
+            }
+            wavesJson.push_back({
+                { "parts", partsJson }
+            });
+        }
+        j["waves"] = wavesJson;
+    } else if (!j.contains("waves") || !j["waves"].is_array() || j["waves"].empty()) {
+        // Если нет секции waves, добавим базовую волну для тестирования
+        j["waves"] = json::array({
+            {
+                { "parts", json::array({
+                    {
+                        { "type", "Basic" },
+                        { "count", 10 },
+                        { "interval", 1.0f },
+                        { "delayAfter", 2.0f }
+                    }
+                }) }
+            }
+        });
+    }
+
+    std::ofstream outFile(filepath);
+    if (!outFile.is_open()) {
+        std::cerr << "ERROR::LEVELMANAGER: Could not open level file for writing: " << filepath << std::endl;
+        return false;
+    }
+
+    outFile << j.dump(2) << std::endl;
+    outFile.close();
+    std::cout << "SUCCESS::LEVELMANAGER: Level map saved to " << filepath << std::endl;
+    return true;
 }

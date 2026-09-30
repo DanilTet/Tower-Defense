@@ -14,6 +14,7 @@ public:
 	Texture2D& operator=(Texture2D&& other) noexcept;
 
 	bool load(const std::string& path);
+	bool loadFromMemory(int width, int height, const unsigned char* data, int channels = 4);
 
 	void bind(unsigned int unit = 0) const;
 	void unbind() const;

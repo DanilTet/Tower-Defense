@@ -11,11 +11,12 @@ public:
     void tryBuildOrUpgrade(
         glm::vec2 mousePos, // позиция мыши
         const std::string& selectedType,// выбраный тип башни
-        GameWorld& world
+        GameWorld& world,
+        float placementAngle = 270.0f
     );
 
     void sellTower(
         Tower* tower,
         GameWorld& world
     );
-};
+};

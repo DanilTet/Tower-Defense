@@ -123,6 +123,14 @@ bool ConfigManager::loadConfigs(const std::string& towerPath, const std::string&
 						stats.bulletSpeed = 800.0f;
 					}
 
+					// статус-эффекты
+					stats.slowDuration = lvlJson.value("slowDuration", 0.0f);
+					stats.slowPercent = lvlJson.value("slowPercent", 0.0f);
+					stats.poisonDuration = lvlJson.value("poisonDuration", 0.0f);
+					stats.poisonInterval = lvlJson.value("poisonInterval", 0.5f);
+					stats.poisonDamagePerTick = lvlJson.value("poisonDamagePerTick", 0);
+					stats.knockbackForce = lvlJson.value("knockbackForce", 0.0f);
+
 					// записываем статы в словарь по имени башни
 					s_towerStats[towerName].push_back(stats);
 				}

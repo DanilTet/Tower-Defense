@@ -12,7 +12,8 @@ void PathVisualizer::renderPathArrows(
     SpriteRenderer* renderer,
     std::shared_ptr<Texture2D> arrowTex,
     const std::vector<glm::ivec2>& levelPath,
-    const Grid& gameGrid) {
+    const Grid& gameGrid,
+    glm::vec3 arrowColor) {
     // защита если текстурка не подгрузило или пустой путь
     if (!arrowTex || levelPath.size() < 2) return;
 
@@ -25,9 +26,6 @@ void PathVisualizer::renderPathArrows(
     // СУПЕР КРУТОЙ ЄФЕКТ СВЕЧЕНИЯ
     // переключаем бленд-функцию в режим сложения цветов
     glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-
-    // белый цвет с альфа-прозрачностью чат гпт говорит 0.6f для мягкого свечения
-    glm::vec3 arrowColor(1.0f, 1.0f, 1.0f);
 
     // пробегаемся по всем отрезкам пути
     for (size_t i = 0; i < levelPath.size() - 1; ++i) {

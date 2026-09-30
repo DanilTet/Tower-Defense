@@ -26,6 +26,7 @@ public:
         const PlayerStats& stats, // деняк
         glm::vec2 panelPos, // позиция менбшки
         bool hasValidPath, // есть ли путь чтобы пк не взорвался
-        const std::vector<std::unique_ptr<Enemy>>* activeEnemies = nullptr
+        const std::vector<std::unique_ptr<Enemy>>* activeEnemies = nullptr,
+        float placementAngle = 270.0f // угол ориентации (для поршня)
     );
 };

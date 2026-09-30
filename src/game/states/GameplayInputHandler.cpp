@@ -54,6 +54,26 @@ void GameplayInputHandler::processInput(
         world.spawnEnemy("Basic");
     }
 
+    if (isKeyJustPressed(window, GLFW_KEY_R)) {
+        if (selectedTowerType == "Piston") {
+            if (std::abs(m_pistonPlacementAngle - 270.0f) < 5.0f || std::abs(m_pistonPlacementAngle - (-90.0f)) < 5.0f) {
+                m_pistonPlacementAngle = 0.0f;
+            }
+            else if (std::abs(m_pistonPlacementAngle - 0.0f) < 5.0f) {
+                m_pistonPlacementAngle = 90.0f;
+            }
+            else if (std::abs(m_pistonPlacementAngle - 90.0f) < 5.0f) {
+                m_pistonPlacementAngle = 180.0f;
+            }
+            else {
+                m_pistonPlacementAngle = 270.0f;
+            }
+        }
+        else if (selectedTowerOnMap && selectedTowerOnMap->getType() == "Piston") {
+            selectedTowerOnMap->rotate90();
+        }
+    }
+
     double mouseX, mouseY;
     glfwGetCursorPos(window, &mouseX, &mouseY);
     m_currentMousePos = glm::vec2(mouseX, mouseY);
@@ -67,8 +87,11 @@ void GameplayInputHandler::processInput(
     if (mouseState == GLFW_PRESS && !m_mousePressedLastFrame) {
         m_mousePressedLastFrame = true;
 
-        if (buildPanel.checkClick(mouseX, mouseY, windowWidth, windowHeight, selectedTowerType)) {
-            selectedTowerOnMap = nullptr;
+        float bottomBarHeight = Buildpanel::getBottomBarHeight(windowWidth, windowHeight);
+        if (mouseY >= static_cast<double>(windowHeight) - bottomBarHeight) {
+            if (buildPanel.checkClick(mouseX, mouseY, windowWidth, windowHeight, selectedTowerType)) {
+                selectedTowerOnMap = nullptr;
+            }
             return;
         }
 
@@ -93,7 +116,8 @@ void GameplayInputHandler::processInput(
         buildManager.tryBuildOrUpgrade(
             m_currentMousePos,
             selectedTowerType,
-            world
+            world,
+            m_pistonPlacementAngle
         );
     }
     else if (mouseState == GLFW_RELEASE) {

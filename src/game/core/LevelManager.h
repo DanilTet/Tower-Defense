@@ -2,11 +2,29 @@
 #include <string>
 #include <vector>
 #include <glm/glm.hpp>
+#include "WaveData.h"
+
+// новая структура для базы с поддержкой ID для связи со спавнерами
+struct BaseData {
+    int x = 0;
+    int y = 0;
+    int id = 0; // ID базы (0, 1, 2...). Спавнеры с таким же targetBaseIndex направляются сюда
+
+    BaseData() = default;
+    BaseData(int _x, int _y, int _id = 0) : x(_x), y(_y), id(_id) {}
+    BaseData(glm::ivec2 p, int _id = 0) : x(p.x), y(p.y), id(_id) {}
+
+    glm::ivec2 pos() const { return glm::ivec2(x, y); }
+    operator glm::ivec2() const { return glm::ivec2(x, y); }
+    bool operator==(const BaseData& other) const {
+        return x == other.x && y == other.y && id == other.id;
+    }
+};
 
 // новая структура для спавнера чтобі он помнил свою базу
 struct SpawnerData {
     glm::ivec2 pos;
-    int targetBaseIndex = -1; // по умолчанию искать динамически ближайшую базу
+    int targetBaseIndex = -1; // -1 = искать ближайшую базу, >= 0 = конкретный ID базы
 };
 
 // четенькая структура где храниться структура левела
@@ -17,11 +35,13 @@ struct LevelMapData {
     float offsetX = 20.0f;
     float offsetY = 20.0f;
     std::vector<SpawnerData> spawners;
-    std::vector<glm::ivec2> bases;
+    std::vector<BaseData> bases;
     std::vector<std::vector<int>> layout;
+    std::vector<WaveConfig> waves;
 };
 
 class LevelManager {
 public:
     static LevelMapData loadLevelMap(const std::string& filepath);
+    static bool saveLevelMap(const std::string& filepath, const LevelMapData& data);
 };

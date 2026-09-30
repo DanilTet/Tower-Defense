@@ -40,6 +40,13 @@ struct TowerStats {
 	float bulletBaseSize;
 	float bulletSpeed;
 
+	// статус-эффекты
+	float slowDuration = 0.0f;
+	float slowPercent = 0.0f;
+	float poisonDuration = 0.0f;
+	float poisonInterval = 0.5f;
+	int poisonDamagePerTick = 0;
+	float knockbackForce = 0.0f;
 };
 
 class SpriteRenderer;
@@ -86,8 +93,18 @@ private:
 	float m_bulletBaseSize;
 	float m_bulletSpeed;
 
+	// статус-эффекты
+	float m_slowDuration = 0.0f;
+	float m_slowPercent = 0.0f;
+	float m_poisonDuration = 0.0f;
+	float m_poisonInterval = 0.5f;
+	int m_poisonDamagePerTick = 0;
+	float m_knockbackForce = 0.0f;
+
 	// режим наводки
 	TargetMode m_targetMode = TargetMode::First;
+
+	float m_punchAnimTimer = 0.0f; // анимация выталкивания бойка поршня
 
 	void applyStats(const TowerStats& stats);
 
@@ -96,10 +113,10 @@ public:
 	static TowerStats getStatsfromTowerType(const std::string& type);
 
 	//конструктор
-	Tower(int gridX, int gridY, const std::string& type);
+	Tower(int gridX, int gridY, const std::string& type, float angle = 270.0f);
 
 	//обновление логики
-	void update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies, EntityManager& entityManager, const Grid& grid, ParticleSystem& particleSystem);	// отрисовка
+	void update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies, EntityManager& entityManager, const Grid& grid, ParticleSystem& particleSystem);
 	// отрисовка
 	void render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> atlasTexture, std::shared_ptr<Texture2D> radiusTexture, std::shared_ptr<Texture2D> arrowTexture, const Grid& grid, bool isSelected = false);
 
@@ -110,6 +127,11 @@ public:
 	int getGridY() const { return m_gridY; }
 	int getLevel() const { return m_currentLevel; }	
 	const std::string& getType() const { return m_type; }
+
+	float getAngle() const { return m_angle; }
+	void setAngle(float angle) { m_angle = angle; }
+	void rotate90();
+	glm::ivec2 getPistonTargetCell() const;
 
 	// геттері и сеттер режима наводки
 	TargetMode getTargetMode() const { return m_targetMode; }

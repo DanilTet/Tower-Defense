@@ -19,7 +19,7 @@ struct GameWorld {
     PlayerStats playerStats;
 
     std::vector<SpawnerData> spawners;
-    std::vector<glm::ivec2> bases;
+    std::vector<BaseData> bases;
     std::vector<std::vector<glm::ivec2>> paths;
     std::vector<glm::ivec2> levelPath;
 

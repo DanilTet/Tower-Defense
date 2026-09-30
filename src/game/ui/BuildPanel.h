@@ -17,8 +17,9 @@ class Buildpanel {
 private:
 	// метод для расчета ширины панели в зависимости от количества башен
 	float calculatePanelWidth(size_t towerCount) const {
-		if (towerCount == 0) return 100.0f;
-		return (UI_OFFSET_X * 2.0f) + ((towerCount - 1) * UI_ICON_PADDING) + UI_ICON_SIZE;
+		if (towerCount == 0) return 120.0f;
+		float width = (UI_OFFSET_X * 2.0f) + ((towerCount - 1) * UI_ICON_PADDING) + UI_ICON_SIZE;
+		return (width < 120.0f) ? 120.0f : width;
 	}
 	// кеш
 	std::vector<std::string> m_cachedTowers;
@@ -27,12 +28,13 @@ private:
 public:
 
 	// ИНТЕРФЕЙС ПАНЕЛИ ВІБОРА БАШНИ
-	//static constexpr float UI_PANEL_WIDTH = 350.0f; // длина панели
-	static constexpr float UI_PANEL_HEIGHT = 120.0f; // вісота панели
-	static constexpr float UI_ICON_SIZE = 60.0f; // размер иконки
-	static constexpr float UI_ICON_PADDING = 110.0f; // отступ
-	static constexpr float UI_OFFSET_X = 20.0f; // Отступ иконок от левого края панели
-	static constexpr float UI_OFFSET_Y = 30.0f; // Отступ иконок от верхнего края панели
+	static constexpr float UI_PANEL_HEIGHT = 100.0f; // высота панели
+	static constexpr float UI_ICON_SIZE = 52.0f; // размер иконки
+	static constexpr float UI_ICON_PADDING = 92.0f; // отступ
+	static constexpr float UI_OFFSET_X = 18.0f; // Отступ иконок от левого края панели
+	static constexpr float UI_OFFSET_Y = 12.0f; // Отступ иконок от верхнего края панели
+
+	static float getBottomBarHeight(int windowWidth, int windowHeight);
 
 	void initPanelData();
 

@@ -29,6 +29,14 @@ public:
 		m_baseSize = baseSize;
 	}
 
+	void setStatusEffects(float slowDuration, float slowPercent, float poisonDuration, float poisonInterval, int poisonDamagePerTick) {
+		m_slowDuration = slowDuration;
+		m_slowPercent = slowPercent;
+		m_poisonDuration = poisonDuration;
+		m_poisonInterval = poisonInterval;
+		m_poisonDamagePerTick = poisonDamagePerTick;
+	}
+
 	// двигаем пулу и проверяем столкновение
 	void update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies, const Grid& grid, ParticleSystem& particleSystem);
 	// отрисовка
@@ -76,4 +84,11 @@ private:
 	//пуля
 	std::string m_textureId;
 	float m_baseSize;
+
+	// статус-эффекты
+	float m_slowDuration = 0.0f;
+	float m_slowPercent = 0.0f;
+	float m_poisonDuration = 0.0f;
+	float m_poisonInterval = 0.5f;
+	int m_poisonDamagePerTick = 0;
 };

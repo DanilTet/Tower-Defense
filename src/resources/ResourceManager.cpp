@@ -56,6 +56,17 @@ Texture2D* ResourceManager::getTexture(const std::string& name) {
 	return nullptr;
 }
 
+Texture2D* ResourceManager::getWhiteTexture() {
+	auto it = m_textures.find("whitePixel");
+	if (it != m_textures.end()) {
+		return &it->second;
+	}
+	auto [insertedIt, success] = m_textures.emplace("whitePixel", Texture2D());
+	unsigned char white[4] = { 255, 255, 255, 255 };
+	insertedIt->second.loadFromMemory(1, 1, white, 4);
+	return &insertedIt->second;
+}
+
 void ResourceManager::clear() {
 	m_shaders.clear();
 	m_textures.clear();

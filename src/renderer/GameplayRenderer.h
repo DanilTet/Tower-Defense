@@ -26,6 +26,7 @@ private:
     std::shared_ptr<Texture2D> m_particleTexture;
     std::shared_ptr<Texture2D> m_arrowTexture;
     std::shared_ptr<Texture2D> m_uiBaseTexture;
+    std::shared_ptr<Texture2D> m_whiteTexture;
 
 public:
     GameplayRenderer(std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer);
@@ -43,7 +44,8 @@ public:
         Tower* selectedTowerOnMap,
         const glm::vec2& mousePos,
         int windowWidth,
-        int windowHeight
+        int windowHeight,
+        float pistonPlacementAngle = 270.0f
     );
 };
 

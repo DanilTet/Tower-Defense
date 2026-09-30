@@ -15,7 +15,8 @@
 void BuildManager::tryBuildOrUpgrade(
     glm::vec2 mousePos,
     const std::string& selectedType,
-    GameWorld& world) {
+    GameWorld& world,
+    float placementAngle) {
 
     glm::ivec2 clickedCell = world.grid->pixelToGrid(mousePos);
 
@@ -45,8 +46,8 @@ void BuildManager::tryBuildOrUpgrade(
         // Помечаем клетку как занятую башней на сетке
         world.grid->setCellType(clickedCell.x, clickedCell.y, CellType::Tower);
 
-        // спавнить башню через entityManager
-        auto newTower = std::make_unique<Tower>(clickedCell.x, clickedCell.y, selectedType);
+        // спавнить башню через entityManager с заданным направлением
+        auto newTower = std::make_unique<Tower>(clickedCell.x, clickedCell.y, selectedType, placementAngle);
         world.entityManager->addTower(std::move(newTower));
 
         // звук постройки

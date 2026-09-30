@@ -134,6 +134,7 @@ void GameplayState::render() {
     if (!m_isValid || !m_gameplayRenderer || !m_world) return;
 
     glm::vec2 mousePos = m_inputHandler ? m_inputHandler->getMousePos() : glm::vec2(0.0f);
+    float pistonAngle = m_inputHandler ? m_inputHandler->getPistonPlacementAngle() : 270.0f;
 
     m_gameplayRenderer->renderFrame(
         *m_world,
@@ -146,7 +147,8 @@ void GameplayState::render() {
         m_selectedTowerOnMap,
         mousePos,
         this->width,
-        this->height
+        this->height,
+        pistonAngle
     );
 }
 

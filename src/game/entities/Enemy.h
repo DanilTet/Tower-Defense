@@ -5,6 +5,7 @@
 #include "CircleCollider.h"
 #include <string>
 #include "../core/Animator.h"
+#include "../core/LevelManager.h"
 
 // Структура для хранения характеристик врага
 struct EnemyStats {
@@ -20,6 +21,21 @@ struct EnemyStats {
 	int atlasWidth;
 	int atlasHeight;
 	std::unordered_map<std::string, AnimationClip> animations;
+};
+
+enum class StatusType {
+	Slow,
+	Poison,
+	Stun
+};
+
+struct StatusEffect {
+	StatusType type;
+	float duration;        // оставшееся время действия
+	float intensity;       // сила (для Slow: 0.35f = 35% замедления)
+	float tickInterval;    // интервал тиков урона (для Poison)
+	float tickTimer = 0.0f;// таймер текущего тика
+	int damagePerTick = 0; // урон за тик
 };
 
 class SpriteRenderer;
@@ -55,11 +71,25 @@ private:
 	int m_targetBaseIndex; //индекс базы
 
 	float m_angle = 0.0f; // угол поворота
+	std::vector<StatusEffect> m_statusEffects; // активные статус-эффекты
+	float m_speedModifier = 1.0f; // текущий множитель скорости
+
+	// Физика отталкивания поршнем на 1 клетку
+	bool m_isKnockedBack = false;
+	float m_knockbackTimer = 0.0f;
+	float m_knockbackDuration = 0.20f;
+	glm::vec2 m_knockbackStartPos = glm::vec2(0.0f);
+	glm::vec2 m_knockbackTargetPos = glm::vec2(0.0f);
+	glm::ivec2 m_knockbackDestCell = glm::ivec2(0);
+	glm::ivec2 m_knockbackFromCell = glm::ivec2(0);
+	float m_stunTimer = 0.0f; // таймер оглушения
+
+	void applyPostKnockbackPath(glm::ivec2 destCell, glm::ivec2 fromCell, const Grid& grid);
 
 public:
 
 	// функци для перерасчета пути
-	void recalculatePath(Pathfinder* pathfinder, const Grid& grid, const std::vector<glm::ivec2>& bases);
+	void recalculatePath(Pathfinder* pathfinder, const Grid& grid, const std::vector<BaseData>& bases);
 	bool isPathIntersecting(glm::ivec2 cell) const;
 
 	glm::ivec2 getTargetBase() const { return m_path.empty() ? glm::ivec2(0) : m_path.back(); }
@@ -96,4 +126,15 @@ public:
 	float getDistanceTraveled() const { return m_distanceTraveled; } // геттер для того щоб отримати пройдений шлях ворога
 
 	int getHealth() const { return m_health; } // получить хп
+
+	// Статус-эффекты
+	void applySlow(float duration, float slowPercent);
+	void applyPoison(float duration, float tickInterval, int damagePerTick);
+	bool isSlowed() const;
+	bool isPoisoned() const;
+	float getSpeedModifier() const { return m_speedModifier; }
+	bool isKnockedBack() const { return m_isKnockedBack; }
+	bool isStunned() const { return m_stunTimer > 0.0f; }
+	void pushOneCell(glm::ivec2 fromCell, glm::ivec2 punchDir, const Grid& grid);
+	void applyKnockback(glm::vec2 direction, float force);
 };

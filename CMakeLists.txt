@@ -131,6 +131,8 @@ add_executable(${PROJECT_NAME}
     src/game/states/GameOverState.cpp
     src/game/states/VictoryState.cpp
     src/game/states/LevelSelectState.cpp
+    src/game/states/MapEditorState.h
+    src/game/states/MapEditorState.cpp
     src/game/core/SaveManager.cpp
 )
 
@@ -156,4 +158,7 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     "${CMAKE_CURRENT_SOURCE_DIR}/external/freetype/lib/freetype.dll"
     $<TARGET_FILE_DIR:${PROJECT_NAME}>
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    "${CMAKE_CURRENT_SOURCE_DIR}/res"
+    "$<TARGET_FILE_DIR:${PROJECT_NAME}>/res"
 )

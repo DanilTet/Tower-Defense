@@ -14,10 +14,11 @@ TowerStats Tower::getStatsfromTowerType(const std::string& type) {
 }
 
 // конструктор
-Tower::Tower(int gridX, int gridY, const std::string& type)
+Tower::Tower(int gridX, int gridY, const std::string& type, float angle)
 	: m_gridX(gridX),
 	m_gridY(gridY),
 	m_type(type),
+	m_angle(angle),
 	m_currentLevel(1), // бам бам с первого уровня
 	m_maxLevel(3) // макс левел башни
 {
@@ -26,6 +27,22 @@ Tower::Tower(int gridX, int gridY, const std::string& type)
 	applyStats(stats);
 
 	m_shotTimer = 0.0f; // переменная таймер
+}
+
+void Tower::rotate90() {
+	if (m_type == "Piston") {
+		if (std::abs(m_angle - 270.0f) < 5.0f || std::abs(m_angle - (-90.0f)) < 5.0f) m_angle = 0.0f;    // Вверх -> Вправо
+		else if (std::abs(m_angle - 0.0f) < 5.0f) m_angle = 90.0f;                                         // Вправо -> Вниз
+		else if (std::abs(m_angle - 90.0f) < 5.0f) m_angle = 180.0f;                                       // Вниз -> Влево
+		else m_angle = 270.0f;                                                                             // Влево -> Вверх
+	}
+}
+
+glm::ivec2 Tower::getPistonTargetCell() const {
+	if (std::abs(m_angle - 270.0f) < 5.0f || std::abs(m_angle - (-90.0f)) < 5.0f) return glm::ivec2(m_gridX, m_gridY - 1); // North (Вверх)
+	if (std::abs(m_angle - 0.0f) < 5.0f) return glm::ivec2(m_gridX + 1, m_gridY);                                          // East (Вправо)
+	if (std::abs(m_angle - 90.0f) < 5.0f) return glm::ivec2(m_gridX, m_gridY + 1);                                         // South (Вниз)
+	return glm::ivec2(m_gridX - 1, m_gridY);                                                                                 // West (Влево)
 }
 
 void Tower::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> atlasTexture, std::shared_ptr<Texture2D> radiusTexture, std::shared_ptr<Texture2D> arrowTexture, const Grid& grid, bool isSelected) {
@@ -40,17 +57,36 @@ void Tower::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> atlasTex
 	if (m_currentLevel == 3) color += glm::vec3(0.4f, 0.4f, 0.4f);
 
 	// режем башню
-	SpriteUV towerUV = ConfigManager::getUV("main_atlas", "tower_basic");
+	std::string regionName = "tower_basic";
+	if (m_type == "Mercury") regionName = "tower_mercury";
+	else if (m_type == "Piston") regionName = "tower_piston";
+	SpriteUV towerUV = ConfigManager::getUV("main_atlas", regionName);
 
-	// рисуем (добавляем 90 градусов, чтобы выровнять текстуру дула с направлением выстрела)
-	renderer->drawSprite(atlasTexture, pixelPos, size, m_angle + 90.0f, color, towerUV);
+	// Если поршень бьёт — анимируем выдвижение бойка вперед
+	glm::vec2 drawPos = pixelPos;
+	if (m_type == "Piston" && m_punchAnimTimer > 0.0f) {
+		glm::vec2 punchDir = glm::vec2(getPistonTargetCell() - glm::ivec2(m_gridX, m_gridY));
+		float progress = (m_punchAnimTimer > 0.10f) ? (0.20f - m_punchAnimTimer) / 0.10f : (m_punchAnimTimer / 0.10f);
+		drawPos += punchDir * (cellSize * 0.28f * progress);
+	}
+
+	// рисуем (добавляем 90 градусов, чтобы выровнять текстуру дула/бойка с направлением)
+	renderer->drawSprite(atlasTexture, drawPos, size, m_angle + 90.0f, color, towerUV);
 
 	if (isSelected) {
-		float currentPixelRange = m_range * cellSize;
-		glm::vec2 radiusSize(currentPixelRange * 2.0f, currentPixelRange * 2.0f);
-		glm::vec2 radiusPos = towerCenter - glm::vec2(currentPixelRange);
-
-		renderer->drawSprite(radiusTexture, radiusPos, radiusSize, 0.0f, glm::vec3(1.0f, 1.0f, 1.0f));
+		if (m_type == "Piston") {
+			// Для поршня подсвечиваем конкретную клетку удара перед ним
+			glm::ivec2 targetCell = getPistonTargetCell();
+			if (targetCell.x >= 0 && targetCell.x < grid.getWidth() && targetCell.y >= 0 && targetCell.y < grid.getHeight()) {
+				glm::vec2 targetPixelPos = grid.gridToPixel(targetCell.x, targetCell.y);
+				renderer->drawSprite(radiusTexture, targetPixelPos, glm::vec2(cellSize), 0.0f, glm::vec3(1.0f, 0.85f, 0.2f));
+			}
+		} else {
+			float currentPixelRange = m_range * cellSize;
+			glm::vec2 radiusSize(currentPixelRange * 2.0f, currentPixelRange * 2.0f);
+			glm::vec2 radiusPos = towerCenter - glm::vec2(currentPixelRange);
+			renderer->drawSprite(radiusTexture, radiusPos, radiusSize, 0.0f, glm::vec3(1.0f, 1.0f, 1.0f));
+		}
 	}
 
 	// debug стрелочка
@@ -59,7 +95,6 @@ void Tower::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> atlasTex
 		glm::vec2 arrowPos = pixelPos + (size - arrowSize) * 0.5f;
 		renderer->drawSprite(arrowTexture, arrowPos, arrowSize, m_angle, glm::vec3(0.5f, 1.0f, 0.5f));
 	}
-
 }
 
 void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies, EntityManager& entityManager, const Grid& grid, ParticleSystem& particleSystem) {
@@ -67,13 +102,57 @@ void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies,
 	if (m_shotTimer > 0.0f) {
 		m_shotTimer -= dt;
 	}
-	
+	if (m_punchAnimTimer > 0.0f) {
+		m_punchAnimTimer -= dt;
+	}
 	
 	// считаем центр башни
 	float cellSize = grid.getCellSize();
 	glm::vec2 towerCenter = grid.gridToPixel(m_gridX, m_gridY) + glm::vec2(cellSize / 2.0f);
-	float currentPixelRange = m_range * cellSize;
 
+	if (m_type == "Piston") {
+		// Поршень не крутится за врагами! Он строго контролирует 1 клетку прямо перед собой
+		glm::ivec2 targetCell = getPistonTargetCell();
+		glm::vec2 targetCenter = grid.gridToPixel(targetCell.x, targetCell.y) + glm::vec2(cellSize * 0.5f);
+		float triggerRadius = cellSize * 0.65f;
+
+		if (m_shotTimer <= 0.0f) {
+			Enemy* victim = nullptr;
+			for (const auto& enemy : enemies) {
+				if (!enemy || enemy->isDead() || enemy->isReachedEnd() || enemy->isKnockedBack()) continue;
+				float dist = glm::distance(enemy->getCollider(grid).center, targetCenter);
+				if (dist < triggerRadius) {
+					victim = enemy.get();
+					break;
+				}
+			}
+
+			if (victim != nullptr) {
+				m_punchAnimTimer = 0.20f;
+
+				// Поршень НЕ наносит урон, а отталкивает ровно на 1 клетку!
+				glm::ivec2 punchDir = targetCell - glm::ivec2(m_gridX, m_gridY);
+				victim->pushOneCell(targetCell, punchDir, grid);
+
+				if (!m_impactParticle.empty()) {
+					ParticleEmitterProps impact = ConfigManager::getParticleProps(m_impactParticle);
+					impact.position = victim->getCollider(grid).center;
+					particleSystem.emit(impact, impact.spawnCount);
+				}
+
+				Event e;
+				e.type = EventType::TowerFired;
+				e.textData = m_attackSound;
+				EventBus::publish(e);
+
+				m_shotTimer = m_fireRate;
+			}
+		}
+		return;
+	}
+
+	// Для остальных башен (Basic, Mercury) — классический поиск цели и плавное наведение
+	float currentPixelRange = m_range * cellSize;
 	Enemy* bestTarget = TowerTargetingSystem::selectTarget(towerCenter, currentPixelRange, m_targetMode, enemies, grid);
 
 	if (bestTarget != nullptr) {
@@ -89,6 +168,7 @@ void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies,
 					freeProj->setParticleEffects(m_trailParticle, m_impactParticle);
 					freeProj->setVisuals(m_bulletTextureId, m_bulletBaseSize);
 					freeProj->init(towerCenter, m_angle, m_bulletSpeed, m_damage, bestTarget->getId(), m_splashRadius, currentPixelRange);
+					freeProj->setStatusEffects(m_slowDuration, m_slowPercent, m_poisonDuration, m_poisonInterval, m_poisonDamagePerTick);
 				}
 
 				if (!m_muzzleParticle.empty()) {
@@ -98,20 +178,6 @@ void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies,
 					float force = glm::length(muzzle.velocityDir);
 					muzzle.velocityDir = shootDirection * force;
 					particleSystem.emit(muzzle, muzzle.spawnCount);
-
-					if (m_muzzleParticle == "SniperMuzzle") {
-						ParticleEmitterProps smoke = ConfigManager::getParticleProps("SniperSmoke");
-						smoke.position = muzzle.position;
-						float smokeForce = glm::length(smoke.velocityDir);
-
-						glm::vec2 leftDir(-shootDirection.y, shootDirection.x);
-						smoke.velocityDir = leftDir * smokeForce;
-						particleSystem.emit(smoke, smoke.spawnCount);
-
-						glm::vec2 rightDir(shootDirection.y, -shootDirection.x);
-						smoke.velocityDir = rightDir * smokeForce;
-						particleSystem.emit(smoke, smoke.spawnCount);
-					}
 				}
 
 				Event e;
@@ -180,4 +246,9 @@ void Tower::applyStats(const TowerStats& stats) {
 	m_bulletTextureId = stats.bulletTextureId;
 	m_bulletBaseSize = stats.bulletBaseSize;
 	m_bulletSpeed = stats.bulletSpeed;
+	m_slowDuration = stats.slowDuration;
+	m_slowPercent = stats.slowPercent;
+	m_poisonDuration = stats.poisonDuration;
+	m_poisonInterval = stats.poisonInterval;
+	m_poisonDamagePerTick = stats.poisonDamagePerTick;
 }

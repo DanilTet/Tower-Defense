@@ -15,19 +15,25 @@ void Buildpanel::initPanelData() {
     m_cachedPanelWidth = calculatePanelWidth(m_cachedTowers.size());
 }
 
+float Buildpanel::getBottomBarHeight(int windowWidth, int windowHeight) {
+    float scale = GetUIScale(windowWidth, windowHeight);
+    return std::clamp((UI_PANEL_HEIGHT + 14.0f) * scale, 75.0f, 115.0f);
+}
+
 glm::vec2 Buildpanel::getUIPanelPos(int windowWidth, int windowHeight) const {
     float scale = GetUIScale(windowWidth, windowHeight);
     glm::vec2 panelSize(m_cachedPanelWidth * scale, UI_PANEL_HEIGHT * scale);
-    glm::vec2 offset(20.0f * scale, 20.0f * scale);
+    glm::vec2 offset(0.0f, 8.0f * scale);
 
-	return CalculateAnchorPosition(UIAnchor::BottomRight, offset, panelSize, windowWidth, windowHeight);
+	return CalculateAnchorPosition(UIAnchor::BottomCenter, offset, panelSize, windowWidth, windowHeight);
 }
 
 glm::vec2 Buildpanel::getTowerIconPos(int index, int windowWidth, int windowHeight) const {
     float scale = GetUIScale(windowWidth, windowHeight);
     glm::vec2 panelPos = getUIPanelPos(windowWidth, windowHeight);
+    float startX = (m_cachedTowers.size() == 1) ? (m_cachedPanelWidth - UI_ICON_SIZE) * 0.5f : UI_OFFSET_X;
     return glm::vec2(
-        panelPos.x + (UI_OFFSET_X * scale) + (index * UI_ICON_PADDING * scale),
+        panelPos.x + (startX * scale) + (index * UI_ICON_PADDING * scale),
         panelPos.y + (UI_OFFSET_Y * scale)
     );
 }
@@ -77,6 +83,10 @@ void Buildpanel::BuildRenderUI(
         }
 
         // рисуем иконку башни
+        std::string regionName = "tower_basic";
+        if (currentType == "Mercury") regionName = "tower_mercury";
+        else if (currentType == "Piston") regionName = "tower_piston";
+        SpriteUV towerUV = ConfigManager::getUV("main_atlas", regionName);
         renderer->drawSprite(mainAtlas, iconPos, glm::vec2(UI_ICON_SIZE * scale), 0.0f, drawColor, towerUV);
     }
 
@@ -98,8 +108,12 @@ void Buildpanel::BuildRenderUI(
             textColor = glm::vec3(1.0f, 0.3f, 0.3f);
         }
 
-        textRenderer->RenderText(currentType + ": $" + std::to_string(towerstats.cost),
-            iconPos.x - (5.0f * scale), iconPos.y + (UI_ICON_SIZE * scale) + (10.0f * scale), 0.5f * scale, textColor);
+        std::string costText = currentType + ": $" + std::to_string(towerstats.cost);
+        float fontScale = 0.44f * scale;
+        float textWidth = textRenderer->CalculateTextWidth(costText, fontScale);
+        float textX = iconPos.x + (UI_ICON_SIZE * scale * 0.5f) - (textWidth * 0.5f);
+        textRenderer->RenderText(costText,
+            textX, iconPos.y + (UI_ICON_SIZE * scale) + (6.0f * scale), fontScale, textColor);
     }
 }
 

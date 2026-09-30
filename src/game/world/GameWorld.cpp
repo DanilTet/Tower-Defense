@@ -1,5 +1,6 @@
 #include "GameWorld.h"
 #include "../entities/Enemy.h"
+#include "../ui/BuildPanel.h"
 #include <iostream>
 
 GameWorld::GameWorld() {
@@ -15,7 +16,8 @@ bool GameWorld::loadLevel(const std::string& levelPath, int windowWidth, int win
         levelData.cellSize,
         glm::vec2(levelData.offsetX, levelData.offsetY)
     );
-    grid->updateCellSize(windowWidth, windowHeight);
+    float bottomBarHeight = Buildpanel::getBottomBarHeight(windowWidth, windowHeight);
+    grid->updateCellSize(windowWidth, windowHeight, bottomBarHeight);
 
     if (!levelData.layout.empty()) {
         for (int y = 0; y < levelData.gridHeight; ++y) {
@@ -91,7 +93,8 @@ void GameWorld::update(float dt) {
 void GameWorld::resize(int windowWidth, int windowHeight) {
     if (grid) {
         Grid oldGrid = *grid;
-        grid->updateCellSize(windowWidth, windowHeight);
+        float bottomBarHeight = Buildpanel::getBottomBarHeight(windowWidth, windowHeight);
+        grid->updateCellSize(windowWidth, windowHeight, bottomBarHeight);
 
         for (const auto& enemy : entityManager->getEnemies()) {
             if (enemy) {

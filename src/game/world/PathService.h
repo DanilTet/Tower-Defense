@@ -10,18 +10,23 @@ class Enemy;
 
 class PathService {
 public:
+    static std::vector<glm::ivec2> getTargetBasePositions(
+        const std::vector<BaseData>& bases,
+        int targetBaseId
+    );
+
     static std::vector<std::vector<glm::ivec2>> calculateAllPaths(
         const Grid& grid,
         Pathfinder& pathfinder,
         const std::vector<SpawnerData>& spawners,
-        const std::vector<glm::ivec2>& bases
+        const std::vector<BaseData>& bases
     );
 
     static bool isPlacementValid(
         Grid& grid,
         Pathfinder& pathfinder,
         const std::vector<SpawnerData>& spawners,
-        const std::vector<glm::ivec2>& bases,
+        const std::vector<BaseData>& bases,
         int gridX,
         int gridY,
         std::vector<std::vector<glm::ivec2>>& outNewPaths,

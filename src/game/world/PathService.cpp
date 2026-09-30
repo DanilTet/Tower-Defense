@@ -28,11 +28,32 @@ static bool doesPathIntersectCell(const std::vector<glm::ivec2>& path, int gridX
     return false;
 }
 
+std::vector<glm::ivec2> PathService::getTargetBasePositions(
+    const std::vector<BaseData>& bases,
+    int targetBaseId)
+{
+    std::vector<glm::ivec2> targetPositions;
+    if (targetBaseId >= 0) {
+        for (const auto& b : bases) {
+            if (b.id == targetBaseId) {
+                targetPositions.push_back(glm::ivec2(b.x, b.y));
+            }
+        }
+    }
+    // Если targetBaseId == -1 или базы с таким ID нет — безопасный откат ко всем базам
+    if (targetPositions.empty()) {
+        for (const auto& b : bases) {
+            targetPositions.push_back(glm::ivec2(b.x, b.y));
+        }
+    }
+    return targetPositions;
+}
+
 std::vector<std::vector<glm::ivec2>> PathService::calculateAllPaths(
     const Grid& grid,
     Pathfinder& pathfinder,
     const std::vector<SpawnerData>& spawners,
-    const std::vector<glm::ivec2>& bases)
+    const std::vector<BaseData>& bases)
 {
     std::vector<std::vector<glm::ivec2>> paths;
     if (spawners.empty() || bases.empty()) return paths;
@@ -40,20 +61,21 @@ std::vector<std::vector<glm::ivec2>> PathService::calculateAllPaths(
     std::unordered_map<int, DijkstraMap> dmapCache;
 
     for (size_t i = 0; i < spawners.size(); ++i) {
-        int baseIdx = spawners[i].targetBaseIndex;
-        if (baseIdx < -1 || baseIdx >= static_cast<int>(bases.size())) {
-            baseIdx = -1;
-        }
-
-        if (dmapCache.find(baseIdx) == dmapCache.end()) {
-            if (baseIdx == -1) {
-                dmapCache[baseIdx] = pathfinder.generateDijkstraMap(grid, bases);
-            } else {
-                dmapCache[baseIdx] = pathfinder.generateDijkstraMap(grid, {bases[baseIdx]});
+        int targetId = spawners[i].targetBaseIndex;
+        bool hasExactBase = false;
+        if (targetId >= 0) {
+            for (const auto& b : bases) {
+                if (b.id == targetId) { hasExactBase = true; break; }
             }
         }
+        int cacheKey = hasExactBase ? targetId : -1;
 
-        const auto& dmap = dmapCache[baseIdx];
+        if (dmapCache.find(cacheKey) == dmapCache.end()) {
+            std::vector<glm::ivec2> targetPositions = getTargetBasePositions(bases, targetId);
+            dmapCache[cacheKey] = pathfinder.generateDijkstraMap(grid, targetPositions);
+        }
+
+        const auto& dmap = dmapCache[cacheKey];
         std::vector<glm::ivec2> calculatedPath = pathfinder.tracePath(dmap, grid, spawners[i].pos);
 
         if (!calculatedPath.empty() || (dmap.isReachable(spawners[i].pos.x, spawners[i].pos.y) && dmap.getDistance(spawners[i].pos.x, spawners[i].pos.y) == 0)) {
@@ -71,7 +93,7 @@ bool PathService::isPlacementValid(
     Grid& grid,
     Pathfinder& pathfinder,
     const std::vector<SpawnerData>& spawners,
-    const std::vector<glm::ivec2>& bases,
+    const std::vector<BaseData>& bases,
     int gridX,
     int gridY,
     std::vector<std::vector<glm::ivec2>>& outNewPaths,
@@ -136,20 +158,21 @@ bool PathService::isPlacementValid(
         }
 
         // Путь спавнера заблокирован — рассчитываем новый маршрут
-        int baseIdx = spawners[i].targetBaseIndex;
-        if (baseIdx < -1 || baseIdx >= static_cast<int>(bases.size())) {
-            baseIdx = -1;
-        }
-
-        if (dmapCache.find(baseIdx) == dmapCache.end()) {
-            if (baseIdx == -1) {
-                dmapCache[baseIdx] = pathfinder.generateDijkstraMap(grid, bases);
-            } else {
-                dmapCache[baseIdx] = pathfinder.generateDijkstraMap(grid, {bases[baseIdx]});
+        int targetId = spawners[i].targetBaseIndex;
+        bool hasExactBase = false;
+        if (targetId >= 0) {
+            for (const auto& b : bases) {
+                if (b.id == targetId) { hasExactBase = true; break; }
             }
         }
+        int cacheKey = hasExactBase ? targetId : -1;
 
-        const auto& dmap = dmapCache[baseIdx];
+        if (dmapCache.find(cacheKey) == dmapCache.end()) {
+            std::vector<glm::ivec2> targetPositions = getTargetBasePositions(bases, targetId);
+            dmapCache[cacheKey] = pathfinder.generateDijkstraMap(grid, targetPositions);
+        }
+
+        const auto& dmap = dmapCache[cacheKey];
         if (!dmap.isReachable(spawners[i].pos.x, spawners[i].pos.y)) {
             isPathBlocked = true;
             break;
@@ -172,20 +195,21 @@ bool PathService::isPlacementValid(
 
             glm::ivec2 ePos = grid.pixelToGrid(enemy->getPixelPos());
 
-            int baseIdx = enemy->getTargetBaseIndex();
-            if (baseIdx < -1 || baseIdx >= static_cast<int>(bases.size())) {
-                baseIdx = -1;
-            }
-
-            if (dmapCache.find(baseIdx) == dmapCache.end()) {
-                if (baseIdx == -1) {
-                    dmapCache[baseIdx] = pathfinder.generateDijkstraMap(grid, bases);
-                } else {
-                    dmapCache[baseIdx] = pathfinder.generateDijkstraMap(grid, {bases[baseIdx]});
+            int targetId = enemy->getTargetBaseIndex();
+            bool hasExactBase = false;
+            if (targetId >= 0) {
+                for (const auto& b : bases) {
+                    if (b.id == targetId) { hasExactBase = true; break; }
                 }
             }
+            int cacheKey = hasExactBase ? targetId : -1;
 
-            const auto& dmap = dmapCache[baseIdx];
+            if (dmapCache.find(cacheKey) == dmapCache.end()) {
+                std::vector<glm::ivec2> targetPositions = getTargetBasePositions(bases, targetId);
+                dmapCache[cacheKey] = pathfinder.generateDijkstraMap(grid, targetPositions);
+            }
+
+            const auto& dmap = dmapCache[cacheKey];
             if (!dmap.isReachable(ePos.x, ePos.y)) {
                 // Враг заперт в тупике без выхода к базе!
                 isPathBlocked = true;

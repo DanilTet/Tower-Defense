@@ -16,6 +16,7 @@ private:
     bool m_keysProcessed[1024] = { false };
     bool m_mousePressedLastFrame = false;
     glm::vec2 m_currentMousePos{ 0.0f, 0.0f };
+    float m_pistonPlacementAngle = 270.0f; // 270 = Вверх/Север по умолчанию
 
     bool isKeyJustPressed(GLFWwindow* window, int key);
 
@@ -38,4 +39,5 @@ public:
     );
 
     glm::vec2 getMousePos() const { return m_currentMousePos; }
+    float getPistonPlacementAngle() const { return m_pistonPlacementAngle; }
 };

@@ -42,11 +42,10 @@ public:
 	void setCellType(int gridX, int gridY, CellType type); // устанавливаем тип клетки
 
 	void draw(SpriteRenderer* renderer,
-		std::shared_ptr<Texture2D> atlasTexture, // только атлас
-		std::shared_ptr<Texture2D> transitionsTexture, // текстура переходов
+		std::shared_ptr<Texture2D> whiteTexture,
 		glm::vec3 color = glm::vec3(1.0f, 1.0f, 1.0f));
 
-	void updateCellSize(int windowWidth, int windowHeight); // обновляем размер клеток при изменении размера окна, чтобы сетка всегда занимала все окно
+	void updateCellSize(int windowWidth, int windowHeight, float bottomMargin = 0.0f, float topMargin = 0.0f); // обновляем размер клеток с учетом доступной высоты
 	float getCellSize() const { return m_cellSize; } // получаем размер клетки
 	glm::vec2 getOffset() const { return m_offset; }
 

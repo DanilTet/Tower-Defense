@@ -129,16 +129,29 @@ void Projectile::update(float dt, const std::vector<std::unique_ptr<Enemy>>& ene
                     if (!otherEnemy || otherEnemy->isDead() || otherEnemy->isReachedEnd()) continue;
                     if (explosion.intersects(otherEnemy->getCollider(grid))) {
                         otherEnemy->takeDamage(m_damage);
+                        if (m_slowDuration > 0.0f && m_slowPercent > 0.0f) {
+                            otherEnemy->applySlow(m_slowDuration, m_slowPercent);
+                        }
+                        if (m_poisonDuration > 0.0f && m_poisonDamagePerTick > 0) {
+                            otherEnemy->applyPoison(m_poisonDuration, m_poisonInterval, m_poisonDamagePerTick);
+                        }
                     }
                 }
             }
             else {
                 enemy->takeDamage(m_damage);
+                if (m_slowDuration > 0.0f && m_slowPercent > 0.0f) {
+                    enemy->applySlow(m_slowDuration, m_slowPercent);
+                }
+                if (m_poisonDuration > 0.0f && m_poisonDamagePerTick > 0) {
+                    enemy->applyPoison(m_poisonDuration, m_poisonInterval, m_poisonDamagePerTick);
+                }
             }
             m_destroyed = true;
             break;
         }
     }
+
 
 }
 

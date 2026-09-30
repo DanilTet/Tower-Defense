@@ -2,7 +2,8 @@
 #include "renderer/SpriteRenderer.h"
 #include "textures/Texture2D.h"
 #include "resources/ResourceManager.h"
-#include "../core/ConfigManager.h"
+#include <algorithm>
+#include <cmath>
 
 // конструктор создает пустую сетку заданого размера
 Grid::Grid(int width, int height, float cellSize, glm::vec2 offset){
@@ -68,168 +69,73 @@ void Grid::setCellType(int gridX, int gridY, CellType type) {
 	}
 }
 
-// Отрисовка всей карты ячейка за ячейкой
-void Grid::draw(SpriteRenderer* renderer, std::shared_ptr<Texture2D> atlasTexture, std::shared_ptr<Texture2D> transitionsTexture, glm::vec3 color) {
+// Отрисовка всей карты ячейка за ячейкой (минималистичный плоский стиль с темной окантовкой)
+void Grid::draw(SpriteRenderer* renderer, std::shared_ptr<Texture2D> whiteTexture, glm::vec3 color) {
+	if (!renderer || !whiteTexture) return;
 
-	// Создаем вектор размера: каждая плитка будет шириной и высотой ровно в m_cellSize пикселей
-	glm::vec2 size(m_cellSize, m_cellSize);
+	glm::vec2 cellSizeVec(m_cellSize, m_cellSize);
+	float borderWidth = std::max(1.0f, std::round(m_cellSize * 0.04f));
+	glm::vec2 innerOffset(borderWidth, borderWidth);
+	glm::vec2 innerSize(m_cellSize - 2.0f * borderWidth, m_cellSize - 2.0f * borderWidth);
 
-	//fromPixels(X, Y, Ширина, Высота, ШиринаАтласа, ВысотаАтласа)
-	SpriteUV uvGrass = ConfigManager::getUV("main_atlas", "grass");
-	SpriteUV uvPath = ConfigManager::getUV("main_atlas", "path");
-	SpriteUV uvPlatform = ConfigManager::getUV("main_atlas", "platform");
-	SpriteUV uvScenery = ConfigManager::getUV("main_atlas", "scenery");
-
-	// Текстурные координаты из Frame 1 (2).png (реальный размер 256 x 64)
-	int transW = 256;
-	int transH = 64;
-
-	// Каменные переходы (прямой и угловой):
-	SpriteUV uvStoneTrans = SpriteUV::fromPixels(0, 0, 64, 64, transW, transH);
-	SpriteUV uvStoneCorner = SpriteUV::fromPixels(64, 0, 64, 64, transW, transH);
-
-	// Травяные переходы (прямой и угловой):
-	SpriteUV uvGrassTrans = SpriteUV::fromPixels(128, 0, 64, 64, transW, transH);
-	SpriteUV uvGrassCorner = SpriteUV::fromPixels(192, 0, 64, 64, transW, transH);
-
-	auto getPriority = [](CellType t) {
-		switch (t) {
-			case CellType::Platform: return 3; // Камень (самый высокий)
-			case CellType::Ground:   return 2; // Трава
-			case CellType::Tower:    return 2; // Башня (на траве)
-			case CellType::Path:     return 1; // Земля / Дорога
-			default:                 return 0; // Вода / Скалы
-		}
-	};
-
-	auto getNeighborType = [&](int cx, int cy, CellType currentType) {
-		if (cx >= 0 && cx < m_width && cy >= 0 && cy < m_height) {
-			CellType t = m_grid[cy][cx];
-			if (t == CellType::Tower) {
-				return m_originalGrid[cy][cx];
-			}
-			return t;
-		}
-		return currentType; // на границах берем тип текущего тайла
-	};
-
-	// вложенный цикл для обхода всей матрицы (Y — строки, X — столбцы)
 	for (int y = 0; y < m_height; ++y) {
 		for (int x = 0; x < m_width; ++x) {
-			// Вычисляем, где физически на экране должен стоять этот квадрат (базовая позиция + общий сдвиг сетки)
 			glm::vec2 pixelPos = gridToPixel(x, y);
+
 			CellType type = m_grid[y][x];
 			if (type == CellType::Tower) {
 				type = m_originalGrid[y][x];
 			}
 
-			SpriteUV currentUV = uvGrass; // по умолчанию это трава
-			bool drawBase = true;
+			glm::vec3 fillColor;
+			glm::vec3 borderColor;
 
-			if (type == CellType::Path) currentUV = uvPath;
-			else if (type == CellType::Platform) currentUV = uvPlatform;
-			else if (type == CellType::Scenery) drawBase = false; // не рисуем камни поверх фона
-
-			// 1. Рисуем базовый тайл
-			if (drawBase) {
-				renderer->drawSprite(atlasTexture, pixelPos, size, 0.0f, color, currentUV);
+			switch (type) {
+				case CellType::Platform: // Высота 3: Светло-серый гранитный / каменный
+					fillColor   = glm::vec3(0.70f, 0.72f, 0.76f);
+					borderColor = glm::vec3(0.40f, 0.42f, 0.46f);
+					break;
+				case CellType::Ground: // Высота 2: Травянисто-зеленый
+					fillColor   = glm::vec3(0.38f, 0.65f, 0.38f);
+					borderColor = glm::vec3(0.20f, 0.42f, 0.20f);
+					break;
+				case CellType::Path: // Высота 1: Теплый песочно-глиняный
+					fillColor   = glm::vec3(0.80f, 0.70f, 0.52f);
+					borderColor = glm::vec3(0.52f, 0.42f, 0.28f);
+					break;
+				case CellType::Scenery: // Высота 0: Глубокий сланцевый / сине-серый
+					fillColor   = glm::vec3(0.20f, 0.35f, 0.52f);
+					borderColor = glm::vec3(0.11f, 0.20f, 0.32f);
+					break;
+				case CellType::Spawner: // Точка спавна врагов: Пурпурный / фиолетовый
+					fillColor   = glm::vec3(0.65f, 0.35f, 0.75f);
+					borderColor = glm::vec3(0.38f, 0.16f, 0.46f);
+					break;
+				case CellType::Base: // База игрока: Бирюзовый / циан
+					fillColor   = glm::vec3(0.25f, 0.70f, 0.85f);
+					borderColor = glm::vec3(0.12f, 0.42f, 0.55f);
+					break;
+				default:
+					fillColor   = glm::vec3(0.38f, 0.65f, 0.38f);
+					borderColor = glm::vec3(0.20f, 0.42f, 0.20f);
+					break;
 			}
 
-			// 2. Накладываем переходы поверх базового тайла
-			int currPriority = getPriority(type);
+			// 1. Внешний квадрат (окантовка темного оттенка того же цвета)
+			renderer->drawSprite(whiteTexture, pixelPos, cellSizeVec, 0.0f, borderColor * color);
 
-			// Проверяем соседей
-			CellType nType = getNeighborType(x, y - 1, type);
-			CellType sType = getNeighborType(x, y + 1, type);
-			CellType eType = getNeighborType(x + 1, y, type);
-			CellType wType = getNeighborType(x - 1, y, type);
-
-			int np = getPriority(nType);
-			int sp = getPriority(sType);
-			int ep = getPriority(eType);
-			int wp = getPriority(wType);
-
-			// --- Каменный переход (Platform) ---
-			// Рисуем на любых клетках ниже камня, которые с ним граничат
-			if (currPriority < 3 && transitionsTexture) {
-				// Прямые переходы
-				if (np == 3) {
-					renderer->drawSprite(transitionsTexture, pixelPos, size, 180.0f, color, uvStoneTrans);
-				}
-				if (sp == 3) {
-					renderer->drawSprite(transitionsTexture, pixelPos, size, 0.0f, color, uvStoneTrans);
-				}
-				if (ep == 3) {
-					renderer->drawSprite(transitionsTexture, pixelPos, size, -90.0f, color, uvStoneTrans);
-				}
-				if (wp == 3) {
-					renderer->drawSprite(transitionsTexture, pixelPos, size, 90.0f, color, uvStoneTrans);
-				}
-
-				// Угловые переходы (диагональные)
-				int nwp = getPriority(getNeighborType(x - 1, y - 1, type));
-				int nep = getPriority(getNeighborType(x + 1, y - 1, type));
-				int swp = getPriority(getNeighborType(x - 1, y + 1, type));
-				int sep = getPriority(getNeighborType(x + 1, y + 1, type));
-
-				if (swp == 3 && sp != 3 && wp != 3) {
-					renderer->drawSprite(transitionsTexture, pixelPos, size, 0.0f, color, uvStoneCorner);
-				}
-				if (sep == 3 && sp != 3 && ep != 3) {
-					renderer->drawSprite(transitionsTexture, pixelPos, size, -90.0f, color, uvStoneCorner);
-				}
-				if (nwp == 3 && np != 3 && wp != 3) {
-					renderer->drawSprite(transitionsTexture, pixelPos, size, 90.0f, color, uvStoneCorner);
-				}
-				if (nep == 3 && np != 3 && ep != 3) {
-					renderer->drawSprite(transitionsTexture, pixelPos, size, 180.0f, color, uvStoneCorner);
-				}
-			}
-
-			// --- Травяной переход (Ground/Tower) ---
-			// Рисуем на любых клетках ниже травы, которые с ней граничат
-			if (currPriority < 2 && transitionsTexture) {
-				// Прямые переходы
-				if (np == 2) {
-					renderer->drawSprite(transitionsTexture, pixelPos, size, 180.0f, color, uvGrassTrans);
-				}
-				if (sp == 2) {
-					renderer->drawSprite(transitionsTexture, pixelPos, size, 0.0f, color, uvGrassTrans);
-				}
-				if (ep == 2) {
-					renderer->drawSprite(transitionsTexture, pixelPos, size, -90.0f, color, uvGrassTrans);
-				}
-				if (wp == 2) {
-					renderer->drawSprite(transitionsTexture, pixelPos, size, 90.0f, color, uvGrassTrans);
-				}
-
-				// Угловые переходы (диагональные)
-				int nwp = getPriority(getNeighborType(x - 1, y - 1, type));
-				int nep = getPriority(getNeighborType(x + 1, y - 1, type));
-				int swp = getPriority(getNeighborType(x - 1, y + 1, type));
-				int sep = getPriority(getNeighborType(x + 1, y + 1, type));
-
-				if (swp == 2 && sp != 2 && wp != 2) {
-					renderer->drawSprite(transitionsTexture, pixelPos, size, 0.0f, color, uvGrassCorner);
-				}
-				if (sep == 2 && sp != 2 && ep != 2) {
-					renderer->drawSprite(transitionsTexture, pixelPos, size, -90.0f, color, uvGrassCorner);
-				}
-				if (nwp == 2 && np != 2 && wp != 2) {
-					renderer->drawSprite(transitionsTexture, pixelPos, size, 90.0f, color, uvGrassCorner);
-				}
-				if (nep == 2 && np != 2 && ep != 2) {
-					renderer->drawSprite(transitionsTexture, pixelPos, size, 180.0f, color, uvGrassCorner);
-				}
-			}
+			// 2. Внутренний квадрат (основной цвет ячейки)
+			renderer->drawSprite(whiteTexture, pixelPos + innerOffset, innerSize, 0.0f, fillColor * color);
 		}
 	}
 }
-// Динамический пересчет размера клеток при изменении размера окна
-void Grid::updateCellSize(int windowWidth, int windowHeight) {
+// Динамический пересчет размера клеток при изменении размера окна с учетом нижней панели и верхнего отступа
+void Grid::updateCellSize(int windowWidth, int windowHeight, float bottomMargin, float topMargin) {
+	float usableHeight = std::max(1.0f, static_cast<float>(windowHeight) - bottomMargin - topMargin);
+
 	// считаем размер клетки
 	float sizeX = static_cast<float>(windowWidth) / static_cast<float>(m_width);
-	float sizeY = static_cast<float>(windowHeight) / static_cast<float>(m_height);
+	float sizeY = usableHeight / static_cast<float>(m_height);
 
 	// берем меньшее значение, чтобы клетки всегда оставались квадратными
 	m_cellSize = std::min(sizeX, sizeY);
@@ -238,9 +144,9 @@ void Grid::updateCellSize(int windowWidth, int windowHeight) {
 	float actualGridWidth = m_cellSize * m_width;
 	float actualGridHeight = m_cellSize * m_height;
 
-	// высчитываем НОВЫЕ отступы
-	m_offset.x = (windowWidth - actualGridWidth) / 2.0f;
-	m_offset.y = (windowHeight - actualGridHeight) / 2.0f;
+	// высчитываем отступы: центрируем по горизонтали и в доступной области по вертикали с учетом верхнего бара
+	m_offset.x = (static_cast<float>(windowWidth) - actualGridWidth) / 2.0f;
+	m_offset.y = topMargin + (usableHeight - actualGridHeight) / 2.0f;
 }
 
 

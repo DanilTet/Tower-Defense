@@ -1,5 +1,6 @@
 #pragma once
 #include <glm/glm.hpp>
+#include <algorithm>
 
 // все опрные точки
 enum class UIAnchor {
@@ -17,8 +18,9 @@ inline float GetUIScale(int screenWidth, int screenHeight) {
     float scaleX = static_cast<float>(screenWidth) / 1280.0f;
     float scaleY = static_cast<float>(screenHeight) / 720.0f;
 
-    // выбираем минимальный масштаб чтобы интерфейс не сплющивало
-    return std::min(scaleX, scaleY);
+    // выбираем минимальный масштаб чтобы интерфейс не сплющивало, с ограничением максимального размера
+    float s = std::min(scaleX, scaleY);
+    return std::clamp(s, 0.70f, 1.15f);
 }
 
 // функция которая считает левый верхний угол (X, Y) для отрисовки спрайта или текста
