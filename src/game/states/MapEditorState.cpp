@@ -19,6 +19,9 @@
 #include "../core/LocalizationManager.h"
 
 static const std::vector<glm::ivec2> c_sizePresets = {
+    { 8, 5 },
+    { 10, 5 },
+    { 12, 5 },
     { 10, 7 },
     { 16, 10 },
     { 20, 12 },
@@ -185,8 +188,8 @@ void MapEditorState::loadInitialMap() {
 }
 
 void MapEditorState::resizeMap(int newW, int newH) {
-    newW = std::clamp(newW, 2, 250);
-    newH = std::clamp(newH, 2, 250);
+    newW = std::clamp(newW, 1, 250);
+    newH = std::clamp(newH, 1, 250);
     if (newW == m_gridWidth && newH == m_gridHeight) return;
 
     // Сохраняем существующие тайлы
@@ -864,7 +867,7 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
             if (isPointInRect(mousePos, btn.pos, btn.size)) {
                 clickedUI = true;
                 bool isShift = (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS);
-                int step = isShift ? 10 : 2;
+                int step = isShift ? 5 : 1;
                 if (btn.actionId == 8) cycleMapSizePreset();
                 else if (btn.actionId == 9) resizeMap(m_gridWidth - step, m_gridHeight);
                 else if (btn.actionId == 10) resizeMap(m_gridWidth + step, m_gridHeight);
