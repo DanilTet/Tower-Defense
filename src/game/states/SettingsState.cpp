@@ -6,6 +6,7 @@
 #include "../../renderer/TextRenderer.h"
 #include "../../resources/ResourceManager.h"
 #include <GLFW/glfw3.h>
+#include <iostream>
 
 SettingsState::SettingsState(GameStateManager& stateManager, int width, int height, std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer)
     : m_stateManager(stateManager), m_width(width), m_height(height), m_renderer(renderer), m_textRenderer(textRenderer)
@@ -15,13 +16,13 @@ SettingsState::SettingsState(GameStateManager& stateManager, int width, int heig
 }
 
 void SettingsState::init() {
-    m_windowSize = glm::vec2(440.0f, 310.0f);
+    m_windowSize = glm::vec2(480.0f, 380.0f);
     m_windowPos = glm::vec2((m_width - m_windowSize.x) * 0.5f, (m_height - m_windowSize.y) * 0.5f);
     m_headerHeight = 40.0f;
     m_isDragging = false;
     m_dragOffset = glm::vec2(0.0f);
 
-    m_volumeWidget = VolumeSliderWidget(m_windowPos + glm::vec2(30.0f, 65.0f), 380.0f, true, LOC("SETTINGS_VOLUME"));
+    m_volumeWidget = VolumeSliderWidget(m_windowPos + glm::vec2(30.0f, 65.0f), 420.0f, true, LOC("SETTINGS_VOLUME"));
     m_closeBtnSize = glm::vec2(180.0f, 40.0f);
 }
 
@@ -34,6 +35,7 @@ bool SettingsState::isPointInRect(glm::vec2 point, glm::vec2 rectPos, glm::vec2 
 
 void SettingsState::processInput(GLFWwindow* window, float dt) {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
+        SettingsManager::save();
         m_stateManager.popState();
         return;
     }
@@ -43,11 +45,30 @@ void SettingsState::processInput(GLFWwindow* window, float dt) {
     m_currentMousePos = glm::vec2(mouseX, mouseY);
 
     m_volumeWidget.setPosition(m_windowPos + glm::vec2(30.0f, 65.0f));
-    m_langBtnRuPos = m_windowPos + glm::vec2(160.0f, 150.0f);
-    m_langBtnUaPos = m_windowPos + glm::vec2(250.0f, 150.0f);
-    m_langBtnEnPos = m_windowPos + glm::vec2(340.0f, 150.0f);
-    m_langBtnSize = glm::vec2(80.0f, 36.0f);
-    m_closeBtnPos = m_windowPos + glm::vec2((m_windowSize.x - m_closeBtnSize.x) * 0.5f, 235.0f);
+    m_langBtnRuPos = m_windowPos + glm::vec2(190.0f, 140.0f);
+    m_langBtnUaPos = m_windowPos + glm::vec2(280.0f, 140.0f);
+    m_langBtnEnPos = m_windowPos + glm::vec2(370.0f, 140.0f);
+    m_langBtnSize = glm::vec2(80.0f, 34.0f);
+
+    // Кнопки масштаба интерфейса (50%, 75%, 100%, 125%, 150%)
+    m_uiScaleBtns.clear();
+    std::vector<int> scalePresets = { 50, 75, 100, 125, 150 };
+    float scaleBtnW = 68.0f;
+    float scaleBtnH = 34.0f;
+    float scaleGap = 10.0f;
+    float totalScaleW = static_cast<float>(scalePresets.size()) * scaleBtnW + static_cast<float>(scalePresets.size() - 1) * scaleGap;
+    float scaleStartX = m_windowPos.x + (m_windowSize.x - totalScaleW) * 0.5f;
+    float scaleY = m_windowPos.y + 242.0f;
+
+    for (size_t i = 0; i < scalePresets.size(); ++i) {
+        UIScalePresetBtn btn;
+        btn.percent = scalePresets[i];
+        btn.pos = glm::vec2(scaleStartX + i * (scaleBtnW + scaleGap), scaleY);
+        btn.size = glm::vec2(scaleBtnW, scaleBtnH);
+        m_uiScaleBtns.push_back(btn);
+    }
+
+    m_closeBtnPos = m_windowPos + glm::vec2((m_windowSize.x - m_closeBtnSize.x) * 0.5f, 315.0f);
 
     int mouseState = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
     bool isPressed = (mouseState == GLFW_PRESS);
@@ -78,7 +99,17 @@ void SettingsState::processInput(GLFWwindow* window, float dt) {
             return;
         }
 
-        // 3. Проверяем клик по шапке окна для перетаскивания
+        // 3. Кнопки выбора масштаба интерфейса
+        for (const auto& sbtn : m_uiScaleBtns) {
+            if (isPointInRect(m_currentMousePos, sbtn.pos, sbtn.size)) {
+                SettingsManager::setUIScalePercent(sbtn.percent);
+                SettingsManager::save();
+                std::cout << "[Settings] UI scale set to " << sbtn.percent << "%" << std::endl;
+                return;
+            }
+        }
+
+        // 4. Проверяем клик по шапке окна для перетаскивания
         glm::vec2 headerSize(m_windowSize.x, m_headerHeight);
         if (isPointInRect(m_currentMousePos, m_windowPos, headerSize)) {
             m_isDragging = true;
@@ -86,7 +117,7 @@ void SettingsState::processInput(GLFWwindow* window, float dt) {
             return;
         }
 
-        // 4. Проверяем клик по кнопке Закрыть
+        // 5. Проверяем клик по кнопке Закрыть
         if (isPointInRect(m_currentMousePos, m_closeBtnPos, m_closeBtnSize)) {
             m_closeBtnState = 2;
             return;
@@ -145,8 +176,9 @@ void SettingsState::render() {
         std::string curLang = SettingsManager::getLanguage();
         auto drawLangBtn = [&](glm::vec2 pos, const std::string& code) {
             bool isActive = (curLang == code);
-            glm::vec3 bg = isActive ? glm::vec3(0.18f, 0.35f, 0.50f) : glm::vec3(0.16f, 0.18f, 0.24f);
-            glm::vec3 border = isActive ? glm::vec3(0.35f, 0.85f, 1.0f) : glm::vec3(0.28f, 0.30f, 0.38f);
+            bool isHover = isPointInRect(m_currentMousePos, pos, m_langBtnSize);
+            glm::vec3 bg = isActive ? glm::vec3(0.18f, 0.35f, 0.50f) : (isHover ? glm::vec3(0.22f, 0.24f, 0.30f) : glm::vec3(0.16f, 0.18f, 0.24f));
+            glm::vec3 border = isActive ? glm::vec3(0.35f, 0.85f, 1.0f) : (isHover ? glm::vec3(0.45f, 0.50f, 0.60f) : glm::vec3(0.28f, 0.30f, 0.38f));
             m_renderer->drawSprite(m_whiteTexture, pos, m_langBtnSize, 0.0f, border);
             m_renderer->drawSprite(m_whiteTexture, pos + glm::vec2(2.0f), m_langBtnSize - glm::vec2(4.0f), 0.0f, bg);
         };
@@ -154,6 +186,17 @@ void SettingsState::render() {
         drawLangBtn(m_langBtnRuPos, "ru");
         drawLangBtn(m_langBtnUaPos, "ua");
         drawLangBtn(m_langBtnEnPos, "en");
+
+        // Кнопки масштаба интерфейса
+        int curScale = SettingsManager::getUIScalePercent();
+        for (const auto& sbtn : m_uiScaleBtns) {
+            bool isActive = (curScale == sbtn.percent);
+            bool isHover = isPointInRect(m_currentMousePos, sbtn.pos, sbtn.size);
+            glm::vec3 bg = isActive ? glm::vec3(0.18f, 0.35f, 0.50f) : (isHover ? glm::vec3(0.22f, 0.24f, 0.30f) : glm::vec3(0.16f, 0.18f, 0.24f));
+            glm::vec3 border = isActive ? glm::vec3(0.35f, 0.85f, 1.0f) : (isHover ? glm::vec3(0.45f, 0.50f, 0.60f) : glm::vec3(0.28f, 0.30f, 0.38f));
+            m_renderer->drawSprite(m_whiteTexture, sbtn.pos, sbtn.size, 0.0f, border);
+            m_renderer->drawSprite(m_whiteTexture, sbtn.pos + glm::vec2(2.0f), sbtn.size - glm::vec2(4.0f), 0.0f, bg);
+        }
 
         // 3. Кнопка Закрыть
         glm::vec3 btnColor(0.20f, 0.22f, 0.28f);
@@ -178,19 +221,31 @@ void SettingsState::render() {
     m_volumeWidget.render(m_renderer.get(), m_textRenderer, m_whiteTexture);
 
     // Подпись выбора языка
-    m_textRenderer->RenderText(LOC("SETTINGS_LANGUAGE"), m_windowPos.x + 30.0f, m_windowPos.y + 158.0f, 0.54f, glm::vec3(0.9f, 0.9f, 0.95f));
+    m_textRenderer->RenderText(LOC("SETTINGS_LANGUAGE"), m_windowPos.x + 30.0f, m_windowPos.y + 148.0f, 0.54f, glm::vec3(0.9f, 0.9f, 0.95f));
 
     // Текст на кнопках языков
     auto drawBtnCenterText = [&](glm::vec2 pos, const std::string& txt, bool active) {
         float w = m_textRenderer->CalculateTextWidth(txt, 0.52f);
         glm::vec3 col = active ? glm::vec3(0.35f, 0.95f, 1.0f) : glm::vec3(0.8f, 0.82f, 0.88f);
-        m_textRenderer->RenderText(txt, pos.x + (m_langBtnSize.x - w) * 0.5f, pos.y + 9.0f, 0.52f, col);
+        m_textRenderer->RenderText(txt, pos.x + (m_langBtnSize.x - w) * 0.5f, pos.y + 8.0f, 0.52f, col);
     };
 
     std::string curLang = SettingsManager::getLanguage();
     drawBtnCenterText(m_langBtnRuPos, "РУС", curLang == "ru");
     drawBtnCenterText(m_langBtnUaPos, "УКР", curLang == "ua");
     drawBtnCenterText(m_langBtnEnPos, "ENG", curLang == "en");
+
+    // Подпись и кнопки масштаба интерфейса
+    m_textRenderer->RenderText(LOC("SETTINGS_UI_SCALE"), m_windowPos.x + 30.0f, m_windowPos.y + 210.0f, 0.54f, glm::vec3(0.9f, 0.9f, 0.95f));
+
+    int curScale = SettingsManager::getUIScalePercent();
+    for (const auto& sbtn : m_uiScaleBtns) {
+        bool isActive = (curScale == sbtn.percent);
+        std::string pStr = std::to_string(sbtn.percent) + "%";
+        float w = m_textRenderer->CalculateTextWidth(pStr, 0.50f);
+        glm::vec3 col = isActive ? glm::vec3(0.35f, 0.95f, 1.0f) : glm::vec3(0.8f, 0.82f, 0.88f);
+        m_textRenderer->RenderText(pStr, sbtn.pos.x + (sbtn.size.x - w) * 0.5f, sbtn.pos.y + 8.0f, 0.50f, col);
+    }
 
     // Текст на кнопке Закрыть
     std::string closeStr = LOC("SETTINGS_CLOSE");

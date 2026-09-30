@@ -5,10 +5,12 @@
 #include "MapEditorState.h"
 #include "SettingsState.h"
 #include "../core/LocalizationManager.h"
+#include "../core/SettingsManager.h"
 #include "../renderer/TextRenderer.h"
 #include <GLFW/glfw3.h>
 #include "../resources/ResourceManager.h"
 #include <iostream>
+#include <algorithm>
 
 MainMenuState::MainMenuState(GameStateManager& stateManager, int width, int height, std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer)
     : m_stateManager(stateManager), m_width(width), m_height(height), m_renderer(renderer), m_textRenderer(textRenderer), m_mousePressedLastFrame(false), m_suppressClickUntilRelease(true) {
@@ -20,6 +22,30 @@ void MainMenuState::init() {
 }
 
 void MainMenuState::cleanup() {}
+
+MainMenuState::MenuLayout MainMenuState::calculateLayout() const {
+    MenuLayout layout;
+    float uiScale = SettingsManager::getUIScaleMultiplier();
+
+    layout.btnFontScale = std::clamp(1.2f * uiScale, 0.70f, 1.65f);
+    layout.titleFontScale = std::clamp(1.5f * uiScale, 0.85f, 2.10f);
+
+    layout.btnH = std::clamp(38.0f * uiScale, 24.0f, 54.0f);
+    float btnSpacing = std::clamp(55.0f * uiScale, 34.0f, 75.0f);
+
+    layout.btnW = std::clamp(280.0f * uiScale, 180.0f, static_cast<float>(m_width) - 40.0f);
+    layout.btnX = (m_width - layout.btnW) * 0.5f;
+
+    float totalH = 4.0f * btnSpacing + layout.btnH;
+    layout.startBtnY = (m_height - totalH) * 0.5f + 30.0f * uiScale;
+    layout.loadBtnY = layout.startBtnY + btnSpacing;
+    layout.editorBtnY = layout.startBtnY + 2.0f * btnSpacing;
+    layout.settingsBtnY = layout.startBtnY + 3.0f * btnSpacing;
+    layout.exitBtnY = layout.startBtnY + 4.0f * btnSpacing;
+
+    layout.titleY = layout.startBtnY - 70.0f * uiScale;
+    return layout;
+}
 
 bool MainMenuState::isButtonClicked(double mouseX, double mouseY, float btnX, float btnY, float btnW, float btnH) {
     return mouseX >= btnX && mouseX <= btnX + btnW && mouseY >= btnY && mouseY <= btnY + btnH;
@@ -45,25 +71,17 @@ void MainMenuState::processInput(GLFWwindow* window, float dt) {
     if (mouseState == GLFW_PRESS && !m_mousePressedLastFrame) {
         m_mousePressedLastFrame = true;
 
-        float btnW = 240.0f;
-        float btnH = 38.0f;
-        float btnX = (m_width - btnW) * 0.5f;
-
-        float startBtnY = m_height / 2.0f - 60.0f;
-        float loadBtnY = m_height / 2.0f - 5.0f;
-        float editorBtnY = m_height / 2.0f + 50.0f;
-        float settingsBtnY = m_height / 2.0f + 105.0f;
-        float exitBtnY = m_height / 2.0f + 160.0f;
+        MenuLayout layout = calculateLayout();
 
         // если клик по старт гейм
-        if (isButtonClicked(mouseX, mouseY, btnX, startBtnY, btnW, btnH)) {
+        if (isButtonClicked(mouseX, mouseY, layout.btnX, layout.startBtnY, layout.btnW, layout.btnH)) {
             std::cout << "[MainMenu] Clicked 'Start Game' (mouse=" << mouseX << "," << mouseY << ") -> LevelSelectState" << std::endl;
             m_stateManager.setState(std::make_unique<LevelSelectState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));
             return;
         }
 
         // Клик по Load Game
-        if (isButtonClicked(mouseX, mouseY, btnX, loadBtnY, btnW, btnH)) {
+        if (isButtonClicked(mouseX, mouseY, layout.btnX, layout.loadBtnY, layout.btnW, layout.btnH)) {
             std::cout << "[MainMenu] Clicked 'Load Game' (mouse=" << mouseX << "," << mouseY << ") -> GameplayState" << std::endl;
             auto loadState = std::make_unique<GameplayState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer, "");
             loadState->setSaveToLoad("savegame");
@@ -73,21 +91,21 @@ void MainMenuState::processInput(GLFWwindow* window, float dt) {
         }
 
         // Клик по Map Editor
-        if (isButtonClicked(mouseX, mouseY, btnX, editorBtnY, btnW, btnH)) {
+        if (isButtonClicked(mouseX, mouseY, layout.btnX, layout.editorBtnY, layout.btnW, layout.btnH)) {
             std::cout << "[MainMenu] Clicked 'Map Editor' (mouse=" << mouseX << "," << mouseY << ") -> MapEditorState" << std::endl;
             m_stateManager.setState(std::make_unique<MapEditorState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));
             return;
         }
 
         // Клик по Settings
-        if (isButtonClicked(mouseX, mouseY, btnX, settingsBtnY, btnW, btnH)) {
+        if (isButtonClicked(mouseX, mouseY, layout.btnX, layout.settingsBtnY, layout.btnW, layout.btnH)) {
             std::cout << "[MainMenu] Clicked 'Settings' (mouse=" << mouseX << "," << mouseY << ") -> pushing SettingsState" << std::endl;
             m_stateManager.pushState(std::make_unique<SettingsState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));
             return;
         }
 
         // если выход
-        if (isButtonClicked(mouseX, mouseY, btnX, exitBtnY, btnW, btnH)) {
+        if (isButtonClicked(mouseX, mouseY, layout.btnX, layout.exitBtnY, layout.btnW, layout.btnH)) {
             std::cout << "[MainMenu] Clicked 'Exit' (mouse=" << mouseX << "," << mouseY << ") -> Closing game" << std::endl;
             glfwSetWindowShouldClose(window, true);
         }
@@ -102,30 +120,23 @@ void MainMenuState::update(float dt) {}
 void MainMenuState::render() {
     m_renderer->beginBatch(); // открываем пакет
 
+    MenuLayout layout = calculateLayout();
+
     // рисуем заголовок
-    float titleW = m_textRenderer->CalculateTextWidth("Donbasyata Tower Defense", 1.5f);
-    m_textRenderer->RenderText("Donbasyata Tower Defense", (m_width - titleW) * 0.5f, m_height / 2.0f - 130.0f, 1.5f, glm::vec3(1.0f, 1.0f, 0.0f));
+    float titleW = m_textRenderer->CalculateTextWidth("Donbasyata Tower Defense", layout.titleFontScale);
+    m_textRenderer->RenderText("Donbasyata Tower Defense", (m_width - titleW) * 0.5f, layout.titleY, layout.titleFontScale, glm::vec3(1.0f, 1.0f, 0.0f));
 
     // рисуем кнопки с автоцентрированием текста
-    std::string startStr = "> " + LOC("BTN_START_GAME") + " <";
-    float startW = m_textRenderer->CalculateTextWidth(startStr, 1.2f);
-    m_textRenderer->RenderText(startStr, (m_width - startW) * 0.5f, m_height / 2.0f - 60.0f, 1.2f, glm::vec3(1.0f, 1.0f, 1.0f));
+    auto renderBtnText = [&](const std::string& str, float y, const glm::vec3& color) {
+        float w = m_textRenderer->CalculateTextWidth(str, layout.btnFontScale);
+        m_textRenderer->RenderText(str, (m_width - w) * 0.5f, y, layout.btnFontScale, color);
+    };
 
-    std::string loadStr = "> " + LOC("BTN_LOAD_GAME") + " <";
-    float loadW = m_textRenderer->CalculateTextWidth(loadStr, 1.2f);
-    m_textRenderer->RenderText(loadStr, (m_width - loadW) * 0.5f, m_height / 2.0f - 5.0f, 1.2f, glm::vec3(0.2f, 0.8f, 1.0f));
-
-    std::string editorStr = "> " + LOC("BTN_MAP_EDITOR") + " <";
-    float editorW = m_textRenderer->CalculateTextWidth(editorStr, 1.2f);
-    m_textRenderer->RenderText(editorStr, (m_width - editorW) * 0.5f, m_height / 2.0f + 50.0f, 1.2f, glm::vec3(0.9f, 0.8f, 0.2f)); // Золотистый
-
-    std::string settingsStr = "> " + LOC("BTN_SETTINGS") + " <";
-    float settingsW = m_textRenderer->CalculateTextWidth(settingsStr, 1.2f);
-    m_textRenderer->RenderText(settingsStr, (m_width - settingsW) * 0.5f, m_height / 2.0f + 105.0f, 1.2f, glm::vec3(0.75f, 0.88f, 1.0f)); // Светло-голубой
-
-    std::string exitStr = "> " + LOC("BTN_EXIT") + " <";
-    float exitW = m_textRenderer->CalculateTextWidth(exitStr, 1.2f);
-    m_textRenderer->RenderText(exitStr, (m_width - exitW) * 0.5f, m_height / 2.0f + 160.0f, 1.2f, glm::vec3(1.0f, 0.3f, 0.3f));
+    renderBtnText("> " + LOC("BTN_START_GAME") + " <", layout.startBtnY, glm::vec3(1.0f, 1.0f, 1.0f));
+    renderBtnText("> " + LOC("BTN_LOAD_GAME") + " <", layout.loadBtnY, glm::vec3(0.2f, 0.8f, 1.0f));
+    renderBtnText("> " + LOC("BTN_MAP_EDITOR") + " <", layout.editorBtnY, glm::vec3(0.9f, 0.8f, 0.2f));
+    renderBtnText("> " + LOC("BTN_SETTINGS") + " <", layout.settingsBtnY, glm::vec3(0.75f, 0.88f, 1.0f));
+    renderBtnText("> " + LOC("BTN_EXIT") + " <", layout.exitBtnY, glm::vec3(1.0f, 0.3f, 0.3f));
 
     m_renderer->endBatch(); // закрываем пакет
 }

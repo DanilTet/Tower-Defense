@@ -16,6 +16,21 @@ private:
 	bool m_mousePressedLastFrame = false;
 	bool m_suppressClickUntilRelease = true;
 
+	struct MenuLayout {
+		float btnW;
+		float btnH;
+		float btnX;
+		float startBtnY;
+		float loadBtnY;
+		float editorBtnY;
+		float settingsBtnY;
+		float exitBtnY;
+		float btnFontScale;
+		float titleFontScale;
+		float titleY;
+	};
+	MenuLayout calculateLayout() const;
+
 	bool isButtonClicked(double mouseX, double mouseY, float btnX, float btnY, float btnW, float btnH);
 public:
 	MainMenuState(GameStateManager& stateManager, int width, int height, std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer);

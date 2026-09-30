@@ -5,6 +5,7 @@
 #include "MapEditorState.h"
 #include "../core/InputManager.h"
 #include "../core/LocalizationManager.h"
+#include "../core/SettingsManager.h"
 #include "../resources/ResourceManager.h"
 #include "../renderer/SpriteRenderer.h"
 #include "../renderer/TextRenderer.h"
@@ -118,12 +119,29 @@ void LevelSelectState::init() {
     int endIndex = std::min(startIndex + itemsPerPage, static_cast<int>(filteredLevels.size()));
 
     float topY = 125.0f;
-    float cardWidth = 360.0f;
-    float cardHeight = 160.0f;
-    float gapX = 30.0f;
-    float gapY = 20.0f;
+
+    float uiScale = SettingsManager::getUIScaleMultiplier();
+
+    // Размеры карточек с учётом масштаба и ограничений экрана
+    float baseCardW = 390.0f * uiScale;
+    float baseCardH = 170.0f * uiScale;
+    float gapX = std::clamp(30.0f * uiScale, 16.0f, 50.0f);
+    float gapY = std::clamp(20.0f * uiScale, 10.0f, 36.0f);
+
+    float maxAvailW = (m_width - 60.0f - gapX) * 0.5f;
+    float maxAvailH = (m_height - 210.0f - 2.0f * gapY) / 3.0f;
+    float cardWidth  = std::clamp(baseCardW, 220.0f, maxAvailW);
+    float cardHeight = std::clamp(baseCardH, 110.0f, maxAvailH);
+
     float totalW = 2.0f * cardWidth + gapX;
     float startX = (m_width - totalW) * 0.5f;
+
+    // Размеры кнопок внутри карточки
+    float toggleW  = std::clamp(105.0f * uiScale, 80.0f, cardWidth * 0.38f);
+    float toggleH  = std::clamp(26.0f  * uiScale, 20.0f, 34.0f);
+    float smallBtnW = std::clamp(76.0f * uiScale, 58.0f, cardWidth * 0.30f);
+    float smallBtnH = std::clamp(28.0f * uiScale, 20.0f, 36.0f);
+    float playBtnW  = std::clamp(96.0f * uiScale, 70.0f, cardWidth * 0.35f);
 
     for (int i = startIndex; i < endIndex; ++i) {
         const auto& lvl = filteredLevels[i];
@@ -147,26 +165,26 @@ void LevelSelectState::init() {
         card.cardBtn.state = 0;
 
         // Кнопка переключения типа Кампания / Тестовый (в правом верхнем углу карточки)
-        card.typeToggleBtn.pos = glm::vec2(x + cardWidth - 110.0f, y + 10.0f);
-        card.typeToggleBtn.size = glm::vec2(100.0f, 24.0f);
+        card.typeToggleBtn.pos = glm::vec2(x + cardWidth - toggleW - 8.0f, y + 8.0f);
+        card.typeToggleBtn.size = glm::vec2(toggleW, toggleH);
         card.typeToggleBtn.text = lvl.isCampaign ? LOC("LEVEL_BADGE_CAMPAIGN") : LOC("LEVEL_BADGE_TEST");
         card.typeToggleBtn.state = 0;
 
         // Кнопка Переименовать
-        card.renameBtn.pos = glm::vec2(x + 14.0f, y + cardHeight - 38.0f);
-        card.renameBtn.size = glm::vec2(74.0f, 28.0f);
+        card.renameBtn.pos = glm::vec2(x + 10.0f, y + cardHeight - smallBtnH - 8.0f);
+        card.renameBtn.size = glm::vec2(smallBtnW, smallBtnH);
         card.renameBtn.text = LOC("LEVEL_BTN_RENAME");
         card.renameBtn.state = 0;
 
         // Кнопка Теги
-        card.tagsBtn.pos = glm::vec2(x + 94.0f, y + cardHeight - 38.0f);
-        card.tagsBtn.size = glm::vec2(74.0f, 28.0f);
+        card.tagsBtn.pos = glm::vec2(x + 10.0f + smallBtnW + 6.0f, y + cardHeight - smallBtnH - 8.0f);
+        card.tagsBtn.size = glm::vec2(smallBtnW, smallBtnH);
         card.tagsBtn.text = LOC("LEVEL_BTN_TAGS");
         card.tagsBtn.state = 0;
 
         // Кнопка Играть
-        card.playBtn.pos = glm::vec2(x + cardWidth - 110.0f, y + cardHeight - 38.0f);
-        card.playBtn.size = glm::vec2(96.0f, 28.0f);
+        card.playBtn.pos = glm::vec2(x + cardWidth - playBtnW - 8.0f, y + cardHeight - smallBtnH - 8.0f);
+        card.playBtn.size = glm::vec2(playBtnW, smallBtnH);
         card.playBtn.text = LOC("LEVEL_BTN_PLAY");
         card.playBtn.state = 0;
 
@@ -174,11 +192,11 @@ void LevelSelectState::init() {
     }
 
     // Вкладки фильтра категорий
-    float tabW = 110.0f;
-    float tabH = 32.0f;
-    float tabGap = 8.0f;
+    float tabW = std::clamp(110.0f * uiScale, 80.0f, 160.0f);
+    float tabH = std::clamp(32.0f  * uiScale, 24.0f, 44.0f);
+    float tabGap = std::clamp(8.0f * uiScale, 4.0f, 14.0f);
     float tabStartX = startX;
-    float tabY = 72.0f;
+    float tabY = std::clamp(72.0f * uiScale, 60.0f, 100.0f);
 
     m_tabAll.pos = glm::vec2(tabStartX, tabY);
     m_tabAll.size = glm::vec2(tabW, tabH);
@@ -193,15 +211,17 @@ void LevelSelectState::init() {
     m_tabTest.text = LOC("LEVEL_TAB_TEST");
 
     // Поле поиска
-    float searchX = startX + totalW - 240.0f;
+    float searchW = std::clamp(240.0f * uiScale, 160.0f, 340.0f);
+    float searchX = startX + totalW - searchW;
     m_searchBoxPos = glm::vec2(searchX, tabY);
-    m_searchBoxSize = glm::vec2(240.0f, tabH);
+    m_searchBoxSize = glm::vec2(searchW, tabH);
 
     // Быстрые чипы тегов
+    float chipFontScale = std::clamp(0.44f * uiScale, 0.34f, 0.62f);
     std::vector<std::string> popularTags = { "Кампания", "Тест", "Сложный", "Ртуть", "Шахта" };
     float chipX = searchX - 10.0f;
     for (int idx = static_cast<int>(popularTags.size()) - 1; idx >= 0; --idx) {
-        float w = m_textRenderer ? (m_textRenderer->CalculateTextWidth("#" + popularTags[idx], 0.44f) + 16.0f) : 60.0f;
+        float w = m_textRenderer ? (m_textRenderer->CalculateTextWidth("#" + popularTags[idx], chipFontScale) + 16.0f) : 60.0f;
         chipX -= (w + 6.0f);
         if (chipX < tabStartX + (tabW + tabGap) * 3.0f + 10.0f) break;
         TagChip chip;
@@ -212,25 +232,30 @@ void LevelSelectState::init() {
     }
 
     // Нижние кнопки навигации
-    float bottomY = static_cast<float>(m_height) - 52.0f;
-    m_btnBack.size = glm::vec2(160.0f, 38.0f);
+    float navBtnH = std::clamp(38.0f * uiScale, 26.0f, 52.0f);
+    float bottomY = static_cast<float>(m_height) - navBtnH - 14.0f;
+
+    float backBtnW = std::clamp(160.0f * uiScale, 110.0f, 220.0f);
+    m_btnBack.size = glm::vec2(backBtnW, navBtnH);
     m_btnBack.pos = glm::vec2(startX, bottomY);
     m_btnBack.text = LOC("LEVEL_BTN_BACK");
 
-    m_btnEditor.size = glm::vec2(190.0f, 38.0f);
+    float createBtnW = std::clamp(190.0f * uiScale, 130.0f, 260.0f);
+    m_btnEditor.size = glm::vec2(createBtnW, navBtnH);
     m_btnEditor.pos = glm::vec2(startX + totalW - m_btnEditor.size.x, bottomY);
     m_btnEditor.text = LOC("LEVEL_BTN_CREATE");
 
-    float pageBtnW = 100.0f;
-    float pageBtnH = 34.0f;
+    float pageBtnW = std::clamp(100.0f * uiScale, 70.0f, 140.0f);
+    float pageBtnH = std::clamp(34.0f * uiScale, 24.0f, 46.0f);
     float centerX = m_width * 0.5f;
+    float pageGap = std::clamp(40.0f * uiScale, 20.0f, 60.0f);
 
     m_btnPrevPage.size = glm::vec2(pageBtnW, pageBtnH);
-    m_btnPrevPage.pos = glm::vec2(centerX - pageBtnW - 40.0f, bottomY + 2.0f);
+    m_btnPrevPage.pos = glm::vec2(centerX - pageBtnW - pageGap, bottomY + (navBtnH - pageBtnH) * 0.5f);
     m_btnPrevPage.text = LOC("LEVEL_BTN_PREV");
 
     m_btnNextPage.size = glm::vec2(pageBtnW, pageBtnH);
-    m_btnNextPage.pos = glm::vec2(centerX + 40.0f, bottomY + 2.0f);
+    m_btnNextPage.pos = glm::vec2(centerX + pageGap, bottomY + (navBtnH - pageBtnH) * 0.5f);
     m_btnNextPage.text = LOC("LEVEL_BTN_NEXT");
 }
 
@@ -783,48 +808,71 @@ void LevelSelectState::render() {
     m_renderer->flush();
 
     // 6. Отрисовка текста
+    float uiScale = SettingsManager::getUIScaleMultiplier();
+
+    // Масштабы шрифтов с учётом uiScale
+    float fTitle       = std::clamp(1.0f  * uiScale, 0.70f, 1.50f);
+    float fTab         = std::clamp(0.52f * uiScale, 0.38f, 0.72f);
+    float fSearch      = std::clamp(0.46f * uiScale, 0.36f, 0.65f);
+    float fSearchIn    = std::clamp(0.50f * uiScale, 0.38f, 0.68f);
+    float fChip        = std::clamp(0.44f * uiScale, 0.34f, 0.62f);
+    float fCardName    = std::clamp(0.64f * uiScale, 0.46f, 0.90f);
+    float fCardBadge   = std::clamp(0.44f * uiScale, 0.34f, 0.62f);
+    float fCardFile    = std::clamp(0.44f * uiScale, 0.34f, 0.60f);
+    float fCardTags    = std::clamp(0.46f * uiScale, 0.36f, 0.64f);
+    float fCardSmBtn   = std::clamp(0.46f * uiScale, 0.36f, 0.64f);
+    float fCardPlayBtn = std::clamp(0.52f * uiScale, 0.40f, 0.72f);
+    float fNavBtn      = std::clamp(0.55f * uiScale, 0.42f, 0.76f);
+    float fPage        = std::clamp(0.52f * uiScale, 0.40f, 0.70f);
+
     // Заголовок
     std::string mainTitle = LOC("LEVEL_TITLE");
-    float tW = m_textRenderer->CalculateTextWidth(mainTitle, 1.0f);
-    m_textRenderer->RenderText(mainTitle, (m_width - tW) * 0.5f, 22.0f, 1.0f, glm::vec3(1.0f, 0.85f, 0.25f));
+    float tW = m_textRenderer->CalculateTextWidth(mainTitle, fTitle);
+    m_textRenderer->RenderText(mainTitle, (m_width - tW) * 0.5f, 22.0f, fTitle, glm::vec3(1.0f, 0.85f, 0.25f));
 
     // Текст вкладок
-    auto drawCenterText = [&](const UIButton& btn, const glm::vec3& color, float scale = 0.52f) {
+    auto drawCenterText = [&](const UIButton& btn, const glm::vec3& color, float scale) {
         float w = m_textRenderer->CalculateTextWidth(btn.text, scale);
-        m_textRenderer->RenderText(btn.text, btn.pos.x + (btn.size.x - w) * 0.5f, btn.pos.y + 8.0f, scale, color);
+        m_textRenderer->RenderText(btn.text, btn.pos.x + (btn.size.x - w) * 0.5f, btn.pos.y + (btn.size.y - scale * 28.0f) * 0.5f + 2.0f, scale, color);
     };
 
-    drawCenterText(m_tabAll, m_selectedCategory == CategoryFilter::All ? glm::vec3(0.35f, 0.95f, 1.0f) : glm::vec3(0.75f, 0.78f, 0.85f));
-    drawCenterText(m_tabCampaign, m_selectedCategory == CategoryFilter::Campaign ? glm::vec3(0.35f, 0.95f, 1.0f) : glm::vec3(0.75f, 0.78f, 0.85f));
-    drawCenterText(m_tabTest, m_selectedCategory == CategoryFilter::Test ? glm::vec3(0.35f, 0.95f, 1.0f) : glm::vec3(0.75f, 0.78f, 0.85f));
+    drawCenterText(m_tabAll,      m_selectedCategory == CategoryFilter::All      ? glm::vec3(0.35f, 0.95f, 1.0f) : glm::vec3(0.75f, 0.78f, 0.85f), fTab);
+    drawCenterText(m_tabCampaign, m_selectedCategory == CategoryFilter::Campaign ? glm::vec3(0.35f, 0.95f, 1.0f) : glm::vec3(0.75f, 0.78f, 0.85f), fTab);
+    drawCenterText(m_tabTest,     m_selectedCategory == CategoryFilter::Test     ? glm::vec3(0.35f, 0.95f, 1.0f) : glm::vec3(0.75f, 0.78f, 0.85f), fTab);
 
     // Текст в строке поиска
+    float searchTextY = m_searchBoxPos.y + (m_searchBoxSize.y - fSearch * 28.0f) * 0.5f + 2.0f;
     if (m_searchQuery.empty()) {
-        m_textRenderer->RenderText(LOC("LEVEL_SEARCH_HINT"), m_searchBoxPos.x + 8.0f, m_searchBoxPos.y + 8.0f, 0.46f, glm::vec3(0.50f, 0.55f, 0.65f));
+        m_textRenderer->RenderText(LOC("LEVEL_SEARCH_HINT"), m_searchBoxPos.x + 8.0f, searchTextY, fSearch, glm::vec3(0.50f, 0.55f, 0.65f));
     } else {
         bool showCursor = m_isSearchActive && (m_cursorBlinkTimer < 0.5f);
-        m_textRenderer->RenderText(m_searchQuery + (showCursor ? "|" : ""), m_searchBoxPos.x + 8.0f, m_searchBoxPos.y + 8.0f, 0.50f, glm::vec3(0.35f, 0.95f, 1.0f));
+        m_textRenderer->RenderText(m_searchQuery + (showCursor ? "|" : ""), m_searchBoxPos.x + 8.0f, searchTextY, fSearchIn, glm::vec3(0.35f, 0.95f, 1.0f));
     }
 
     // Текст чипов быстрых тегов
     for (const auto& chip : m_filterChips) {
         bool active = (m_searchQuery == chip.tag);
-        float w = m_textRenderer->CalculateTextWidth("#" + chip.tag, 0.44f);
-        m_textRenderer->RenderText("#" + chip.tag, chip.pos.x + (chip.size.x - w) * 0.5f, chip.pos.y + 8.0f, 0.44f, active ? glm::vec3(0.4f, 0.95f, 0.4f) : glm::vec3(0.65f, 0.80f, 0.70f));
+        float w = m_textRenderer->CalculateTextWidth("#" + chip.tag, fChip);
+        float cy = chip.pos.y + (chip.size.y - fChip * 28.0f) * 0.5f + 2.0f;
+        m_textRenderer->RenderText("#" + chip.tag, chip.pos.x + (chip.size.x - w) * 0.5f, cy, fChip, active ? glm::vec3(0.4f, 0.95f, 0.4f) : glm::vec3(0.65f, 0.80f, 0.70f));
     }
 
     // Текст на карточках
     for (const auto& card : m_levelCards) {
+        float cx = card.cardBtn.pos.x;
+        float cy = card.cardBtn.pos.y;
+
         // Название уровня
-        m_textRenderer->RenderText(card.displayName, card.cardBtn.pos.x + 14.0f, card.cardBtn.pos.y + 12.0f, 0.64f, glm::vec3(1.0f, 0.88f, 0.35f));
+        m_textRenderer->RenderText(card.displayName, cx + 12.0f, cy + 10.0f, fCardName, glm::vec3(1.0f, 0.88f, 0.35f));
 
         // Бейдж Кампания/Тест
-        float typeW = m_textRenderer->CalculateTextWidth(card.typeToggleBtn.text, 0.44f);
+        float typeW = m_textRenderer->CalculateTextWidth(card.typeToggleBtn.text, fCardBadge);
         glm::vec3 typeColor = card.isCampaign ? glm::vec3(0.40f, 0.95f, 0.45f) : glm::vec3(1.0f, 0.75f, 0.35f);
-        m_textRenderer->RenderText(card.typeToggleBtn.text, card.typeToggleBtn.pos.x + (card.typeToggleBtn.size.x - typeW) * 0.5f, card.typeToggleBtn.pos.y + 6.0f, 0.44f, typeColor);
+        float badgeTextY = card.typeToggleBtn.pos.y + (card.typeToggleBtn.size.y - fCardBadge * 28.0f) * 0.5f + 2.0f;
+        m_textRenderer->RenderText(card.typeToggleBtn.text, card.typeToggleBtn.pos.x + (card.typeToggleBtn.size.x - typeW) * 0.5f, badgeTextY, fCardBadge, typeColor);
 
         // Имя файла
-        m_textRenderer->RenderText(card.filename, card.cardBtn.pos.x + 14.0f, card.cardBtn.pos.y + 44.0f, 0.44f, glm::vec3(0.55f, 0.60f, 0.70f));
+        m_textRenderer->RenderText(card.filename, cx + 12.0f, cy + fCardName * 28.0f + 14.0f, fCardFile, glm::vec3(0.55f, 0.60f, 0.70f));
 
         // Теги карточки
         std::string tagLine;
@@ -832,25 +880,25 @@ void LevelSelectState::render() {
             tagLine += "#" + t + " ";
         }
         if (tagLine.empty()) tagLine = "#default";
-        m_textRenderer->RenderText(tagLine, card.cardBtn.pos.x + 14.0f, card.cardBtn.pos.y + 72.0f, 0.46f, glm::vec3(0.40f, 0.80f, 0.65f));
+        m_textRenderer->RenderText(tagLine, cx + 12.0f, cy + fCardName * 28.0f + 14.0f + fCardFile * 26.0f + 6.0f, fCardTags, glm::vec3(0.40f, 0.80f, 0.65f));
 
         // Кнопки карточки
-        drawCenterText(card.renameBtn, glm::vec3(0.85f, 0.88f, 0.95f), 0.46f);
-        drawCenterText(card.tagsBtn, glm::vec3(0.85f, 0.88f, 0.95f), 0.46f);
-        drawCenterText(card.playBtn, glm::vec3(0.95f, 1.0f, 0.95f), 0.52f);
+        drawCenterText(card.renameBtn, glm::vec3(0.85f, 0.88f, 0.95f), fCardSmBtn);
+        drawCenterText(card.tagsBtn,   glm::vec3(0.85f, 0.88f, 0.95f), fCardSmBtn);
+        drawCenterText(card.playBtn,   glm::vec3(0.95f, 1.0f,  0.95f), fCardPlayBtn);
     }
 
     // Текст нижних кнопок
-    drawCenterText(m_btnBack, glm::vec3(0.90f, 0.92f, 0.96f), 0.55f);
-    drawCenterText(m_btnEditor, glm::vec3(0.40f, 0.90f, 1.0f), 0.55f);
+    drawCenterText(m_btnBack,   glm::vec3(0.90f, 0.92f, 0.96f), fNavBtn);
+    drawCenterText(m_btnEditor, glm::vec3(0.40f, 0.90f, 1.0f),  fNavBtn);
 
     if (m_totalPages > 1) {
-        if (m_currentPage > 0) drawCenterText(m_btnPrevPage, glm::vec3(0.85f, 0.90f, 1.0f), 0.50f);
-        if (m_currentPage < m_totalPages - 1) drawCenterText(m_btnNextPage, glm::vec3(0.85f, 0.90f, 1.0f), 0.50f);
+        if (m_currentPage > 0)               drawCenterText(m_btnPrevPage, glm::vec3(0.85f, 0.90f, 1.0f), fPage);
+        if (m_currentPage < m_totalPages - 1) drawCenterText(m_btnNextPage, glm::vec3(0.85f, 0.90f, 1.0f), fPage);
 
         std::string pageStr = LOC("LEVEL_PAGE") + " " + std::to_string(m_currentPage + 1) + " / " + std::to_string(m_totalPages);
-        float pW = m_textRenderer->CalculateTextWidth(pageStr, 0.52f);
-        m_textRenderer->RenderText(pageStr, (m_width - pW) * 0.5f, m_btnPrevPage.pos.y + 8.0f, 0.52f, glm::vec3(0.70f, 0.75f, 0.85f));
+        float pW = m_textRenderer->CalculateTextWidth(pageStr, fPage);
+        m_textRenderer->RenderText(pageStr, (m_width - pW) * 0.5f, m_btnPrevPage.pos.y + 8.0f, fPage, glm::vec3(0.70f, 0.75f, 0.85f));
     }
 
     m_renderer->endBatch();
