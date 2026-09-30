@@ -58,6 +58,7 @@ glm::vec3 MapEditorState::getIdColor(int id) const {
 }
 
 void MapEditorState::init() {
+    std::cout << "[MapEditor] Initialized (resolution: " << m_width << "x" << m_height << ")" << std::endl;
     ResourceManager::loadTexture("uiBaseTexture", "res/textures/ui_space.png");
     ResourceManager::loadTexture("arrowTexture", "res/textures/pathArrow.png");
 
@@ -75,6 +76,7 @@ void MapEditorState::init() {
 }
 
 void MapEditorState::cleanup() {
+    std::cout << "[MapEditor] Cleanup completed" << std::endl;
 }
 
 void MapEditorState::updateCurrentLevelDisplayName() {
@@ -92,6 +94,7 @@ void MapEditorState::updateCurrentLevelDisplayName() {
 
 void MapEditorState::loadLevelByName(const std::string& fileName) {
     m_currentLevelFileName = LevelManager::sanitizeLevelFileName(fileName);
+    std::cout << "[MapEditor] loadLevelByName: requesting '" << fileName << "' -> file='" << m_currentLevelFileName << "'" << std::endl;
     updateCurrentLevelDisplayName();
 
     std::string path = "res/levels/" + m_currentLevelFileName;
@@ -123,6 +126,7 @@ void MapEditorState::loadLevelByName(const std::string& fileName) {
             m_currentLevelDisplayName = data.name;
         }
         m_suppressPlacementUntilRelease = true;
+        std::cout << "[MapEditor] Successfully loaded: " << m_currentLevelFileName << " (\"" << m_currentLevelDisplayName << "\", " << m_gridWidth << "x" << m_gridHeight << ")" << std::endl;
     } else {
         m_gridWidth = 20;
         m_gridHeight = 12;
@@ -131,6 +135,7 @@ void MapEditorState::loadLevelByName(const std::string& fileName) {
         m_bases.clear();
         m_rawLayout.assign(12, std::vector<int>(20, 0));
         m_waves.clear();
+        std::cout << "[MapEditor] Fallback to default layout 20x12" << std::endl;
     }
 
     if (m_waves.empty()) {
@@ -679,6 +684,7 @@ void MapEditorState::saveMap() {
     data.waves = m_waves;
 
     bool ok = LevelManager::saveLevel(m_currentLevelFileName, data);
+    std::cout << "[MapEditor] saveMap: file=" << m_currentLevelFileName << ", name=" << m_currentLevelDisplayName << ", size=" << m_gridWidth << "x" << m_gridHeight << ", result=" << (ok ? "SUCCESS" : "FAIL") << std::endl;
 
     if (ok) {
         m_statusMessage = "Map saved: " + m_currentLevelDisplayName + " (" + std::to_string(m_gridWidth) + "x" + std::to_string(m_gridHeight) + ")!";
@@ -2493,12 +2499,14 @@ void MapEditorState::renderMapsModal() {
 }
 
 void MapEditorState::openExitModal() {
+    std::cout << "[MapEditor] openExitModal: exit confirmation dialog opened" << std::endl;
     m_isExitModalOpen = true;
     m_suppressPlacementUntilRelease = true;
     m_exitModalEscReleased = false;
 }
 
 void MapEditorState::closeExitModal() {
+    std::cout << "[MapEditor] closeExitModal: exit dialog closed (staying in editor)" << std::endl;
     m_isExitModalOpen = false;
     m_suppressPlacementUntilRelease = true;
     m_exitModalEscReleased = false;
@@ -2524,6 +2532,7 @@ bool MapEditorState::processExitModalInput(GLFWwindow* window, glm::vec2 mousePo
         m_exitModalEscReleased = true;
         m_keyEscPressedLastFrame = false;
     } else if (m_exitModalEscReleased) {
+        std::cout << "[MapEditor] Exit Modal: ESC pressed -> exiting to MainMenu without saving" << std::endl;
         m_stateManager.setState(std::make_unique<MainMenuState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));
         return true;
     }
@@ -2531,6 +2540,7 @@ bool MapEditorState::processExitModalInput(GLFWwindow* window, glm::vec2 mousePo
     // 3. Горячая клавиша Enter — сохранить и выйти
     bool keyEnter = (glfwGetKey(window, GLFW_KEY_ENTER) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_KP_ENTER) == GLFW_PRESS);
     if (keyEnter) {
+        std::cout << "[MapEditor] Exit Modal: Enter pressed -> saving and exiting to MainMenu" << std::endl;
         saveMap();
         m_stateManager.setState(std::make_unique<MainMenuState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));
         return true;
@@ -2559,6 +2569,7 @@ bool MapEditorState::processExitModalInput(GLFWwindow* window, glm::vec2 mousePo
     if (!m_suppressPlacementUntilRelease && leftDown && !m_isLeftMouseDown) {
         // Кнопка [ Сохранить и выйти ]
         if (isPointInRect(mousePos, btnSaveExitPos, btnSaveExitSize)) {
+            std::cout << "[MapEditor] Exit Modal: Clicked [Save and Exit] (mouse=" << mousePos.x << "," << mousePos.y << ") -> saving and exiting" << std::endl;
             saveMap();
             m_stateManager.setState(std::make_unique<MainMenuState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));
             return true;
@@ -2566,24 +2577,28 @@ bool MapEditorState::processExitModalInput(GLFWwindow* window, glm::vec2 mousePo
 
         // Кнопка [ Выйти без сохранения ]
         if (isPointInRect(mousePos, btnDiscardPos, btnDiscardSize)) {
+            std::cout << "[MapEditor] Exit Modal: Clicked [Discard and Exit] (mouse=" << mousePos.x << "," << mousePos.y << ") -> exiting without saving" << std::endl;
             m_stateManager.setState(std::make_unique<MainMenuState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));
             return true;
         }
 
         // Кнопка [ Отмена ]
         if (isPointInRect(mousePos, btnCancelPos, btnCancelSize)) {
+            std::cout << "[MapEditor] Exit Modal: Clicked [Cancel]" << std::endl;
             closeExitModal();
             return true;
         }
 
         // Крестик [X]
         if (isPointInRect(mousePos, btnCloseCrossPos, btnCloseCrossSize)) {
+            std::cout << "[MapEditor] Exit Modal: Clicked [X] close cross" << std::endl;
             closeExitModal();
             return true;
         }
 
         // Клик вне модального окна -> закрываем (Отмена)
         if (!isPointInRect(mousePos, modalPos, modalSize)) {
+            std::cout << "[MapEditor] Exit Modal: Clicked outside modal -> cancelling" << std::endl;
             closeExitModal();
             return true;
         }

@@ -12,6 +12,7 @@
 #include <GLFW/glfw3.h>
 #include <algorithm>
 #include <cctype>
+#include <iostream>
 
 static bool containsCaseInsensitive(const std::string& haystack, const std::string& needle) {
     if (needle.empty()) return true;
@@ -514,6 +515,17 @@ void LevelSelectState::processInput(GLFWwindow* window, float dt) {
 
     bool leftDown = (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS);
 
+    // Защита от клика-сквозь при переходе из другого стейта
+    if (m_suppressClickUntilRelease) {
+        if (!leftDown) {
+            std::cout << "[LevelSelect] Mouse released -> interaction ready" << std::endl;
+            m_suppressClickUntilRelease = false;
+            m_mousePressedLastFrame = false;
+        } else {
+            return;
+        }
+    }
+
     if (m_isRenameModalOpen) {
         bool handled = processRenameModalInput(window, m_mousePos, leftDown, dt);
         m_mousePressedLastFrame = leftDown;
@@ -644,6 +656,7 @@ void LevelSelectState::processInput(GLFWwindow* window, float dt) {
             }
 
             if (isPointInRect(m_mousePos, card.playBtn.pos, card.playBtn.size) || isPointInRect(m_mousePos, card.cardBtn.pos, card.cardBtn.size)) {
+                std::cout << "[LevelSelect] Launching level: " << card.displayName << " (" << card.filename << ")" << std::endl;
                 m_stateManager.setState(std::make_unique<GameplayState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer, card.levelPath));
                 return;
             }
@@ -665,11 +678,13 @@ void LevelSelectState::processInput(GLFWwindow* window, float dt) {
 
         // Навигация
         if (isPointInRect(m_mousePos, m_btnBack.pos, m_btnBack.size)) {
+            std::cout << "[LevelSelect] Clicked '< BACK' -> MainMenuState" << std::endl;
             m_stateManager.setState(std::make_unique<MainMenuState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));
             return;
         }
 
         if (isPointInRect(m_mousePos, m_btnEditor.pos, m_btnEditor.size)) {
+            std::cout << "[LevelSelect] Clicked '+ CREATE MAP' -> MapEditorState" << std::endl;
             m_stateManager.setState(std::make_unique<MapEditorState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));
             return;
         }

@@ -1,4 +1,5 @@
 #include "GameStateManager.h"
+#include <iostream>
 
 GameStateManager::~GameStateManager() {
 	while (!m_states.empty()) {
@@ -8,16 +9,19 @@ GameStateManager::~GameStateManager() {
 }
 
 void GameStateManager::setState(std::unique_ptr<IGameState> newState) {
+	std::cout << "[GameStateManager] setState: scheduling transition to new state" << std::endl;
 	m_nextState = std::move(newState);
 	m_clearAllAndSet = true;
 }
 
 void GameStateManager::pushState(std::unique_ptr<IGameState> newState) {
+	std::cout << "[GameStateManager] pushState: scheduling push of new state" << std::endl;
 	m_nextState = std::move(newState);
 	m_clearAllAndSet = false;
 }
 
 void GameStateManager::popState() {
+	std::cout << "[GameStateManager] popState requested" << std::endl;
 	m_popRequested = true;
 }
 
@@ -50,6 +54,7 @@ void GameStateManager::applyPendingChanges() {
 	// если возврат
 	if (m_popRequested) {
 		if (!m_states.empty()) {
+			std::cout << "[GameStateManager] Popping state, remaining before pop: " << m_states.size() << std::endl;
 			m_states.back()->cleanup();
 			m_states.pop_back();
 		}
@@ -58,12 +63,14 @@ void GameStateManager::applyPendingChanges() {
 	// если отложеный стейт
 	if (m_nextState) {
 		if (m_clearAllAndSet) {
+			std::cout << "[GameStateManager] Clearing " << m_states.size() << " existing states..." << std::endl;
 			while (!m_states.empty()) {
 				m_states.back()->cleanup();
 				m_states.pop_back();
 			}
 		}
 		m_states.push_back(std::move(m_nextState));
+		std::cout << "[GameStateManager] Initializing new state (stack size: " << m_states.size() << ")" << std::endl;
 		m_states.back()->init();
 
 		m_clearAllAndSet = false;

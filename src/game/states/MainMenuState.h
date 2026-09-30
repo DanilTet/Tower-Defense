@@ -13,7 +13,8 @@ private:
 	std::shared_ptr<SpriteRenderer> m_renderer;
 	TextRenderer* m_textRenderer;
 
-	bool m_mousePressedLastFrame;
+	bool m_mousePressedLastFrame = false;
+	bool m_suppressClickUntilRelease = true;
 
 	bool isButtonClicked(double mouseX, double mouseY, float btnX, float btnY, float btnW, float btnH);
 public:

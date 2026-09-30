@@ -11,11 +11,11 @@
 #include <iostream>
 
 MainMenuState::MainMenuState(GameStateManager& stateManager, int width, int height, std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer)
-    : m_stateManager(stateManager), m_width(width), m_height(height), m_renderer(renderer), m_textRenderer(textRenderer), m_mousePressedLastFrame(false) {
+    : m_stateManager(stateManager), m_width(width), m_height(height), m_renderer(renderer), m_textRenderer(textRenderer), m_mousePressedLastFrame(false), m_suppressClickUntilRelease(true) {
 }
 
 void MainMenuState::init() {
-    std::cout << "Main Menu Initialized" << std::endl;
+    std::cout << "[MainMenu] Initialized (resolution: " << m_width << "x" << m_height << ")" << std::endl;
     ResourceManager::loadTexture("uiBaseTexture", "res/textures/ui_space.png");
 }
 
@@ -30,6 +30,18 @@ void MainMenuState::processInput(GLFWwindow* window, float dt) {
     glfwGetCursorPos(window, &mouseX, &mouseY);
 
     int mouseState = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
+
+    // Защита от случайного клика-сквозь при переходе из другого стейта
+    if (m_suppressClickUntilRelease) {
+        if (mouseState == GLFW_RELEASE) {
+            std::cout << "[MainMenu] Mouse released -> interaction ready" << std::endl;
+            m_suppressClickUntilRelease = false;
+            m_mousePressedLastFrame = false;
+        } else {
+            return; // Игнорируем нажатую кнопку мыши, пока её физически не отпустят
+        }
+    }
+
     if (mouseState == GLFW_PRESS && !m_mousePressedLastFrame) {
         m_mousePressedLastFrame = true;
 
@@ -45,12 +57,14 @@ void MainMenuState::processInput(GLFWwindow* window, float dt) {
 
         // если клик по старт гейм
         if (isButtonClicked(mouseX, mouseY, btnX, startBtnY, btnW, btnH)) {
+            std::cout << "[MainMenu] Clicked 'Start Game' (mouse=" << mouseX << "," << mouseY << ") -> LevelSelectState" << std::endl;
             m_stateManager.setState(std::make_unique<LevelSelectState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));
             return;
         }
 
         // Клик по Load Game
         if (isButtonClicked(mouseX, mouseY, btnX, loadBtnY, btnW, btnH)) {
+            std::cout << "[MainMenu] Clicked 'Load Game' (mouse=" << mouseX << "," << mouseY << ") -> GameplayState" << std::endl;
             auto loadState = std::make_unique<GameplayState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer, "");
             loadState->setSaveToLoad("savegame");
 
@@ -60,18 +74,21 @@ void MainMenuState::processInput(GLFWwindow* window, float dt) {
 
         // Клик по Map Editor
         if (isButtonClicked(mouseX, mouseY, btnX, editorBtnY, btnW, btnH)) {
+            std::cout << "[MainMenu] Clicked 'Map Editor' (mouse=" << mouseX << "," << mouseY << ") -> MapEditorState" << std::endl;
             m_stateManager.setState(std::make_unique<MapEditorState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));
             return;
         }
 
         // Клик по Settings
         if (isButtonClicked(mouseX, mouseY, btnX, settingsBtnY, btnW, btnH)) {
+            std::cout << "[MainMenu] Clicked 'Settings' (mouse=" << mouseX << "," << mouseY << ") -> pushing SettingsState" << std::endl;
             m_stateManager.pushState(std::make_unique<SettingsState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));
             return;
         }
 
         // если выход
         if (isButtonClicked(mouseX, mouseY, btnX, exitBtnY, btnW, btnH)) {
+            std::cout << "[MainMenu] Clicked 'Exit' (mouse=" << mouseX << "," << mouseY << ") -> Closing game" << std::endl;
             glfwSetWindowShouldClose(window, true);
         }
     }

@@ -49,6 +49,7 @@ private:
     std::shared_ptr<Texture2D> m_whiteTexture;
 
     bool m_mousePressedLastFrame = false;
+    bool m_suppressClickUntilRelease = true;
     glm::vec2 m_mousePos{ 0.0f, 0.0f };
 
     std::vector<LevelCardUI> m_levelCards;
