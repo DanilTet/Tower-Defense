@@ -88,6 +88,9 @@ private:
     std::string m_editorSavePath = "res/levels/level_editor.json";
     std::string m_currentLevelFileName = "level_editor.json";
     std::string m_currentLevelDisplayName = "level_editor";
+    bool m_isCampaign = false;
+    std::vector<std::string> m_tags;
+    bool m_suppressPlacementUntilRelease = true;
 
     // Состояния модальных окон управления картами
     bool m_isRenameModalOpen = false;

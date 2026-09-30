@@ -22,6 +22,9 @@ public:
 
     void setPosition(glm::vec2 pos) { m_pos = pos; }
     void setWidth(float width) { m_width = width; }
+
+    void setLabel(const std::string& label) { m_label = label; }
+    const std::string& getLabel() const { return m_label; }
     glm::vec2 getPosition() const { return m_pos; }
     float getWidth() const { return m_width; }
     float getHeight() const { return m_showLabel ? (m_height + 22.0f) : m_height; }

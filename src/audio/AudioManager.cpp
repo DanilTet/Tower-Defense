@@ -1,6 +1,7 @@
 #define MINIAUDIO_IMPLEMENTATION
 #include <miniaudio.h>
 #include "AudioManager.h"
+#include "../game/core/SettingsManager.h"
 #include <iostream>
 
 // глобальные обьекты аудио движка тут именно для звуков
@@ -18,8 +19,8 @@ static bool sfxAllocated[MAX_SOUNDS]; // флаг занят ли слот
 static int currentSfxIndex = 0; // текущий слод для нового звука
 
 // глобальная громкость и состояние mute
-static float s_masterVolume = 1.0f;
-static float s_savedVolume = 1.0f;
+static float s_masterVolume = 0.8f;
+static float s_savedVolume = 0.8f;
 static bool s_isMuted = false;
 
 bool AudioManager::init() {
@@ -35,6 +36,11 @@ bool AudioManager::init() {
     for (int i = 0; i < MAX_SOUNDS; i++) {
         sfxAllocated[i] = false;
     }
+
+    SettingsManager::load();
+    s_masterVolume = SettingsManager::getVolume();
+    s_savedVolume = (s_masterVolume > 0.05f) ? s_masterVolume : 0.8f;
+    s_isMuted = SettingsManager::isMuted();
 
     isInitialized = true;
     ma_engine_set_volume(&engine, s_isMuted ? 0.0f : s_masterVolume);
@@ -133,6 +139,9 @@ void AudioManager::setMasterVolume(float volume) {
         s_isMuted = false;
     }
 
+    SettingsManager::setVolume(s_masterVolume);
+    SettingsManager::setMuted(s_isMuted);
+
     if (isInitialized) {
         ma_engine_set_volume(&engine, s_isMuted ? 0.0f : s_masterVolume);
     }
@@ -152,6 +161,8 @@ bool AudioManager::isMuted() {
 
 void AudioManager::setMuted(bool mute) {
     s_isMuted = mute;
+    SettingsManager::setMuted(s_isMuted);
+
     if (isInitialized) {
         if (s_isMuted) {
             ma_engine_set_volume(&engine, 0.0f);
@@ -160,6 +171,7 @@ void AudioManager::setMuted(bool mute) {
             if (s_masterVolume <= 0.001f) {
                 s_masterVolume = (s_savedVolume > 0.05f) ? s_savedVolume : 0.8f;
             }
+            SettingsManager::setVolume(s_masterVolume);
             ma_engine_set_volume(&engine, s_masterVolume);
         }
     }

@@ -29,6 +29,11 @@ private:
 
     VolumeSliderWidget m_volumeWidget;
 
+    glm::vec2 m_langBtnRuPos{ 0.0f, 0.0f };
+    glm::vec2 m_langBtnUaPos{ 0.0f, 0.0f };
+    glm::vec2 m_langBtnEnPos{ 0.0f, 0.0f };
+    glm::vec2 m_langBtnSize{ 80.0f, 34.0f };
+
     glm::vec2 m_closeBtnPos{ 0.0f, 0.0f };
     glm::vec2 m_closeBtnSize{ 180.0f, 42.0f };
     int m_closeBtnState = 0; // 0=Idle, 1=Hover, 2=Pressed

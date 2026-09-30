@@ -29,6 +29,10 @@ struct SpawnerData {
 
 // четенькая структура где храниться структура левела
 struct LevelMapData {
+    std::string name = "";          // Отображаемое имя (UTF-8, RU/UA/EN)
+    bool isCampaign = false;        // true = Кампания, false = Тестовый / Кастомный
+    std::vector<std::string> tags;  // Теги для фильтрации и поиска (например: "Ртуть", "Тест", "Сложный")
+
     int gridWidth = 10;
     int gridHeight = 7;
     float cellSize = 64.0f;
@@ -43,9 +47,11 @@ struct LevelMapData {
 // Информация об уровне для отображения в меню и редакторе
 struct LevelInfo {
     std::string filename; // например: "level_1.json", "custom_map.json"
-    std::string name;     // отображаемое имя, например: "LEVEL 1", "My Defense"
+    std::string name;     // отображаемое имя, например: "Рівень 1", "Шахта Горловки"
     std::string fullPath; // путь для запуска: "res/levels/level_1.json"
-    bool isBuiltIn = false; // true для сюжетных уровней
+    bool isCampaign = false; // true для сюжетных уровней кампании
+    bool isBuiltIn = false;  // совместимость со старым кодом
+    std::vector<std::string> tags; // список тегов уровня
 };
 
 class LevelManager {
@@ -59,7 +65,10 @@ public:
     static std::vector<LevelInfo> getAvailableLevels();
     static bool saveLevel(const std::string& levelFileName, const LevelMapData& data);
     static bool renameLevel(const std::string& oldFileName, const std::string& newFileName);
+    static bool setLevelCampaign(const std::string& levelFileName, bool isCampaign);
+    static bool setLevelTags(const std::string& levelFileName, const std::vector<std::string>& tags);
+    static bool setLevelDisplayName(const std::string& levelFileName, const std::string& displayName);
     static bool deleteLevel(const std::string& levelFileName);
-    static std::string createNewLevel(const std::string& baseName = "custom_map");
+    static std::string createNewLevel(const std::string& displayName = "Новая карта", bool isCampaign = false);
     static std::string sanitizeLevelFileName(const std::string& name);
 };

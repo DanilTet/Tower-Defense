@@ -18,8 +18,25 @@ struct LevelCardUI {
     std::string levelPath;
     std::string filename;
     std::string displayName;
+    bool isCampaign = false;
     bool isBuiltIn = false;
+    std::vector<std::string> tags;
+    UIButton playBtn;
+    UIButton typeToggleBtn;
     UIButton renameBtn;
+    UIButton tagsBtn;
+};
+
+enum class CategoryFilter {
+    All,
+    Campaign,
+    Test
+};
+
+struct TagChip {
+    std::string tag;
+    glm::vec2 pos;
+    glm::vec2 size;
 };
 
 class LevelSelectState : public IGameState {
@@ -43,11 +60,30 @@ private:
     UIButton m_btnPrevPage;
     UIButton m_btnNextPage;
 
+    // Фильтрация и поиск
+    CategoryFilter m_selectedCategory = CategoryFilter::All;
+    UIButton m_tabAll;
+    UIButton m_tabCampaign;
+    UIButton m_tabTest;
+
+    std::string m_searchQuery = "";
+    bool m_isSearchActive = false;
+    glm::vec2 m_searchBoxPos{ 0.0f, 0.0f };
+    glm::vec2 m_searchBoxSize{ 220.0f, 32.0f };
+    std::vector<TagChip> m_filterChips;
+
     // Модальное окно переименования
     bool m_isRenameModalOpen = false;
     std::string m_renameInputText = "";
     std::string m_renameTargetFileName = "";
     float m_cursorBlinkTimer = 0.0f;
+
+    // Модальное окно управления тегами
+    bool m_isTagsModalOpen = false;
+    std::string m_tagsTargetFileName = "";
+    std::vector<std::string> m_currentLevelTags;
+    std::string m_tagInputText = "";
+    std::vector<TagChip> m_quickAddChips;
 
     struct KeyRepeatState {
         bool isDown = false;
@@ -61,6 +97,11 @@ private:
     void confirmRename();
     bool processRenameModalInput(GLFWwindow* window, glm::vec2 mousePos, bool leftDown, float dt);
     void renderRenameModal();
+
+    void openTagsModal(const std::string& targetFileName);
+    void saveAndCloseTagsModal();
+    bool processTagsModalInput(GLFWwindow* window, glm::vec2 mousePos, bool leftDown, float dt);
+    void renderTagsModal();
 
 public:
     LevelSelectState(GameStateManager& stateManager, int width, int height, std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer);

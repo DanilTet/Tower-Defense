@@ -1,5 +1,7 @@
 #include "Game.h"
 #include "resources/ResourceManager.h"
+#include "SettingsManager.h"
+#include "LocalizationManager.h"
 #include "../states/GameplayState.h" 
 #include "../states/MainMenuState.h"
 #include <GLFW/glfw3.h>
@@ -53,6 +55,9 @@ void Game::init() {
     if (!m_textRenderer->Load("res/fonts/Roboto-Regular.ttf", 24)) {
         std::cerr << "Failed to load font!" << std::endl;
     }
+    SettingsManager::init();
+    LocalizationManager::init();
+
     // Загружаем шрифт с размером 24 пикселя
     m_stateManager.setState(std::make_unique<MainMenuState>(m_stateManager, width, height, m_renderer, m_textRenderer.get()));
 }

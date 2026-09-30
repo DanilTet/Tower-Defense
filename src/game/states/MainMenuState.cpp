@@ -4,6 +4,7 @@
 #include "GameplayState.h"
 #include "MapEditorState.h"
 #include "SettingsState.h"
+#include "../core/LocalizationManager.h"
 #include "../renderer/TextRenderer.h"
 #include <GLFW/glfw3.h>
 #include "../resources/ResourceManager.h"
@@ -89,20 +90,25 @@ void MainMenuState::render() {
     m_textRenderer->RenderText("Donbasyata Tower Defense", (m_width - titleW) * 0.5f, m_height / 2.0f - 130.0f, 1.5f, glm::vec3(1.0f, 1.0f, 0.0f));
 
     // рисуем кнопки с автоцентрированием текста
-    float startW = m_textRenderer->CalculateTextWidth("> Start Game <", 1.2f);
-    m_textRenderer->RenderText("> Start Game <", (m_width - startW) * 0.5f, m_height / 2.0f - 60.0f, 1.2f, glm::vec3(1.0f, 1.0f, 1.0f));
+    std::string startStr = "> " + LOC("BTN_START_GAME") + " <";
+    float startW = m_textRenderer->CalculateTextWidth(startStr, 1.2f);
+    m_textRenderer->RenderText(startStr, (m_width - startW) * 0.5f, m_height / 2.0f - 60.0f, 1.2f, glm::vec3(1.0f, 1.0f, 1.0f));
 
-    float loadW = m_textRenderer->CalculateTextWidth("> Load Game <", 1.2f);
-    m_textRenderer->RenderText("> Load Game <", (m_width - loadW) * 0.5f, m_height / 2.0f - 5.0f, 1.2f, glm::vec3(0.2f, 0.8f, 1.0f));
+    std::string loadStr = "> " + LOC("BTN_LOAD_GAME") + " <";
+    float loadW = m_textRenderer->CalculateTextWidth(loadStr, 1.2f);
+    m_textRenderer->RenderText(loadStr, (m_width - loadW) * 0.5f, m_height / 2.0f - 5.0f, 1.2f, glm::vec3(0.2f, 0.8f, 1.0f));
 
-    float editorW = m_textRenderer->CalculateTextWidth("> Map Editor <", 1.2f);
-    m_textRenderer->RenderText("> Map Editor <", (m_width - editorW) * 0.5f, m_height / 2.0f + 50.0f, 1.2f, glm::vec3(0.9f, 0.8f, 0.2f)); // Золотистый
+    std::string editorStr = "> " + LOC("BTN_MAP_EDITOR") + " <";
+    float editorW = m_textRenderer->CalculateTextWidth(editorStr, 1.2f);
+    m_textRenderer->RenderText(editorStr, (m_width - editorW) * 0.5f, m_height / 2.0f + 50.0f, 1.2f, glm::vec3(0.9f, 0.8f, 0.2f)); // Золотистый
 
-    float settingsW = m_textRenderer->CalculateTextWidth("> Settings <", 1.2f);
-    m_textRenderer->RenderText("> Settings <", (m_width - settingsW) * 0.5f, m_height / 2.0f + 105.0f, 1.2f, glm::vec3(0.75f, 0.88f, 1.0f)); // Светло-голубой
+    std::string settingsStr = "> " + LOC("BTN_SETTINGS") + " <";
+    float settingsW = m_textRenderer->CalculateTextWidth(settingsStr, 1.2f);
+    m_textRenderer->RenderText(settingsStr, (m_width - settingsW) * 0.5f, m_height / 2.0f + 105.0f, 1.2f, glm::vec3(0.75f, 0.88f, 1.0f)); // Светло-голубой
 
-    float exitW = m_textRenderer->CalculateTextWidth("> Exit <", 1.2f);
-    m_textRenderer->RenderText("> Exit <", (m_width - exitW) * 0.5f, m_height / 2.0f + 160.0f, 1.2f, glm::vec3(1.0f, 0.3f, 0.3f));
+    std::string exitStr = "> " + LOC("BTN_EXIT") + " <";
+    float exitW = m_textRenderer->CalculateTextWidth(exitStr, 1.2f);
+    m_textRenderer->RenderText(exitStr, (m_width - exitW) * 0.5f, m_height / 2.0f + 160.0f, 1.2f, glm::vec3(1.0f, 0.3f, 0.3f));
 
     m_renderer->endBatch(); // закрываем пакет
 }

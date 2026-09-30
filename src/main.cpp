@@ -4,6 +4,7 @@
 #include <memory>
 #include "resources/ResourceManager.h"
 #include "game/core/Game.h"
+#include "game/core/InputManager.h"
 #include "audio/AudioManager.h"
 
 int windowWidth = 1280; // начальная ширина окна
@@ -71,6 +72,7 @@ int main(void)
     // Привязываем функции колбеки до созданового окна
     glfwSetWindowSizeCallback(window, glfwWindowSizeCallback);
 	glfwSetKeyCallback(window, glfwKeyCallback);
+    InputManager::init(window);
 
     // Делаем контекст этого окна главным для текущего потока процессора
     // все команды OpenGL будут рисовать в єтом окне
@@ -133,7 +135,7 @@ int main(void)
 		TowerDefenseGame->render(); // отрисовка всех объектов игры на экран
 		glfwSwapBuffers(window); // меняем передний и задний буфер, чтобы показать новый кадр на экране
 
-        
+        InputManager::clearFrameText();
     }
 
     AudioManager::cleanup(); // очистка звуков

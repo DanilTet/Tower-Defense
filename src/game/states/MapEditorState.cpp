@@ -15,6 +15,8 @@
 #include <cmath>
 #include <cstdio>
 #include <filesystem>
+#include "../core/InputManager.h"
+#include "../core/LocalizationManager.h"
 
 static const std::vector<glm::ivec2> c_sizePresets = {
     { 10, 7 },
@@ -106,6 +108,12 @@ void MapEditorState::loadLevelByName(const std::string& fileName) {
         m_bases = data.bases;
         m_rawLayout = data.layout;
         m_waves = data.waves;
+        m_isCampaign = data.isCampaign;
+        m_tags = data.tags;
+        if (!data.name.empty()) {
+            m_currentLevelDisplayName = data.name;
+        }
+        m_suppressPlacementUntilRelease = true;
     } else {
         m_gridWidth = 20;
         m_gridHeight = 12;
@@ -283,25 +291,34 @@ void MapEditorState::updateButtonLayout() {
     EditorButton btnRename;
     btnRename.pos = glm::vec2(leftX, topY);
     btnRename.size = glm::vec2(66.0f, topH);
-    btnRename.label = "Rename";
+    btnRename.label = LOC("LEVEL_BTN_RENAME");
     btnRename.isAction = true;
     btnRename.actionId = 14; // Переименовать
     m_topButtons.push_back(btnRename);
     leftX += 66.0f + topPadding;
 
+    EditorButton btnType;
+    btnType.pos = glm::vec2(leftX, topY);
+    btnType.size = glm::vec2(86.0f, topH);
+    btnType.label = m_isCampaign ? LOC("EDITOR_TYPE_CAMPAIGN") : LOC("EDITOR_TYPE_TEST");
+    btnType.isAction = true;
+    btnType.actionId = 17; // Переключить Кампания/Тест
+    m_topButtons.push_back(btnType);
+    leftX += 86.0f + topPadding;
+
     EditorButton btnNewMap;
     btnNewMap.pos = glm::vec2(leftX, topY);
-    btnNewMap.size = glm::vec2(52.0f, topH);
-    btnNewMap.label = "+New";
+    btnNewMap.size = glm::vec2(58.0f, topH);
+    btnNewMap.label = LOC("EDITOR_NEW_MAP");
     btnNewMap.isAction = true;
     btnNewMap.actionId = 15; // Создать новую карту
     m_topButtons.push_back(btnNewMap);
-    leftX += 52.0f + topPadding;
+    leftX += 58.0f + topPadding;
 
     EditorButton btnMaps;
     btnMaps.pos = glm::vec2(leftX, topY);
-    btnMaps.size = glm::vec2(54.0f, topH);
-    btnMaps.label = "Maps";
+    btnMaps.size = glm::vec2(58.0f, topH);
+    btnMaps.label = LOC("EDITOR_MAPS_LIST");
     btnMaps.isAction = true;
     btnMaps.actionId = 16; // Список карт
     m_topButtons.push_back(btnMaps);
@@ -368,13 +385,13 @@ void MapEditorState::updateButtonLayout() {
     };
 
     std::vector<BrushInfo> brushes = {
-        { EditorBrush::Ground,   "1:Ground", 68.0f },
-        { EditorBrush::Wall,     "2:Wall",   62.0f },
-        { EditorBrush::Platform, "3:Platf",  62.0f },
-        { EditorBrush::Path,     "4:Path",   62.0f },
-        { EditorBrush::Spawner,  "5:Spawn",  66.0f },
-        { EditorBrush::Base,     "6:Base",   62.0f },
-        { EditorBrush::Eraser,   "0:Erase",  68.0f }
+        { EditorBrush::Ground,   "1:" + LOC("EDITOR_GROUND"),   70.0f },
+        { EditorBrush::Wall,     "2:" + LOC("EDITOR_WALL"),     64.0f },
+        { EditorBrush::Platform, "3:" + LOC("EDITOR_PLATFORM"), 72.0f },
+        { EditorBrush::Path,     "4:" + LOC("EDITOR_PATH"),     64.0f },
+        { EditorBrush::Spawner,  "5:" + LOC("EDITOR_SPAWNER"),  72.0f },
+        { EditorBrush::Base,     "6:" + LOC("EDITOR_BASE"),     64.0f },
+        { EditorBrush::Eraser,   "0:" + LOC("EDITOR_ERASER"),   72.0f }
     };
 
     float currentX = startX;
@@ -429,11 +446,11 @@ void MapEditorState::updateButtonLayout() {
     };
 
     std::vector<ActionInfo> actions = {
-        { 13, "Waves (W)", 74.0f },
-        { 1,  "Save (S)",  66.0f },
-        { 2,  "Test (T)",  66.0f },
-        { 3,  "Clear (C)", 66.0f },
-        { 4,  "Exit (ESC)", 76.0f }
+        { 13, LOC("EDITOR_WAVES"), 76.0f },
+        { 1,  LOC("EDITOR_SAVE"),  76.0f },
+        { 2,  LOC("EDITOR_TEST"),  66.0f },
+        { 3,  LOC("EDITOR_CLEAR"), 72.0f },
+        { 4,  LOC("EDITOR_EXIT"),  78.0f }
     };
 
     for (const auto& a : actions) {
@@ -614,6 +631,9 @@ void MapEditorState::eraseCell(int gridX, int gridY) {
 
 void MapEditorState::saveMap() {
     LevelMapData data;
+    data.name = m_currentLevelDisplayName;
+    data.isCampaign = m_isCampaign;
+    data.tags = m_tags;
     data.gridWidth = m_gridWidth;
     data.gridHeight = m_gridHeight;
     data.cellSize = m_grid->getCellSize();
@@ -814,7 +834,17 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
                 else if (btn.actionId == 16) {
                     m_isMapsModalOpen = true;
                     m_mapsScrollOffset = 0;
+                    m_suppressPlacementUntilRelease = true;
                 }
+                else if (btn.actionId == 17) {
+                    m_isCampaign = !m_isCampaign;
+                    LevelManager::setLevelCampaign(m_currentLevelFileName, m_isCampaign);
+                    m_statusMessage = m_isCampaign ? "Map type: CAMPAIGN" : "Map type: TEST";
+                    m_statusColor = m_isCampaign ? glm::vec3(0.3f, 1.0f, 0.4f) : glm::vec3(1.0f, 0.7f, 0.2f);
+                    m_statusTimer = 2.5f;
+                    updateButtonLayout();
+                }
+                m_suppressPlacementUntilRelease = true;
                 break;
             }
         }
@@ -825,6 +855,7 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
         for (const auto& btn : m_bottomButtons) {
             if (isPointInRect(mousePos, btn.pos, btn.size)) {
                 clickedUI = true;
+                m_suppressPlacementUntilRelease = true;
                 if (!btn.isAction) {
                     m_currentBrush = btn.brush;
                 } else {
@@ -848,19 +879,25 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
     }
 
     // 3. Если кликаем по рабочей области сетки
-    float scale = GetUIScale(m_width, m_height);
-    float dockH = std::clamp(54.0f * scale, 48.0f, 58.0f);
-    if (!clickedUI && mousePos.y >= 46.0f && mousePos.y < static_cast<float>(m_height) - dockH) {
-        if (m_grid) {
-            glm::ivec2 gridPos = m_grid->pixelToGrid(mousePos);
-            if (gridPos.x >= 0 && gridPos.x < m_gridWidth && gridPos.y >= 0 && gridPos.y < m_gridHeight) {
-                bool isSpawnerOrBaseBrush = (m_currentBrush == EditorBrush::Spawner || m_currentBrush == EditorBrush::Base);
-                if (leftDown) {
-                    if (!isSpawnerOrBaseBrush || !m_isLeftMouseDown) {
-                        applyBrush(gridPos.x, gridPos.y, m_currentBrush);
+    if (m_suppressPlacementUntilRelease) {
+        if (!leftDown && !rightDown) {
+            m_suppressPlacementUntilRelease = false;
+        }
+    } else {
+        float scale = GetUIScale(m_width, m_height);
+        float dockH = std::clamp(54.0f * scale, 48.0f, 58.0f);
+        if (!clickedUI && mousePos.y >= 46.0f && mousePos.y < static_cast<float>(m_height) - dockH) {
+            if (m_grid) {
+                glm::ivec2 gridPos = m_grid->pixelToGrid(mousePos);
+                if (gridPos.x >= 0 && gridPos.x < m_gridWidth && gridPos.y >= 0 && gridPos.y < m_gridHeight) {
+                    bool isSpawnerOrBaseBrush = (m_currentBrush == EditorBrush::Spawner || m_currentBrush == EditorBrush::Base);
+                    if (leftDown) {
+                        if (!isSpawnerOrBaseBrush || !m_isLeftMouseDown) {
+                            applyBrush(gridPos.x, gridPos.y, m_currentBrush);
+                        }
+                    } else if (rightDown) {
+                        eraseCell(gridPos.x, gridPos.y);
                     }
-                } else if (rightDown) {
-                    eraseCell(gridPos.x, gridPos.y);
                 }
             }
         }
@@ -1994,39 +2031,37 @@ void MapEditorState::renderWaveEditor() {
 
 void MapEditorState::openRenameModal(const std::string& targetFileName) {
     m_renameTargetFileName = targetFileName.empty() ? m_currentLevelFileName : targetFileName;
-    std::string stem = m_renameTargetFileName;
-    if (stem.length() >= 5 && stem.substr(stem.length() - 5) == ".json") {
-        stem = stem.substr(0, stem.length() - 5);
-    }
-    m_renameInputText = stem;
+    m_renameInputText = m_currentLevelDisplayName;
     m_isRenameModalOpen = true;
     m_cursorBlinkTimer = 0.0f;
+    m_suppressPlacementUntilRelease = true;
 }
 
 void MapEditorState::confirmRename() {
     if (m_renameInputText.empty()) {
         m_isRenameModalOpen = false;
+        m_suppressPlacementUntilRelease = true;
         return;
     }
 
-    std::string newFileName = LevelManager::sanitizeLevelFileName(m_renameInputText);
+    m_currentLevelDisplayName = m_renameInputText;
+    LevelManager::setLevelDisplayName(m_renameTargetFileName, m_renameInputText);
+
+    std::string safeBase = InputManager::transliterateToAscii(m_renameInputText);
+    std::string newFileName = LevelManager::sanitizeLevelFileName(safeBase);
     if (newFileName != m_renameTargetFileName) {
         bool ok = LevelManager::renameLevel(m_renameTargetFileName, newFileName);
         if (ok) {
             if (m_renameTargetFileName == m_currentLevelFileName) {
                 m_currentLevelFileName = newFileName;
-                updateCurrentLevelDisplayName();
             }
-            m_statusMessage = "Renamed to: " + newFileName;
-            m_statusColor = glm::vec3(0.2f, 1.0f, 0.3f);
-            m_statusTimer = 3.5f;
-        } else {
-            m_statusMessage = "Failed to rename level!";
-            m_statusColor = glm::vec3(1.0f, 0.3f, 0.3f);
-            m_statusTimer = 3.0f;
         }
     }
+    m_statusMessage = "Renamed: " + m_currentLevelDisplayName;
+    m_statusColor = glm::vec3(0.2f, 1.0f, 0.3f);
+    m_statusTimer = 3.5f;
     m_isRenameModalOpen = false;
+    m_suppressPlacementUntilRelease = true;
     updateButtonLayout();
 }
 
@@ -2070,63 +2105,40 @@ bool MapEditorState::processRenameModalInput(GLFWwindow* window, glm::vec2 mouse
 
     if (checkKeyInput(GLFW_KEY_ESCAPE)) {
         m_isRenameModalOpen = false;
+        m_suppressPlacementUntilRelease = true;
         return true;
     }
     if (checkKeyInput(GLFW_KEY_ENTER) || checkKeyInput(GLFW_KEY_KP_ENTER)) {
         confirmRename();
+        m_suppressPlacementUntilRelease = true;
         return true;
     }
     if (checkKeyInput(GLFW_KEY_BACKSPACE)) {
-        if (!m_renameInputText.empty()) {
-            m_renameInputText.pop_back();
-        }
+        InputManager::popUtf8(m_renameInputText);
         m_cursorBlinkTimer = 0.0f;
         return true;
     }
 
-    bool isShift = (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS);
-
-    for (int k = GLFW_KEY_A; k <= GLFW_KEY_Z; ++k) {
-        if (checkKeyInput(k) && m_renameInputText.length() < 30) {
-            char ch = isShift ? static_cast<char>('A' + (k - GLFW_KEY_A)) : static_cast<char>('a' + (k - GLFW_KEY_A));
-            m_renameInputText += ch;
-            m_cursorBlinkTimer = 0.0f;
-            return true;
-        }
-    }
-
-    for (int k = GLFW_KEY_0; k <= GLFW_KEY_9; ++k) {
-        if (checkKeyInput(k) && m_renameInputText.length() < 30) {
-            m_renameInputText += static_cast<char>('0' + (k - GLFW_KEY_0));
-            m_cursorBlinkTimer = 0.0f;
-            return true;
-        }
-    }
-    for (int k = GLFW_KEY_KP_0; k <= GLFW_KEY_KP_9; ++k) {
-        if (checkKeyInput(k) && m_renameInputText.length() < 30) {
-            m_renameInputText += static_cast<char>('0' + (k - GLFW_KEY_KP_0));
-            m_cursorBlinkTimer = 0.0f;
-            return true;
-        }
-    }
-
-    if ((checkKeyInput(GLFW_KEY_SPACE) || checkKeyInput(GLFW_KEY_MINUS)) && m_renameInputText.length() < 30) {
-        m_renameInputText += '_';
+    std::string typed = InputManager::getFrameText();
+    if (!typed.empty() && m_renameInputText.length() < 60) {
+        m_renameInputText += typed;
         m_cursorBlinkTimer = 0.0f;
-        return true;
     }
 
     if (leftDown && !m_isLeftMouseDown) {
         if (isPointInRect(mousePos, btnSavePos, btnSaveSize)) {
             confirmRename();
+            m_suppressPlacementUntilRelease = true;
             return true;
         }
         if (isPointInRect(mousePos, btnCancelPos, btnCancelSize)) {
             m_isRenameModalOpen = false;
+            m_suppressPlacementUntilRelease = true;
             return true;
         }
         if (!isPointInRect(mousePos, modalPos, modalSize)) {
             m_isRenameModalOpen = false;
+            m_suppressPlacementUntilRelease = true;
             return true;
         }
     }
@@ -2142,6 +2154,7 @@ bool MapEditorState::processMapsModalInput(GLFWwindow* window, glm::vec2 mousePo
 
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS && !m_keyEscPressedLastFrame) {
         m_isMapsModalOpen = false;
+        m_suppressPlacementUntilRelease = true;
         return true;
     }
 
@@ -2161,6 +2174,7 @@ bool MapEditorState::processMapsModalInput(GLFWwindow* window, glm::vec2 mousePo
             std::string newF = LevelManager::createNewLevel("custom_map");
             loadLevelByName(newF);
             m_isMapsModalOpen = false;
+            m_suppressPlacementUntilRelease = true;
             m_statusMessage = "Created and loaded: " + m_currentLevelDisplayName;
             m_statusColor = glm::vec3(0.2f, 1.0f, 0.4f);
             m_statusTimer = 3.5f;
@@ -2169,6 +2183,7 @@ bool MapEditorState::processMapsModalInput(GLFWwindow* window, glm::vec2 mousePo
 
         if (isPointInRect(mousePos, btnClosePos, btnCloseSize)) {
             m_isMapsModalOpen = false;
+            m_suppressPlacementUntilRelease = true;
             return true;
         }
 
@@ -2190,6 +2205,7 @@ bool MapEditorState::processMapsModalInput(GLFWwindow* window, glm::vec2 mousePo
             if (isPointInRect(mousePos, btnLoadPos, btnLoadSize)) {
                 loadLevelByName(lvl.filename);
                 m_isMapsModalOpen = false;
+                m_suppressPlacementUntilRelease = true;
                 m_statusMessage = "Loaded map: " + m_currentLevelDisplayName;
                 m_statusColor = glm::vec3(0.3f, 0.9f, 1.0f);
                 m_statusTimer = 3.0f;
@@ -2198,6 +2214,7 @@ bool MapEditorState::processMapsModalInput(GLFWwindow* window, glm::vec2 mousePo
 
             if (isPointInRect(mousePos, btnRenPos, btnRenSize)) {
                 openRenameModal(lvl.filename);
+                m_suppressPlacementUntilRelease = true;
                 return true;
             }
 
@@ -2206,12 +2223,14 @@ bool MapEditorState::processMapsModalInput(GLFWwindow* window, glm::vec2 mousePo
                 if (lvl.filename == m_currentLevelFileName) {
                     loadLevelByName("level_editor.json");
                 }
+                m_suppressPlacementUntilRelease = true;
                 return true;
             }
         }
 
         if (!isPointInRect(mousePos, modalPos, modalSize)) {
             m_isMapsModalOpen = false;
+            m_suppressPlacementUntilRelease = true;
             return true;
         }
     }
@@ -2255,21 +2274,24 @@ void MapEditorState::renderRenameModal() {
     m_renderer->flush();
 
     if (m_textRenderer) {
-        float titleW = m_textRenderer->CalculateTextWidth("RENAME MAP", 0.70f);
-        m_textRenderer->RenderText("RENAME MAP", modalPos.x + (modalSize.x - titleW) * 0.5f, modalPos.y + 10.0f, 0.70f, glm::vec3(1.0f, 0.85f, 0.25f));
+        std::string titleStr = LOC("RENAME_TITLE");
+        float titleW = m_textRenderer->CalculateTextWidth(titleStr, 0.70f);
+        m_textRenderer->RenderText(titleStr, modalPos.x + (modalSize.x - titleW) * 0.5f, modalPos.y + 10.0f, 0.70f, glm::vec3(1.0f, 0.85f, 0.25f));
 
-        std::string sub = "Old: " + m_renameTargetFileName;
+        std::string sub = "File: " + m_renameTargetFileName;
         m_textRenderer->RenderText(sub, modalPos.x + 32.0f, modalPos.y + 55.0f, 0.50f, glm::vec3(0.70f, 0.75f, 0.85f));
 
         bool showCursor = (m_cursorBlinkTimer < 0.5f);
         std::string displayText = m_renameInputText + (showCursor ? "|" : "");
         m_textRenderer->RenderText(displayText, boxPos.x + 12.0f, boxPos.y + 10.0f, 0.62f, glm::vec3(0.40f, 0.95f, 1.0f));
 
-        float sTxtW = m_textRenderer->CalculateTextWidth("Save (Enter)", 0.55f);
-        m_textRenderer->RenderText("Save (Enter)", btnSavePos.x + (btnSaveSize.x - sTxtW) * 0.5f, btnSavePos.y + 12.0f, 0.55f, glm::vec3(0.95f));
+        std::string saveStr = LOC("RENAME_SAVE") + " (Enter)";
+        float sTxtW = m_textRenderer->CalculateTextWidth(saveStr, 0.55f);
+        m_textRenderer->RenderText(saveStr, btnSavePos.x + (btnSaveSize.x - sTxtW) * 0.5f, btnSavePos.y + 12.0f, 0.55f, glm::vec3(0.95f));
 
-        float cTxtW = m_textRenderer->CalculateTextWidth("Cancel (Esc)", 0.55f);
-        m_textRenderer->RenderText("Cancel (Esc)", btnCancelPos.x + (btnCancelSize.x - cTxtW) * 0.5f, btnCancelPos.y + 12.0f, 0.55f, glm::vec3(0.95f));
+        std::string cancelStr = LOC("RENAME_CANCEL") + " (Esc)";
+        float cTxtW = m_textRenderer->CalculateTextWidth(cancelStr, 0.55f);
+        m_textRenderer->RenderText(cancelStr, btnCancelPos.x + (btnCancelSize.x - cTxtW) * 0.5f, btnCancelPos.y + 12.0f, 0.55f, glm::vec3(0.95f));
     }
 }
 

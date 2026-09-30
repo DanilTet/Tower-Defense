@@ -1,4 +1,5 @@
 #include "LevelManager.h"
+#include "InputManager.h"
 #include <fstream>
 #include <iostream>
 #include <filesystem>
@@ -22,6 +23,22 @@ LevelMapData LevelManager::loadLevelMap(const std::string& filepath) {
     try {
         json j;
         file >> j;
+
+        data.name = j.value("name", "");
+        std::string fname = fs::path(filepath).filename().string();
+        bool defaultCampaign = (fname == "level_1.json" || fname == "level_2.json");
+        data.isCampaign = j.value("isCampaign", defaultCampaign);
+
+        if (j.contains("tags") && j["tags"].is_array()) {
+            for (const auto& t : j["tags"]) {
+                if (t.is_string()) {
+                    data.tags.push_back(t.get<std::string>());
+                }
+            }
+        }
+        if (data.tags.empty() && data.isCampaign) {
+            data.tags.push_back("Кампания");
+        }
 
         // если есть блок map в json то читаем его 
         if (j.contains("map")) {
@@ -111,6 +128,12 @@ bool LevelManager::saveLevelMap(const std::string& filepath, const LevelMapData&
     if (!j.is_object()) {
         j = json::object();
     }
+
+    if (!data.name.empty()) {
+        j["name"] = data.name;
+    }
+    j["isCampaign"] = data.isCampaign;
+    j["tags"] = data.tags;
 
     j["map"]["width"] = data.gridWidth;
     j["map"]["height"] = data.gridHeight;
@@ -305,11 +328,18 @@ std::vector<LevelInfo> LevelManager::getAvailableLevels() {
             fs::path p = fs::path(dir) / bi;
             std::error_code ec;
             if (fs::exists(p, ec)) {
+                LevelMapData mapData = loadLevelMap(p.string());
                 LevelInfo info;
                 info.filename = bi;
-                info.name = (bi == "level_1.json") ? "LEVEL 1" : "LEVEL 2";
+                if (!mapData.name.empty()) {
+                    info.name = mapData.name;
+                } else {
+                    info.name = (bi == "level_1.json") ? "LEVEL 1" : "LEVEL 2";
+                }
                 info.fullPath = "res/levels/" + bi;
-                info.isBuiltIn = true;
+                info.isCampaign = mapData.isCampaign;
+                info.isBuiltIn = mapData.isCampaign;
+                info.tags = mapData.tags;
                 levels.push_back(info);
                 seen.insert(bi);
                 break;
@@ -322,7 +352,7 @@ std::vector<LevelInfo> LevelManager::getAvailableLevels() {
         for (const auto& entry : fs::directory_iterator(dir, ec)) {
             if (entry.is_regular_file() && entry.path().extension() == ".json") {
                 std::string fname = entry.path().filename().string();
-                if (fname == "textures.json") continue;
+                if (fname == "textures.json" || fname == "settings.json") continue;
                 if (seen.find(fname) != seen.end()) continue;
 
                 LevelMapData mapData = loadLevelMap(entry.path().string());
@@ -331,13 +361,17 @@ std::vector<LevelInfo> LevelManager::getAvailableLevels() {
                 LevelInfo info;
                 info.filename = fname;
                 std::string stem = entry.path().stem().string();
-                if (stem == "level_editor") {
+                if (!mapData.name.empty()) {
+                    info.name = mapData.name;
+                } else if (stem == "level_editor") {
                     info.name = "MY MAP";
                 } else {
                     info.name = stem;
                 }
                 info.fullPath = "res/levels/" + fname;
-                info.isBuiltIn = false;
+                info.isCampaign = mapData.isCampaign;
+                info.isBuiltIn = mapData.isCampaign;
+                info.tags = mapData.tags;
                 levels.push_back(info);
                 seen.insert(fname);
             }
@@ -388,6 +422,57 @@ bool LevelManager::renameLevel(const std::string& oldFileName, const std::string
     return anyRenamed;
 }
 
+bool LevelManager::setLevelCampaign(const std::string& levelFileName, bool isCampaign) {
+    std::string clean = sanitizeLevelFileName(levelFileName);
+    auto dirs = getLevelDirectories();
+    for (const auto& dir : dirs) {
+        fs::path p = fs::path(dir) / clean;
+        std::error_code ec;
+        if (fs::exists(p, ec)) {
+            LevelMapData data = loadLevelMap(p.string());
+            if (data.gridWidth > 0 && data.gridHeight > 0) {
+                data.isCampaign = isCampaign;
+                return saveLevel(clean, data);
+            }
+        }
+    }
+    return false;
+}
+
+bool LevelManager::setLevelTags(const std::string& levelFileName, const std::vector<std::string>& tags) {
+    std::string clean = sanitizeLevelFileName(levelFileName);
+    auto dirs = getLevelDirectories();
+    for (const auto& dir : dirs) {
+        fs::path p = fs::path(dir) / clean;
+        std::error_code ec;
+        if (fs::exists(p, ec)) {
+            LevelMapData data = loadLevelMap(p.string());
+            if (data.gridWidth > 0 && data.gridHeight > 0) {
+                data.tags = tags;
+                return saveLevel(clean, data);
+            }
+        }
+    }
+    return false;
+}
+
+bool LevelManager::setLevelDisplayName(const std::string& levelFileName, const std::string& displayName) {
+    std::string clean = sanitizeLevelFileName(levelFileName);
+    auto dirs = getLevelDirectories();
+    for (const auto& dir : dirs) {
+        fs::path p = fs::path(dir) / clean;
+        std::error_code ec;
+        if (fs::exists(p, ec)) {
+            LevelMapData data = loadLevelMap(p.string());
+            if (data.gridWidth > 0 && data.gridHeight > 0) {
+                data.name = displayName;
+                return saveLevel(clean, data);
+            }
+        }
+    }
+    return false;
+}
+
 bool LevelManager::deleteLevel(const std::string& levelFileName) {
     std::string clean = sanitizeLevelFileName(levelFileName);
     if (clean == "level_1.json" || clean == "level_2.json") return false;
@@ -408,8 +493,8 @@ bool LevelManager::deleteLevel(const std::string& levelFileName) {
     return anyDeleted;
 }
 
-std::string LevelManager::createNewLevel(const std::string& baseName) {
-    std::string cleanBase = baseName;
+std::string LevelManager::createNewLevel(const std::string& displayName, bool isCampaign) {
+    std::string cleanBase = InputManager::transliterateToAscii(displayName);
     if (cleanBase.length() >= 5 && cleanBase.substr(cleanBase.length() - 5) == ".json") {
         cleanBase = cleanBase.substr(0, cleanBase.length() - 5);
     }
@@ -432,6 +517,14 @@ std::string LevelManager::createNewLevel(const std::string& baseName) {
     }
 
     LevelMapData newMap;
+    newMap.name = displayName.empty() ? "Новая карта" : displayName;
+    newMap.isCampaign = isCampaign;
+    if (isCampaign) {
+        newMap.tags = { "Кампания" };
+    } else {
+        newMap.tags = { "Тест" };
+    }
+
     newMap.gridWidth = 20;
     newMap.gridHeight = 12;
     newMap.cellSize = 64.0f;

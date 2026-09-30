@@ -116,6 +116,15 @@ add_executable(${PROJECT_NAME}
     src/game/core/LevelManager.h
     src/game/core/LevelManager.cpp
 
+    src/game/core/InputManager.h
+    src/game/core/InputManager.cpp
+
+    src/game/core/SettingsManager.h
+    src/game/core/SettingsManager.cpp
+
+    src/game/core/LocalizationManager.h
+    src/game/core/LocalizationManager.cpp
+
     src/game/core/EventBus.cpp
     src/game/core/EventBus.h
 
