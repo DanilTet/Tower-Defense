@@ -118,20 +118,27 @@ void LevelSelectState::init() {
     int startIndex = m_currentPage * itemsPerPage;
     int endIndex = std::min(startIndex + itemsPerPage, static_cast<int>(filteredLevels.size()));
 
-    float topY = 125.0f;
-
     float uiScale = SettingsManager::getUIScaleMultiplier();
+
+    // Вкладки фильтра — сначала определяем topY под ними
+    float tabH = std::clamp(32.0f * uiScale, 24.0f, 44.0f);
+    float tabY = std::clamp(16.0f + 30.0f * uiScale, 12.0f, 56.0f); // от верха экрана
+    float topY  = tabY + tabH + std::clamp(12.0f * uiScale, 8.0f, 18.0f);
 
     // Размеры карточек с учётом масштаба и ограничений экрана
     float baseCardW = 390.0f * uiScale;
     float baseCardH = 170.0f * uiScale;
-    float gapX = std::clamp(30.0f * uiScale, 16.0f, 50.0f);
-    float gapY = std::clamp(20.0f * uiScale, 10.0f, 36.0f);
+    float gapX = std::clamp(24.0f * uiScale, 14.0f, 40.0f);
+    float gapY = std::clamp(16.0f * uiScale, 8.0f, 28.0f);
 
+    // Доступное пространство: между topY и нижней навигацией (navBtnH + 14 + 14 отступ)
+    float navBtnH = std::clamp(38.0f * uiScale, 26.0f, 52.0f);
+    float bottomAreaH = navBtnH + 28.0f;
+    float availH = static_cast<float>(m_height) - topY - bottomAreaH;
     float maxAvailW = (m_width - 60.0f - gapX) * 0.5f;
-    float maxAvailH = (m_height - 210.0f - 2.0f * gapY) / 3.0f;
+    float maxAvailH = (availH - 2.0f * gapY) / 3.0f;
     float cardWidth  = std::clamp(baseCardW, 220.0f, maxAvailW);
-    float cardHeight = std::clamp(baseCardH, 110.0f, maxAvailH);
+    float cardHeight = std::clamp(baseCardH, 110.0f, std::max(110.0f, maxAvailH));
 
     float totalW = 2.0f * cardWidth + gapX;
     float startX = (m_width - totalW) * 0.5f;
@@ -191,12 +198,10 @@ void LevelSelectState::init() {
         m_levelCards.push_back(card);
     }
 
-    // Вкладки фильтра категорий
+    // Вкладки фильтра категорий (tabH и tabY вычислены выше)
     float tabW = std::clamp(110.0f * uiScale, 80.0f, 160.0f);
-    float tabH = std::clamp(32.0f  * uiScale, 24.0f, 44.0f);
     float tabGap = std::clamp(8.0f * uiScale, 4.0f, 14.0f);
     float tabStartX = startX;
-    float tabY = std::clamp(72.0f * uiScale, 60.0f, 100.0f);
 
     m_tabAll.pos = glm::vec2(tabStartX, tabY);
     m_tabAll.size = glm::vec2(tabW, tabH);
@@ -211,7 +216,7 @@ void LevelSelectState::init() {
     m_tabTest.text = LOC("LEVEL_TAB_TEST");
 
     // Поле поиска
-    float searchW = std::clamp(240.0f * uiScale, 160.0f, 340.0f);
+    float searchW = std::clamp(240.0f * uiScale, 160.0f, 320.0f);
     float searchX = startX + totalW - searchW;
     m_searchBoxPos = glm::vec2(searchX, tabY);
     m_searchBoxSize = glm::vec2(searchW, tabH);
@@ -231,8 +236,7 @@ void LevelSelectState::init() {
         m_filterChips.push_back(chip);
     }
 
-    // Нижние кнопки навигации
-    float navBtnH = std::clamp(38.0f * uiScale, 26.0f, 52.0f);
+    // Нижние кнопки навигации (navBtnH вычислен выше)
     float bottomY = static_cast<float>(m_height) - navBtnH - 14.0f;
 
     float backBtnW = std::clamp(160.0f * uiScale, 110.0f, 220.0f);

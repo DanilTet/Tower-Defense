@@ -149,7 +149,7 @@ void MapEditorState::loadLevelByName(const std::string& fileName) {
     }
 
     float scale = GetUIScale(m_width, m_height);
-    float dockH = std::clamp(54.0f * scale, 48.0f, 58.0f);
+    float dockH = std::clamp(54.0f * scale, 44.0f, 76.0f);
 
     m_grid = std::make_unique<Grid>(m_gridWidth, m_gridHeight, m_cellSize);
     m_grid->updateCellSize(m_width, m_height, dockH + 6.0f, 46.0f);
@@ -222,7 +222,7 @@ void MapEditorState::resizeMap(int newW, int newH) {
     );
 
     float scale = GetUIScale(m_width, m_height);
-    float dockH = std::clamp(54.0f * scale, 48.0f, 58.0f);
+    float dockH = std::clamp(54.0f * scale, 44.0f, 76.0f);
 
     m_grid = std::make_unique<Grid>(m_gridWidth, m_gridHeight, m_cellSize);
     m_grid->updateCellSize(m_width, m_height, dockH + 6.0f, 46.0f);
@@ -291,10 +291,11 @@ void MapEditorState::updateButtonLayout() {
     };
 
     // 1. КНОПКИ ВЕРХНЕГО ХЕДЕРА
-    float topY = 6.0f;
-    float topH = 32.0f;
-    float topPadding = 6.0f;
-    float topFontScale = 0.50f;
+    float topScale = GetUIScale(m_width, m_height);
+    float topY = 4.0f;
+    float topH = std::clamp(32.0f * topScale, 26.0f, 46.0f);
+    float topPadding = std::clamp(6.0f * topScale, 4.0f, 10.0f);
+    float topFontScale = std::clamp(0.50f * topScale, 0.38f, 0.68f);
 
     // Слева: заголовок "MAP EDITOR" (x: 15..135)
     float leftX = 140.0f;
@@ -410,13 +411,13 @@ void MapEditorState::updateButtonLayout() {
 
     // 2. КНОПКИ НИЖНЕГО ТУЛБАРА
     float scale = GetUIScale(m_width, m_height);
-    float dockH = std::clamp(54.0f * scale, 48.0f, 58.0f);
-    float btnH = dockH - 14.0f;
-    float bottomY = static_cast<float>(m_height) - dockH + 7.0f;
+    float dockH = std::clamp(54.0f * scale, 44.0f, 76.0f);
+    float btnH = dockH - std::clamp(14.0f * scale, 10.0f, 18.0f);
+    float bottomY = static_cast<float>(m_height) - dockH + 5.0f;
     float startX = 10.0f;
-    float padding = 4.0f;
+    float padding = std::clamp(4.0f * scale, 2.0f, 7.0f);
 
-    float bottomFontScale = 0.48f;
+    float bottomFontScale = std::clamp(0.48f * scale, 0.36f, 0.65f);
     m_bottomFontScale = bottomFontScale;
 
     struct BottomItem {

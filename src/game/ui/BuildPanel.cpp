@@ -17,15 +17,20 @@ void Buildpanel::initPanelData() {
 
 float Buildpanel::getBottomBarHeight(int windowWidth, int windowHeight) {
     float scale = GetUIScale(windowWidth, windowHeight);
-    return std::clamp((UI_PANEL_HEIGHT + 14.0f) * scale, 75.0f, 115.0f);
+    // Минимум должен вмещать иконку + отступ сверху + текст снизу
+    float needed = (UI_OFFSET_Y + UI_ICON_SIZE + 28.0f) * scale;
+    return std::max(needed, 75.0f);
 }
 
 glm::vec2 Buildpanel::getUIPanelPos(int windowWidth, int windowHeight) const {
     float scale = GetUIScale(windowWidth, windowHeight);
-    glm::vec2 panelSize(m_cachedPanelWidth * scale, UI_PANEL_HEIGHT * scale);
-    glm::vec2 offset(0.0f, 8.0f * scale);
-
-	return CalculateAnchorPosition(UIAnchor::BottomCenter, offset, panelSize, windowWidth, windowHeight);
+    float barH = getBottomBarHeight(windowWidth, windowHeight);
+    float panelH = UI_PANEL_HEIGHT * scale;
+    // Центрируем маленькую панель вертикально внутри нижней полосы
+    float panelW = m_cachedPanelWidth * scale;
+    float x = (static_cast<float>(windowWidth) - panelW) * 0.5f;
+    float y = static_cast<float>(windowHeight) - barH + (barH - panelH) * 0.5f;
+    return glm::vec2(x, y);
 }
 
 glm::vec2 Buildpanel::getTowerIconPos(int index, int windowWidth, int windowHeight) const {
