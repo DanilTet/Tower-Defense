@@ -6,6 +6,8 @@
 #include "../renderer/SpriteRenderer.h"
 #include "../resources/ResourceManager.h"
 #include "../core/SettingsManager.h"
+#include "../core/LocalizationManager.h"
+#include "../ui/UICommon.h"
 #include <GLFW/glfw3.h>
 #include <algorithm>
 #include <iostream>
@@ -17,42 +19,84 @@ PauseState::PauseState(GameStateManager& stateManager, int width, int height, st
     m_whiteTexture = std::shared_ptr<Texture2D>(ResourceManager::getWhiteTexture(), [](Texture2D*) {});
 }
 
-void PauseState::init() {
-    float s = SettingsManager::getUIScaleMultiplier();
+void PauseState::updateLayout() {
+    float scale = GetUIScale(m_width, m_height);
+    m_uiScale = scale;
 
-    float winW = std::clamp(420.0f * s, 280.0f, 580.0f);
-    float winH = std::clamp(335.0f * s, 240.0f, 470.0f);
+    m_headerHeight = std::clamp(44.0f * scale, 34.0f, 64.0f);
+
+    float btnW = std::clamp(280.0f * scale, 200.0f, 420.0f);
+    float btnH = std::clamp(44.0f  * scale, 32.0f, 60.0f);
+    float spacing = std::clamp(14.0f * scale, 10.0f, 22.0f);
+    float padX = std::clamp(30.0f * scale, 20.0f, 48.0f);
+
+    float winW = std::clamp(btnW + 2.0f * padX, 320.0f * scale, std::min(static_cast<float>(m_width) - 40.0f, 620.0f));
+
+    m_volumeWidget.setScale(scale);
+    m_volumeWidget.setWidth(winW - 2.0f * padX);
+    m_volumeWidget.setLabel(LOC("SETTINGS_VOLUME"));
+
+    float volH = m_volumeWidget.getHeight();
+
+    m_btnResume.size = glm::vec2(btnW, btnH);
+    m_btnSave.size   = glm::vec2(btnW, btnH);
+    m_btnExit.size   = glm::vec2(btnW, btnH);
+
+    m_btnResume.text = LOC("PAUSE_RESUME");
+    m_btnSave.text   = LOC("PAUSE_SAVE");
+    if (m_gameplayState && m_gameplayState->isEditorTest()) {
+        m_btnExit.text = LOC("PAUSE_BACK_TO_EDITOR");
+    } else {
+        m_btnExit.text = LOC("PAUSE_EXIT");
+    }
+
+    float currY = m_headerHeight + spacing;
+    m_resumeRelY = currY;
+    currY += btnH + spacing;
+
+    m_saveRelY = currY;
+    currY += btnH + spacing;
+
+    m_volRelY = currY;
+    currY += volH + spacing;
+
+    m_exitRelY = currY;
+    currY += btnH + spacing;
+
+    float winH = currY;
     m_windowSize = glm::vec2(winW, winH);
-    m_windowPos = glm::vec2((m_width - winW) / 2.0f, (m_height - winH) / 2.0f);
-    m_headerHeight = std::clamp(40.0f * s, 30.0f, 56.0f);
+
+    if (!m_isDragging) {
+        m_windowPos = glm::vec2((static_cast<float>(m_width) - winW) * 0.5f,
+                                (static_cast<float>(m_height) - winH) * 0.5f);
+    }
+
+    updateButtonPositions();
+}
+
+void PauseState::updateButtonPositions() {
+    float padX = std::clamp(30.0f * m_uiScale, 20.0f, 48.0f);
+    m_btnResume.pos = m_windowPos + glm::vec2((m_windowSize.x - m_btnResume.size.x) * 0.5f, m_resumeRelY);
+    m_btnSave.pos   = m_windowPos + glm::vec2((m_windowSize.x - m_btnSave.size.x)   * 0.5f, m_saveRelY);
+    m_volumeWidget.setPosition(m_windowPos + glm::vec2(padX, m_volRelY));
+    m_btnExit.pos   = m_windowPos + glm::vec2((m_windowSize.x - m_btnExit.size.x)   * 0.5f, m_exitRelY);
+}
+
+void PauseState::init() {
     m_isDragging = false;
     m_dragOffset = glm::vec2(0.0f);
+    m_mousePressedLastFrame = true; // Защита от клик-сквозняка (td-ui rule 4)
+    m_escPressedLastFrame = true;
 
-    float btnW = std::clamp(260.0f * s, 180.0f, 360.0f);
-    float btnH = std::clamp(42.0f  * s, 30.0f, 58.0f);
-
-    // настройка Resume
-    m_btnResume.size = glm::vec2(btnW, btnH);
-    m_btnResume.text = "Resume";
     m_btnResume.state = 0;
-
-    // настройка Save
-    m_btnSave.size = glm::vec2(btnW, btnH);
-    m_btnSave.text = "Save Game";
     m_btnSave.state = 0;
-
-    // настройка ползунка громкости
-    m_volumeWidget = VolumeSliderWidget(m_windowPos + glm::vec2(30.0f * s, 170.0f * s), winW - 60.0f * s, true, "Громкость звука:");
-
-    // настройка Exit
-    m_btnExit.size = glm::vec2(btnW, btnH);
-    if (m_gameplayState && m_gameplayState->isEditorTest()) {
-        m_btnExit.text = "Назад в редактор";
-    } else {
-        m_btnExit.text = "Exit to Menu";
-    }
     m_btnExit.state = 0;
+
+    m_volumeWidget = VolumeSliderWidget(glm::vec2(0.0f), 320.0f, true, LOC("SETTINGS_VOLUME"));
+
+    updateLayout();
 }
+
 void PauseState::cleanup() {}
 
 bool PauseState::isPointInRect(glm::vec2 point, glm::vec2 rectPos, glm::vec2 rectSize) {
@@ -61,20 +105,26 @@ bool PauseState::isPointInRect(glm::vec2 point, glm::vec2 rectPos, glm::vec2 rec
 }
 
 void PauseState::processInput(GLFWwindow* window, float dt) {
+    // ESC клавиша для быстрого закрытия паузы (Resume)
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
+        if (!m_escPressedLastFrame) {
+            m_escPressedLastFrame = true;
+            m_stateManager.popState();
+            return;
+        }
+    } else {
+        m_escPressedLastFrame = false;
+    }
+
+    // Проверяем динамическое изменение масштаба
+    float curScale = GetUIScale(m_width, m_height);
+    if (std::abs(curScale - m_uiScale) > 0.001f) {
+        updateLayout();
+    }
+
     double mouseX, mouseY;
     glfwGetCursorPos(window, &mouseX, &mouseY);
     m_currentMousePos = glm::vec2(mouseX, mouseY);
-
-    float s = SettingsManager::getUIScaleMultiplier();
-    float offsetY1 = std::clamp(55.0f * s, 40.0f, 76.0f);
-    float offsetY2 = std::clamp(108.0f * s, 78.0f, 150.0f);
-    float volumeY  = std::clamp(165.0f * s, 118.0f, 228.0f);
-    float offsetY3 = std::clamp(255.0f * s, 180.0f, 352.0f);
-
-    m_btnResume.pos = m_windowPos + glm::vec2((m_windowSize.x - m_btnResume.size.x) / 2.0f, offsetY1);
-    m_btnSave.pos   = m_windowPos + glm::vec2((m_windowSize.x - m_btnSave.size.x)   / 2.0f, offsetY2);
-    m_volumeWidget.setPosition(m_windowPos + glm::vec2(std::clamp(30.0f * s, 20.0f, 44.0f), volumeY));
-    m_btnExit.pos   = m_windowPos + glm::vec2((m_windowSize.x - m_btnExit.size.x)   / 2.0f, offsetY3);
 
     int mouseState = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
     bool isPressed = (mouseState == GLFW_PRESS);
@@ -106,6 +156,9 @@ void PauseState::processInput(GLFWwindow* window, float dt) {
         }
         if (m_isDragging) {
             m_windowPos = m_currentMousePos - m_dragOffset;
+            m_windowPos.x = std::clamp(m_windowPos.x, 0.0f, std::max(0.0f, static_cast<float>(m_width) - m_windowSize.x));
+            m_windowPos.y = std::clamp(m_windowPos.y, 0.0f, std::max(0.0f, static_cast<float>(m_height) - m_windowSize.y));
+            updateButtonPositions();
         }
     }
     else if (mouseState == GLFW_RELEASE) {
@@ -149,6 +202,11 @@ void PauseState::processInput(GLFWwindow* window, float dt) {
 void PauseState::update(float dt) {}
 
 void PauseState::render() {
+    float curScale = GetUIScale(m_width, m_height);
+    if (std::abs(curScale - m_uiScale) > 0.001f) {
+        updateLayout();
+    }
+
     m_renderer->beginBatch(); // открываем пакет
     // затемнение игры
     m_renderer->drawSpriteRGBA(m_uiTexture, glm::vec2(0.0f), glm::vec2(m_width, m_height), 0.0f, glm::vec4(0.05f, 0.05f, 0.07f, 0.65f));
@@ -180,17 +238,22 @@ void PauseState::render() {
 
     m_renderer->endBatch(); // рисуем
 
-    float s = SettingsManager::getUIScaleMultiplier();
-    float fTitle = std::clamp(0.90f * s, 0.62f, 1.26f);
-    float fBtn   = std::clamp(0.55f * s, 0.40f, 0.76f);
+    float fTitle = std::clamp(0.85f * m_uiScale, 0.58f, 1.20f);
+    float fBtn   = std::clamp(0.52f * m_uiScale, 0.38f, 0.74f);
 
-    // текст заголовочный
-    float titleW = m_textRenderer->CalculateTextWidth("PAUSE MENU", fTitle);
-    m_textRenderer->RenderText("PAUSE MENU", m_windowPos.x + (m_windowSize.x - titleW) * 0.5f, m_windowPos.y + 10.0f, fTitle, glm::vec3(1.0f, 0.75f, 0.0f));
+    // текст заголовочный с идеальным вертикальным центрированием
+    std::string titleText = LOC("PAUSE_TITLE");
+    float titleW = m_textRenderer->CalculateTextWidth(titleText, fTitle);
+    float titleX = m_windowPos.x + (m_windowSize.x - titleW) * 0.5f;
+    float titleY = m_windowPos.y + (m_headerHeight - fTitle * 28.0f) * 0.5f + 2.0f;
+    m_textRenderer->RenderText(titleText, titleX, titleY, fTitle, glm::vec3(1.0f, 0.75f, 0.0f));
 
+    // текст на кнопках (каноническое центрирование по td-ui)
     auto drawBtnText = [&](const UIButton& btn, const std::string& text) {
         float tw = m_textRenderer->CalculateTextWidth(text, fBtn);
-        m_textRenderer->RenderText(text, btn.pos.x + (btn.size.x - tw) * 0.5f, btn.pos.y + (btn.size.y - fBtn * 28.0f) * 0.5f + 2.0f, fBtn, glm::vec3(0.95f, 0.95f, 0.95f));
+        float tx = btn.pos.x + (btn.size.x - tw) * 0.5f;
+        float ty = btn.pos.y + (btn.size.y - fBtn * 28.0f) * 0.5f + 2.0f;
+        m_textRenderer->RenderText(text, tx, ty, fBtn, glm::vec3(0.95f, 0.95f, 0.95f));
     };
 
     drawBtnText(m_btnResume, m_btnResume.text);
@@ -204,5 +267,5 @@ void PauseState::render() {
 void PauseState::resize(int width, int height) {
     m_width = width;
     m_height = height;
-    m_windowPos = glm::vec2((m_width - m_windowSize.x) / 2.0f, (m_height - m_windowSize.y) / 2.0f);
+    updateLayout();
 }

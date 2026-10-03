@@ -30,16 +30,25 @@ private:
     // Ui текстурка
     std::shared_ptr<Texture2D> m_uiTexture;
     std::shared_ptr<Texture2D> m_whiteTexture;
-    //переменные мыши
+    // переменные мыши и клавиатуры
     bool m_mousePressedLastFrame;
+    bool m_escPressedLastFrame = false;
     glm::vec2 m_currentMousePos;
-    // переменніе окна
+    // переменные окна
     glm::vec2 m_windowPos;
     glm::vec2 m_windowSize;
     float m_headerHeight;
     bool m_isDragging;
     glm::vec2 m_dragOffset;
-    //кнопки
+    float m_uiScale = 1.0f;
+
+    // Относительные Y-координаты элементов внутри окна
+    float m_resumeRelY = 0.0f;
+    float m_saveRelY = 0.0f;
+    float m_volRelY = 0.0f;
+    float m_exitRelY = 0.0f;
+
+    // кнопки
     UIButton m_btnResume;
     UIButton m_btnSave;
     UIButton m_btnExit;
@@ -47,6 +56,8 @@ private:
     VolumeSliderWidget m_volumeWidget;
 
     bool isPointInRect(glm::vec2 point, glm::vec2 rectPos, glm::vec2 rectSize);
+    void updateLayout();
+    void updateButtonPositions();
 
 public:
     PauseState(GameStateManager& stateManager, int width, int height, std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer, GameplayState* gameplayState);
