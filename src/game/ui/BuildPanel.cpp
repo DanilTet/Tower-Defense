@@ -17,19 +17,18 @@ void Buildpanel::initPanelData() {
 
 float Buildpanel::getBottomBarHeight(int windowWidth, int windowHeight) {
     float scale = GetUIScale(windowWidth, windowHeight);
-    // Минимум должен вмещать иконку + отступ сверху + текст снизу
-    float needed = (UI_OFFSET_Y + UI_ICON_SIZE + 28.0f) * scale;
-    return std::max(needed, 75.0f);
+    // Высота черной полосы дока: высота панели + гарантированный отступ 16px (по 8px сверху и снизу)
+    return std::max((UI_PANEL_HEIGHT + 16.0f) * scale, 85.0f);
 }
 
 glm::vec2 Buildpanel::getUIPanelPos(int windowWidth, int windowHeight) const {
     float scale = GetUIScale(windowWidth, windowHeight);
     float barH = getBottomBarHeight(windowWidth, windowHeight);
-    float panelH = UI_PANEL_HEIGHT * scale;
-    // Центрируем маленькую панель вертикально внутри нижней полосы
     float panelW = m_cachedPanelWidth * scale;
     float x = (static_cast<float>(windowWidth) - panelW) * 0.5f;
-    float y = static_cast<float>(windowHeight) - barH + (barH - panelH) * 0.5f;
+    // Размещаем карточку строго внутри дока с отступом 8px от верхней разделительной полосы
+    float barY = static_cast<float>(windowHeight) - barH;
+    float y = barY + 8.0f * scale;
     return glm::vec2(x, y);
 }
 

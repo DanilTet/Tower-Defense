@@ -27,12 +27,12 @@ private:
 
 public:
 
-	// ИНТЕРФЕЙС ПАНЕЛИ ВІБОРА БАШНИ
-	static constexpr float UI_PANEL_HEIGHT = 100.0f; // высота панели
-	static constexpr float UI_ICON_SIZE = 52.0f; // размер иконки
-	static constexpr float UI_ICON_PADDING = 92.0f; // отступ
+	// ИНТЕРФЕЙС ПАНЕЛИ ВЫБОРА БАШНИ
+	static constexpr float UI_PANEL_HEIGHT = 92.0f; // высота панели
+	static constexpr float UI_ICON_SIZE = 48.0f; // размер иконки
+	static constexpr float UI_ICON_PADDING = 88.0f; // отступ
 	static constexpr float UI_OFFSET_X = 18.0f; // Отступ иконок от левого края панели
-	static constexpr float UI_OFFSET_Y = 12.0f; // Отступ иконок от верхнего края панели
+	static constexpr float UI_OFFSET_Y = 10.0f; // Отступ иконок от верхнего края панели
 
 	static float getBottomBarHeight(int windowWidth, int windowHeight);
 

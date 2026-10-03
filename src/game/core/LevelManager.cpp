@@ -16,6 +16,17 @@ LevelMapData LevelManager::loadLevelMap(const std::string& filepath) {
     std::ifstream file(filepath);
 
     if (!file.is_open()) {
+        std::string fname = fs::path(filepath).filename().string();
+        for (const auto& dir : getLevelDirectories()) {
+            fs::path alt = fs::path(dir) / fname;
+            file.open(alt);
+            if (file.is_open()) {
+                break;
+            }
+        }
+    }
+
+    if (!file.is_open()) {
         std::cerr << "ERROR::LEVELMANAGER: Could not open level file: " << filepath << std::endl;
         return data;
     }
@@ -368,9 +379,9 @@ std::vector<LevelInfo> LevelManager::getAvailableLevels() {
                 } else {
                     info.name = stem;
                 }
-                info.fullPath = "res/levels/" + fname;
+                info.fullPath = entry.path().string();
                 info.isCampaign = mapData.isCampaign;
-                info.isBuiltIn = mapData.isCampaign;
+                info.isBuiltIn = false;
                 info.tags = mapData.tags;
                 levels.push_back(info);
                 seen.insert(fname);
