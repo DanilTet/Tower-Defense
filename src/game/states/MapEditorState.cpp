@@ -742,7 +742,8 @@ void MapEditorState::testMap() {
     saveMap();
     std::string testPath = "res/levels/" + m_currentLevelFileName;
     std::cout << "[MapEditor] Launching test gameplay with " << testPath << std::endl;
-    m_stateManager.pushState(std::make_unique<GameplayState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer, testPath));
+    m_suppressPlacementUntilRelease = true;
+    m_stateManager.pushState(std::make_unique<GameplayState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer, testPath, /*isEditorTest=*/true));
 }
 
 void MapEditorState::processInput(GLFWwindow* window, float dt) {

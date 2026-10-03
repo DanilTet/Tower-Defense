@@ -8,6 +8,7 @@
 #include "../core/SettingsManager.h"
 #include <GLFW/glfw3.h>
 #include <algorithm>
+#include <iostream>
 
 PauseState::PauseState(GameStateManager& stateManager, int width, int height, std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer, GameplayState* gameplayState)
     : m_stateManager(stateManager), m_width(width), m_height(height), m_renderer(renderer), m_textRenderer(textRenderer), m_gameplayState(gameplayState), m_mousePressedLastFrame(false) {
@@ -45,7 +46,11 @@ void PauseState::init() {
 
     // настройка Exit
     m_btnExit.size = glm::vec2(btnW, btnH);
-    m_btnExit.text = "Exit to Menu";
+    if (m_gameplayState && m_gameplayState->isEditorTest()) {
+        m_btnExit.text = "Назад в редактор";
+    } else {
+        m_btnExit.text = "Exit to Menu";
+    }
     m_btnExit.state = 0;
 }
 void PauseState::cleanup() {}
@@ -123,8 +128,15 @@ void PauseState::processInput(GLFWwindow* window, float dt) {
         }
         // если отпустили кнопку над Exit
         if (m_btnExit.state == 2 && isPointInRect(m_currentMousePos, m_btnExit.pos, m_btnExit.size)) {
-            m_stateManager.setState(std::make_unique<MainMenuState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));
-            return;
+            if (m_gameplayState && m_gameplayState->isEditorTest()) {
+                std::cout << "[PauseState] Returning to MapEditor..." << std::endl;
+                m_stateManager.popState();
+                m_stateManager.popState();
+                return;
+            } else {
+                m_stateManager.setState(std::make_unique<MainMenuState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));
+                return;
+            }
         }
 
         m_btnResume.state = isPointInRect(m_currentMousePos, m_btnResume.pos, m_btnResume.size) ? 1 : 0;

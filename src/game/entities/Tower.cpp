@@ -119,7 +119,7 @@ void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies,
 		if (m_shotTimer <= 0.0f) {
 			Enemy* victim = nullptr;
 			for (const auto& enemy : enemies) {
-				if (!enemy || enemy->isDead() || enemy->isReachedEnd() || enemy->isKnockedBack()) continue;
+				if (!enemy || enemy->isDead() || enemy->isReachedEnd() || enemy->isKnockedBack() || enemy->isStunned() || enemy->isKnockbackImmune()) continue;
 				float dist = glm::distance(enemy->getCollider(grid).center, targetCenter);
 				if (dist < triggerRadius) {
 					victim = enemy.get();
@@ -132,7 +132,7 @@ void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies,
 
 				// Поршень НЕ наносит урон, а отталкивает ровно на 1 клетку!
 				glm::ivec2 punchDir = targetCell - glm::ivec2(m_gridX, m_gridY);
-				victim->pushOneCell(targetCell, punchDir, grid);
+				victim->pushOneCell(targetCell, punchDir, grid, &particleSystem);
 
 				if (!m_impactParticle.empty()) {
 					ParticleEmitterProps impact = ConfigManager::getParticleProps(m_impactParticle);

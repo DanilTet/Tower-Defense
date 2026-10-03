@@ -42,6 +42,7 @@ class SpriteRenderer;
 class Texture2D;
 class Grid;
 class Pathfinder;
+class ParticleSystem;
 
 class Enemy
 {
@@ -83,6 +84,10 @@ private:
 	glm::ivec2 m_knockbackDestCell = glm::ivec2(0);
 	glm::ivec2 m_knockbackFromCell = glm::ivec2(0);
 	float m_stunTimer = 0.0f; // таймер оглушения
+	float m_knockbackImmunityTimer = 0.0f; // таймер иммунитета к повторному отталкиванию
+	float m_wallImpactTimer = 0.0f; // таймер отдачи при ударе о стену
+	glm::vec2 m_wallImpactOffset = glm::vec2(0.0f); // смещение спрайта при ударе о стену
+	float m_stunAnimAngle = 0.0f; // угол вращения звездочек стана
 
 	void applyPostKnockbackPath(glm::ivec2 destCell, glm::ivec2 fromCell, const Grid& grid);
 
@@ -135,6 +140,8 @@ public:
 	float getSpeedModifier() const { return m_speedModifier; }
 	bool isKnockedBack() const { return m_isKnockedBack; }
 	bool isStunned() const { return m_stunTimer > 0.0f; }
-	void pushOneCell(glm::ivec2 fromCell, glm::ivec2 punchDir, const Grid& grid);
+	bool isKnockbackImmune() const { return m_knockbackImmunityTimer > 0.0f; }
+	glm::vec2 getWallImpactOffset() const { return m_wallImpactOffset; }
+	void pushOneCell(glm::ivec2 fromCell, glm::ivec2 punchDir, const Grid& grid, ParticleSystem* particleSystem = nullptr);
 	void applyKnockback(glm::vec2 direction, float force);
 };

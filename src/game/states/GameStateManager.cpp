@@ -20,9 +20,9 @@ void GameStateManager::pushState(std::unique_ptr<IGameState> newState) {
 	m_clearAllAndSet = false;
 }
 
-void GameStateManager::popState() {
-	std::cout << "[GameStateManager] popState requested" << std::endl;
-	m_popRequested = true;
+void GameStateManager::popState(int count) {
+	std::cout << "[GameStateManager] popState requested (count: " << count << ")" << std::endl;
+	m_popCount += count;
 }
 
 void GameStateManager::processInput(GLFWwindow* window, float dt) {
@@ -52,14 +52,13 @@ void GameStateManager::render() {
 
 void GameStateManager::applyPendingChanges() {
 	// если возврат
-	if (m_popRequested) {
-		if (!m_states.empty()) {
-			std::cout << "[GameStateManager] Popping state, remaining before pop: " << m_states.size() << std::endl;
-			m_states.back()->cleanup();
-			m_states.pop_back();
-		}
-		m_popRequested = false;
+	while (m_popCount > 0 && !m_states.empty()) {
+		std::cout << "[GameStateManager] Popping state, remaining before pop: " << m_states.size() << std::endl;
+		m_states.back()->cleanup();
+		m_states.pop_back();
+		m_popCount--;
 	}
+	m_popCount = 0;
 	// если отложеный стейт
 	if (m_nextState) {
 		if (m_clearAllAndSet) {

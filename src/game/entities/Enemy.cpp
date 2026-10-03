@@ -3,10 +3,12 @@
 #include "../textures/Texture2D.h"
 #include "world/Grid.h"
 #include <iostream>
+#include <cmath>
 #include "core/ConfigManager.h"
 #include "world/Pathfinder.h"
 #include "../../resources/ResourceManager.h"
 #include "../ui/HealthBarRenderer.h"
+#include "../../particles/ParticleSystem.h"
 
 int Enemy::s_nextId = 0; // инициализация общего счетчика
 
@@ -84,10 +86,35 @@ void Enemy::update(float dt, const Grid& grid) {
     if (maxSlow > 0.8f) maxSlow = 0.8f;
     m_speedModifier = 1.0f - maxSlow;
 
+    // Таймер иммунитета к повторному отталкиванию
+    if (m_knockbackImmunityTimer > 0.0f) {
+        m_knockbackImmunityTimer -= dt;
+        if (m_knockbackImmunityTimer < 0.0f) {
+            m_knockbackImmunityTimer = 0.0f;
+        }
+    }
+
+    // Анимация отдачи при ударе о стену
+    if (m_wallImpactTimer > 0.0f) {
+        m_wallImpactTimer -= dt;
+        if (m_wallImpactTimer <= 0.0f) {
+            m_wallImpactTimer = 0.0f;
+            m_wallImpactOffset = glm::vec2(0.0f);
+        }
+        else {
+            float t = m_wallImpactTimer / 0.12f;
+            m_wallImpactOffset *= t;
+        }
+    }
+
     // Таймер оглушения (при ударе о препятствие)
     if (m_stunTimer > 0.0f) {
+        m_stunAnimAngle += dt * 7.0f;
         m_stunTimer -= dt;
-        if (m_stunTimer < 0.0f) m_stunTimer = 0.0f;
+        if (m_stunTimer <= 0.0f) {
+            m_stunTimer = 0.0f;
+            m_knockbackImmunityTimer = 1.4f; // При выходе из стана даём 1.4с иммунитета!
+        }
         // Во время оглушения враг стоит на месте
         return;
     }
@@ -99,6 +126,7 @@ void Enemy::update(float dt, const Grid& grid) {
         if (t >= 1.0f) {
             m_pixelPos = m_knockbackTargetPos;
             m_isKnockedBack = false;
+            m_knockbackImmunityTimer = 1.4f; // По окончании отталкивания выставляем 1.4с иммунитета!
 
             // Перенастраиваем маршрут, чтобы враг дальше шёл от новой клетки
             applyPostKnockbackPath(m_knockbackDestCell, m_knockbackFromCell, grid);
@@ -113,14 +141,29 @@ void Enemy::update(float dt, const Grid& grid) {
         return;
     }
 
-    // Проверка безопасности: если целевая клетка заблокирована башней, останавливаемся
+    // Проверка безопасности: если целевая клетка заблокирована башней, ищем проходимую точку дальше
     if (m_currentWayPoint < m_path.size()) {
         glm::ivec2 checkCell = m_path[m_currentWayPoint];
         if (!Pathfinder::isCellWalkable(grid, checkCell.x, checkCell.y)) {
-            m_path.clear();
-            m_currentWayPoint = 0;
-            return;
+            // Ищем дальше по m_path первую проходимую точку
+            size_t nextWalkable = m_currentWayPoint + 1;
+            while (nextWalkable < m_path.size() && !Pathfinder::isCellWalkable(grid, m_path[nextWalkable].x, m_path[nextWalkable].y)) {
+                nextWalkable++;
+            }
+            if (nextWalkable < m_path.size()) {
+                m_currentWayPoint = nextWalkable;
+            } else {
+                // Впереди по текущему пути нет проходимых точек.
+                // Не очищаем m_path вслепую, чтобы враг не завис навсегда,
+                // а ждем пересчета пути (recalculatePath).
+                return;
+            }
         }
+    }
+
+    if (m_currentWayPoint >= m_path.size()) {
+        m_reachedEnd = true;
+        return;
     }
 
     m_animator.update(dt); // прокрутка анимации
@@ -208,17 +251,39 @@ void Enemy::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture,
         renderColor = glm::vec3(0.45f, 0.75f, 1.0f); // Замедленно-синий оттенок
     }
 
-    renderer->drawSprite(enemyTexPtr, centeredPos, size, m_angle, renderColor, currentFrameUV);
+    glm::vec2 drawPos = centeredPos + m_wallImpactOffset;
+
+    renderer->drawSprite(enemyTexPtr, drawPos, size, m_angle, renderColor, currentFrameUV);
+
+    // --- ОТРИСОВКА ВРАЩАЮЩИХСЯ ЗВЕЗДОЧЕК СТАНА НАД ГОЛОВОЙ ВРАГА ---
+    if (m_stunTimer > 0.0f) {
+        Texture2D* starTex = ResourceManager::getTexture("particleTexture");
+        if (!starTex) starTex = radiusTex.get();
+        std::shared_ptr<Texture2D> starTexPtr(starTex, [](Texture2D*) {});
+
+        glm::vec2 headCenter = drawPos + glm::vec2(size.x * 0.5f, -size.y * 0.05f);
+        float rx = size.x * 0.42f;
+        float ry = size.y * 0.16f;
+        glm::vec2 starSize(size.x * 0.22f, size.x * 0.22f);
+
+        for (int i = 0; i < 3; ++i) {
+            float starAngle = m_stunAnimAngle + i * (2.0f * 3.14159265f / 3.0f);
+            glm::vec2 starPos = headCenter + glm::vec2(std::cos(starAngle) * rx, std::sin(starAngle) * ry);
+            float starRot = glm::degrees(starAngle * 2.5f);
+            glm::vec2 starDrawPos = starPos - starSize * 0.5f;
+            renderer->drawSprite(starTexPtr, starDrawPos, starSize, starRot, glm::vec3(1.0f, 0.95f, 0.25f));
+        }
+    }
 
     // --- ОТРИСОВКА ПОЛОСКИ ЗДОРОВЬЯ (HEALTH BAR) ЧЕРЕЗ HealthBarRenderer ---
-    HealthBarRenderer::draw(renderer, texture, centeredPos, enemySizeDim, m_health, stats.Maxhealth);
+    HealthBarRenderer::draw(renderer, texture, drawPos, enemySizeDim, m_health, stats.Maxhealth);
 
     // --- ОТРИСОВКА ХИТБОКСА (ДЕБАГ) ---
 
     CircleCollider collider = getCollider(grid);
 
     glm::vec2 hitboxSize(collider.radius * 2.0f, collider.radius * 2.0f);
-    glm::vec2 hitboxPos = collider.center - glm::vec2(collider.radius, collider.radius);
+    glm::vec2 hitboxPos = (collider.center + m_wallImpactOffset) - glm::vec2(collider.radius, collider.radius);
 
     // ИСПРАВЛЕНИЕ 2: drawSprite с маленькой буквы и передаем radiusTex без звездочки (это shared_ptr)
     renderer->drawSprite(radiusTex, hitboxPos, hitboxSize, 0.0f, glm::vec3(1.0f, 0.0f, 0.0f));
@@ -367,7 +432,7 @@ bool Enemy::isPoisoned() const {
     return false;
 }
 
-void Enemy::pushOneCell(glm::ivec2 fromCell, glm::ivec2 punchDir, const Grid& grid) {
+void Enemy::pushOneCell(glm::ivec2 fromCell, glm::ivec2 punchDir, const Grid& grid, ParticleSystem* particleSystem) {
     if (m_reachedEnd) return;
 
     glm::ivec2 destCell = fromCell + punchDir;
@@ -379,6 +444,17 @@ void Enemy::pushOneCell(glm::ivec2 fromCell, glm::ivec2 punchDir, const Grid& gr
         // Удар о препятствие: враг остаётся на месте, оглушается на 0.8с, 0 урона!
         m_stunTimer = 0.8f;
         m_isKnockedBack = false;
+        m_wallImpactTimer = 0.12f;
+        m_wallImpactOffset = glm::vec2(punchDir) * (grid.getCellSize() * 0.20f);
+
+        // Запуск спавна частиц удара SparkImpact в точке контакта
+        if (particleSystem) {
+            ParticleEmitterProps impactProps = ConfigManager::getParticleProps("SparkImpact");
+            glm::vec2 contactPoint = m_pixelPos + glm::vec2(grid.getCellSize() * 0.5f) + glm::vec2(punchDir) * (grid.getCellSize() * 0.5f);
+            impactProps.position = contactPoint;
+            impactProps.velocityDir = -glm::vec2(punchDir) * 120.0f;
+            particleSystem->emit(impactProps, impactProps.spawnCount);
+        }
         return;
     }
 
@@ -427,16 +503,22 @@ void Enemy::applyPostKnockbackPath(glm::ivec2 destCell, glm::ivec2 fromCell, con
 
         std::vector<glm::ivec2> newPath;
         newPath.push_back(destCell); // Текущее положение врага после толчка
-        if (fromIndex != -1) {
-            for (size_t i = fromIndex; i < m_path.size(); ++i) {
-                newPath.push_back(m_path[i]);
+
+        size_t resumeIdx = (fromIndex != -1) ? static_cast<size_t>(fromIndex) : 0;
+        // Проверяем: если fromIndex + 1 существует, проходима и смежна с destCell — срезаем сразу на неё
+        if (fromIndex != -1 && fromIndex + 1 < static_cast<int>(m_path.size())) {
+            glm::ivec2 nextP = m_path[fromIndex + 1];
+            int distManhattan = std::abs(destCell.x - nextP.x) + std::abs(destCell.y - nextP.y);
+            if (distManhattan == 1 && Pathfinder::isCellWalkable(grid, nextP.x, nextP.y)) {
+                resumeIdx = static_cast<size_t>(fromIndex + 1);
             }
         }
-        else {
-            // Если fromCell не найден, ищем ближайшую точку маршрута
+        else if (fromIndex == -1) {
+            // Если fromCell не найден, ищем ближайшую проходимую точку маршрута
             float bestDistSq = 1e9f;
             size_t bestIdx = 0;
             for (size_t i = 0; i < m_path.size(); ++i) {
+                if (!Pathfinder::isCellWalkable(grid, m_path[i].x, m_path[i].y)) continue;
                 glm::vec2 diff = glm::vec2(destCell - m_path[i]);
                 float dSq = glm::dot(diff, diff);
                 if (dSq < bestDistSq) {
@@ -444,13 +526,25 @@ void Enemy::applyPostKnockbackPath(glm::ivec2 destCell, glm::ivec2 fromCell, con
                     bestIdx = i;
                 }
             }
-            for (size_t i = bestIdx; i < m_path.size(); ++i) {
-                newPath.push_back(m_path[i]);
-            }
+            resumeIdx = bestIdx;
+        }
+
+        for (size_t i = resumeIdx; i < m_path.size(); ++i) {
+            newPath.push_back(m_path[i]);
         }
 
         m_path = newPath;
-        m_currentWayPoint = 1; // Идем от destCell к следующей точке
+        if (m_path.size() > 1) {
+            m_currentWayPoint = 1; // Идем от destCell к следующей точке
+        }
+        else {
+            m_currentWayPoint = 0;
+        }
+    }
+
+    // Строгая валидация индекса текущей точки во избежание зависания
+    if (m_currentWayPoint >= m_path.size()) {
+        m_currentWayPoint = m_path.empty() ? 0 : m_path.size() - 1;
     }
 
     // Пересчитываем пройденную дистанцию для корректного таргетинга башен

@@ -11,7 +11,7 @@ private:
     // флаги для безопасного переключения в конце кадра
     std::unique_ptr<IGameState> m_nextState;
     bool m_clearAllAndSet = false;
-    bool m_popRequested = false;
+    int m_popCount = 0;
 
 public:
     GameStateManager() = default;
@@ -23,8 +23,8 @@ public:
     // добавить состояние поверх текущего
     void pushState(std::unique_ptr<IGameState> newState);
 
-    // удалить верхнее состояние
-    void popState();
+    // удалить верхнее состояние (или несколько)
+    void popState(int count = 1);
 
     // системные методы
     void processInput(GLFWwindow* window, float dt);

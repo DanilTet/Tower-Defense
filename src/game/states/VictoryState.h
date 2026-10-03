@@ -19,6 +19,7 @@ private:
     std::shared_ptr<Texture2D> m_uiTexture;
 
     bool m_mousePressedLastFrame = false;
+    bool m_isEditorTest = false;
     glm::vec2 m_windowPos;
     glm::vec2 m_windowSize;
 
@@ -28,7 +29,7 @@ private:
     bool isPointInRect(glm::vec2 point, glm::vec2 rectPos, glm::vec2 rectSize);
 
 public:
-    VictoryState(GameStateManager& stateManager, int width, int height, std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer);
+    VictoryState(GameStateManager& stateManager, int width, int height, std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer, bool isEditorTest = false);
     void init() override;
     void cleanup() override;
     void processInput(GLFWwindow* window, float dt) override;

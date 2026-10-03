@@ -48,12 +48,16 @@ private:
 
     std::string m_saveToLoad = "";
     bool m_isValid = true;
+    bool m_isEditorTest = false;
+    bool m_editorBtnPressedLastFrame = true;
 
     void setupUI();
     void setupEventListeners();
 
 public:
-    GameplayState(GameStateManager& stateManager, int windowWidth, int windowHeight, std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer, std::string levelPath);
+    GameplayState(GameStateManager& stateManager, int windowWidth, int windowHeight, std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer, std::string levelPath, bool isEditorTest = false);
+
+    bool isEditorTest() const { return m_isEditorTest; }
 
     void init() override;
     void cleanup() override;

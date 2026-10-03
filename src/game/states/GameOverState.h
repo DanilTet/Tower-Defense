@@ -25,6 +25,7 @@ private:
     std::string m_levelPath;
 
     bool m_mousePressedLastFrame = false; // от залипания клавиши
+    bool m_isEditorTest = false;
 
     // размеры окощка высплывающего
     glm::vec2 m_windowPos;
@@ -39,7 +40,7 @@ private:
 
 public:
     // дефолт
-    GameOverState(GameStateManager& stateManager, int width, int height, std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer, std::string levelPath);
+    GameOverState(GameStateManager& stateManager, int width, int height, std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer, std::string levelPath, bool isEditorTest = false);
     void init() override;
     void cleanup() override;
     void processInput(GLFWwindow* window, float dt) override;
