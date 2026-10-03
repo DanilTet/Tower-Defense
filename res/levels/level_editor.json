@@ -398,7 +398,9 @@
     "width": 20
   },
   "name": "MY MAP",
-  "tags": [],
+  "tags": [
+    "Кампания"
+  ],
   "waves": [
     {
       "parts": [
