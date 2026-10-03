@@ -303,8 +303,10 @@ void MapEditorState::updateButtonLayout() {
     float topFontScale = std::clamp(0.48f * topScale, 0.38f, 0.62f);
     m_topFontScale = topFontScale;
 
-    // Слева: заголовок "MAP EDITOR" (x: 15..135)
-    float leftX = 140.0f;
+    // Слева: заголовок "MAP EDITOR" (динамически рассчитываем X с учетом ширины надписи)
+    float titleFontScale = std::clamp(0.80f * topScale, 0.60f, 0.95f);
+    float titleW = getTextW("MAP EDITOR", titleFontScale);
+    float leftX = 15.0f + titleW + std::clamp(18.0f * topScale, 14.0f, 26.0f);
 
     // btnCurrentMap: Отображение текущего имени карты
     float nameW = getTextW(m_currentLevelDisplayName, topFontScale);
@@ -1127,7 +1129,7 @@ void MapEditorState::render() {
     if (m_textRenderer) {
         float scale = GetUIScale(m_width, m_height);
         // Текст верхнего хедера
-        float titleFontScale = std::clamp(0.85f * scale, 0.65f, 1.05f);
+        float titleFontScale = std::clamp(0.80f * scale, 0.60f, 0.95f);
         float titleY = (topBarH - titleFontScale * 28.0f) * 0.5f;
         m_textRenderer->RenderText("MAP EDITOR", 15.0f, titleY, titleFontScale, glm::vec3(1.0f, 0.85f, 0.2f));
 
