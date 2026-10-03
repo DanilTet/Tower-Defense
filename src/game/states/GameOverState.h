@@ -30,6 +30,7 @@ private:
     // размеры окощка высплывающего
     glm::vec2 m_windowPos;
     glm::vec2 m_windowSize;
+    float m_uiScale = 1.0f;
 
     // две кнопки
     UIButton m_btnRetry;
@@ -37,6 +38,7 @@ private:
 
     // курсор внутри кнопки???
     bool isPointInRect(glm::vec2 point, glm::vec2 rectPos, glm::vec2 rectSize);
+    void updateLayout();
 
 public:
     // дефолт

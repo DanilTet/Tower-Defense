@@ -126,6 +126,100 @@ private:
     void resizeMap(int newW, int newH);
     void cycleMapSizePreset();
 
+    struct ExitModalLayout {
+        glm::vec2 modalPos;
+        glm::vec2 modalSize;
+        float headerH = 40.0f;
+        glm::vec2 btnCloseCrossPos;
+        glm::vec2 btnCloseCrossSize;
+        glm::vec2 btnSaveExitPos;
+        glm::vec2 btnSaveExitSize;
+        glm::vec2 btnDiscardPos;
+        glm::vec2 btnDiscardSize;
+        glm::vec2 btnCancelPos;
+        glm::vec2 btnCancelSize;
+        float fTitle = 0.68f;
+        float fQuestion = 0.66f;
+        float fSub = 0.48f;
+        float fBtn = 0.46f;
+        float fCross = 0.55f;
+        float questionY = 0.0f;
+        float subY = 0.0f;
+    };
+    ExitModalLayout getExitModalLayout() const;
+
+    struct MapCardLayout {
+        glm::vec2 cardPos;
+        glm::vec2 cardSize;
+        glm::vec2 btnLoadPos;
+        glm::vec2 btnLoadSize;
+        glm::vec2 btnRenPos;
+        glm::vec2 btnRenSize;
+        glm::vec2 btnDelPos;
+        glm::vec2 btnDelSize;
+        bool hasDel = false;
+        int levelIdx = 0;
+    };
+
+    struct MapsModalLayout {
+        glm::vec2 modalPos;
+        glm::vec2 modalSize;
+        float headerH = 40.0f;
+        glm::vec2 btnCloseCrossPos;
+        glm::vec2 btnCloseCrossSize;
+        glm::vec2 btnNewPos;
+        glm::vec2 btnNewSize;
+        glm::vec2 btnClosePos;
+        glm::vec2 btnCloseSize;
+        glm::vec2 btnScrollUpPos;
+        glm::vec2 btnScrollUpSize;
+        glm::vec2 btnScrollDownPos;
+        glm::vec2 btnScrollDownSize;
+        glm::vec2 btnPrevPagePos;
+        glm::vec2 btnPrevPageSize;
+        glm::vec2 btnNextPagePos;
+        glm::vec2 btnNextPageSize;
+        bool hasPagination = false;
+        int totalLevels = 0;
+        int maxVisible = 6;
+        int currentOffset = 0;
+        int maxOffset = 0;
+        float listStartY = 0.0f;
+        float itemH = 48.0f;
+        float itemGap = 6.0f;
+        float fTitle = 0.68f;
+        float fSub = 0.50f;
+        float fNew = 0.50f;
+        float fCardName = 0.54f;
+        float fCardSub = 0.42f;
+        float fActionBtn = 0.48f;
+        float fClose = 0.52f;
+        float fCross = 0.55f;
+        std::vector<MapCardLayout> visibleCards;
+    };
+    MapsModalLayout getMapsModalLayout() const;
+
+    struct RenameModalLayout {
+        glm::vec2 modalPos;
+        glm::vec2 modalSize;
+        float headerH = 40.0f;
+        glm::vec2 btnCloseCrossPos;
+        glm::vec2 btnCloseCrossSize;
+        glm::vec2 boxPos;
+        glm::vec2 boxSize;
+        glm::vec2 btnSavePos;
+        glm::vec2 btnSaveSize;
+        glm::vec2 btnCancelPos;
+        glm::vec2 btnCancelSize;
+        float fTitle = 0.68f;
+        float fSub = 0.48f;
+        float fInput = 0.58f;
+        float fBtn = 0.48f;
+        float fCross = 0.55f;
+        float subY = 0.0f;
+    };
+    RenameModalLayout getRenameModalLayout() const;
+
     void openRenameModal(const std::string& targetFileName = "");
     void confirmRename();
     void renderRenameModal();

@@ -5,26 +5,56 @@
 #include "../resources/ResourceManager.h"
 #include "../renderer/SpriteRenderer.h"
 #include "../renderer/TextRenderer.h"
+#include "../ui/UICommon.h"
+#include "../core/LocalizationManager.h"
 #include <GLFW/glfw3.h>
+#include <algorithm>
 #include <iostream>
 
 GameOverState::GameOverState(GameStateManager& stateManager, int width, int height, std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer, std::string levelPath, bool isEditorTest)
     : m_stateManager(stateManager), m_width(width), m_height(height), m_renderer(renderer), m_textRenderer(textRenderer), m_levelPath(levelPath), m_isEditorTest(isEditorTest)
 {
-    // четенькая текстурка
     m_uiTexture = std::shared_ptr<Texture2D>(ResourceManager::getTexture("uiBaseTexture"), [](Texture2D*) {});
-
     m_mousePressedLastFrame = true;
 }
 
+void GameOverState::updateLayout() {
+    float scale = GetUIScale(m_width, m_height);
+    m_uiScale = scale;
+
+    m_windowSize = glm::vec2(
+        std::clamp(420.0f * scale, 300.0f, 600.0f),
+        std::clamp(320.0f * scale, 240.0f, 480.0f)
+    );
+    m_windowPos = glm::vec2(
+        (static_cast<float>(m_width) - m_windowSize.x) * 0.5f,
+        (static_cast<float>(m_height) - m_windowSize.y) * 0.5f
+    );
+
+    float btnW = std::clamp(300.0f * scale, 200.0f, m_windowSize.x - 40.0f);
+    float btnH = std::clamp(48.0f * scale, 34.0f, 60.0f);
+    float spacing = std::clamp(16.0f * scale, 10.0f, 24.0f);
+
+    m_btnRetry.size = glm::vec2(btnW, btnH);
+    m_btnMenu.size = glm::vec2(btnW, btnH);
+
+    m_btnRetry.text = LOC("GAMEOVER_RETRY");
+    m_btnMenu.text = m_isEditorTest ? LOC("PAUSE_BACK_TO_EDITOR") : LOC("GAMEOVER_MENU");
+
+    float fTitle = std::clamp(0.95f * scale, 0.65f, 1.30f);
+    float titleTopOffset = std::clamp(36.0f * scale, 24.0f, 50.0f);
+    float startBtnY = m_windowPos.y + titleTopOffset + fTitle * 28.0f + std::clamp(28.0f * scale, 18.0f, 42.0f);
+
+    float btnX = m_windowPos.x + (m_windowSize.x - btnW) * 0.5f;
+    m_btnRetry.pos = glm::vec2(btnX, startBtnY);
+    m_btnMenu.pos = glm::vec2(btnX, startBtnY + btnH + spacing);
+}
+
 void GameOverState::init() {
-    m_windowSize = glm::vec2(400.0f, 300.0f); // размер окошка
-    // бахаем по центру
-    m_windowPos = glm::vec2((m_width - m_windowSize.x) / 2.0f, (m_height - m_windowSize.y) / 2.0f);
-    // кнопки
-    m_btnRetry = { glm::vec2(m_windowPos.x + 50.0f, m_windowPos.y + 120.0f), glm::vec2(300.0f, 50.0f), "TRY AGAIN", 0 };
-    std::string menuText = m_isEditorTest ? "В РЕДАКТОР" : "EXIT TO MENU";
-    m_btnMenu = { glm::vec2(m_windowPos.x + 50.0f, m_windowPos.y + 200.0f), glm::vec2(300.0f, 50.0f), menuText, 0 };
+    m_mousePressedLastFrame = true;
+    m_btnRetry.state = 0;
+    m_btnMenu.state = 0;
+    updateLayout();
 }
 
 void GameOverState::cleanup() {}
@@ -35,14 +65,17 @@ bool GameOverState::isPointInRect(glm::vec2 point, glm::vec2 rectPos, glm::vec2 
 }
 
 void GameOverState::processInput(GLFWwindow* window, float dt) {
-    double mouseX, mouseY; // корды мыши
+    float curScale = GetUIScale(m_width, m_height);
+    if (std::abs(curScale - m_uiScale) > 0.001f) {
+        updateLayout();
+    }
+
+    double mouseX, mouseY;
     glfwGetCursorPos(window, &mouseX, &mouseY);
     glm::vec2 mousePos(mouseX, mouseY);
 
-    // егор
     auto updateButtonState = [&](UIButton& btn) {
         if (isPointInRect(mousePos, btn.pos, btn.size)) {
-            // чекаем нажали ли?
             if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
                 btn.state = 2;
             }
@@ -58,13 +91,11 @@ void GameOverState::processInput(GLFWwindow* window, float dt) {
     updateButtonState(m_btnRetry);
     updateButtonState(m_btnMenu);
 
-    // обработка клика
     int mouseState = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
     if (mouseState == GLFW_PRESS && !m_mousePressedLastFrame) {
-        m_mousePressedLastFrame = true; // блок
+        m_mousePressedLastFrame = true;
 
         if (m_btnRetry.state == 2) {
-            // рестартим
             if (m_isEditorTest) {
                 m_stateManager.popState(2);
                 m_stateManager.pushState(std::make_unique<GameplayState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer, m_levelPath, true));
@@ -77,68 +108,55 @@ void GameOverState::processInput(GLFWwindow* window, float dt) {
                 std::cout << "[GameOverState] Returning to MapEditor..." << std::endl;
                 m_stateManager.returnToMapEditor(m_levelPath, m_width, m_height, m_renderer, m_textRenderer);
             } else {
-                // выход в меню выбора уровней
                 m_stateManager.setState(std::make_unique<LevelSelectState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));
             }
         }
     }
     else if (mouseState == GLFW_RELEASE) {
-        m_mousePressedLastFrame = false;// !блок
+        m_mousePressedLastFrame = false;
     }
 }
 
 void GameOverState::update(float dt) {}
 
 void GameOverState::render() {
-    m_renderer->beginBatch(); // открываем пакет
-    // фон поражения
+    float curScale = GetUIScale(m_width, m_height);
+    if (std::abs(curScale - m_uiScale) > 0.001f) {
+        updateLayout();
+    }
+
+    m_renderer->beginBatch();
     m_renderer->drawSpriteRGBA(m_uiTexture, glm::vec2(0.0f), glm::vec2(m_width, m_height), 0.0f, glm::vec4(0.1f, 0.0f, 0.0f, 0.8f));
-    // окошник
     m_renderer->drawSprite(m_uiTexture, m_windowPos, m_windowSize, 0.0f, glm::vec3(0.15f, 0.12f, 0.12f));
 
-
-    // определяем цвет
-    glm::vec3 retryColor;
-    if (m_btnRetry.state == 0) {
-        retryColor = glm::vec3(0.3f);
-    }
-    else if (m_btnRetry.state == 1) {
-        retryColor = glm::vec3(0.5f);
-    }
-    else {
-        retryColor = glm::vec3(0.2f);
-    }
-
-    glm::vec3 menuColor;
-    if (m_btnMenu.state == 0) {
-        menuColor = glm::vec3(0.3f);
-    }
-    else if (m_btnMenu.state == 1) {
-        menuColor = glm::vec3(0.5f);
-    }
-    else {
-        menuColor = glm::vec3(0.2f);
-    }
+    glm::vec3 retryColor = (m_btnRetry.state == 1) ? glm::vec3(0.5f) : ((m_btnRetry.state == 2) ? glm::vec3(0.2f) : glm::vec3(0.3f));
+    glm::vec3 menuColor = (m_btnMenu.state == 1) ? glm::vec3(0.5f) : ((m_btnMenu.state == 2) ? glm::vec3(0.2f) : glm::vec3(0.3f));
 
     m_renderer->drawSprite(m_uiTexture, m_btnRetry.pos, m_btnRetry.size, 0.0f, retryColor);
     m_renderer->drawSprite(m_uiTexture, m_btnMenu.pos, m_btnMenu.size, 0.0f, menuColor);
+    m_renderer->endBatch();
 
-    m_renderer->endBatch(); // закрываем пакет
+    float fTitle = std::clamp(0.95f * m_uiScale, 0.65f, 1.30f);
+    std::string titleText = LOC("GAMEOVER_TITLE");
+    float titleW = m_textRenderer->CalculateTextWidth(titleText, fTitle);
+    float titleTopOffset = std::clamp(36.0f * m_uiScale, 24.0f, 50.0f);
+    m_textRenderer->RenderText(titleText, m_windowPos.x + (m_windowSize.x - titleW) * 0.5f, m_windowPos.y + titleTopOffset, fTitle, glm::vec3(1.0f, 0.2f, 0.2f));
 
-    // заголовок
-    float titleW = m_textRenderer->CalculateTextWidth("GAME OVER!", 1.2f);
-    m_textRenderer->RenderText("GAME OVER!", m_windowPos.x + (m_windowSize.x - titleW) * 0.5f, m_windowPos.y + 40.0f, 1.2f, glm::vec3(1.0f, 0.2f, 0.2f));
+    float fBtn = std::clamp(0.55f * m_uiScale, 0.38f, 0.76f);
 
-    // центрированный текст кнопок
-    float twRetry = m_textRenderer->CalculateTextWidth(m_btnRetry.text, 1.0f);
-    m_textRenderer->RenderText(m_btnRetry.text, m_btnRetry.pos.x + (m_btnRetry.size.x - twRetry) * 0.5f, m_btnRetry.pos.y + (m_btnRetry.size.y - 28.0f) * 0.5f + 2.0f, 1.0f, glm::vec3(0.95f));
+    float twRetry = m_textRenderer->CalculateTextWidth(m_btnRetry.text, fBtn);
+    float txRetry = m_btnRetry.pos.x + (m_btnRetry.size.x - twRetry) * 0.5f;
+    float tyRetry = m_btnRetry.pos.y + (m_btnRetry.size.y - fBtn * 28.0f) * 0.5f + 2.0f;
+    m_textRenderer->RenderText(m_btnRetry.text, txRetry, tyRetry, fBtn, glm::vec3(0.95f));
 
-    float twMenu = m_textRenderer->CalculateTextWidth(m_btnMenu.text, 1.0f);
-    m_textRenderer->RenderText(m_btnMenu.text, m_btnMenu.pos.x + (m_btnMenu.size.x - twMenu) * 0.5f, m_btnMenu.pos.y + (m_btnMenu.size.y - 28.0f) * 0.5f + 2.0f, 1.0f, glm::vec3(0.95f));
+    float twMenu = m_textRenderer->CalculateTextWidth(m_btnMenu.text, fBtn);
+    float txMenu = m_btnMenu.pos.x + (m_btnMenu.size.x - twMenu) * 0.5f;
+    float tyMenu = m_btnMenu.pos.y + (m_btnMenu.size.y - fBtn * 28.0f) * 0.5f + 2.0f;
+    m_textRenderer->RenderText(m_btnMenu.text, txMenu, tyMenu, fBtn, glm::vec3(0.95f));
 }
 
 void GameOverState::resize(int width, int height) {
     m_width = width;
     m_height = height;
-    init();
+    updateLayout();
 }

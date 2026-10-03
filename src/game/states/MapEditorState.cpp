@@ -2178,16 +2178,55 @@ void MapEditorState::confirmRename() {
     updateButtonLayout();
 }
 
+MapEditorState::RenameModalLayout MapEditorState::getRenameModalLayout() const {
+    RenameModalLayout layout;
+    float scale = GetUIScale(m_width, m_height);
+
+    layout.fTitle = std::clamp(0.68f * scale, 0.48f, 0.86f);
+    layout.fSub = std::clamp(0.48f * scale, 0.35f, 0.62f);
+    layout.fInput = std::clamp(0.58f * scale, 0.42f, 0.72f);
+    layout.fBtn = std::clamp(0.48f * scale, 0.36f, 0.62f);
+    layout.fCross = std::clamp(0.55f * scale, 0.40f, 0.75f);
+
+    layout.modalSize.x = std::clamp(480.0f * scale, 360.0f, static_cast<float>(m_width) - 40.0f);
+    layout.modalSize.y = std::clamp(230.0f * scale, 180.0f, static_cast<float>(m_height) - 40.0f);
+    layout.modalPos = glm::vec2((static_cast<float>(m_width) - layout.modalSize.x) * 0.5f,
+                                (static_cast<float>(m_height) - layout.modalSize.y) * 0.5f);
+
+    layout.headerH = std::clamp(40.0f * scale, 30.0f, 54.0f);
+
+    float crossSize = std::clamp(26.0f * scale, 20.0f, 34.0f);
+    layout.btnCloseCrossSize = glm::vec2(crossSize, crossSize);
+    layout.btnCloseCrossPos = glm::vec2(layout.modalPos.x + layout.modalSize.x - crossSize - std::clamp(8.0f * scale, 6.0f, 12.0f),
+                                        layout.modalPos.y + (layout.headerH - crossSize) * 0.5f);
+
+    layout.subY = layout.modalPos.y + layout.headerH + std::clamp(10.0f * scale, 7.0f, 14.0f);
+
+    float boxMarginX = std::clamp(24.0f * scale, 16.0f, 34.0f);
+    float boxH = std::clamp(38.0f * scale, 28.0f, 48.0f);
+    float boxY = layout.subY + layout.fSub * 28.0f + std::clamp(8.0f * scale, 5.0f, 12.0f);
+    layout.boxPos = glm::vec2(layout.modalPos.x + boxMarginX, boxY);
+    layout.boxSize = glm::vec2(layout.modalSize.x - 2.0f * boxMarginX, boxH);
+
+    float btnH = std::clamp(40.0f * scale, 30.0f, 50.0f);
+    float btnMarginBottom = std::clamp(16.0f * scale, 10.0f, 22.0f);
+    float btnY = layout.modalPos.y + layout.modalSize.y - btnH - btnMarginBottom;
+    float btnGap = std::clamp(14.0f * scale, 10.0f, 20.0f);
+    float availBtnW = layout.modalSize.x - 2.0f * boxMarginX - btnGap;
+    float btnW = availBtnW * 0.5f;
+
+    layout.btnSavePos = glm::vec2(layout.modalPos.x + boxMarginX, btnY);
+    layout.btnSaveSize = glm::vec2(btnW, btnH);
+    layout.btnCancelPos = glm::vec2(layout.btnSavePos.x + btnW + btnGap, btnY);
+    layout.btnCancelSize = glm::vec2(btnW, btnH);
+
+    return layout;
+}
+
 bool MapEditorState::processRenameModalInput(GLFWwindow* window, glm::vec2 mousePos, bool leftDown, float dt) {
     if (!m_isRenameModalOpen) return false;
 
-    glm::vec2 modalSize(440.0f, 210.0f);
-    glm::vec2 modalPos((static_cast<float>(m_width) - modalSize.x) * 0.5f, (static_cast<float>(m_height) - modalSize.y) * 0.5f);
-
-    glm::vec2 btnSavePos(modalPos.x + 30.0f, modalPos.y + 148.0f);
-    glm::vec2 btnSaveSize(190.0f, 40.0f);
-    glm::vec2 btnCancelPos(modalPos.x + 240.0f, modalPos.y + 148.0f);
-    glm::vec2 btnCancelSize(170.0f, 40.0f);
+    RenameModalLayout l = getRenameModalLayout();
 
     auto checkKeyInput = [&](int key) -> bool {
         bool down = (glfwGetKey(window, key) == GLFW_PRESS);
@@ -2239,17 +2278,22 @@ bool MapEditorState::processRenameModalInput(GLFWwindow* window, glm::vec2 mouse
     }
 
     if (leftDown && !m_isLeftMouseDown) {
-        if (isPointInRect(mousePos, btnSavePos, btnSaveSize)) {
+        if (isPointInRect(mousePos, l.btnSavePos, l.btnSaveSize)) {
             confirmRename();
             m_suppressPlacementUntilRelease = true;
             return true;
         }
-        if (isPointInRect(mousePos, btnCancelPos, btnCancelSize)) {
+        if (isPointInRect(mousePos, l.btnCancelPos, l.btnCancelSize)) {
             m_isRenameModalOpen = false;
             m_suppressPlacementUntilRelease = true;
             return true;
         }
-        if (!isPointInRect(mousePos, modalPos, modalSize)) {
+        if (isPointInRect(mousePos, l.btnCloseCrossPos, l.btnCloseCrossSize)) {
+            m_isRenameModalOpen = false;
+            m_suppressPlacementUntilRelease = true;
+            return true;
+        }
+        if (!isPointInRect(mousePos, l.modalPos, l.modalSize)) {
             m_isRenameModalOpen = false;
             m_suppressPlacementUntilRelease = true;
             return true;
@@ -2259,11 +2303,129 @@ bool MapEditorState::processRenameModalInput(GLFWwindow* window, glm::vec2 mouse
     return true;
 }
 
+MapEditorState::MapsModalLayout MapEditorState::getMapsModalLayout() const {
+    MapsModalLayout layout;
+    float scale = GetUIScale(m_width, m_height);
+
+    layout.fTitle = std::clamp(0.68f * scale, 0.48f, 0.86f);
+    layout.fSub = std::clamp(0.50f * scale, 0.38f, 0.65f);
+    layout.fNew = std::clamp(0.50f * scale, 0.36f, 0.64f);
+    layout.fCardName = std::clamp(0.54f * scale, 0.38f, 0.70f);
+    layout.fCardSub = std::clamp(0.42f * scale, 0.30f, 0.54f);
+    layout.fActionBtn = std::clamp(0.48f * scale, 0.35f, 0.62f);
+    layout.fClose = std::clamp(0.52f * scale, 0.38f, 0.68f);
+    layout.fCross = std::clamp(0.55f * scale, 0.40f, 0.75f);
+
+    layout.modalSize.x = std::clamp(640.0f * scale, 480.0f, static_cast<float>(m_width) - 40.0f);
+    layout.modalSize.y = std::clamp(520.0f * scale, 380.0f, static_cast<float>(m_height) - 40.0f);
+    layout.modalPos = glm::vec2((static_cast<float>(m_width) - layout.modalSize.x) * 0.5f,
+                                (static_cast<float>(m_height) - layout.modalSize.y) * 0.5f);
+
+    layout.headerH = std::clamp(42.0f * scale, 32.0f, 56.0f);
+
+    float crossSize = std::clamp(26.0f * scale, 20.0f, 34.0f);
+    layout.btnCloseCrossSize = glm::vec2(crossSize, crossSize);
+    layout.btnCloseCrossPos = glm::vec2(layout.modalPos.x + layout.modalSize.x - crossSize - std::clamp(8.0f * scale, 6.0f, 12.0f),
+                                        layout.modalPos.y + (layout.headerH - crossSize) * 0.5f);
+
+    float subMarginTop = std::clamp(10.0f * scale, 8.0f, 16.0f);
+    float subY = layout.modalPos.y + layout.headerH + subMarginTop;
+
+    float btnNewW = std::clamp(160.0f * scale, 120.0f, 210.0f);
+    float btnNewH = std::clamp(32.0f * scale, 24.0f, 42.0f);
+    layout.btnNewSize = glm::vec2(btnNewW, btnNewH);
+    layout.btnNewPos = glm::vec2(layout.modalPos.x + layout.modalSize.x - btnNewW - std::clamp(20.0f * scale, 14.0f, 28.0f), subY);
+
+    float scrollBtnW = std::clamp(30.0f * scale, 24.0f, 38.0f);
+    float scrollBtnH = btnNewH;
+    layout.btnScrollDownSize = glm::vec2(scrollBtnW, scrollBtnH);
+    layout.btnScrollDownPos = glm::vec2(layout.btnNewPos.x - scrollBtnW - std::clamp(8.0f * scale, 4.0f, 12.0f), subY);
+    layout.btnScrollUpSize = glm::vec2(scrollBtnW, scrollBtnH);
+    layout.btnScrollUpPos = glm::vec2(layout.btnScrollDownPos.x - scrollBtnW - std::clamp(4.0f * scale, 2.0f, 6.0f), subY);
+
+    float btnBottomH = std::clamp(36.0f * scale, 26.0f, 46.0f);
+    float btnBottomMargin = std::clamp(14.0f * scale, 10.0f, 20.0f);
+    float bottomY = layout.modalPos.y + layout.modalSize.y - btnBottomH - btnBottomMargin;
+
+    float btnCloseW = std::clamp(130.0f * scale, 95.0f, 170.0f);
+    layout.btnCloseSize = glm::vec2(btnCloseW, btnBottomH);
+    layout.btnClosePos = glm::vec2(layout.modalPos.x + (layout.modalSize.x - btnCloseW) * 0.5f, bottomY);
+
+    float navBtnW = std::clamp(80.0f * scale, 56.0f, 104.0f);
+    float navGap = std::clamp(14.0f * scale, 8.0f, 20.0f);
+    layout.btnPrevPageSize = glm::vec2(navBtnW, btnBottomH);
+    layout.btnPrevPagePos = glm::vec2(layout.btnClosePos.x - navGap - navBtnW, bottomY);
+    layout.btnNextPageSize = glm::vec2(navBtnW, btnBottomH);
+    layout.btnNextPagePos = glm::vec2(layout.btnClosePos.x + btnCloseW + navGap, bottomY);
+
+    layout.listStartY = subY + btnNewH + std::clamp(10.0f * scale, 6.0f, 16.0f);
+    float listEndY = bottomY - std::clamp(10.0f * scale, 6.0f, 16.0f);
+    float availListH = listEndY - layout.listStartY;
+
+    layout.itemH = std::clamp(48.0f * scale, 36.0f, 64.0f);
+    layout.itemGap = std::clamp(6.0f * scale, 4.0f, 10.0f);
+
+    layout.maxVisible = std::max(1, static_cast<int>((availListH + layout.itemGap) / (layout.itemH + layout.itemGap)));
+
+    auto levels = LevelManager::getAvailableLevels();
+    layout.totalLevels = static_cast<int>(levels.size());
+    layout.hasPagination = (layout.totalLevels > layout.maxVisible);
+    layout.maxOffset = std::max(0, layout.totalLevels - layout.maxVisible);
+    layout.currentOffset = std::clamp(m_mapsScrollOffset, 0, layout.maxOffset);
+
+    float cardMarginX = std::clamp(18.0f * scale, 12.0f, 26.0f);
+    float scrollbarSpace = layout.hasPagination ? std::clamp(14.0f * scale, 10.0f, 20.0f) : 0.0f;
+    float cardW = layout.modalSize.x - 2.0f * cardMarginX - scrollbarSpace;
+
+    float btnLoadW = std::clamp(64.0f * scale, 46.0f, 84.0f);
+    float btnRenW = std::clamp(72.0f * scale, 52.0f, 96.0f);
+    float btnDelW = std::clamp(50.0f * scale, 36.0f, 68.0f);
+    float btnActH = std::clamp(28.0f * scale, 22.0f, 38.0f);
+    float btnActGap = std::clamp(6.0f * scale, 4.0f, 10.0f);
+    float rightMargin = std::clamp(10.0f * scale, 6.0f, 14.0f);
+
+    for (int i = 0; i < layout.maxVisible && (i + layout.currentOffset) < layout.totalLevels; ++i) {
+        int idx = i + layout.currentOffset;
+        const auto& lvl = levels[idx];
+
+        MapCardLayout card;
+        card.levelIdx = idx;
+        card.hasDel = !lvl.isBuiltIn;
+        card.cardPos = glm::vec2(layout.modalPos.x + cardMarginX, layout.listStartY + i * (layout.itemH + layout.itemGap));
+        card.cardSize = glm::vec2(cardW, layout.itemH);
+
+        float actY = card.cardPos.y + (layout.itemH - btnActH) * 0.5f;
+
+        if (card.hasDel) {
+            card.btnDelSize = glm::vec2(btnDelW, btnActH);
+            card.btnDelPos = glm::vec2(card.cardPos.x + card.cardSize.x - rightMargin - btnDelW, actY);
+
+            card.btnRenSize = glm::vec2(btnRenW, btnActH);
+            card.btnRenPos = glm::vec2(card.btnDelPos.x - btnActGap - btnRenW, actY);
+
+            card.btnLoadSize = glm::vec2(btnLoadW, btnActH);
+            card.btnLoadPos = glm::vec2(card.btnRenPos.x - btnActGap - btnLoadW, actY);
+        } else {
+            card.btnDelSize = glm::vec2(0.0f);
+            card.btnDelPos = glm::vec2(-1000.0f);
+
+            card.btnRenSize = glm::vec2(btnRenW, btnActH);
+            card.btnRenPos = glm::vec2(card.cardPos.x + card.cardSize.x - rightMargin - btnDelW - btnActGap - btnRenW, actY);
+
+            card.btnLoadSize = glm::vec2(btnLoadW, btnActH);
+            card.btnLoadPos = glm::vec2(card.btnRenPos.x - btnActGap - btnLoadW, actY);
+        }
+
+        layout.visibleCards.push_back(card);
+    }
+
+    return layout;
+}
+
 bool MapEditorState::processMapsModalInput(GLFWwindow* window, glm::vec2 mousePos, bool leftDown, float dt) {
     if (!m_isMapsModalOpen) return false;
 
-    glm::vec2 modalSize(580.0f, 500.0f);
-    glm::vec2 modalPos((static_cast<float>(m_width) - modalSize.x) * 0.5f, (static_cast<float>(m_height) - modalSize.y) * 0.5f);
+    MapsModalLayout l = getMapsModalLayout();
 
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS && !m_keyEscPressedLastFrame) {
         m_isMapsModalOpen = false;
@@ -2271,19 +2433,54 @@ bool MapEditorState::processMapsModalInput(GLFWwindow* window, glm::vec2 mousePo
         return true;
     }
 
-    glm::vec2 btnNewPos(modalPos.x + modalSize.x - 180.0f, modalPos.y + 50.0f);
-    glm::vec2 btnNewSize(160.0f, 32.0f);
-    glm::vec2 btnClosePos(modalPos.x + (modalSize.x - 140.0f) * 0.5f, modalPos.y + modalSize.y - 48.0f);
-    glm::vec2 btnCloseSize(140.0f, 36.0f);
+    auto checkKey = [&](int key) -> bool {
+        bool down = (glfwGetKey(window, key) == GLFW_PRESS);
+        auto& ks = m_keyStates[key];
+        if (down) {
+            if (!ks.isDown) {
+                ks.isDown = true;
+                ks.holdTimer = 0.0f;
+                ks.repeatTimer = 0.0f;
+                return true;
+            } else {
+                ks.holdTimer += dt;
+                if (ks.holdTimer >= 0.30f) {
+                    ks.repeatTimer += dt;
+                    if (ks.repeatTimer >= 0.08f) {
+                        ks.repeatTimer = 0.0f;
+                        return true;
+                    }
+                }
+            }
+        } else {
+            ks.isDown = false;
+        }
+        return false;
+    };
+
+    if (l.hasPagination) {
+        if (checkKey(GLFW_KEY_UP)) {
+            if (m_mapsScrollOffset > 0) m_mapsScrollOffset--;
+            return true;
+        }
+        if (checkKey(GLFW_KEY_DOWN)) {
+            if (m_mapsScrollOffset < l.maxOffset) m_mapsScrollOffset++;
+            return true;
+        }
+        if (checkKey(GLFW_KEY_PAGE_UP)) {
+            m_mapsScrollOffset = std::max(0, m_mapsScrollOffset - l.maxVisible);
+            return true;
+        }
+        if (checkKey(GLFW_KEY_PAGE_DOWN)) {
+            m_mapsScrollOffset = std::min(l.maxOffset, m_mapsScrollOffset + l.maxVisible);
+            return true;
+        }
+    }
 
     auto levels = LevelManager::getAvailableLevels();
-    float itemStartY = modalPos.y + 92.0f;
-    float itemH = 48.0f;
-    float itemGap = 6.0f;
-    int maxVisible = 6;
 
     if (leftDown && !m_isLeftMouseDown) {
-        if (isPointInRect(mousePos, btnNewPos, btnNewSize)) {
+        if (isPointInRect(mousePos, l.btnNewPos, l.btnNewSize)) {
             std::string newF = LevelManager::createNewLevel("custom_map");
             loadLevelByName(newF);
             m_isMapsModalOpen = false;
@@ -2294,28 +2491,37 @@ bool MapEditorState::processMapsModalInput(GLFWwindow* window, glm::vec2 mousePo
             return true;
         }
 
-        if (isPointInRect(mousePos, btnClosePos, btnCloseSize)) {
+        if (isPointInRect(mousePos, l.btnClosePos, l.btnCloseSize) ||
+            isPointInRect(mousePos, l.btnCloseCrossPos, l.btnCloseCrossSize)) {
             m_isMapsModalOpen = false;
             m_suppressPlacementUntilRelease = true;
             return true;
         }
 
-        for (int i = 0; i < maxVisible && (i + m_mapsScrollOffset) < static_cast<int>(levels.size()); ++i) {
-            int idx = i + m_mapsScrollOffset;
-            const auto& lvl = levels[idx];
-            glm::vec2 itemPos(modalPos.x + 20.0f, itemStartY + i * (itemH + itemGap));
-            glm::vec2 itemSize(modalSize.x - 40.0f, itemH);
+        if (l.hasPagination) {
+            if (isPointInRect(mousePos, l.btnScrollUpPos, l.btnScrollUpSize)) {
+                if (m_mapsScrollOffset > 0) m_mapsScrollOffset--;
+                return true;
+            }
+            if (isPointInRect(mousePos, l.btnScrollDownPos, l.btnScrollDownSize)) {
+                if (m_mapsScrollOffset < l.maxOffset) m_mapsScrollOffset++;
+                return true;
+            }
+            if (isPointInRect(mousePos, l.btnPrevPagePos, l.btnPrevPageSize)) {
+                m_mapsScrollOffset = std::max(0, m_mapsScrollOffset - l.maxVisible);
+                return true;
+            }
+            if (isPointInRect(mousePos, l.btnNextPagePos, l.btnNextPageSize)) {
+                m_mapsScrollOffset = std::min(l.maxOffset, m_mapsScrollOffset + l.maxVisible);
+                return true;
+            }
+        }
 
-            glm::vec2 btnLoadPos(itemPos.x + itemSize.x - 220.0f, itemPos.y + 9.0f);
-            glm::vec2 btnLoadSize(68.0f, 30.0f);
+        for (const auto& card : l.visibleCards) {
+            if (card.levelIdx >= static_cast<int>(levels.size())) continue;
+            const auto& lvl = levels[card.levelIdx];
 
-            glm::vec2 btnRenPos(itemPos.x + itemSize.x - 144.0f, itemPos.y + 9.0f);
-            glm::vec2 btnRenSize(76.0f, 30.0f);
-
-            glm::vec2 btnDelPos(itemPos.x + itemSize.x - 60.0f, itemPos.y + 9.0f);
-            glm::vec2 btnDelSize(46.0f, 30.0f);
-
-            if (isPointInRect(mousePos, btnLoadPos, btnLoadSize)) {
+            if (isPointInRect(mousePos, card.btnLoadPos, card.btnLoadSize)) {
                 loadLevelByName(lvl.filename);
                 m_isMapsModalOpen = false;
                 m_suppressPlacementUntilRelease = true;
@@ -2325,23 +2531,26 @@ bool MapEditorState::processMapsModalInput(GLFWwindow* window, glm::vec2 mousePo
                 return true;
             }
 
-            if (isPointInRect(mousePos, btnRenPos, btnRenSize)) {
+            if (isPointInRect(mousePos, card.btnRenPos, card.btnRenSize)) {
                 openRenameModal(lvl.filename);
                 m_suppressPlacementUntilRelease = true;
                 return true;
             }
 
-            if (!lvl.isBuiltIn && isPointInRect(mousePos, btnDelPos, btnDelSize)) {
+            if (card.hasDel && isPointInRect(mousePos, card.btnDelPos, card.btnDelSize)) {
                 LevelManager::deleteLevel(lvl.filename);
                 if (lvl.filename == m_currentLevelFileName) {
                     loadLevelByName("level_editor.json");
                 }
+                int newTotal = static_cast<int>(LevelManager::getAvailableLevels().size());
+                int newMaxOffset = std::max(0, newTotal - l.maxVisible);
+                m_mapsScrollOffset = std::clamp(m_mapsScrollOffset, 0, newMaxOffset);
                 m_suppressPlacementUntilRelease = true;
                 return true;
             }
         }
 
-        if (!isPointInRect(mousePos, modalPos, modalSize)) {
+        if (!isPointInRect(mousePos, l.modalPos, l.modalSize)) {
             m_isMapsModalOpen = false;
             m_suppressPlacementUntilRelease = true;
             return true;
@@ -2352,173 +2561,311 @@ bool MapEditorState::processMapsModalInput(GLFWwindow* window, glm::vec2 mousePo
 }
 
 void MapEditorState::renderRenameModal() {
-    m_renderer->drawSpriteRGBA(m_whiteTexture, glm::vec2(0.0f), glm::vec2(m_width, m_height), 0.0f, glm::vec4(0.04f, 0.05f, 0.07f, 0.75f));
+    m_renderer->drawSpriteRGBA(m_whiteTexture, glm::vec2(0.0f), glm::vec2(m_width, m_height), 0.0f, glm::vec4(0.04f, 0.05f, 0.07f, 0.78f));
 
-    glm::vec2 modalSize(440.0f, 210.0f);
-    glm::vec2 modalPos((static_cast<float>(m_width) - modalSize.x) * 0.5f, (static_cast<float>(m_height) - modalSize.y) * 0.5f);
+    RenameModalLayout l = getRenameModalLayout();
 
-    m_renderer->drawSprite(m_whiteTexture, modalPos, modalSize, 0.0f, glm::vec3(0.12f, 0.13f, 0.17f));
-    m_renderer->drawSprite(m_whiteTexture, modalPos, glm::vec2(modalSize.x, 1.0f), 0.0f, glm::vec3(0.35f, 0.85f, 1.0f));
-    m_renderer->drawSprite(m_whiteTexture, modalPos + glm::vec2(0.0f, modalSize.y - 1.0f), glm::vec2(modalSize.x, 1.0f), 0.0f, glm::vec3(0.35f, 0.85f, 1.0f));
-    m_renderer->drawSprite(m_whiteTexture, modalPos, glm::vec2(1.0f, modalSize.y), 0.0f, glm::vec3(0.35f, 0.85f, 1.0f));
-    m_renderer->drawSprite(m_whiteTexture, modalPos + glm::vec2(modalSize.x - 1.0f, 0.0f), glm::vec2(1.0f, modalSize.y), 0.0f, glm::vec3(0.35f, 0.85f, 1.0f));
+    // Modal panel & border
+    m_renderer->drawSprite(m_whiteTexture, l.modalPos, l.modalSize, 0.0f, glm::vec3(0.12f, 0.13f, 0.17f));
+    m_renderer->drawSprite(m_whiteTexture, l.modalPos, glm::vec2(l.modalSize.x, 2.0f), 0.0f, glm::vec3(0.35f, 0.85f, 1.0f));
+    m_renderer->drawSprite(m_whiteTexture, l.modalPos + glm::vec2(0.0f, l.modalSize.y - 2.0f), glm::vec2(l.modalSize.x, 2.0f), 0.0f, glm::vec3(0.35f, 0.85f, 1.0f));
+    m_renderer->drawSprite(m_whiteTexture, l.modalPos, glm::vec2(2.0f, l.modalSize.y), 0.0f, glm::vec3(0.35f, 0.85f, 1.0f));
+    m_renderer->drawSprite(m_whiteTexture, l.modalPos + glm::vec2(l.modalSize.x - 2.0f, 0.0f), glm::vec2(2.0f, l.modalSize.y), 0.0f, glm::vec3(0.35f, 0.85f, 1.0f));
 
-    float headerH = 38.0f;
-    m_renderer->drawSprite(m_whiteTexture, modalPos, glm::vec2(modalSize.x, headerH), 0.0f, glm::vec3(0.16f, 0.18f, 0.24f));
-    m_renderer->drawSprite(m_whiteTexture, modalPos + glm::vec2(0.0f, headerH), glm::vec2(modalSize.x, 2.0f), 0.0f, glm::vec3(0.35f, 0.85f, 1.0f));
+    // Header
+    m_renderer->drawSprite(m_whiteTexture, l.modalPos, glm::vec2(l.modalSize.x, l.headerH), 0.0f, glm::vec3(0.16f, 0.18f, 0.24f));
+    m_renderer->drawSprite(m_whiteTexture, l.modalPos + glm::vec2(0.0f, l.headerH), glm::vec2(l.modalSize.x, 2.0f), 0.0f, glm::vec3(0.35f, 0.85f, 1.0f));
 
-    glm::vec2 boxPos(modalPos.x + 30.0f, modalPos.y + 88.0f);
-    glm::vec2 boxSize(modalSize.x - 60.0f, 38.0f);
-    m_renderer->drawSprite(m_whiteTexture, boxPos, boxSize, 0.0f, glm::vec3(0.35f, 0.85f, 1.0f));
-    m_renderer->drawSprite(m_whiteTexture, boxPos + glm::vec2(1.0f), boxSize - glm::vec2(2.0f), 0.0f, glm::vec3(0.08f, 0.10f, 0.14f));
+    // Close cross [X]
+    bool hovCross = isPointInRect(m_mousePos, l.btnCloseCrossPos, l.btnCloseCrossSize);
+    m_renderer->drawSprite(m_whiteTexture, l.btnCloseCrossPos, l.btnCloseCrossSize, 0.0f, hovCross ? glm::vec3(0.85f, 0.25f, 0.25f) : glm::vec3(0.35f, 0.38f, 0.45f));
+    m_renderer->drawSprite(m_whiteTexture, l.btnCloseCrossPos + glm::vec2(1.0f), l.btnCloseCrossSize - glm::vec2(2.0f), 0.0f, hovCross ? glm::vec3(0.35f, 0.12f, 0.12f) : glm::vec3(0.20f, 0.22f, 0.28f));
 
-    glm::vec2 btnSavePos(modalPos.x + 30.0f, modalPos.y + 148.0f);
-    glm::vec2 btnSaveSize(190.0f, 40.0f);
-    bool hovSave = isPointInRect(m_mousePos, btnSavePos, btnSaveSize);
-    m_renderer->drawSprite(m_whiteTexture, btnSavePos, btnSaveSize, 0.0f, hovSave ? glm::vec3(0.3f, 0.9f, 0.45f) : glm::vec3(0.2f, 0.7f, 0.35f));
-    m_renderer->drawSprite(m_whiteTexture, btnSavePos + glm::vec2(1.0f), btnSaveSize - glm::vec2(2.0f), 0.0f, hovSave ? glm::vec3(0.18f, 0.38f, 0.22f) : glm::vec3(0.14f, 0.30f, 0.18f));
+    // Input box
+    m_renderer->drawSprite(m_whiteTexture, l.boxPos, l.boxSize, 0.0f, glm::vec3(0.35f, 0.85f, 1.0f));
+    m_renderer->drawSprite(m_whiteTexture, l.boxPos + glm::vec2(1.0f), l.boxSize - glm::vec2(2.0f), 0.0f, glm::vec3(0.08f, 0.10f, 0.14f));
 
-    glm::vec2 btnCancelPos(modalPos.x + 240.0f, modalPos.y + 148.0f);
-    glm::vec2 btnCancelSize(170.0f, 40.0f);
-    bool hovCancel = isPointInRect(m_mousePos, btnCancelPos, btnCancelSize);
-    m_renderer->drawSprite(m_whiteTexture, btnCancelPos, btnCancelSize, 0.0f, hovCancel ? glm::vec3(0.6f, 0.25f, 0.25f) : glm::vec3(0.45f, 0.20f, 0.20f));
-    m_renderer->drawSprite(m_whiteTexture, btnCancelPos + glm::vec2(1.0f), btnCancelSize - glm::vec2(2.0f), 0.0f, hovCancel ? glm::vec3(0.28f, 0.14f, 0.14f) : glm::vec3(0.22f, 0.11f, 0.11f));
+    // Save button
+    bool hovSave = isPointInRect(m_mousePos, l.btnSavePos, l.btnSaveSize);
+    m_renderer->drawSprite(m_whiteTexture, l.btnSavePos, l.btnSaveSize, 0.0f, hovSave ? glm::vec3(0.3f, 0.9f, 0.45f) : glm::vec3(0.2f, 0.7f, 0.35f));
+    m_renderer->drawSprite(m_whiteTexture, l.btnSavePos + glm::vec2(1.0f), l.btnSaveSize - glm::vec2(2.0f), 0.0f, hovSave ? glm::vec3(0.18f, 0.38f, 0.22f) : glm::vec3(0.14f, 0.30f, 0.18f));
+
+    // Cancel button
+    bool hovCancel = isPointInRect(m_mousePos, l.btnCancelPos, l.btnCancelSize);
+    m_renderer->drawSprite(m_whiteTexture, l.btnCancelPos, l.btnCancelSize, 0.0f, hovCancel ? glm::vec3(0.6f, 0.25f, 0.25f) : glm::vec3(0.45f, 0.20f, 0.20f));
+    m_renderer->drawSprite(m_whiteTexture, l.btnCancelPos + glm::vec2(1.0f), l.btnCancelSize - glm::vec2(2.0f), 0.0f, hovCancel ? glm::vec3(0.28f, 0.14f, 0.14f) : glm::vec3(0.22f, 0.11f, 0.11f));
 
     m_renderer->flush();
 
     if (m_textRenderer) {
+        // Title
         std::string titleStr = LOC("RENAME_TITLE");
-        float titleW = m_textRenderer->CalculateTextWidth(titleStr, 0.70f);
-        m_textRenderer->RenderText(titleStr, modalPos.x + (modalSize.x - titleW) * 0.5f, modalPos.y + 10.0f, 0.70f, glm::vec3(1.0f, 0.85f, 0.25f));
+        float titleW = m_textRenderer->CalculateTextWidth(titleStr, l.fTitle);
+        float titleX = l.modalPos.x + (l.modalSize.x - titleW) * 0.5f;
+        float titleY = l.modalPos.y + (l.headerH - l.fTitle * 28.0f) * 0.5f + 2.0f;
+        m_textRenderer->RenderText(titleStr, titleX, titleY, l.fTitle, glm::vec3(1.0f, 0.85f, 0.25f));
 
+        // Cross text
+        float crossW = m_textRenderer->CalculateTextWidth("x", l.fCross);
+        m_textRenderer->RenderText("x", l.btnCloseCrossPos.x + (l.btnCloseCrossSize.x - crossW) * 0.5f,
+                                  l.btnCloseCrossPos.y + (l.btnCloseCrossSize.y - l.fCross * 28.0f) * 0.5f + 2.0f,
+                                  l.fCross, glm::vec3(0.9f));
+
+        // Subtitle
         std::string sub = "File: " + m_renameTargetFileName;
-        m_textRenderer->RenderText(sub, modalPos.x + 32.0f, modalPos.y + 55.0f, 0.50f, glm::vec3(0.70f, 0.75f, 0.85f));
+        m_textRenderer->RenderText(sub, l.boxPos.x + 2.0f, l.subY, l.fSub, glm::vec3(0.70f, 0.75f, 0.85f));
 
+        // Input text
         bool showCursor = (m_cursorBlinkTimer < 0.5f);
         std::string displayText = m_renameInputText + (showCursor ? "|" : "");
-        m_textRenderer->RenderText(displayText, boxPos.x + 12.0f, boxPos.y + 10.0f, 0.62f, glm::vec3(0.40f, 0.95f, 1.0f));
+        float inputY = l.boxPos.y + (l.boxSize.y - l.fInput * 28.0f) * 0.5f + 2.0f;
+        m_textRenderer->RenderText(displayText, l.boxPos.x + 10.0f, inputY, l.fInput, glm::vec3(0.40f, 0.95f, 1.0f));
 
+        // Save button text
         std::string saveStr = LOC("RENAME_SAVE") + " (Enter)";
-        float sTxtW = m_textRenderer->CalculateTextWidth(saveStr, 0.55f);
-        m_textRenderer->RenderText(saveStr, btnSavePos.x + (btnSaveSize.x - sTxtW) * 0.5f, btnSavePos.y + 12.0f, 0.55f, glm::vec3(0.95f));
+        float sTxtW = m_textRenderer->CalculateTextWidth(saveStr, l.fBtn);
+        float sTxtX = l.btnSavePos.x + (l.btnSaveSize.x - sTxtW) * 0.5f;
+        float sTxtY = l.btnSavePos.y + (l.btnSaveSize.y - l.fBtn * 28.0f) * 0.5f + 2.0f;
+        m_textRenderer->RenderText(saveStr, sTxtX, sTxtY, l.fBtn, glm::vec3(0.95f));
 
+        // Cancel button text
         std::string cancelStr = LOC("RENAME_CANCEL") + " (Esc)";
-        float cTxtW = m_textRenderer->CalculateTextWidth(cancelStr, 0.55f);
-        m_textRenderer->RenderText(cancelStr, btnCancelPos.x + (btnCancelSize.x - cTxtW) * 0.5f, btnCancelPos.y + 12.0f, 0.55f, glm::vec3(0.95f));
+        float cTxtW = m_textRenderer->CalculateTextWidth(cancelStr, l.fBtn);
+        float cTxtX = l.btnCancelPos.x + (l.btnCancelSize.x - cTxtW) * 0.5f;
+        float cTxtY = l.btnCancelPos.y + (l.btnCancelSize.y - l.fBtn * 28.0f) * 0.5f + 2.0f;
+        m_textRenderer->RenderText(cancelStr, cTxtX, cTxtY, l.fBtn, glm::vec3(0.95f));
     }
 }
 
 void MapEditorState::renderMapsModal() {
-    m_renderer->drawSpriteRGBA(m_whiteTexture, glm::vec2(0.0f), glm::vec2(m_width, m_height), 0.0f, glm::vec4(0.04f, 0.05f, 0.07f, 0.75f));
+    m_renderer->drawSpriteRGBA(m_whiteTexture, glm::vec2(0.0f), glm::vec2(m_width, m_height), 0.0f, glm::vec4(0.04f, 0.05f, 0.07f, 0.78f));
 
-    glm::vec2 modalSize(580.0f, 500.0f);
-    glm::vec2 modalPos((static_cast<float>(m_width) - modalSize.x) * 0.5f, (static_cast<float>(m_height) - modalSize.y) * 0.5f);
+    MapsModalLayout l = getMapsModalLayout();
 
-    m_renderer->drawSprite(m_whiteTexture, modalPos, modalSize, 0.0f, glm::vec3(0.12f, 0.13f, 0.17f));
-    m_renderer->drawSprite(m_whiteTexture, modalPos, glm::vec2(modalSize.x, 1.0f), 0.0f, glm::vec3(0.35f, 0.70f, 1.0f));
-    m_renderer->drawSprite(m_whiteTexture, modalPos + glm::vec2(0.0f, modalSize.y - 1.0f), glm::vec2(modalSize.x, 1.0f), 0.0f, glm::vec3(0.35f, 0.70f, 1.0f));
-    m_renderer->drawSprite(m_whiteTexture, modalPos, glm::vec2(1.0f, modalSize.y), 0.0f, glm::vec3(0.35f, 0.70f, 1.0f));
-    m_renderer->drawSprite(m_whiteTexture, modalPos + glm::vec2(modalSize.x - 1.0f, 0.0f), glm::vec2(1.0f, modalSize.y), 0.0f, glm::vec3(0.35f, 0.70f, 1.0f));
+    // Modal background & borders
+    m_renderer->drawSprite(m_whiteTexture, l.modalPos, l.modalSize, 0.0f, glm::vec3(0.12f, 0.13f, 0.17f));
+    m_renderer->drawSprite(m_whiteTexture, l.modalPos, glm::vec2(l.modalSize.x, 2.0f), 0.0f, glm::vec3(0.35f, 0.70f, 1.0f));
+    m_renderer->drawSprite(m_whiteTexture, l.modalPos + glm::vec2(0.0f, l.modalSize.y - 2.0f), glm::vec2(l.modalSize.x, 2.0f), 0.0f, glm::vec3(0.35f, 0.70f, 1.0f));
+    m_renderer->drawSprite(m_whiteTexture, l.modalPos, glm::vec2(2.0f, l.modalSize.y), 0.0f, glm::vec3(0.35f, 0.70f, 1.0f));
+    m_renderer->drawSprite(m_whiteTexture, l.modalPos + glm::vec2(l.modalSize.x - 2.0f, 0.0f), glm::vec2(2.0f, l.modalSize.y), 0.0f, glm::vec3(0.35f, 0.70f, 1.0f));
 
-    float headerH = 40.0f;
-    m_renderer->drawSprite(m_whiteTexture, modalPos, glm::vec2(modalSize.x, headerH), 0.0f, glm::vec3(0.16f, 0.18f, 0.24f));
-    m_renderer->drawSprite(m_whiteTexture, modalPos + glm::vec2(0.0f, headerH), glm::vec2(modalSize.x, 2.0f), 0.0f, glm::vec3(0.35f, 0.70f, 1.0f));
+    // Header
+    m_renderer->drawSprite(m_whiteTexture, l.modalPos, glm::vec2(l.modalSize.x, l.headerH), 0.0f, glm::vec3(0.16f, 0.18f, 0.24f));
+    m_renderer->drawSprite(m_whiteTexture, l.modalPos + glm::vec2(0.0f, l.headerH), glm::vec2(l.modalSize.x, 2.0f), 0.0f, glm::vec3(0.35f, 0.70f, 1.0f));
 
-    glm::vec2 btnNewPos(modalPos.x + modalSize.x - 180.0f, modalPos.y + 50.0f);
-    glm::vec2 btnNewSize(160.0f, 32.0f);
-    bool hovNew = isPointInRect(m_mousePos, btnNewPos, btnNewSize);
-    m_renderer->drawSprite(m_whiteTexture, btnNewPos, btnNewSize, 0.0f, hovNew ? glm::vec3(0.35f, 0.95f, 0.50f) : glm::vec3(0.25f, 0.80f, 0.40f));
-    m_renderer->drawSprite(m_whiteTexture, btnNewPos + glm::vec2(1.0f), btnNewSize - glm::vec2(2.0f), 0.0f, hovNew ? glm::vec3(0.16f, 0.36f, 0.20f) : glm::vec3(0.12f, 0.28f, 0.16f));
+    // Close cross [X] in header
+    bool hovCross = isPointInRect(m_mousePos, l.btnCloseCrossPos, l.btnCloseCrossSize);
+    m_renderer->drawSprite(m_whiteTexture, l.btnCloseCrossPos, l.btnCloseCrossSize, 0.0f, hovCross ? glm::vec3(0.85f, 0.25f, 0.25f) : glm::vec3(0.35f, 0.38f, 0.45f));
+    m_renderer->drawSprite(m_whiteTexture, l.btnCloseCrossPos + glm::vec2(1.0f), l.btnCloseCrossSize - glm::vec2(2.0f), 0.0f, hovCross ? glm::vec3(0.35f, 0.12f, 0.12f) : glm::vec3(0.20f, 0.22f, 0.28f));
+
+    // "+ New Map" button
+    bool hovNew = isPointInRect(m_mousePos, l.btnNewPos, l.btnNewSize);
+    m_renderer->drawSprite(m_whiteTexture, l.btnNewPos, l.btnNewSize, 0.0f, hovNew ? glm::vec3(0.35f, 0.95f, 0.50f) : glm::vec3(0.25f, 0.80f, 0.40f));
+    m_renderer->drawSprite(m_whiteTexture, l.btnNewPos + glm::vec2(1.0f), l.btnNewSize - glm::vec2(2.0f), 0.0f, hovNew ? glm::vec3(0.16f, 0.36f, 0.20f) : glm::vec3(0.12f, 0.28f, 0.16f));
+
+    // Quick scroll buttons in subheader if pagination
+    if (l.hasPagination) {
+        bool canUp = (m_mapsScrollOffset > 0);
+        bool canDown = (m_mapsScrollOffset < l.maxOffset);
+        bool hovUp = isPointInRect(m_mousePos, l.btnScrollUpPos, l.btnScrollUpSize);
+        bool hovDown = isPointInRect(m_mousePos, l.btnScrollDownPos, l.btnScrollDownSize);
+
+        glm::vec3 upBorder = canUp ? (hovUp ? glm::vec3(0.50f, 0.85f, 1.0f) : glm::vec3(0.35f, 0.55f, 0.75f)) : glm::vec3(0.22f, 0.25f, 0.30f);
+        glm::vec3 upBg = canUp ? (hovUp ? glm::vec3(0.22f, 0.32f, 0.44f) : glm::vec3(0.16f, 0.22f, 0.30f)) : glm::vec3(0.12f, 0.14f, 0.18f);
+        m_renderer->drawSprite(m_whiteTexture, l.btnScrollUpPos, l.btnScrollUpSize, 0.0f, upBorder);
+        m_renderer->drawSprite(m_whiteTexture, l.btnScrollUpPos + glm::vec2(1.0f), l.btnScrollUpSize - glm::vec2(2.0f), 0.0f, upBg);
+
+        glm::vec3 downBorder = canDown ? (hovDown ? glm::vec3(0.50f, 0.85f, 1.0f) : glm::vec3(0.35f, 0.55f, 0.75f)) : glm::vec3(0.22f, 0.25f, 0.30f);
+        glm::vec3 downBg = canDown ? (hovDown ? glm::vec3(0.22f, 0.32f, 0.44f) : glm::vec3(0.16f, 0.22f, 0.30f)) : glm::vec3(0.12f, 0.14f, 0.18f);
+        m_renderer->drawSprite(m_whiteTexture, l.btnScrollDownPos, l.btnScrollDownSize, 0.0f, downBorder);
+        m_renderer->drawSprite(m_whiteTexture, l.btnScrollDownPos + glm::vec2(1.0f), l.btnScrollDownSize - glm::vec2(2.0f), 0.0f, downBg);
+    }
 
     auto levels = LevelManager::getAvailableLevels();
-    float itemStartY = modalPos.y + 92.0f;
-    float itemH = 48.0f;
-    float itemGap = 6.0f;
-    int maxVisible = 6;
 
-    for (int i = 0; i < maxVisible && (i + m_mapsScrollOffset) < static_cast<int>(levels.size()); ++i) {
-        int idx = i + m_mapsScrollOffset;
-        const auto& lvl = levels[idx];
-        glm::vec2 itemPos(modalPos.x + 20.0f, itemStartY + i * (itemH + itemGap));
-        glm::vec2 itemSize(modalSize.x - 40.0f, itemH);
+    // Render cards
+    for (const auto& card : l.visibleCards) {
+        if (card.levelIdx >= static_cast<int>(levels.size())) continue;
+        const auto& lvl = levels[card.levelIdx];
 
         bool isCurrent = (lvl.filename == m_currentLevelFileName);
         glm::vec3 cardBg = isCurrent ? glm::vec3(0.18f, 0.24f, 0.35f) : glm::vec3(0.15f, 0.16f, 0.21f);
         glm::vec3 cardBorder = isCurrent ? glm::vec3(0.40f, 0.85f, 1.0f) : glm::vec3(0.28f, 0.30f, 0.38f);
 
-        m_renderer->drawSprite(m_whiteTexture, itemPos, itemSize, 0.0f, cardBorder);
-        m_renderer->drawSprite(m_whiteTexture, itemPos + glm::vec2(1.0f), itemSize - glm::vec2(2.0f), 0.0f, cardBg);
+        m_renderer->drawSprite(m_whiteTexture, card.cardPos, card.cardSize, 0.0f, cardBorder);
+        m_renderer->drawSprite(m_whiteTexture, card.cardPos + glm::vec2(1.0f), card.cardSize - glm::vec2(2.0f), 0.0f, cardBg);
 
-        glm::vec2 btnLoadPos(itemPos.x + itemSize.x - 220.0f, itemPos.y + 9.0f);
-        glm::vec2 btnLoadSize(68.0f, 30.0f);
-        bool hovLoad = isPointInRect(m_mousePos, btnLoadPos, btnLoadSize);
-        m_renderer->drawSprite(m_whiteTexture, btnLoadPos, btnLoadSize, 0.0f, hovLoad ? glm::vec3(0.40f, 0.85f, 1.0f) : glm::vec3(0.25f, 0.55f, 0.80f));
-        m_renderer->drawSprite(m_whiteTexture, btnLoadPos + glm::vec2(1.0f), btnLoadSize - glm::vec2(2.0f), 0.0f, hovLoad ? glm::vec3(0.16f, 0.30f, 0.45f) : glm::vec3(0.12f, 0.22f, 0.35f));
+        // [Load] button
+        bool hovLoad = isPointInRect(m_mousePos, card.btnLoadPos, card.btnLoadSize);
+        m_renderer->drawSprite(m_whiteTexture, card.btnLoadPos, card.btnLoadSize, 0.0f, hovLoad ? glm::vec3(0.40f, 0.85f, 1.0f) : glm::vec3(0.25f, 0.55f, 0.80f));
+        m_renderer->drawSprite(m_whiteTexture, card.btnLoadPos + glm::vec2(1.0f), card.btnLoadSize - glm::vec2(2.0f), 0.0f, hovLoad ? glm::vec3(0.16f, 0.30f, 0.45f) : glm::vec3(0.12f, 0.22f, 0.35f));
 
-        glm::vec2 btnRenPos(itemPos.x + itemSize.x - 144.0f, itemPos.y + 9.0f);
-        glm::vec2 btnRenSize(76.0f, 30.0f);
-        bool hovRen = isPointInRect(m_mousePos, btnRenPos, btnRenSize);
-        m_renderer->drawSprite(m_whiteTexture, btnRenPos, btnRenSize, 0.0f, hovRen ? glm::vec3(1.0f, 0.85f, 0.35f) : glm::vec3(0.75f, 0.65f, 0.25f));
-        m_renderer->drawSprite(m_whiteTexture, btnRenPos + glm::vec2(1.0f), btnRenSize - glm::vec2(2.0f), 0.0f, hovRen ? glm::vec3(0.38f, 0.30f, 0.14f) : glm::vec3(0.28f, 0.22f, 0.10f));
+        // [Rename] button
+        bool hovRen = isPointInRect(m_mousePos, card.btnRenPos, card.btnRenSize);
+        m_renderer->drawSprite(m_whiteTexture, card.btnRenPos, card.btnRenSize, 0.0f, hovRen ? glm::vec3(1.0f, 0.85f, 0.35f) : glm::vec3(0.75f, 0.65f, 0.25f));
+        m_renderer->drawSprite(m_whiteTexture, card.btnRenPos + glm::vec2(1.0f), card.btnRenSize - glm::vec2(2.0f), 0.0f, hovRen ? glm::vec3(0.38f, 0.30f, 0.14f) : glm::vec3(0.28f, 0.22f, 0.10f));
 
-        if (!lvl.isBuiltIn) {
-            glm::vec2 btnDelPos(itemPos.x + itemSize.x - 60.0f, itemPos.y + 9.0f);
-            glm::vec2 btnDelSize(46.0f, 30.0f);
-            bool hovDel = isPointInRect(m_mousePos, btnDelPos, btnDelSize);
-            m_renderer->drawSprite(m_whiteTexture, btnDelPos, btnDelSize, 0.0f, hovDel ? glm::vec3(0.95f, 0.30f, 0.30f) : glm::vec3(0.70f, 0.20f, 0.20f));
-            m_renderer->drawSprite(m_whiteTexture, btnDelPos + glm::vec2(1.0f), btnDelSize - glm::vec2(2.0f), 0.0f, hovDel ? glm::vec3(0.40f, 0.15f, 0.15f) : glm::vec3(0.28f, 0.10f, 0.10f));
+        // [Del] button
+        if (card.hasDel) {
+            bool hovDel = isPointInRect(m_mousePos, card.btnDelPos, card.btnDelSize);
+            m_renderer->drawSprite(m_whiteTexture, card.btnDelPos, card.btnDelSize, 0.0f, hovDel ? glm::vec3(0.95f, 0.30f, 0.30f) : glm::vec3(0.70f, 0.20f, 0.20f));
+            m_renderer->drawSprite(m_whiteTexture, card.btnDelPos + glm::vec2(1.0f), card.btnDelSize - glm::vec2(2.0f), 0.0f, hovDel ? glm::vec3(0.40f, 0.15f, 0.15f) : glm::vec3(0.28f, 0.10f, 0.10f));
         }
     }
 
-    glm::vec2 btnClosePos(modalPos.x + (modalSize.x - 140.0f) * 0.5f, modalPos.y + modalSize.y - 48.0f);
-    glm::vec2 btnCloseSize(140.0f, 36.0f);
-    bool hovClose = isPointInRect(m_mousePos, btnClosePos, btnCloseSize);
-    m_renderer->drawSprite(m_whiteTexture, btnClosePos, btnCloseSize, 0.0f, hovClose ? glm::vec3(0.50f, 0.55f, 0.65f) : glm::vec3(0.35f, 0.38f, 0.45f));
-    m_renderer->drawSprite(m_whiteTexture, btnClosePos + glm::vec2(1.0f), btnCloseSize - glm::vec2(2.0f), 0.0f, hovClose ? glm::vec3(0.22f, 0.25f, 0.30f) : glm::vec3(0.16f, 0.18f, 0.22f));
+    // Scrollbar track and thumb on right side
+    if (l.hasPagination && !l.visibleCards.empty()) {
+        float trackX = l.modalPos.x + l.modalSize.x - std::clamp(16.0f * GetUIScale(m_width, m_height), 12.0f, 20.0f);
+        float trackY = l.listStartY;
+        float trackH = static_cast<float>(l.visibleCards.size()) * (l.itemH + l.itemGap) - l.itemGap;
+        float trackW = std::clamp(6.0f * GetUIScale(m_width, m_height), 4.0f, 8.0f);
+
+        m_renderer->drawSprite(m_whiteTexture, glm::vec2(trackX, trackY), glm::vec2(trackW, trackH), 0.0f, glm::vec3(0.18f, 0.20f, 0.25f));
+
+        float thumbH = std::max(20.0f, trackH * (static_cast<float>(l.maxVisible) / static_cast<float>(l.totalLevels)));
+        float thumbRatio = (l.maxOffset > 0) ? (static_cast<float>(m_mapsScrollOffset) / static_cast<float>(l.maxOffset)) : 0.0f;
+        float thumbY = trackY + (trackH - thumbH) * thumbRatio;
+        m_renderer->drawSprite(m_whiteTexture, glm::vec2(trackX, thumbY), glm::vec2(trackW, thumbH), 0.0f, glm::vec3(0.35f, 0.70f, 1.0f));
+    }
+
+    // Bottom [Close] button
+    bool hovClose = isPointInRect(m_mousePos, l.btnClosePos, l.btnCloseSize);
+    m_renderer->drawSprite(m_whiteTexture, l.btnClosePos, l.btnCloseSize, 0.0f, hovClose ? glm::vec3(0.50f, 0.55f, 0.65f) : glm::vec3(0.35f, 0.38f, 0.45f));
+    m_renderer->drawSprite(m_whiteTexture, l.btnClosePos + glm::vec2(1.0f), l.btnCloseSize - glm::vec2(2.0f), 0.0f, hovClose ? glm::vec3(0.22f, 0.25f, 0.30f) : glm::vec3(0.16f, 0.18f, 0.22f));
+
+    // Bottom Prev / Next buttons if pagination
+    if (l.hasPagination) {
+        bool canPrev = (m_mapsScrollOffset > 0);
+        bool canNext = (m_mapsScrollOffset < l.maxOffset);
+        bool hovPrev = isPointInRect(m_mousePos, l.btnPrevPagePos, l.btnPrevPageSize);
+        bool hovNext = isPointInRect(m_mousePos, l.btnNextPagePos, l.btnNextPageSize);
+
+        glm::vec3 prevBorder = canPrev ? (hovPrev ? glm::vec3(0.40f, 0.80f, 1.0f) : glm::vec3(0.30f, 0.55f, 0.85f)) : glm::vec3(0.24f, 0.26f, 0.32f);
+        glm::vec3 prevBg = canPrev ? (hovPrev ? glm::vec3(0.20f, 0.32f, 0.46f) : glm::vec3(0.14f, 0.22f, 0.32f)) : glm::vec3(0.12f, 0.13f, 0.16f);
+        m_renderer->drawSprite(m_whiteTexture, l.btnPrevPagePos, l.btnPrevPageSize, 0.0f, prevBorder);
+        m_renderer->drawSprite(m_whiteTexture, l.btnPrevPagePos + glm::vec2(1.0f), l.btnPrevPageSize - glm::vec2(2.0f), 0.0f, prevBg);
+
+        glm::vec3 nextBorder = canNext ? (hovNext ? glm::vec3(0.40f, 0.80f, 1.0f) : glm::vec3(0.30f, 0.55f, 0.85f)) : glm::vec3(0.24f, 0.26f, 0.32f);
+        glm::vec3 nextBg = canNext ? (hovNext ? glm::vec3(0.20f, 0.32f, 0.46f) : glm::vec3(0.14f, 0.22f, 0.32f)) : glm::vec3(0.12f, 0.13f, 0.16f);
+        m_renderer->drawSprite(m_whiteTexture, l.btnNextPagePos, l.btnNextPageSize, 0.0f, nextBorder);
+        m_renderer->drawSprite(m_whiteTexture, l.btnNextPagePos + glm::vec2(1.0f), l.btnNextPageSize - glm::vec2(2.0f), 0.0f, nextBg);
+    }
 
     m_renderer->flush();
 
     if (m_textRenderer) {
-        float titleW = m_textRenderer->CalculateTextWidth("LEVELS LIST", 0.70f);
-        m_textRenderer->RenderText("LEVELS LIST", modalPos.x + (modalSize.x - titleW) * 0.5f, modalPos.y + 11.0f, 0.70f, glm::vec3(1.0f, 0.85f, 0.25f));
+        // Title
+        std::string titleStr = "LEVELS LIST";
+        float titleW = m_textRenderer->CalculateTextWidth(titleStr, l.fTitle);
+        float titleX = l.modalPos.x + (l.modalSize.x - titleW) * 0.5f;
+        float titleY = l.modalPos.y + (l.headerH - l.fTitle * 28.0f) * 0.5f + 2.0f;
+        m_textRenderer->RenderText(titleStr, titleX, titleY, l.fTitle, glm::vec3(1.0f, 0.85f, 0.25f));
 
-        m_textRenderer->RenderText("Select, rename, or create maps:", modalPos.x + 22.0f, modalPos.y + 57.0f, 0.52f, glm::vec3(0.70f, 0.75f, 0.85f));
+        // Cross text
+        float crossW = m_textRenderer->CalculateTextWidth("x", l.fCross);
+        m_textRenderer->RenderText("x", l.btnCloseCrossPos.x + (l.btnCloseCrossSize.x - crossW) * 0.5f,
+                                  l.btnCloseCrossPos.y + (l.btnCloseCrossSize.y - l.fCross * 28.0f) * 0.5f + 2.0f,
+                                  l.fCross, glm::vec3(0.9f));
 
-        float newTxtW = m_textRenderer->CalculateTextWidth("+ New Map", 0.52f);
-        m_textRenderer->RenderText("+ New Map", btnNewPos.x + (btnNewSize.x - newTxtW) * 0.5f, btnNewPos.y + 8.0f, 0.52f, glm::vec3(0.95f));
+        // Subtitle
+        float subY = l.modalPos.y + l.headerH + std::clamp(10.0f * GetUIScale(m_width, m_height), 8.0f, 16.0f);
+        m_textRenderer->RenderText("Select, rename, or create maps:", l.modalPos.x + 22.0f, subY + 4.0f, l.fSub, glm::vec3(0.70f, 0.75f, 0.85f));
 
-        for (int i = 0; i < maxVisible && (i + m_mapsScrollOffset) < static_cast<int>(levels.size()); ++i) {
-            int idx = i + m_mapsScrollOffset;
-            const auto& lvl = levels[idx];
-            glm::vec2 itemPos(modalPos.x + 20.0f, itemStartY + i * (itemH + itemGap));
-            glm::vec2 itemSize(modalSize.x - 40.0f, itemH);
+        // "+ New Map" text
+        float newTxtW = m_textRenderer->CalculateTextWidth("+ New Map", l.fNew);
+        float newTxtX = l.btnNewPos.x + (l.btnNewSize.x - newTxtW) * 0.5f;
+        float newTxtY = l.btnNewPos.y + (l.btnNewSize.y - l.fNew * 28.0f) * 0.5f + 2.0f;
+        m_textRenderer->RenderText("+ New Map", newTxtX, newTxtY, l.fNew, glm::vec3(0.95f));
+
+        // Subheader scroll arrows [^] and [v]
+        if (l.hasPagination) {
+            float upW = m_textRenderer->CalculateTextWidth("^", l.fNew);
+            m_textRenderer->RenderText("^", l.btnScrollUpPos.x + (l.btnScrollUpSize.x - upW) * 0.5f,
+                                      l.btnScrollUpPos.y + (l.btnScrollUpSize.y - l.fNew * 28.0f) * 0.5f + 2.0f,
+                                      l.fNew, (m_mapsScrollOffset > 0) ? glm::vec3(0.95f) : glm::vec3(0.45f));
+
+            float downW = m_textRenderer->CalculateTextWidth("v", l.fNew);
+            m_textRenderer->RenderText("v", l.btnScrollDownPos.x + (l.btnScrollDownSize.x - downW) * 0.5f,
+                                      l.btnScrollDownPos.y + (l.btnScrollDownSize.y - l.fNew * 28.0f) * 0.5f + 2.0f,
+                                      l.fNew, (m_mapsScrollOffset < l.maxOffset) ? glm::vec3(0.95f) : glm::vec3(0.45f));
+        }
+
+        // Render card text
+        for (const auto& card : l.visibleCards) {
+            if (card.levelIdx >= static_cast<int>(levels.size())) continue;
+            const auto& lvl = levels[card.levelIdx];
 
             bool isCurrent = (lvl.filename == m_currentLevelFileName);
             std::string label = lvl.name;
             if (isCurrent) label += "  [ACTIVE]";
             glm::vec3 nameCol = isCurrent ? glm::vec3(0.40f, 1.0f, 0.60f) : (lvl.isBuiltIn ? glm::vec3(1.0f, 0.85f, 0.3f) : glm::vec3(0.92f, 0.94f, 0.98f));
-            m_textRenderer->RenderText(label, itemPos.x + 14.0f, itemPos.y + 8.0f, 0.58f, nameCol);
+
+            float textLeftX = card.cardPos.x + std::clamp(14.0f * GetUIScale(m_width, m_height), 10.0f, 18.0f);
+            float totalH = (l.fCardName + l.fCardSub) * 28.0f + 2.0f;
+            float nameY = card.cardPos.y + (card.cardSize.y - totalH) * 0.5f + 1.0f;
+            float subCardY = nameY + l.fCardName * 28.0f + 1.0f;
+
+            // Ensure name doesn't overlap action buttons
+            float maxLabelW = card.btnLoadPos.x - textLeftX - 10.0f;
+            std::string displayLabel = label;
+            if (m_textRenderer->CalculateTextWidth(displayLabel, l.fCardName) > maxLabelW) {
+                while (!displayLabel.empty() && m_textRenderer->CalculateTextWidth(displayLabel + "...", l.fCardName) > maxLabelW) {
+                    InputManager::popUtf8(displayLabel);
+                }
+                displayLabel += "...";
+            }
+            m_textRenderer->RenderText(displayLabel, textLeftX, nameY, l.fCardName, nameCol);
 
             std::string sub = lvl.filename + (lvl.isBuiltIn ? " (Campaign)" : " (Custom)");
-            m_textRenderer->RenderText(sub, itemPos.x + 14.0f, itemPos.y + 28.0f, 0.44f, glm::vec3(0.60f, 0.65f, 0.75f));
+            m_textRenderer->RenderText(sub, textLeftX, subCardY, l.fCardSub, glm::vec3(0.60f, 0.65f, 0.75f));
 
-            glm::vec2 btnLoadPos(itemPos.x + itemSize.x - 220.0f, itemPos.y + 9.0f);
-            float loadW = m_textRenderer->CalculateTextWidth("Load", 0.52f);
-            m_textRenderer->RenderText("Load", btnLoadPos.x + (68.0f - loadW) * 0.5f, btnLoadPos.y + 7.0f, 0.52f, glm::vec3(0.95f));
+            // [Load] text
+            float loadW = m_textRenderer->CalculateTextWidth("Load", l.fActionBtn);
+            float loadX = card.btnLoadPos.x + (card.btnLoadSize.x - loadW) * 0.5f;
+            float loadY = card.btnLoadPos.y + (card.btnLoadSize.y - l.fActionBtn * 28.0f) * 0.5f + 2.0f;
+            m_textRenderer->RenderText("Load", loadX, loadY, l.fActionBtn, glm::vec3(0.95f));
 
-            glm::vec2 btnRenPos(itemPos.x + itemSize.x - 144.0f, itemPos.y + 9.0f);
-            float renW = m_textRenderer->CalculateTextWidth("Rename", 0.52f);
-            m_textRenderer->RenderText("Rename", btnRenPos.x + (76.0f - renW) * 0.5f, btnRenPos.y + 7.0f, 0.52f, glm::vec3(0.95f));
+            // [Rename] text
+            float renW = m_textRenderer->CalculateTextWidth("Rename", l.fActionBtn);
+            float renX = card.btnRenPos.x + (card.btnRenSize.x - renW) * 0.5f;
+            float renY = card.btnRenPos.y + (card.btnRenSize.y - l.fActionBtn * 28.0f) * 0.5f + 2.0f;
+            m_textRenderer->RenderText("Rename", renX, renY, l.fActionBtn, glm::vec3(0.95f));
 
-            if (!lvl.isBuiltIn) {
-                glm::vec2 btnDelPos(itemPos.x + itemSize.x - 60.0f, itemPos.y + 9.0f);
-                float delW = m_textRenderer->CalculateTextWidth("Del", 0.52f);
-                m_textRenderer->RenderText("Del", btnDelPos.x + (46.0f - delW) * 0.5f, btnDelPos.y + 7.0f, 0.52f, glm::vec3(0.95f));
+            // [Del] text
+            if (card.hasDel) {
+                float delW = m_textRenderer->CalculateTextWidth("Del", l.fActionBtn);
+                float delX = card.btnDelPos.x + (card.btnDelSize.x - delW) * 0.5f;
+                float delY = card.btnDelPos.y + (card.btnDelSize.y - l.fActionBtn * 28.0f) * 0.5f + 2.0f;
+                m_textRenderer->RenderText("Del", delX, delY, l.fActionBtn, glm::vec3(0.95f));
             }
         }
 
-        float closeW = m_textRenderer->CalculateTextWidth("Close", 0.55f);
-        m_textRenderer->RenderText("Close", btnClosePos.x + (btnCloseSize.x - closeW) * 0.5f, btnClosePos.y + 10.0f, 0.55f, glm::vec3(0.95f));
+        // [Close] text
+        float closeW = m_textRenderer->CalculateTextWidth("Close", l.fClose);
+        float closeX = l.btnClosePos.x + (l.btnCloseSize.x - closeW) * 0.5f;
+        float closeY = l.btnClosePos.y + (l.btnCloseSize.y - l.fClose * 28.0f) * 0.5f + 2.0f;
+        m_textRenderer->RenderText("Close", closeX, closeY, l.fClose, glm::vec3(0.95f));
+
+        // [ < Prev ] and [ Next > ] texts
+        if (l.hasPagination) {
+            float pW = m_textRenderer->CalculateTextWidth("< Prev", l.fClose);
+            float pX = l.btnPrevPagePos.x + (l.btnPrevPageSize.x - pW) * 0.5f;
+            float pY = l.btnPrevPagePos.y + (l.btnPrevPageSize.y - l.fClose * 28.0f) * 0.5f + 2.0f;
+            m_textRenderer->RenderText("< Prev", pX, pY, l.fClose, (m_mapsScrollOffset > 0) ? glm::vec3(0.95f) : glm::vec3(0.45f));
+
+            float nW = m_textRenderer->CalculateTextWidth("Next >", l.fClose);
+            float nX = l.btnNextPagePos.x + (l.btnNextPageSize.x - nW) * 0.5f;
+            float nY = l.btnNextPagePos.y + (l.btnNextPageSize.y - l.fClose * 28.0f) * 0.5f + 2.0f;
+            m_textRenderer->RenderText("Next >", nX, nY, l.fClose, (m_mapsScrollOffset < l.maxOffset) ? glm::vec3(0.95f) : glm::vec3(0.45f));
+
+            // Page/item count text on the left
+            int startItem = l.currentOffset + 1;
+            int endItem = std::min(l.totalLevels, l.currentOffset + l.maxVisible);
+            std::string countStr = std::to_string(startItem) + "-" + std::to_string(endItem) + " / " + std::to_string(l.totalLevels);
+            float cFont = std::clamp(0.44f * GetUIScale(m_width, m_height), 0.32f, 0.56f);
+            float cY = l.btnClosePos.y + (l.btnCloseSize.y - cFont * 28.0f) * 0.5f + 2.0f;
+            m_textRenderer->RenderText(countStr, l.modalPos.x + std::clamp(20.0f * GetUIScale(m_width, m_height), 14.0f, 26.0f), cY, cFont, glm::vec3(0.65f, 0.70f, 0.80f));
+        }
     }
 }
 
@@ -2535,6 +2882,82 @@ void MapEditorState::closeExitModal() {
     m_suppressPlacementUntilRelease = true;
     m_exitModalEscReleased = false;
     m_keyEscPressedLastFrame = true;
+}
+
+MapEditorState::ExitModalLayout MapEditorState::getExitModalLayout() const {
+    ExitModalLayout layout;
+    float scale = GetUIScale(m_width, m_height);
+
+    layout.fTitle = std::clamp(0.68f * scale, 0.48f, 0.88f);
+    layout.fQuestion = std::clamp(0.66f * scale, 0.46f, 0.84f);
+    layout.fSub = std::clamp(0.48f * scale, 0.35f, 0.64f);
+    layout.fBtn = std::clamp(0.46f * scale, 0.34f, 0.60f);
+    layout.fCross = std::clamp(0.55f * scale, 0.40f, 0.75f);
+
+    std::string saveExitStr = LOC("EDITOR_EXIT_SAVE_AND_EXIT");
+    std::string discardStr = LOC("EDITOR_EXIT_DISCARD");
+    std::string cancelStr = LOC("EDITOR_EXIT_CANCEL");
+
+    float w1 = m_textRenderer ? m_textRenderer->CalculateTextWidth(saveExitStr, layout.fBtn) : 130.0f;
+    float w2 = m_textRenderer ? m_textRenderer->CalculateTextWidth(discardStr, layout.fBtn) : 140.0f;
+    float w3 = m_textRenderer ? m_textRenderer->CalculateTextWidth(cancelStr, layout.fBtn) : 60.0f;
+
+    float btnPad = std::clamp(14.0f * scale, 8.0f, 20.0f);
+    float req1 = w1 + btnPad * 2.0f;
+    float req2 = w2 + btnPad * 2.0f;
+    float req3 = w3 + btnPad * 2.0f;
+    float totalReq = req1 + req2 + req3;
+
+    float sideMargin = std::clamp(18.0f * scale, 12.0f, 26.0f);
+    float btnGap = std::clamp(12.0f * scale, 8.0f, 16.0f);
+
+    float desiredW = std::max(540.0f * scale, totalReq + 2.0f * sideMargin + 2.0f * btnGap);
+    layout.modalSize.x = std::clamp(desiredW, 380.0f, static_cast<float>(m_width) - 40.0f);
+    layout.modalSize.y = std::clamp(220.0f * scale, 170.0f, static_cast<float>(m_height) - 40.0f);
+
+    layout.modalPos = glm::vec2((static_cast<float>(m_width) - layout.modalSize.x) * 0.5f,
+                                (static_cast<float>(m_height) - layout.modalSize.y) * 0.5f);
+
+    layout.headerH = std::clamp(40.0f * scale, 30.0f, 56.0f);
+
+    float crossSize = std::clamp(26.0f * scale, 20.0f, 36.0f);
+    layout.btnCloseCrossSize = glm::vec2(crossSize, crossSize);
+    layout.btnCloseCrossPos = glm::vec2(layout.modalPos.x + layout.modalSize.x - crossSize - std::clamp(8.0f * scale, 6.0f, 12.0f),
+                                        layout.modalPos.y + (layout.headerH - crossSize) * 0.5f);
+
+    float btnH = std::clamp(42.0f * scale, 32.0f, 54.0f);
+    float btnMarginBottom = std::clamp(18.0f * scale, 12.0f, 24.0f);
+    float btnY = layout.modalPos.y + layout.modalSize.y - btnH - btnMarginBottom;
+
+    float availW = layout.modalSize.x - 2.0f * sideMargin - 2.0f * btnGap;
+    float btn1W, btn2W, btn3W;
+    if (availW >= totalReq) {
+        float extra = availW - totalReq;
+        btn1W = req1 + extra * (req1 / totalReq);
+        btn2W = req2 + extra * (req2 / totalReq);
+        btn3W = req3 + extra * (req3 / totalReq);
+    } else {
+        float ratio = availW / std::max(1.0f, totalReq);
+        btn1W = req1 * ratio;
+        btn2W = req2 * ratio;
+        btn3W = req3 * ratio;
+    }
+
+    layout.btnSaveExitPos = glm::vec2(layout.modalPos.x + sideMargin, btnY);
+    layout.btnSaveExitSize = glm::vec2(btn1W, btnH);
+
+    layout.btnDiscardPos = glm::vec2(layout.btnSaveExitPos.x + btn1W + btnGap, btnY);
+    layout.btnDiscardSize = glm::vec2(btn2W, btnH);
+
+    layout.btnCancelPos = glm::vec2(layout.btnDiscardPos.x + btn2W + btnGap, btnY);
+    layout.btnCancelSize = glm::vec2(btn3W, btnH);
+
+    float contentTop = layout.modalPos.y + layout.headerH;
+    float contentH = btnY - contentTop;
+    layout.questionY = contentTop + contentH * 0.28f;
+    layout.subY = contentTop + contentH * 0.62f;
+
+    return layout;
 }
 
 bool MapEditorState::processExitModalInput(GLFWwindow* window, glm::vec2 mousePos, bool leftDown, float dt) {
@@ -2570,58 +2993,41 @@ bool MapEditorState::processExitModalInput(GLFWwindow* window, glm::vec2 mousePo
         return true;
     }
 
-    glm::vec2 modalSize(540.0f, 220.0f);
-    glm::vec2 modalPos((static_cast<float>(m_width) - modalSize.x) * 0.5f,
-                       (static_cast<float>(m_height) - modalSize.y) * 0.5f);
-
-    float btnY = modalPos.y + 145.0f;
-    float btnH = 42.0f;
-
-    glm::vec2 btnSaveExitPos(modalPos.x + 20.0f, btnY);
-    glm::vec2 btnSaveExitSize(200.0f, btnH);
-
-    glm::vec2 btnDiscardPos(modalPos.x + 230.0f, btnY);
-    glm::vec2 btnDiscardSize(190.0f, btnH);
-
-    glm::vec2 btnCancelPos(modalPos.x + 430.0f, btnY);
-    glm::vec2 btnCancelSize(90.0f, btnH);
-
-    glm::vec2 btnCloseCrossPos(modalPos.x + modalSize.x - 36.0f, modalPos.y + 8.0f);
-    glm::vec2 btnCloseCrossSize(26.0f, 26.0f);
+    ExitModalLayout l = getExitModalLayout();
 
     // 4. Клики мыши обрабатываются только после отпускания кнопки мыши после открытия
     if (!m_suppressPlacementUntilRelease && leftDown && !m_isLeftMouseDown) {
         // Кнопка [ Сохранить и выйти ]
-        if (isPointInRect(mousePos, btnSaveExitPos, btnSaveExitSize)) {
-            std::cout << "[MapEditor] Exit Modal: Clicked [Save and Exit] (mouse=" << mousePos.x << "," << mousePos.y << ") -> saving and exiting" << std::endl;
+        if (isPointInRect(mousePos, l.btnSaveExitPos, l.btnSaveExitSize)) {
+            std::cout << "[MapEditor] Exit Modal: Clicked [Save and Exit] -> saving and exiting" << std::endl;
             saveMap();
             m_stateManager.setState(std::make_unique<MainMenuState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));
             return true;
         }
 
         // Кнопка [ Выйти без сохранения ]
-        if (isPointInRect(mousePos, btnDiscardPos, btnDiscardSize)) {
-            std::cout << "[MapEditor] Exit Modal: Clicked [Discard and Exit] (mouse=" << mousePos.x << "," << mousePos.y << ") -> exiting without saving" << std::endl;
+        if (isPointInRect(mousePos, l.btnDiscardPos, l.btnDiscardSize)) {
+            std::cout << "[MapEditor] Exit Modal: Clicked [Discard and Exit] -> exiting without saving" << std::endl;
             m_stateManager.setState(std::make_unique<MainMenuState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));
             return true;
         }
 
         // Кнопка [ Отмена ]
-        if (isPointInRect(mousePos, btnCancelPos, btnCancelSize)) {
+        if (isPointInRect(mousePos, l.btnCancelPos, l.btnCancelSize)) {
             std::cout << "[MapEditor] Exit Modal: Clicked [Cancel]" << std::endl;
             closeExitModal();
             return true;
         }
 
         // Крестик [X]
-        if (isPointInRect(mousePos, btnCloseCrossPos, btnCloseCrossSize)) {
+        if (isPointInRect(mousePos, l.btnCloseCrossPos, l.btnCloseCrossSize)) {
             std::cout << "[MapEditor] Exit Modal: Clicked [X] close cross" << std::endl;
             closeExitModal();
             return true;
         }
 
         // Клик вне модального окна -> закрываем (Отмена)
-        if (!isPointInRect(mousePos, modalPos, modalSize)) {
+        if (!isPointInRect(mousePos, l.modalPos, l.modalSize)) {
             std::cout << "[MapEditor] Exit Modal: Clicked outside modal -> cancelling" << std::endl;
             closeExitModal();
             return true;
@@ -2635,53 +3041,39 @@ void MapEditorState::renderExitModal() {
     // Полупрозрачный фон-затемнение
     m_renderer->drawSpriteRGBA(m_whiteTexture, glm::vec2(0.0f), glm::vec2(m_width, m_height), 0.0f, glm::vec4(0.04f, 0.05f, 0.07f, 0.78f));
 
-    glm::vec2 modalSize(540.0f, 220.0f);
-    glm::vec2 modalPos((static_cast<float>(m_width) - modalSize.x) * 0.5f,
-                       (static_cast<float>(m_height) - modalSize.y) * 0.5f);
+    ExitModalLayout l = getExitModalLayout();
 
-    // Основная подложка и обводка
-    m_renderer->drawSprite(m_whiteTexture, modalPos, modalSize, 0.0f, glm::vec3(0.12f, 0.13f, 0.18f));
-    m_renderer->drawSprite(m_whiteTexture, modalPos, glm::vec2(modalSize.x, 2.0f), 0.0f, glm::vec3(0.40f, 0.75f, 1.0f));
-    m_renderer->drawSprite(m_whiteTexture, modalPos + glm::vec2(0.0f, modalSize.y - 2.0f), glm::vec2(modalSize.x, 2.0f), 0.0f, glm::vec3(0.40f, 0.75f, 1.0f));
-    m_renderer->drawSprite(m_whiteTexture, modalPos, glm::vec2(2.0f, modalSize.y), 0.0f, glm::vec3(0.40f, 0.75f, 1.0f));
-    m_renderer->drawSprite(m_whiteTexture, modalPos + glm::vec2(modalSize.x - 2.0f, 0.0f), glm::vec2(2.0f, modalSize.y), 0.0f, glm::vec3(0.40f, 0.75f, 1.0f));
+    // Основная подложка и 2px обводка
+    m_renderer->drawSprite(m_whiteTexture, l.modalPos, l.modalSize, 0.0f, glm::vec3(0.12f, 0.13f, 0.18f));
+    m_renderer->drawSprite(m_whiteTexture, l.modalPos, glm::vec2(l.modalSize.x, 2.0f), 0.0f, glm::vec3(0.40f, 0.75f, 1.0f));
+    m_renderer->drawSprite(m_whiteTexture, l.modalPos + glm::vec2(0.0f, l.modalSize.y - 2.0f), glm::vec2(l.modalSize.x, 2.0f), 0.0f, glm::vec3(0.40f, 0.75f, 1.0f));
+    m_renderer->drawSprite(m_whiteTexture, l.modalPos, glm::vec2(2.0f, l.modalSize.y), 0.0f, glm::vec3(0.40f, 0.75f, 1.0f));
+    m_renderer->drawSprite(m_whiteTexture, l.modalPos + glm::vec2(l.modalSize.x - 2.0f, 0.0f), glm::vec2(2.0f, l.modalSize.y), 0.0f, glm::vec3(0.40f, 0.75f, 1.0f));
 
     // Шапка
-    float headerH = 40.0f;
-    m_renderer->drawSprite(m_whiteTexture, modalPos, glm::vec2(modalSize.x, headerH), 0.0f, glm::vec3(0.16f, 0.18f, 0.25f));
-    m_renderer->drawSprite(m_whiteTexture, modalPos + glm::vec2(0.0f, headerH), glm::vec2(modalSize.x, 2.0f), 0.0f, glm::vec3(0.40f, 0.75f, 1.0f));
+    m_renderer->drawSprite(m_whiteTexture, l.modalPos, glm::vec2(l.modalSize.x, l.headerH), 0.0f, glm::vec3(0.16f, 0.18f, 0.25f));
+    m_renderer->drawSprite(m_whiteTexture, l.modalPos + glm::vec2(0.0f, l.headerH), glm::vec2(l.modalSize.x, 2.0f), 0.0f, glm::vec3(0.40f, 0.75f, 1.0f));
 
     // Кнопка-крестик [X]
-    glm::vec2 btnCloseCrossPos(modalPos.x + modalSize.x - 36.0f, modalPos.y + 7.0f);
-    glm::vec2 btnCloseCrossSize(26.0f, 26.0f);
-    bool hovCross = isPointInRect(m_mousePos, btnCloseCrossPos, btnCloseCrossSize);
-    m_renderer->drawSprite(m_whiteTexture, btnCloseCrossPos, btnCloseCrossSize, 0.0f, hovCross ? glm::vec3(0.85f, 0.25f, 0.25f) : glm::vec3(0.35f, 0.38f, 0.45f));
-    m_renderer->drawSprite(m_whiteTexture, btnCloseCrossPos + glm::vec2(1.0f), btnCloseCrossSize - glm::vec2(2.0f), 0.0f, hovCross ? glm::vec3(0.35f, 0.12f, 0.12f) : glm::vec3(0.20f, 0.22f, 0.28f));
+    bool hovCross = isPointInRect(m_mousePos, l.btnCloseCrossPos, l.btnCloseCrossSize);
+    m_renderer->drawSprite(m_whiteTexture, l.btnCloseCrossPos, l.btnCloseCrossSize, 0.0f, hovCross ? glm::vec3(0.85f, 0.25f, 0.25f) : glm::vec3(0.35f, 0.38f, 0.45f));
+    m_renderer->drawSprite(m_whiteTexture, l.btnCloseCrossPos + glm::vec2(1.0f), l.btnCloseCrossSize - glm::vec2(2.0f), 0.0f, hovCross ? glm::vec3(0.35f, 0.12f, 0.12f) : glm::vec3(0.20f, 0.22f, 0.28f));
 
     // Кнопки действий
-    float btnY = modalPos.y + 145.0f;
-    float btnH = 42.0f;
-
     // 1. [ Сохранить и выйти ]
-    glm::vec2 btnSaveExitPos(modalPos.x + 20.0f, btnY);
-    glm::vec2 btnSaveExitSize(200.0f, btnH);
-    bool hovSaveExit = isPointInRect(m_mousePos, btnSaveExitPos, btnSaveExitSize);
-    m_renderer->drawSprite(m_whiteTexture, btnSaveExitPos, btnSaveExitSize, 0.0f, hovSaveExit ? glm::vec3(0.35f, 0.95f, 0.50f) : glm::vec3(0.25f, 0.75f, 0.38f));
-    m_renderer->drawSprite(m_whiteTexture, btnSaveExitPos + glm::vec2(2.0f), btnSaveExitSize - glm::vec2(4.0f), 0.0f, hovSaveExit ? glm::vec3(0.18f, 0.42f, 0.24f) : glm::vec3(0.13f, 0.30f, 0.18f));
+    bool hovSaveExit = isPointInRect(m_mousePos, l.btnSaveExitPos, l.btnSaveExitSize);
+    m_renderer->drawSprite(m_whiteTexture, l.btnSaveExitPos, l.btnSaveExitSize, 0.0f, hovSaveExit ? glm::vec3(0.35f, 0.95f, 0.50f) : glm::vec3(0.25f, 0.75f, 0.38f));
+    m_renderer->drawSprite(m_whiteTexture, l.btnSaveExitPos + glm::vec2(2.0f), l.btnSaveExitSize - glm::vec2(4.0f), 0.0f, hovSaveExit ? glm::vec3(0.18f, 0.42f, 0.24f) : glm::vec3(0.13f, 0.30f, 0.18f));
 
     // 2. [ Выйти без сохранения ]
-    glm::vec2 btnDiscardPos(modalPos.x + 230.0f, btnY);
-    glm::vec2 btnDiscardSize(190.0f, btnH);
-    bool hovDiscard = isPointInRect(m_mousePos, btnDiscardPos, btnDiscardSize);
-    m_renderer->drawSprite(m_whiteTexture, btnDiscardPos, btnDiscardSize, 0.0f, hovDiscard ? glm::vec3(0.95f, 0.35f, 0.35f) : glm::vec3(0.75f, 0.25f, 0.25f));
-    m_renderer->drawSprite(m_whiteTexture, btnDiscardPos + glm::vec2(2.0f), btnDiscardSize - glm::vec2(4.0f), 0.0f, hovDiscard ? glm::vec3(0.40f, 0.16f, 0.16f) : glm::vec3(0.28f, 0.12f, 0.12f));
+    bool hovDiscard = isPointInRect(m_mousePos, l.btnDiscardPos, l.btnDiscardSize);
+    m_renderer->drawSprite(m_whiteTexture, l.btnDiscardPos, l.btnDiscardSize, 0.0f, hovDiscard ? glm::vec3(0.95f, 0.35f, 0.35f) : glm::vec3(0.75f, 0.25f, 0.25f));
+    m_renderer->drawSprite(m_whiteTexture, l.btnDiscardPos + glm::vec2(2.0f), l.btnDiscardSize - glm::vec2(4.0f), 0.0f, hovDiscard ? glm::vec3(0.40f, 0.16f, 0.16f) : glm::vec3(0.28f, 0.12f, 0.12f));
 
     // 3. [ Отмена ]
-    glm::vec2 btnCancelPos(modalPos.x + 430.0f, btnY);
-    glm::vec2 btnCancelSize(90.0f, btnH);
-    bool hovCancel = isPointInRect(m_mousePos, btnCancelPos, btnCancelSize);
-    m_renderer->drawSprite(m_whiteTexture, btnCancelPos, btnCancelSize, 0.0f, hovCancel ? glm::vec3(0.60f, 0.65f, 0.75f) : glm::vec3(0.40f, 0.44f, 0.52f));
-    m_renderer->drawSprite(m_whiteTexture, btnCancelPos + glm::vec2(2.0f), btnCancelSize - glm::vec2(4.0f), 0.0f, hovCancel ? glm::vec3(0.25f, 0.28f, 0.34f) : glm::vec3(0.18f, 0.20f, 0.25f));
+    bool hovCancel = isPointInRect(m_mousePos, l.btnCancelPos, l.btnCancelSize);
+    m_renderer->drawSprite(m_whiteTexture, l.btnCancelPos, l.btnCancelSize, 0.0f, hovCancel ? glm::vec3(0.60f, 0.65f, 0.75f) : glm::vec3(0.40f, 0.44f, 0.52f));
+    m_renderer->drawSprite(m_whiteTexture, l.btnCancelPos + glm::vec2(2.0f), l.btnCancelSize - glm::vec2(4.0f), 0.0f, hovCancel ? glm::vec3(0.25f, 0.28f, 0.34f) : glm::vec3(0.18f, 0.20f, 0.25f));
 
     m_renderer->flush();
 
@@ -2689,36 +3081,47 @@ void MapEditorState::renderExitModal() {
     if (m_textRenderer) {
         // Заголовок в шапке
         std::string titleStr = LOC("EDITOR_EXIT_TITLE");
-        float tW = m_textRenderer->CalculateTextWidth(titleStr, 0.68f);
-        m_textRenderer->RenderText(titleStr, modalPos.x + (modalSize.x - tW) * 0.5f, modalPos.y + 11.0f, 0.68f, glm::vec3(1.0f, 0.85f, 0.25f));
+        float tW = m_textRenderer->CalculateTextWidth(titleStr, l.fTitle);
+        m_textRenderer->RenderText(titleStr, l.modalPos.x + (l.modalSize.x - tW) * 0.5f,
+                                  l.modalPos.y + (l.headerH - l.fTitle * 28.0f) * 0.5f + 2.0f,
+                                  l.fTitle, glm::vec3(1.0f, 0.85f, 0.25f));
 
         // Крестик [X]
-        m_textRenderer->RenderText("x", btnCloseCrossPos.x + 8.0f, btnCloseCrossPos.y + 5.0f, 0.55f, glm::vec3(0.9f));
+        float crossW = m_textRenderer->CalculateTextWidth("x", l.fCross);
+        m_textRenderer->RenderText("x", l.btnCloseCrossPos.x + (l.btnCloseCrossSize.x - crossW) * 0.5f,
+                                  l.btnCloseCrossPos.y + (l.btnCloseCrossSize.y - l.fCross * 28.0f) * 0.5f + 2.0f,
+                                  l.fCross, glm::vec3(0.9f));
 
         // Основной вопрос
         std::string questionStr = LOC("EDITOR_EXIT_QUESTION");
-        float qW = m_textRenderer->CalculateTextWidth(questionStr, 0.72f);
-        m_textRenderer->RenderText(questionStr, modalPos.x + (modalSize.x - qW) * 0.5f, modalPos.y + 60.0f, 0.72f, glm::vec3(1.0f, 1.0f, 1.0f));
+        float qW = m_textRenderer->CalculateTextWidth(questionStr, l.fQuestion);
+        m_textRenderer->RenderText(questionStr, l.modalPos.x + (l.modalSize.x - qW) * 0.5f, l.questionY, l.fQuestion, glm::vec3(1.0f, 1.0f, 1.0f));
 
         // Поясняющий подтекст
         std::string subStr = LOC("EDITOR_EXIT_SUB");
-        float sW = m_textRenderer->CalculateTextWidth(subStr, 0.50f);
-        m_textRenderer->RenderText(subStr, modalPos.x + (modalSize.x - sW) * 0.5f, modalPos.y + 98.0f, 0.50f, glm::vec3(0.85f, 0.65f, 0.65f));
+        float sW = m_textRenderer->CalculateTextWidth(subStr, l.fSub);
+        m_textRenderer->RenderText(subStr, l.modalPos.x + (l.modalSize.x - sW) * 0.5f, l.subY, l.fSub, glm::vec3(0.85f, 0.65f, 0.65f));
 
         // Текст кнопки 1: Сохранить и выйти
         std::string saveExitStr = LOC("EDITOR_EXIT_SAVE_AND_EXIT");
-        float seW = m_textRenderer->CalculateTextWidth(saveExitStr, 0.48f);
-        m_textRenderer->RenderText(saveExitStr, btnSaveExitPos.x + (btnSaveExitSize.x - seW) * 0.5f, btnSaveExitPos.y + 12.0f, 0.48f, glm::vec3(0.95f, 1.0f, 0.95f));
+        float seW = m_textRenderer->CalculateTextWidth(saveExitStr, l.fBtn);
+        float seX = l.btnSaveExitPos.x + (l.btnSaveExitSize.x - seW) * 0.5f;
+        float seY = l.btnSaveExitPos.y + (l.btnSaveExitSize.y - l.fBtn * 28.0f) * 0.5f + 2.0f;
+        m_textRenderer->RenderText(saveExitStr, seX, seY, l.fBtn, glm::vec3(0.95f, 1.0f, 0.95f));
 
         // Текст кнопки 2: Выйти без сохранения
         std::string discardStr = LOC("EDITOR_EXIT_DISCARD");
-        float dW = m_textRenderer->CalculateTextWidth(discardStr, 0.46f);
-        m_textRenderer->RenderText(discardStr, btnDiscardPos.x + (btnDiscardSize.x - dW) * 0.5f, btnDiscardPos.y + 13.0f, 0.46f, glm::vec3(1.0f, 0.90f, 0.90f));
+        float dW = m_textRenderer->CalculateTextWidth(discardStr, l.fBtn);
+        float dX = l.btnDiscardPos.x + (l.btnDiscardSize.x - dW) * 0.5f;
+        float dY = l.btnDiscardPos.y + (l.btnDiscardSize.y - l.fBtn * 28.0f) * 0.5f + 2.0f;
+        m_textRenderer->RenderText(discardStr, dX, dY, l.fBtn, glm::vec3(1.0f, 0.90f, 0.90f));
 
         // Текст кнопки 3: Отмена
         std::string cancelStr = LOC("EDITOR_EXIT_CANCEL");
-        float cW = m_textRenderer->CalculateTextWidth(cancelStr, 0.50f);
-        m_textRenderer->RenderText(cancelStr, btnCancelPos.x + (btnCancelSize.x - cW) * 0.5f, btnCancelPos.y + 12.0f, 0.50f, glm::vec3(0.90f, 0.92f, 0.96f));
+        float cW = m_textRenderer->CalculateTextWidth(cancelStr, l.fBtn);
+        float cX = l.btnCancelPos.x + (l.btnCancelSize.x - cW) * 0.5f;
+        float cY = l.btnCancelPos.y + (l.btnCancelSize.y - l.fBtn * 28.0f) * 0.5f + 2.0f;
+        m_textRenderer->RenderText(cancelStr, cX, cY, l.fBtn, glm::vec3(0.90f, 0.92f, 0.96f));
     }
 }
 

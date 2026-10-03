@@ -22,11 +22,13 @@ private:
     bool m_isEditorTest = false;
     glm::vec2 m_windowPos;
     glm::vec2 m_windowSize;
+    float m_uiScale = 1.0f;
 
-    UIButton m_btnNext; // пока что заглушка
+    UIButton m_btnNext;
     UIButton m_btnMenu;
 
     bool isPointInRect(glm::vec2 point, glm::vec2 rectPos, glm::vec2 rectSize);
+    void updateLayout();
 
 public:
     VictoryState(GameStateManager& stateManager, int width, int height, std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer, bool isEditorTest = false);

@@ -25,6 +25,14 @@ static const std::unordered_map<std::string, std::string> s_dictRu = {
     { "PAUSE_EXIT", "Выйти в меню" },
     { "PAUSE_BACK_TO_EDITOR", "Назад в редактор" },
 
+    { "GAMEOVER_TITLE", "ИГРА ОКОНЧЕНА!" },
+    { "GAMEOVER_RETRY", "ПОПРОБОВАТЬ СНОВА" },
+    { "GAMEOVER_MENU", "ВЫЙТИ В МЕНЮ" },
+
+    { "VICTORY_TITLE", "ПОБЕДА!" },
+    { "VICTORY_NEXT", "ВЫБОР УРОВНЯ" },
+    { "VICTORY_MENU", "ГЛАВНОЕ МЕНЮ" },
+
     { "LEVEL_TITLE", "ВЫБОР УРОВНЯ" },
     { "LEVEL_TAB_ALL", "ВСЕ" },
     { "LEVEL_TAB_CAMPAIGN", "КАМПАНИЯ" },
@@ -98,6 +106,14 @@ static const std::unordered_map<std::string, std::string> s_dictUa = {
     { "PAUSE_EXIT", "Вийти в меню" },
     { "PAUSE_BACK_TO_EDITOR", "Назад до редактора" },
 
+    { "GAMEOVER_TITLE", "ГРА ЗАКІНЧЕНА!" },
+    { "GAMEOVER_RETRY", "СПРОБУВАТИ ЗНОВУ" },
+    { "GAMEOVER_MENU", "ВИЙТИ В МЕНЮ" },
+
+    { "VICTORY_TITLE", "ПЕРЕМОГА!" },
+    { "VICTORY_NEXT", "ВИБІР РІВНЯ" },
+    { "VICTORY_MENU", "ГОЛОВНЕ МЕНЮ" },
+
     { "LEVEL_TITLE", "ВИБІР РІВНЯ" },
     { "LEVEL_TAB_ALL", "ВСІ" },
     { "LEVEL_TAB_CAMPAIGN", "КАМПАНІЯ" },
@@ -170,6 +186,14 @@ static const std::unordered_map<std::string, std::string> s_dictEn = {
     { "PAUSE_SAVE", "Save Game" },
     { "PAUSE_EXIT", "Main Menu" },
     { "PAUSE_BACK_TO_EDITOR", "Back to Editor" },
+
+    { "GAMEOVER_TITLE", "GAME OVER!" },
+    { "GAMEOVER_RETRY", "TRY AGAIN" },
+    { "GAMEOVER_MENU", "EXIT TO MENU" },
+
+    { "VICTORY_TITLE", "VICTORY!" },
+    { "VICTORY_NEXT", "SELECT LEVEL" },
+    { "VICTORY_MENU", "MAIN MENU" },
 
     { "LEVEL_TITLE", "SELECT MISSION" },
     { "LEVEL_TAB_ALL", "ALL" },

@@ -93,6 +93,59 @@ private:
     };
     std::unordered_map<int, KeyRepeatState> m_keyStates;
 
+    struct RenameModalLayout {
+        glm::vec2 modalSize{ 0.0f };
+        glm::vec2 modalPos{ 0.0f };
+        float headerH = 38.0f;
+        float padX = 24.0f;
+        float subY = 0.0f;
+        glm::vec2 boxPos{ 0.0f };
+        glm::vec2 boxSize{ 0.0f };
+        glm::vec2 btnSavePos{ 0.0f };
+        glm::vec2 btnSaveSize{ 0.0f };
+        glm::vec2 btnCancelPos{ 0.0f };
+        glm::vec2 btnCancelSize{ 0.0f };
+        float fTitle = 0.68f;
+        float fSub = 0.46f;
+        float fInput = 0.56f;
+        float fBtn = 0.52f;
+    };
+
+    struct ExistingTagChipUI {
+        glm::vec2 chipPos{ 0.0f };
+        glm::vec2 chipSize{ 0.0f };
+        glm::vec2 delPos{ 0.0f };
+        glm::vec2 delSize{ 0.0f };
+        std::string tag;
+    };
+
+    struct TagsModalLayout {
+        glm::vec2 modalSize{ 0.0f };
+        glm::vec2 modalPos{ 0.0f };
+        float headerH = 38.0f;
+        float padX = 24.0f;
+        float fTitle = 0.68f;
+        std::vector<ExistingTagChipUI> existingChips;
+        float fExistingChip = 0.48f;
+        float fDel = 0.44f;
+        glm::vec2 popLabelPos{ 0.0f };
+        float fPopLabel = 0.46f;
+        std::vector<TagChip> quickChips;
+        float fQuickChip = 0.44f;
+        glm::vec2 boxPos{ 0.0f };
+        glm::vec2 boxSize{ 0.0f };
+        float fInput = 0.50f;
+        glm::vec2 btnAddPos{ 0.0f };
+        glm::vec2 btnAddSize{ 0.0f };
+        float fAddBtn = 0.48f;
+        glm::vec2 btnDonePos{ 0.0f };
+        glm::vec2 btnDoneSize{ 0.0f };
+        float fDoneBtn = 0.54f;
+    };
+
+    RenameModalLayout getRenameModalLayout();
+    TagsModalLayout getTagsModalLayout();
+
     bool isPointInRect(glm::vec2 point, glm::vec2 rectPos, glm::vec2 rectSize);
     void openRenameModal(const std::string& targetFileName);
     void confirmRename();

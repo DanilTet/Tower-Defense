@@ -23,6 +23,14 @@ private:
     float m_headerHeight = 40.0f;
     bool m_isDragging = false;
     glm::vec2 m_dragOffset{ 0.0f, 0.0f };
+    float m_uiScale = 1.0f;
+
+    // Relative Y coordinates inside window
+    float m_volRelY = 0.0f;
+    float m_langRelY = 0.0f;
+    float m_scaleLabelRelY = 0.0f;
+    float m_scaleBtnsRelY = 0.0f;
+    float m_closeRelY = 0.0f;
 
     bool m_mousePressedLastFrame = false;
     glm::vec2 m_currentMousePos{ 0.0f, 0.0f };
@@ -46,6 +54,8 @@ private:
     int m_closeBtnState = 0; // 0=Idle, 1=Hover, 2=Pressed
 
     bool isPointInRect(glm::vec2 point, glm::vec2 rectPos, glm::vec2 rectSize);
+    void updateLayout();
+    void updatePositions();
 
 public:
     SettingsState(GameStateManager& stateManager, int width, int height, std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer);

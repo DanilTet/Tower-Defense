@@ -6,6 +6,7 @@
 #include "../core/InputManager.h"
 #include "../core/LocalizationManager.h"
 #include "../core/SettingsManager.h"
+#include "../ui/UICommon.h"
 #include "../resources/ResourceManager.h"
 #include "../renderer/SpriteRenderer.h"
 #include "../renderer/TextRenderer.h"
@@ -270,6 +271,165 @@ bool LevelSelectState::isPointInRect(glm::vec2 point, glm::vec2 rectPos, glm::ve
            point.y >= rectPos.y && point.y <= rectPos.y + rectSize.y;
 }
 
+LevelSelectState::RenameModalLayout LevelSelectState::getRenameModalLayout() {
+    RenameModalLayout l;
+    float scale = GetUIScale(m_width, m_height);
+
+    float modalW = std::clamp(460.0f * scale, 340.0f, static_cast<float>(m_width) - 40.0f);
+    float modalH = std::clamp(210.0f * scale, 150.0f, static_cast<float>(m_height) - 40.0f);
+    l.modalSize = glm::vec2(modalW, modalH);
+    l.modalPos = glm::vec2((static_cast<float>(m_width) - modalW) * 0.5f,
+                           (static_cast<float>(m_height) - modalH) * 0.5f);
+
+    l.headerH = std::clamp(38.0f * scale, 28.0f, 50.0f);
+    l.padX = std::clamp(24.0f * scale, 16.0f, 36.0f);
+
+    l.fTitle = std::clamp(0.68f * scale, 0.48f, 0.88f);
+    l.fSub   = std::clamp(0.46f * scale, 0.34f, 0.60f);
+    l.fInput = std::clamp(0.56f * scale, 0.40f, 0.74f);
+    l.fBtn   = std::clamp(0.52f * scale, 0.38f, 0.68f);
+
+    l.subY = l.modalPos.y + l.headerH + std::clamp(8.0f * scale, 5.0f, 14.0f);
+
+    float boxH = std::clamp(36.0f * scale, 26.0f, 46.0f);
+    float boxY = l.subY + l.fSub * 28.0f + std::clamp(8.0f * scale, 5.0f, 12.0f);
+    l.boxPos = glm::vec2(l.modalPos.x + l.padX, boxY);
+    l.boxSize = glm::vec2(l.modalSize.x - 2.0f * l.padX, boxH);
+
+    float btnH = std::clamp(38.0f * scale, 28.0f, 48.0f);
+    float btnGap = std::clamp(14.0f * scale, 8.0f, 20.0f);
+    float bottomPad = std::clamp(16.0f * scale, 10.0f, 22.0f);
+    float btnY = l.modalPos.y + l.modalSize.y - btnH - bottomPad;
+
+    float totalBtnW = l.modalSize.x - 2.0f * l.padX - btnGap;
+    float btnSaveW = totalBtnW * 0.52f;
+    float btnCancelW = totalBtnW - btnSaveW;
+
+    l.btnSavePos = glm::vec2(l.modalPos.x + l.padX, btnY);
+    l.btnSaveSize = glm::vec2(btnSaveW, btnH);
+
+    l.btnCancelPos = glm::vec2(l.modalPos.x + l.padX + btnSaveW + btnGap, btnY);
+    l.btnCancelSize = glm::vec2(btnCancelW, btnH);
+
+    return l;
+}
+
+LevelSelectState::TagsModalLayout LevelSelectState::getTagsModalLayout() {
+    TagsModalLayout l;
+    float scale = GetUIScale(m_width, m_height);
+
+    float modalW = std::clamp(520.0f * scale, 360.0f, static_cast<float>(m_width) - 40.0f);
+    float modalH = std::clamp(420.0f * scale, 300.0f, static_cast<float>(m_height) - 40.0f);
+    l.modalSize = glm::vec2(modalW, modalH);
+    l.modalPos = glm::vec2((static_cast<float>(m_width) - modalW) * 0.5f,
+                           (static_cast<float>(m_height) - modalH) * 0.5f);
+
+    l.headerH = std::clamp(38.0f * scale, 28.0f, 50.0f);
+    l.padX = std::clamp(24.0f * scale, 16.0f, 36.0f);
+
+    l.fTitle        = std::clamp(0.68f * scale, 0.48f, 0.88f);
+    l.fExistingChip = std::clamp(0.48f * scale, 0.35f, 0.62f);
+    l.fDel          = std::clamp(0.44f * scale, 0.32f, 0.58f);
+    l.fPopLabel     = std::clamp(0.46f * scale, 0.34f, 0.60f);
+    l.fQuickChip    = std::clamp(0.44f * scale, 0.32f, 0.58f);
+    l.fInput        = std::clamp(0.50f * scale, 0.36f, 0.66f);
+    l.fAddBtn       = std::clamp(0.48f * scale, 0.35f, 0.64f);
+    l.fDoneBtn      = std::clamp(0.54f * scale, 0.40f, 0.70f);
+
+    // 1. Нижняя кнопка Готово
+    float btnDoneH = std::clamp(36.0f * scale, 28.0f, 46.0f);
+    float btnDoneW = std::clamp(150.0f * scale, 110.0f, 210.0f);
+    float bottomPad = std::clamp(16.0f * scale, 10.0f, 22.0f);
+    l.btnDoneSize = glm::vec2(btnDoneW, btnDoneH);
+    l.btnDonePos = glm::vec2(l.modalPos.x + (l.modalSize.x - btnDoneW) * 0.5f,
+                             l.modalPos.y + l.modalSize.y - btnDoneH - bottomPad);
+
+    // 2. Строка ввода тега + кнопка Добавить (выше кнопки Готово)
+    float inputH = std::clamp(34.0f * scale, 26.0f, 44.0f);
+    float btnAddW = std::clamp(110.0f * scale, 80.0f, 150.0f);
+    float gapInputDone = std::clamp(12.0f * scale, 8.0f, 18.0f);
+    float inputY = l.btnDonePos.y - inputH - gapInputDone;
+
+    l.btnAddSize = glm::vec2(btnAddW, inputH);
+    l.btnAddPos = glm::vec2(l.modalPos.x + l.modalSize.x - l.padX - btnAddW, inputY);
+
+    float boxGap = std::clamp(10.0f * scale, 6.0f, 14.0f);
+    float boxW = l.btnAddPos.x - boxGap - (l.modalPos.x + l.padX);
+    l.boxPos = glm::vec2(l.modalPos.x + l.padX, inputY);
+    l.boxSize = glm::vec2(boxW, inputH);
+
+    // 3. Существующие теги (сверху под хедером)
+    float existingStartY = l.modalPos.y + l.headerH + std::clamp(12.0f * scale, 8.0f, 18.0f);
+    float chipH = std::clamp(26.0f * scale, 20.0f, 34.0f);
+    float chipGapX = std::clamp(8.0f * scale, 5.0f, 12.0f);
+    float chipGapY = std::clamp(6.0f * scale, 4.0f, 10.0f);
+    float delDim = std::clamp(18.0f * scale, 14.0f, 24.0f);
+
+    float maxRowRight = l.modalPos.x + l.modalSize.x - l.padX;
+    float curTagX = l.modalPos.x + l.padX;
+    float curTagY = existingStartY;
+
+    for (size_t i = 0; i < m_currentLevelTags.size(); ++i) {
+        const auto& t = m_currentLevelTags[i];
+        float textW = m_textRenderer ? m_textRenderer->CalculateTextWidth(t, l.fExistingChip) : 50.0f;
+        float tw = textW + delDim + std::clamp(16.0f * scale, 12.0f, 22.0f);
+        if (tw > maxRowRight - (l.modalPos.x + l.padX)) {
+            tw = maxRowRight - (l.modalPos.x + l.padX);
+        }
+
+        if (curTagX + tw > maxRowRight && curTagX > l.modalPos.x + l.padX) {
+            curTagX = l.modalPos.x + l.padX;
+            curTagY += chipH + chipGapY;
+        }
+
+        ExistingTagChipUI chip;
+        chip.tag = t;
+        chip.chipPos = glm::vec2(curTagX, curTagY);
+        chip.chipSize = glm::vec2(tw, chipH);
+
+        float delX = curTagX + tw - delDim - std::clamp(3.0f * scale, 2.0f, 5.0f);
+        float delY = curTagY + (chipH - delDim) * 0.5f;
+        chip.delPos = glm::vec2(delX, delY);
+        chip.delSize = glm::vec2(delDim, delDim);
+
+        l.existingChips.push_back(chip);
+
+        curTagX += tw + chipGapX;
+    }
+
+    float lastExistingBottom = (m_currentLevelTags.empty()) ? existingStartY : (curTagY + chipH);
+
+    // 4. Секция Популярные теги (Quick Add Chips)
+    float minPopY = l.modalPos.y + l.headerH + std::clamp(75.0f * scale, 55.0f, 110.0f);
+    float popY = std::max(minPopY, lastExistingBottom + std::clamp(12.0f * scale, 8.0f, 18.0f));
+
+    l.popLabelPos = glm::vec2(l.modalPos.x + l.padX, popY);
+
+    float quickChipH = std::clamp(26.0f * scale, 20.0f, 34.0f);
+    float quickStartY = popY + l.fPopLabel * 28.0f + std::clamp(8.0f * scale, 5.0f, 12.0f);
+    float quickX = l.modalPos.x + l.padX;
+    float quickY = quickStartY;
+
+    std::vector<std::string> presets = { "Кампания", "Тест", "Сложный", "Ртуть", "Шахта", "Лабиринт", "Быстрый" };
+    for (const auto& p : presets) {
+        float w = m_textRenderer ? (m_textRenderer->CalculateTextWidth("+" + p, l.fQuickChip) + std::clamp(16.0f * scale, 12.0f, 22.0f)) : 64.0f;
+        if (quickX + w > maxRowRight && quickX > l.modalPos.x + l.padX) {
+            quickX = l.modalPos.x + l.padX;
+            quickY += quickChipH + chipGapY;
+        }
+
+        TagChip qc;
+        qc.tag = p;
+        qc.pos = glm::vec2(quickX, quickY);
+        qc.size = glm::vec2(w, quickChipH);
+        l.quickChips.push_back(qc);
+
+        quickX += w + chipGapX;
+    }
+
+    return l;
+}
+
 void LevelSelectState::openRenameModal(const std::string& targetFileName) {
     m_renameTargetFileName = targetFileName;
     for (const auto& c : m_levelCards) {
@@ -303,13 +463,7 @@ void LevelSelectState::confirmRename() {
 bool LevelSelectState::processRenameModalInput(GLFWwindow* window, glm::vec2 mousePos, bool leftDown, float dt) {
     if (!m_isRenameModalOpen) return false;
 
-    glm::vec2 modalSize(440.0f, 210.0f);
-    glm::vec2 modalPos((static_cast<float>(m_width) - modalSize.x) * 0.5f, (static_cast<float>(m_height) - modalSize.y) * 0.5f);
-
-    glm::vec2 btnSavePos(modalPos.x + 30.0f, modalPos.y + 148.0f);
-    glm::vec2 btnSaveSize(190.0f, 40.0f);
-    glm::vec2 btnCancelPos(modalPos.x + 240.0f, modalPos.y + 148.0f);
-    glm::vec2 btnCancelSize(170.0f, 40.0f);
+    RenameModalLayout l = getRenameModalLayout();
 
     auto checkKeyInput = [&](int key) -> bool {
         bool down = (glfwGetKey(window, key) == GLFW_PRESS);
@@ -359,15 +513,15 @@ bool LevelSelectState::processRenameModalInput(GLFWwindow* window, glm::vec2 mou
     }
 
     if (leftDown && !m_mousePressedLastFrame) {
-        if (isPointInRect(mousePos, btnSavePos, btnSaveSize)) {
+        if (isPointInRect(mousePos, l.btnSavePos, l.btnSaveSize)) {
             confirmRename();
             return true;
         }
-        if (isPointInRect(mousePos, btnCancelPos, btnCancelSize)) {
+        if (isPointInRect(mousePos, l.btnCancelPos, l.btnCancelSize)) {
             m_isRenameModalOpen = false;
             return true;
         }
-        if (!isPointInRect(mousePos, modalPos, modalSize)) {
+        if (!isPointInRect(mousePos, l.modalPos, l.modalSize)) {
             m_isRenameModalOpen = false;
             return true;
         }
@@ -387,18 +541,7 @@ void LevelSelectState::openTagsModal(const std::string& targetFileName) {
     }
     m_tagInputText.clear();
     m_isTagsModalOpen = true;
-
-    // Быстрые теги для добавления
     m_quickAddChips.clear();
-    std::vector<std::string> presets = { "Кампания", "Тест", "Сложный", "Ртуть", "Шахта", "Лабиринт", "Быстрый" };
-    float chipX = 0.0f;
-    for (const auto& p : presets) {
-        float w = m_textRenderer ? (m_textRenderer->CalculateTextWidth("+" + p, 0.45f) + 16.0f) : 64.0f;
-        TagChip chip;
-        chip.tag = p;
-        chip.size = glm::vec2(w, 26.0f);
-        m_quickAddChips.push_back(chip);
-    }
 }
 
 void LevelSelectState::saveAndCloseTagsModal() {
@@ -410,17 +553,7 @@ void LevelSelectState::saveAndCloseTagsModal() {
 bool LevelSelectState::processTagsModalInput(GLFWwindow* window, glm::vec2 mousePos, bool leftDown, float dt) {
     if (!m_isTagsModalOpen) return false;
 
-    glm::vec2 modalSize(500.0f, 380.0f);
-    glm::vec2 modalPos((static_cast<float>(m_width) - modalSize.x) * 0.5f, (static_cast<float>(m_height) - modalSize.y) * 0.5f);
-
-    glm::vec2 btnDonePos(modalPos.x + (modalSize.x - 140.0f) * 0.5f, modalPos.y + modalSize.y - 48.0f);
-    glm::vec2 btnDoneSize(140.0f, 36.0f);
-
-    glm::vec2 btnAddPos(modalPos.x + modalSize.x - 130.0f, modalPos.y + modalSize.y - 100.0f);
-    glm::vec2 btnAddSize(100.0f, 32.0f);
-
-    glm::vec2 boxPos(modalPos.x + 30.0f, modalPos.y + modalSize.y - 100.0f);
-    glm::vec2 boxSize(modalSize.x - 170.0f, 32.0f);
+    TagsModalLayout l = getTagsModalLayout();
 
     auto checkKeyInput = [&](int key) -> bool {
         bool down = (glfwGetKey(window, key) == GLFW_PRESS);
@@ -476,13 +609,13 @@ bool LevelSelectState::processTagsModalInput(GLFWwindow* window, glm::vec2 mouse
 
     if (leftDown && !m_mousePressedLastFrame) {
         // Клик по кнопке Готово
-        if (isPointInRect(mousePos, btnDonePos, btnDoneSize)) {
+        if (isPointInRect(mousePos, l.btnDonePos, l.btnDoneSize)) {
             saveAndCloseTagsModal();
             return true;
         }
 
         // Клик по кнопке Добавить
-        if (isPointInRect(mousePos, btnAddPos, btnAddSize)) {
+        if (isPointInRect(mousePos, l.btnAddPos, l.btnAddSize)) {
             if (!m_tagInputText.empty()) {
                 if (std::find(m_currentLevelTags.begin(), m_currentLevelTags.end(), m_tagInputText) == m_currentLevelTags.end()) {
                     m_currentLevelTags.push_back(m_tagInputText);
@@ -493,42 +626,27 @@ bool LevelSelectState::processTagsModalInput(GLFWwindow* window, glm::vec2 mouse
         }
 
         // Клик по быстрым тегам (пресетам)
-        float curX = modalPos.x + 30.0f;
-        float curY = modalPos.y + 195.0f;
-        for (const auto& chip : m_quickAddChips) {
-            if (curX + chip.size.x > modalPos.x + modalSize.x - 30.0f) {
-                curX = modalPos.x + 30.0f;
-                curY += chip.size.y + 6.0f;
-            }
-            if (isPointInRect(mousePos, glm::vec2(curX, curY), chip.size)) {
+        for (const auto& chip : l.quickChips) {
+            if (isPointInRect(mousePos, chip.pos, chip.size)) {
                 if (std::find(m_currentLevelTags.begin(), m_currentLevelTags.end(), chip.tag) == m_currentLevelTags.end()) {
                     m_currentLevelTags.push_back(chip.tag);
                 }
                 return true;
             }
-            curX += chip.size.x + 6.0f;
         }
 
         // Клик по удалению существующих тегов (крестик x)
-        float tagX = modalPos.x + 30.0f;
-        float tagY = modalPos.y + 65.0f;
-        for (size_t i = 0; i < m_currentLevelTags.size(); ++i) {
-            float tw = m_textRenderer ? (m_textRenderer->CalculateTextWidth(m_currentLevelTags[i], 0.48f) + 34.0f) : 70.0f;
-            if (tagX + tw > modalPos.x + modalSize.x - 30.0f) {
-                tagX = modalPos.x + 30.0f;
-                tagY += 30.0f;
-            }
-            // Зона крестика
-            glm::vec2 delPos(tagX + tw - 22.0f, tagY + 4.0f);
-            glm::vec2 delSize(18.0f, 18.0f);
-            if (isPointInRect(mousePos, delPos, delSize)) {
-                m_currentLevelTags.erase(m_currentLevelTags.begin() + i);
+        for (size_t i = 0; i < l.existingChips.size(); ++i) {
+            if (isPointInRect(mousePos, l.existingChips[i].delPos, l.existingChips[i].delSize)) {
+                if (i < m_currentLevelTags.size()) {
+                    m_currentLevelTags.erase(m_currentLevelTags.begin() + i);
+                }
                 return true;
             }
-            tagX += tw + 8.0f;
         }
 
-        if (!isPointInRect(mousePos, modalPos, modalSize)) {
+        // Клик вне модального окна -> закрыть с сохранением
+        if (!isPointInRect(mousePos, l.modalPos, l.modalSize)) {
             saveAndCloseTagsModal();
             return true;
         }
@@ -924,185 +1042,178 @@ void LevelSelectState::render() {
 void LevelSelectState::renderRenameModal() {
     m_renderer->drawSpriteRGBA(m_whiteTexture, glm::vec2(0.0f), glm::vec2(m_width, m_height), 0.0f, glm::vec4(0.04f, 0.05f, 0.07f, 0.75f));
 
-    glm::vec2 modalSize(440.0f, 210.0f);
-    glm::vec2 modalPos((static_cast<float>(m_width) - modalSize.x) * 0.5f, (static_cast<float>(m_height) - modalSize.y) * 0.5f);
+    RenameModalLayout l = getRenameModalLayout();
+    float scale = GetUIScale(m_width, m_height);
 
-    m_renderer->drawSprite(m_whiteTexture, modalPos, modalSize, 0.0f, glm::vec3(0.12f, 0.13f, 0.17f));
-    m_renderer->drawSprite(m_whiteTexture, modalPos, glm::vec2(modalSize.x, 1.0f), 0.0f, glm::vec3(0.35f, 0.85f, 1.0f));
-    m_renderer->drawSprite(m_whiteTexture, modalPos + glm::vec2(0.0f, modalSize.y - 1.0f), glm::vec2(modalSize.x, 1.0f), 0.0f, glm::vec3(0.35f, 0.85f, 1.0f));
-    m_renderer->drawSprite(m_whiteTexture, modalPos, glm::vec2(1.0f, modalSize.y), 0.0f, glm::vec3(0.35f, 0.85f, 1.0f));
-    m_renderer->drawSprite(m_whiteTexture, modalPos + glm::vec2(modalSize.x - 1.0f, 0.0f), glm::vec2(1.0f, modalSize.y), 0.0f, glm::vec3(0.35f, 0.85f, 1.0f));
+    // 1. Основная подложка и рамка
+    m_renderer->drawSprite(m_whiteTexture, l.modalPos, l.modalSize, 0.0f, glm::vec3(0.12f, 0.13f, 0.17f));
+    m_renderer->drawSprite(m_whiteTexture, l.modalPos, glm::vec2(l.modalSize.x, 1.0f), 0.0f, glm::vec3(0.35f, 0.85f, 1.0f));
+    m_renderer->drawSprite(m_whiteTexture, l.modalPos + glm::vec2(0.0f, l.modalSize.y - 1.0f), glm::vec2(l.modalSize.x, 1.0f), 0.0f, glm::vec3(0.35f, 0.85f, 1.0f));
+    m_renderer->drawSprite(m_whiteTexture, l.modalPos, glm::vec2(1.0f, l.modalSize.y), 0.0f, glm::vec3(0.35f, 0.85f, 1.0f));
+    m_renderer->drawSprite(m_whiteTexture, l.modalPos + glm::vec2(l.modalSize.x - 1.0f, 0.0f), glm::vec2(1.0f, l.modalSize.y), 0.0f, glm::vec3(0.35f, 0.85f, 1.0f));
 
-    float headerH = 38.0f;
-    m_renderer->drawSprite(m_whiteTexture, modalPos, glm::vec2(modalSize.x, headerH), 0.0f, glm::vec3(0.16f, 0.18f, 0.24f));
-    m_renderer->drawSprite(m_whiteTexture, modalPos + glm::vec2(0.0f, headerH), glm::vec2(modalSize.x, 2.0f), 0.0f, glm::vec3(0.35f, 0.85f, 1.0f));
+    // 2. Шапка
+    m_renderer->drawSprite(m_whiteTexture, l.modalPos, glm::vec2(l.modalSize.x, l.headerH), 0.0f, glm::vec3(0.16f, 0.18f, 0.24f));
+    m_renderer->drawSprite(m_whiteTexture, l.modalPos + glm::vec2(0.0f, l.headerH), glm::vec2(l.modalSize.x, 2.0f), 0.0f, glm::vec3(0.35f, 0.85f, 1.0f));
 
-    glm::vec2 boxPos(modalPos.x + 30.0f, modalPos.y + 88.0f);
-    glm::vec2 boxSize(modalSize.x - 60.0f, 38.0f);
-    m_renderer->drawSprite(m_whiteTexture, boxPos, boxSize, 0.0f, glm::vec3(0.35f, 0.85f, 1.0f));
-    m_renderer->drawSprite(m_whiteTexture, boxPos + glm::vec2(1.0f), boxSize - glm::vec2(2.0f), 0.0f, glm::vec3(0.08f, 0.09f, 0.12f));
+    // 3. Поле ввода названия
+    m_renderer->drawSprite(m_whiteTexture, l.boxPos, l.boxSize, 0.0f, glm::vec3(0.35f, 0.85f, 1.0f));
+    m_renderer->drawSprite(m_whiteTexture, l.boxPos + glm::vec2(1.0f), l.boxSize - glm::vec2(2.0f), 0.0f, glm::vec3(0.08f, 0.09f, 0.12f));
 
-    glm::vec2 btnSavePos(modalPos.x + 30.0f, modalPos.y + 148.0f);
-    glm::vec2 btnSaveSize(190.0f, 40.0f);
-    bool hovSave = isPointInRect(m_mousePos, btnSavePos, btnSaveSize);
-    m_renderer->drawSprite(m_whiteTexture, btnSavePos, btnSaveSize, 0.0f, hovSave ? glm::vec3(0.35f, 0.95f, 0.50f) : glm::vec3(0.25f, 0.80f, 0.40f));
-    m_renderer->drawSprite(m_whiteTexture, btnSavePos + glm::vec2(1.0f), btnSaveSize - glm::vec2(2.0f), 0.0f, hovSave ? glm::vec3(0.16f, 0.36f, 0.20f) : glm::vec3(0.12f, 0.28f, 0.16f));
+    // 4. Кнопка Сохранить
+    bool hovSave = isPointInRect(m_mousePos, l.btnSavePos, l.btnSaveSize);
+    m_renderer->drawSprite(m_whiteTexture, l.btnSavePos, l.btnSaveSize, 0.0f, hovSave ? glm::vec3(0.35f, 0.95f, 0.50f) : glm::vec3(0.25f, 0.80f, 0.40f));
+    m_renderer->drawSprite(m_whiteTexture, l.btnSavePos + glm::vec2(1.0f), l.btnSaveSize - glm::vec2(2.0f), 0.0f, hovSave ? glm::vec3(0.16f, 0.36f, 0.20f) : glm::vec3(0.12f, 0.28f, 0.16f));
 
-    glm::vec2 btnCancelPos(modalPos.x + 240.0f, modalPos.y + 148.0f);
-    glm::vec2 btnCancelSize(170.0f, 40.0f);
-    bool hovCancel = isPointInRect(m_mousePos, btnCancelPos, btnCancelSize);
-    m_renderer->drawSprite(m_whiteTexture, btnCancelPos, btnCancelSize, 0.0f, hovCancel ? glm::vec3(0.6f, 0.25f, 0.25f) : glm::vec3(0.45f, 0.20f, 0.20f));
-    m_renderer->drawSprite(m_whiteTexture, btnCancelPos + glm::vec2(1.0f), btnCancelSize - glm::vec2(2.0f), 0.0f, hovCancel ? glm::vec3(0.28f, 0.14f, 0.14f) : glm::vec3(0.22f, 0.11f, 0.11f));
+    // 5. Кнопка Отмена
+    bool hovCancel = isPointInRect(m_mousePos, l.btnCancelPos, l.btnCancelSize);
+    m_renderer->drawSprite(m_whiteTexture, l.btnCancelPos, l.btnCancelSize, 0.0f, hovCancel ? glm::vec3(0.60f, 0.25f, 0.25f) : glm::vec3(0.45f, 0.20f, 0.20f));
+    m_renderer->drawSprite(m_whiteTexture, l.btnCancelPos + glm::vec2(1.0f), l.btnCancelSize - glm::vec2(2.0f), 0.0f, hovCancel ? glm::vec3(0.28f, 0.14f, 0.14f) : glm::vec3(0.22f, 0.11f, 0.11f));
 
     m_renderer->flush();
 
+    // 6. Тексты
     if (m_textRenderer) {
+        // Заголовок
         std::string titleStr = LOC("RENAME_TITLE");
-        float titleW = m_textRenderer->CalculateTextWidth(titleStr, 0.70f);
-        m_textRenderer->RenderText(titleStr, modalPos.x + (modalSize.x - titleW) * 0.5f, modalPos.y + 10.0f, 0.70f, glm::vec3(1.0f, 0.85f, 0.25f));
+        float titleW = m_textRenderer->CalculateTextWidth(titleStr, l.fTitle);
+        float titleY = l.modalPos.y + (l.headerH - l.fTitle * 28.0f) * 0.5f + 2.0f;
+        m_textRenderer->RenderText(titleStr, l.modalPos.x + (l.modalSize.x - titleW) * 0.5f, titleY, l.fTitle, glm::vec3(1.0f, 0.85f, 0.25f));
 
+        // Имя файла (подзаголовок)
         std::string sub = "File: " + m_renameTargetFileName;
-        m_textRenderer->RenderText(sub, modalPos.x + 32.0f, modalPos.y + 55.0f, 0.50f, glm::vec3(0.70f, 0.75f, 0.85f));
+        m_textRenderer->RenderText(sub, l.modalPos.x + l.padX, l.subY, l.fSub, glm::vec3(0.70f, 0.75f, 0.85f));
 
+        // Поле ввода
+        float padInputX = std::clamp(10.0f * scale, 6.0f, 14.0f);
+        float inputTxtY = l.boxPos.y + (l.boxSize.y - l.fInput * 28.0f) * 0.5f + 2.0f;
         bool showCursor = (m_cursorBlinkTimer < 0.5f);
         std::string displayText = m_renameInputText + (showCursor ? "|" : "");
-        m_textRenderer->RenderText(displayText, boxPos.x + 12.0f, boxPos.y + 10.0f, 0.62f, glm::vec3(0.40f, 0.95f, 1.0f));
+        m_textRenderer->RenderText(displayText, l.boxPos.x + padInputX, inputTxtY, l.fInput, glm::vec3(0.40f, 0.95f, 1.0f));
 
+        // Кнопка Сохранить
         std::string saveStr = LOC("RENAME_SAVE") + " (Enter)";
-        float sTxtW = m_textRenderer->CalculateTextWidth(saveStr, 0.55f);
-        m_textRenderer->RenderText(saveStr, btnSavePos.x + (btnSaveSize.x - sTxtW) * 0.5f, btnSavePos.y + 12.0f, 0.55f, glm::vec3(0.95f));
+        float sTxtW = m_textRenderer->CalculateTextWidth(saveStr, l.fBtn);
+        float sTxtX = l.btnSavePos.x + (l.btnSaveSize.x - sTxtW) * 0.5f;
+        float sTxtY = l.btnSavePos.y + (l.btnSaveSize.y - l.fBtn * 28.0f) * 0.5f + 2.0f;
+        m_textRenderer->RenderText(saveStr, sTxtX, sTxtY, l.fBtn, glm::vec3(0.95f));
 
+        // Кнопка Отмена
         std::string cancelStr = LOC("RENAME_CANCEL") + " (Esc)";
-        float cTxtW = m_textRenderer->CalculateTextWidth(cancelStr, 0.55f);
-        m_textRenderer->RenderText(cancelStr, btnCancelPos.x + (btnCancelSize.x - cTxtW) * 0.5f, btnCancelPos.y + 12.0f, 0.55f, glm::vec3(0.95f));
+        float cTxtW = m_textRenderer->CalculateTextWidth(cancelStr, l.fBtn);
+        float cTxtX = l.btnCancelPos.x + (l.btnCancelSize.x - cTxtW) * 0.5f;
+        float cTxtY = l.btnCancelPos.y + (l.btnCancelSize.y - l.fBtn * 28.0f) * 0.5f + 2.0f;
+        m_textRenderer->RenderText(cancelStr, cTxtX, cTxtY, l.fBtn, glm::vec3(0.95f));
     }
 }
 
 void LevelSelectState::renderTagsModal() {
     m_renderer->drawSpriteRGBA(m_whiteTexture, glm::vec2(0.0f), glm::vec2(m_width, m_height), 0.0f, glm::vec4(0.04f, 0.05f, 0.07f, 0.75f));
 
-    glm::vec2 modalSize(500.0f, 380.0f);
-    glm::vec2 modalPos((static_cast<float>(m_width) - modalSize.x) * 0.5f, (static_cast<float>(m_height) - modalSize.y) * 0.5f);
+    TagsModalLayout l = getTagsModalLayout();
+    float scale = GetUIScale(m_width, m_height);
 
-    m_renderer->drawSprite(m_whiteTexture, modalPos, modalSize, 0.0f, glm::vec3(0.12f, 0.13f, 0.17f));
-    m_renderer->drawSprite(m_whiteTexture, modalPos, glm::vec2(modalSize.x, 1.0f), 0.0f, glm::vec3(0.35f, 0.85f, 1.0f));
-    m_renderer->drawSprite(m_whiteTexture, modalPos + glm::vec2(0.0f, modalSize.y - 1.0f), glm::vec2(modalSize.x, 1.0f), 0.0f, glm::vec3(0.35f, 0.85f, 1.0f));
-    m_renderer->drawSprite(m_whiteTexture, modalPos, glm::vec2(1.0f, modalSize.y), 0.0f, glm::vec3(0.35f, 0.85f, 1.0f));
-    m_renderer->drawSprite(m_whiteTexture, modalPos + glm::vec2(modalSize.x - 1.0f, 0.0f), glm::vec2(1.0f, modalSize.y), 0.0f, glm::vec3(0.35f, 0.85f, 1.0f));
+    // 1. Основная подложка и рамка
+    m_renderer->drawSprite(m_whiteTexture, l.modalPos, l.modalSize, 0.0f, glm::vec3(0.12f, 0.13f, 0.17f));
+    m_renderer->drawSprite(m_whiteTexture, l.modalPos, glm::vec2(l.modalSize.x, 1.0f), 0.0f, glm::vec3(0.35f, 0.85f, 1.0f));
+    m_renderer->drawSprite(m_whiteTexture, l.modalPos + glm::vec2(0.0f, l.modalSize.y - 1.0f), glm::vec2(l.modalSize.x, 1.0f), 0.0f, glm::vec3(0.35f, 0.85f, 1.0f));
+    m_renderer->drawSprite(m_whiteTexture, l.modalPos, glm::vec2(1.0f, l.modalSize.y), 0.0f, glm::vec3(0.35f, 0.85f, 1.0f));
+    m_renderer->drawSprite(m_whiteTexture, l.modalPos + glm::vec2(l.modalSize.x - 1.0f, 0.0f), glm::vec2(1.0f, l.modalSize.y), 0.0f, glm::vec3(0.35f, 0.85f, 1.0f));
 
-    float headerH = 38.0f;
-    m_renderer->drawSprite(m_whiteTexture, modalPos, glm::vec2(modalSize.x, headerH), 0.0f, glm::vec3(0.16f, 0.18f, 0.24f));
-    m_renderer->drawSprite(m_whiteTexture, modalPos + glm::vec2(0.0f, headerH), glm::vec2(modalSize.x, 2.0f), 0.0f, glm::vec3(0.35f, 0.85f, 1.0f));
+    // 2. Шапка
+    m_renderer->drawSprite(m_whiteTexture, l.modalPos, glm::vec2(l.modalSize.x, l.headerH), 0.0f, glm::vec3(0.16f, 0.18f, 0.24f));
+    m_renderer->drawSprite(m_whiteTexture, l.modalPos + glm::vec2(0.0f, l.headerH), glm::vec2(l.modalSize.x, 2.0f), 0.0f, glm::vec3(0.35f, 0.85f, 1.0f));
 
-    // Отрисовка чипов существующих тегов с кнопкой удаления (x)
-    float tagX = modalPos.x + 30.0f;
-    float tagY = modalPos.y + 55.0f;
-    for (size_t i = 0; i < m_currentLevelTags.size(); ++i) {
-        float tw = m_textRenderer ? (m_textRenderer->CalculateTextWidth(m_currentLevelTags[i], 0.48f) + 34.0f) : 70.0f;
-        if (tagX + tw > modalPos.x + modalSize.x - 30.0f) {
-            tagX = modalPos.x + 30.0f;
-            tagY += 30.0f;
-        }
-        glm::vec2 tPos(tagX, tagY);
-        glm::vec2 tSize(tw, 24.0f);
-        m_renderer->drawSprite(m_whiteTexture, tPos, tSize, 0.0f, glm::vec3(0.30f, 0.50f, 0.40f));
-        m_renderer->drawSprite(m_whiteTexture, tPos + glm::vec2(1.0f), tSize - glm::vec2(2.0f), 0.0f, glm::vec3(0.14f, 0.22f, 0.18f));
+    // 3. Отрисовка чипов существующих тегов с кнопкой удаления (x)
+    for (const auto& chip : l.existingChips) {
+        m_renderer->drawSprite(m_whiteTexture, chip.chipPos, chip.chipSize, 0.0f, glm::vec3(0.30f, 0.50f, 0.40f));
+        m_renderer->drawSprite(m_whiteTexture, chip.chipPos + glm::vec2(1.0f), chip.chipSize - glm::vec2(2.0f), 0.0f, glm::vec3(0.14f, 0.22f, 0.18f));
 
         // Крестик x
-        glm::vec2 delPos(tagX + tw - 20.0f, tagY + 3.0f);
-        glm::vec2 delSize(16.0f, 18.0f);
-        m_renderer->drawSprite(m_whiteTexture, delPos, delSize, 0.0f, glm::vec3(0.55f, 0.20f, 0.20f));
-
-        tagX += tw + 8.0f;
+        bool hovDel = isPointInRect(m_mousePos, chip.delPos, chip.delSize);
+        m_renderer->drawSprite(m_whiteTexture, chip.delPos, chip.delSize, 0.0f, hovDel ? glm::vec3(0.75f, 0.25f, 0.25f) : glm::vec3(0.55f, 0.20f, 0.20f));
+        m_renderer->drawSprite(m_whiteTexture, chip.delPos + glm::vec2(1.0f), chip.delSize - glm::vec2(2.0f), 0.0f, hovDel ? glm::vec3(0.35f, 0.12f, 0.12f) : glm::vec3(0.24f, 0.10f, 0.10f));
     }
 
-    // Быстрые теги (пресеты)
-    float curX = modalPos.x + 30.0f;
-    float curY = modalPos.y + 195.0f;
-    for (const auto& chip : m_quickAddChips) {
-        if (curX + chip.size.x > modalPos.x + modalSize.x - 30.0f) {
-            curX = modalPos.x + 30.0f;
-            curY += chip.size.y + 6.0f;
-        }
-        bool hover = isPointInRect(m_mousePos, glm::vec2(curX, curY), chip.size);
-        m_renderer->drawSprite(m_whiteTexture, glm::vec2(curX, curY), chip.size, 0.0f, hover ? glm::vec3(0.40f, 0.85f, 0.95f) : glm::vec3(0.25f, 0.35f, 0.45f));
-        m_renderer->drawSprite(m_whiteTexture, glm::vec2(curX + 1.0f, curY + 1.0f), chip.size - glm::vec2(2.0f), 0.0f, glm::vec3(0.14f, 0.18f, 0.24f));
-        curX += chip.size.x + 6.0f;
+    // 4. Быстрые теги (пресеты)
+    for (const auto& chip : l.quickChips) {
+        bool hover = isPointInRect(m_mousePos, chip.pos, chip.size);
+        m_renderer->drawSprite(m_whiteTexture, chip.pos, chip.size, 0.0f, hover ? glm::vec3(0.40f, 0.85f, 0.95f) : glm::vec3(0.25f, 0.35f, 0.45f));
+        m_renderer->drawSprite(m_whiteTexture, chip.pos + glm::vec2(1.0f), chip.size - glm::vec2(2.0f), 0.0f, hover ? glm::vec3(0.18f, 0.26f, 0.34f) : glm::vec3(0.14f, 0.18f, 0.24f));
     }
 
-    // Поле ввода нового тега
-    glm::vec2 boxPos(modalPos.x + 30.0f, modalPos.y + modalSize.y - 100.0f);
-    glm::vec2 boxSize(modalSize.x - 170.0f, 32.0f);
-    m_renderer->drawSprite(m_whiteTexture, boxPos, boxSize, 0.0f, glm::vec3(0.35f, 0.85f, 1.0f));
-    m_renderer->drawSprite(m_whiteTexture, boxPos + glm::vec2(1.0f), boxSize - glm::vec2(2.0f), 0.0f, glm::vec3(0.08f, 0.09f, 0.12f));
+    // 5. Поле ввода нового тега
+    m_renderer->drawSprite(m_whiteTexture, l.boxPos, l.boxSize, 0.0f, glm::vec3(0.35f, 0.85f, 1.0f));
+    m_renderer->drawSprite(m_whiteTexture, l.boxPos + glm::vec2(1.0f), l.boxSize - glm::vec2(2.0f), 0.0f, glm::vec3(0.08f, 0.09f, 0.12f));
 
-    // Кнопка Добавить
-    glm::vec2 btnAddPos(modalPos.x + modalSize.x - 130.0f, modalPos.y + modalSize.y - 100.0f);
-    glm::vec2 btnAddSize(100.0f, 32.0f);
-    bool hovAdd = isPointInRect(m_mousePos, btnAddPos, btnAddSize);
-    m_renderer->drawSprite(m_whiteTexture, btnAddPos, btnAddSize, 0.0f, hovAdd ? glm::vec3(0.35f, 0.95f, 0.50f) : glm::vec3(0.25f, 0.75f, 0.35f));
-    m_renderer->drawSprite(m_whiteTexture, btnAddPos + glm::vec2(1.0f), btnAddSize - glm::vec2(2.0f), 0.0f, glm::vec3(0.14f, 0.28f, 0.18f));
+    // 6. Кнопка Добавить
+    bool hovAdd = isPointInRect(m_mousePos, l.btnAddPos, l.btnAddSize);
+    m_renderer->drawSprite(m_whiteTexture, l.btnAddPos, l.btnAddSize, 0.0f, hovAdd ? glm::vec3(0.35f, 0.95f, 0.50f) : glm::vec3(0.25f, 0.75f, 0.35f));
+    m_renderer->drawSprite(m_whiteTexture, l.btnAddPos + glm::vec2(1.0f), l.btnAddSize - glm::vec2(2.0f), 0.0f, hovAdd ? glm::vec3(0.18f, 0.38f, 0.22f) : glm::vec3(0.14f, 0.28f, 0.18f));
 
-    // Кнопка Готово
-    glm::vec2 btnDonePos(modalPos.x + (modalSize.x - 140.0f) * 0.5f, modalPos.y + modalSize.y - 48.0f);
-    glm::vec2 btnDoneSize(140.0f, 36.0f);
-    bool hovDone = isPointInRect(m_mousePos, btnDonePos, btnDoneSize);
-    m_renderer->drawSprite(m_whiteTexture, btnDonePos, btnDoneSize, 0.0f, hovDone ? glm::vec3(0.40f, 0.85f, 1.0f) : glm::vec3(0.30f, 0.65f, 0.85f));
-    m_renderer->drawSprite(m_whiteTexture, btnDonePos + glm::vec2(1.0f), btnDoneSize - glm::vec2(2.0f), 0.0f, glm::vec3(0.14f, 0.22f, 0.32f));
+    // 7. Кнопка Готово
+    bool hovDone = isPointInRect(m_mousePos, l.btnDonePos, l.btnDoneSize);
+    m_renderer->drawSprite(m_whiteTexture, l.btnDonePos, l.btnDoneSize, 0.0f, hovDone ? glm::vec3(0.40f, 0.85f, 1.0f) : glm::vec3(0.30f, 0.65f, 0.85f));
+    m_renderer->drawSprite(m_whiteTexture, l.btnDonePos + glm::vec2(1.0f), l.btnDoneSize - glm::vec2(2.0f), 0.0f, hovDone ? glm::vec3(0.18f, 0.30f, 0.42f) : glm::vec3(0.14f, 0.22f, 0.32f));
 
     m_renderer->flush();
 
+    // 8. Тексты
     if (m_textRenderer) {
+        // Заголовок
         std::string titleStr = LOC("TAGS_TITLE");
-        float titleW = m_textRenderer->CalculateTextWidth(titleStr, 0.65f);
-        m_textRenderer->RenderText(titleStr, modalPos.x + (modalSize.x - titleW) * 0.5f, modalPos.y + 10.0f, 0.65f, glm::vec3(1.0f, 0.85f, 0.25f));
+        float titleW = m_textRenderer->CalculateTextWidth(titleStr, l.fTitle);
+        float titleY = l.modalPos.y + (l.headerH - l.fTitle * 28.0f) * 0.5f + 2.0f;
+        m_textRenderer->RenderText(titleStr, l.modalPos.x + (l.modalSize.x - titleW) * 0.5f, titleY, l.fTitle, glm::vec3(1.0f, 0.85f, 0.25f));
 
         // Текст существующих тегов
-        float tx = modalPos.x + 30.0f;
-        float ty = modalPos.y + 55.0f;
-        for (const auto& t : m_currentLevelTags) {
-            float tw = m_textRenderer->CalculateTextWidth(t, 0.48f) + 34.0f;
-            if (tx + tw > modalPos.x + modalSize.x - 30.0f) {
-                tx = modalPos.x + 30.0f;
-                ty += 30.0f;
-            }
-            m_textRenderer->RenderText(t, tx + 6.0f, ty + 6.0f, 0.48f, glm::vec3(0.85f, 0.95f, 0.90f));
-            m_textRenderer->RenderText("x", tx + tw - 16.0f, ty + 4.0f, 0.44f, glm::vec3(1.0f, 0.85f, 0.85f));
-            tx += tw + 8.0f;
+        float padTextX = std::clamp(8.0f * scale, 5.0f, 12.0f);
+        for (const auto& chip : l.existingChips) {
+            float textY = chip.chipPos.y + (chip.chipSize.y - l.fExistingChip * 28.0f) * 0.5f + 2.0f;
+            m_textRenderer->RenderText(chip.tag, chip.chipPos.x + padTextX, textY, l.fExistingChip, glm::vec3(0.85f, 0.95f, 0.90f));
+
+            // Крестик x
+            float delTextW = m_textRenderer->CalculateTextWidth("x", l.fDel);
+            float delTextX = chip.delPos.x + (chip.delSize.x - delTextW) * 0.5f;
+            float delTextY = chip.delPos.y + (chip.delSize.y - l.fDel * 28.0f) * 0.5f + 2.0f;
+            m_textRenderer->RenderText("x", delTextX, delTextY, l.fDel, glm::vec3(1.0f, 0.85f, 0.85f));
         }
 
         // Подпись популярных тегов
-        m_textRenderer->RenderText(LOC("TAGS_POPULAR"), modalPos.x + 30.0f, modalPos.y + 172.0f, 0.46f, glm::vec3(0.70f, 0.75f, 0.85f));
+        m_textRenderer->RenderText(LOC("TAGS_POPULAR"), l.popLabelPos.x, l.popLabelPos.y, l.fPopLabel, glm::vec3(0.70f, 0.75f, 0.85f));
 
-        // Текст чипов
-        curX = modalPos.x + 30.0f;
-        curY = modalPos.y + 195.0f;
-        for (const auto& chip : m_quickAddChips) {
-            if (curX + chip.size.x > modalPos.x + modalSize.x - 30.0f) {
-                curX = modalPos.x + 30.0f;
-                curY += chip.size.y + 6.0f;
-            }
-            m_textRenderer->RenderText("+" + chip.tag, curX + 8.0f, curY + 6.0f, 0.44f, glm::vec3(0.40f, 0.85f, 0.95f));
-            curX += chip.size.x + 6.0f;
+        // Текст быстрых чипов
+        for (const auto& chip : l.quickChips) {
+            std::string qText = "+" + chip.tag;
+            float qTextW = m_textRenderer->CalculateTextWidth(qText, l.fQuickChip);
+            float qTextX = chip.pos.x + (chip.size.x - qTextW) * 0.5f;
+            float qTextY = chip.pos.y + (chip.size.y - l.fQuickChip * 28.0f) * 0.5f + 2.0f;
+            m_textRenderer->RenderText(qText, qTextX, qTextY, l.fQuickChip, glm::vec3(0.40f, 0.85f, 0.95f));
         }
 
         // Текст в поле ввода нового тега
+        float inputPadX = std::clamp(10.0f * scale, 6.0f, 14.0f);
+        float inputTextY = l.boxPos.y + (l.boxSize.y - l.fInput * 28.0f) * 0.5f + 2.0f;
         if (m_tagInputText.empty()) {
-            m_textRenderer->RenderText(LOC("TAGS_ADD_HINT"), boxPos.x + 8.0f, boxPos.y + 8.0f, 0.48f, glm::vec3(0.45f, 0.50f, 0.60f));
+            m_textRenderer->RenderText(LOC("TAGS_ADD_HINT"), l.boxPos.x + inputPadX, inputTextY, l.fInput, glm::vec3(0.45f, 0.50f, 0.60f));
         } else {
             bool showCursor = (m_cursorBlinkTimer < 0.5f);
-            m_textRenderer->RenderText(m_tagInputText + (showCursor ? "|" : ""), boxPos.x + 8.0f, boxPos.y + 8.0f, 0.52f, glm::vec3(0.35f, 0.95f, 1.0f));
+            m_textRenderer->RenderText(m_tagInputText + (showCursor ? "|" : ""), l.boxPos.x + inputPadX, inputTextY, l.fInput, glm::vec3(0.35f, 0.95f, 1.0f));
         }
 
         // Кнопка Добавить
         std::string addStr = LOC("TAGS_ADD_BTN");
-        float addW = m_textRenderer->CalculateTextWidth(addStr, 0.48f);
-        m_textRenderer->RenderText(addStr, btnAddPos.x + (btnAddSize.x - addW) * 0.5f, btnAddPos.y + 8.0f, 0.48f, glm::vec3(0.95f));
+        float addW = m_textRenderer->CalculateTextWidth(addStr, l.fAddBtn);
+        float addTextX = l.btnAddPos.x + (l.btnAddSize.x - addW) * 0.5f;
+        float addTextY = l.btnAddPos.y + (l.btnAddSize.y - l.fAddBtn * 28.0f) * 0.5f + 2.0f;
+        m_textRenderer->RenderText(addStr, addTextX, addTextY, l.fAddBtn, glm::vec3(0.95f));
 
         // Кнопка Готово
         std::string doneStr = LOC("TAGS_CLOSE");
-        float doneW = m_textRenderer->CalculateTextWidth(doneStr, 0.55f);
-        m_textRenderer->RenderText(doneStr, btnDonePos.x + (btnDoneSize.x - doneW) * 0.5f, btnDonePos.y + 10.0f, 0.55f, glm::vec3(0.95f));
+        float doneW = m_textRenderer->CalculateTextWidth(doneStr, l.fDoneBtn);
+        float doneTextX = l.btnDonePos.x + (l.btnDoneSize.x - doneW) * 0.5f;
+        float doneTextY = l.btnDonePos.y + (l.btnDoneSize.y - l.fDoneBtn * 28.0f) * 0.5f + 2.0f;
+        m_textRenderer->RenderText(doneStr, doneTextX, doneTextY, l.fDoneBtn, glm::vec3(0.95f));
     }
 }
 
