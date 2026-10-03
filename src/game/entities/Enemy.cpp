@@ -86,12 +86,13 @@ void Enemy::update(float dt, const Grid& grid) {
     if (maxSlow > 0.8f) maxSlow = 0.8f;
     m_speedModifier = 1.0f - maxSlow;
 
-    // Таймер иммунитета к повторному отталкиванию
-    if (m_knockbackImmunityTimer > 0.0f) {
-        m_knockbackImmunityTimer -= dt;
-        if (m_knockbackImmunityTimer <= 0.0f) {
-            m_knockbackImmunityTimer = 0.0f;
-            m_lastPistonCell = glm::ivec2(-1, -1);
+    // Таймеры кулдауна для конкретных поршней (защита от локального зацикливания)
+    for (auto it = m_pistonCooldowns.begin(); it != m_pistonCooldowns.end(); ) {
+        it->second -= dt;
+        if (it->second <= 0.0f) {
+            it = m_pistonCooldowns.erase(it);
+        } else {
+            ++it;
         }
     }
 
@@ -114,7 +115,6 @@ void Enemy::update(float dt, const Grid& grid) {
         m_stunTimer -= dt;
         if (m_stunTimer <= 0.0f) {
             m_stunTimer = 0.0f;
-            m_knockbackImmunityTimer = 5.0f; // При выходе из стана даём 5.0с иммунитета, чтобы выйти из зоны бойка!
         }
         // Во время оглушения враг стоит на месте
         return;
@@ -127,7 +127,6 @@ void Enemy::update(float dt, const Grid& grid) {
         if (t >= 1.0f) {
             m_pixelPos = m_knockbackTargetPos;
             m_isKnockedBack = false;
-            m_knockbackImmunityTimer = 5.0f; // По окончании отталкивания даем 5.0с иммунитета!
 
             // Перенастраиваем маршрут, чтобы враг дальше шёл от новой клетки
             applyPostKnockbackPath(m_knockbackDestCell, m_knockbackFromCell, grid);
@@ -433,10 +432,31 @@ bool Enemy::isPoisoned() const {
     return false;
 }
 
+void Enemy::addPistonCooldown(glm::ivec2 pistonCell, float duration) {
+    for (auto& entry : m_pistonCooldowns) {
+        if (entry.first == pistonCell) {
+            entry.second = std::max(entry.second, duration);
+            return;
+        }
+    }
+    m_pistonCooldowns.push_back({ pistonCell, duration });
+}
+
+bool Enemy::isImmuneToPiston(glm::ivec2 pistonCell) const {
+    for (const auto& entry : m_pistonCooldowns) {
+        if (entry.first == pistonCell && entry.second > 0.0f) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void Enemy::pushOneCell(glm::ivec2 fromCell, glm::ivec2 punchDir, const Grid& grid, ParticleSystem* particleSystem) {
     if (m_reachedEnd) return;
 
     glm::ivec2 destCell = fromCell + punchDir;
+    glm::ivec2 pistonCell = fromCell - punchDir;
+    addPistonCooldown(pistonCell, 5.0f); // Кулдаун именно для этого поршня, чтобы не забивать в цикл!
 
     // Проверяем, свободна ли клетка назначения (не стена, не башня, не декорация и не за краем карты)
     bool canPush = Pathfinder::isCellWalkable(grid, destCell.x, destCell.y);
@@ -447,7 +467,6 @@ void Enemy::pushOneCell(glm::ivec2 fromCell, glm::ivec2 punchDir, const Grid& gr
         m_isKnockedBack = false;
         m_wallImpactTimer = 0.12f;
         m_wallImpactOffset = glm::vec2(punchDir) * (grid.getCellSize() * 0.20f);
-        m_knockbackImmunityTimer = 5.8f; // Немедленный иммунитет на все время стана + движения вперед
 
         // Запуск спавна частиц удара SparkImpact в точке контакта
         if (particleSystem) {
@@ -468,7 +487,6 @@ void Enemy::pushOneCell(glm::ivec2 fromCell, glm::ivec2 punchDir, const Grid& gr
     m_knockbackTimer = 0.0f;
     m_knockbackDestCell = destCell;
     m_knockbackFromCell = fromCell;
-    m_knockbackImmunityTimer = 5.0f; // Иммунитет активен с самого начала смещения
 }
 
 void Enemy::applyPostKnockbackPath(glm::ivec2 destCell, glm::ivec2 fromCell, const Grid& grid) {

@@ -119,8 +119,8 @@ void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies,
 		if (m_shotTimer <= 0.0f) {
 			Enemy* victim = nullptr;
 			for (const auto& enemy : enemies) {
-				if (!enemy || enemy->isDead() || enemy->isReachedEnd() || enemy->isKnockedBack() || enemy->isStunned() || enemy->isKnockbackImmune()) continue;
-				if (enemy->getLastPistonCell() == glm::ivec2(m_gridX, m_gridY)) continue; // Защита от бесконечного зацикливания одним и тем же поршнем!
+				if (!enemy || enemy->isDead() || enemy->isReachedEnd() || enemy->isKnockedBack() || enemy->isStunned()) continue;
+				if (enemy->isImmuneToPiston(glm::ivec2(m_gridX, m_gridY))) continue; // Защита от бесконечного зацикливания именно этим поршнем!
 				float dist = glm::distance(enemy->getCollider(grid).center, targetCenter);
 				if (dist < triggerRadius) {
 					victim = enemy.get();
@@ -129,7 +129,7 @@ void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies,
 			}
 
 			if (victim != nullptr) {
-				victim->setLastPistonCell(glm::ivec2(m_gridX, m_gridY));
+				victim->addPistonCooldown(glm::ivec2(m_gridX, m_gridY), 5.0f);
 				m_punchAnimTimer = 0.20f;
 
 				// Поршень НЕ наносит урон, а отталкивает ровно на 1 клетку!
