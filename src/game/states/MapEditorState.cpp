@@ -148,11 +148,8 @@ void MapEditorState::loadLevelByName(const std::string& fileName) {
         m_rawLayout.assign(m_gridHeight, std::vector<int>(m_gridWidth, 0));
     }
 
-    float scale = GetUIScale(m_width, m_height);
-    float dockH = std::clamp(54.0f * scale, 44.0f, 76.0f);
-
     m_grid = std::make_unique<Grid>(m_gridWidth, m_gridHeight, m_cellSize);
-    m_grid->updateCellSize(m_width, m_height, dockH + 6.0f, 46.0f);
+    m_grid->updateCellSize(m_width, m_height, getBottomDockHeight() + 6.0f, getTopBarHeight() + 6.0f);
 
     for (int y = 0; y < m_gridHeight; ++y) {
         for (int x = 0; x < m_gridWidth; ++x) {
@@ -221,11 +218,8 @@ void MapEditorState::resizeMap(int newW, int newH) {
         m_bases.end()
     );
 
-    float scale = GetUIScale(m_width, m_height);
-    float dockH = std::clamp(54.0f * scale, 44.0f, 76.0f);
-
     m_grid = std::make_unique<Grid>(m_gridWidth, m_gridHeight, m_cellSize);
-    m_grid->updateCellSize(m_width, m_height, dockH + 6.0f, 46.0f);
+    m_grid->updateCellSize(m_width, m_height, getBottomDockHeight() + 6.0f, getTopBarHeight() + 6.0f);
 
     for (int y = 0; y < m_gridHeight; ++y) {
         for (int x = 0; x < m_gridWidth; ++x) {
@@ -281,6 +275,16 @@ void MapEditorState::cycleSelectedId(int step) {
     updateButtonLayout();
 }
 
+float MapEditorState::getTopBarHeight() const {
+    float scale = GetUIScale(m_width, m_height);
+    return std::clamp(42.0f * scale, 36.0f, 56.0f);
+}
+
+float MapEditorState::getBottomDockHeight() const {
+    float scale = GetUIScale(m_width, m_height);
+    return std::clamp(54.0f * scale, 46.0f, 74.0f);
+}
+
 void MapEditorState::updateButtonLayout() {
     m_bottomButtons.clear();
     m_topButtons.clear();
@@ -291,18 +295,20 @@ void MapEditorState::updateButtonLayout() {
     };
 
     // 1. КНОПКИ ВЕРХНЕГО ХЕДЕРА
+    float topBarH = getTopBarHeight();
     float topScale = GetUIScale(m_width, m_height);
+    float topH = topBarH - 8.0f;
     float topY = 4.0f;
-    float topH = std::clamp(32.0f * topScale, 26.0f, 46.0f);
-    float topPadding = std::clamp(6.0f * topScale, 4.0f, 10.0f);
-    float topFontScale = std::clamp(0.50f * topScale, 0.38f, 0.68f);
+    float topPadding = std::clamp(5.0f * topScale, 3.0f, 8.0f);
+    float topFontScale = std::clamp(0.48f * topScale, 0.38f, 0.62f);
+    m_topFontScale = topFontScale;
 
     // Слева: заголовок "MAP EDITOR" (x: 15..135)
     float leftX = 140.0f;
 
     // btnCurrentMap: Отображение текущего имени карты
     float nameW = getTextW(m_currentLevelDisplayName, topFontScale);
-    float mapBtnW = std::clamp(nameW + 24.0f, 110.0f, 220.0f);
+    float mapBtnW = std::clamp(nameW + 20.0f, 100.0f, 200.0f);
     EditorButton btnCurrentMap;
     btnCurrentMap.pos = glm::vec2(leftX, topY);
     btnCurrentMap.size = glm::vec2(mapBtnW, topH);
@@ -314,7 +320,7 @@ void MapEditorState::updateButtonLayout() {
 
     // btnRename
     std::string renLabel = LOC("LEVEL_BTN_RENAME");
-    float renW = std::max(56.0f, getTextW(renLabel, topFontScale) + 20.0f);
+    float renW = std::max(52.0f, getTextW(renLabel, topFontScale) + 16.0f);
     EditorButton btnRename;
     btnRename.pos = glm::vec2(leftX, topY);
     btnRename.size = glm::vec2(renW, topH);
@@ -326,7 +332,7 @@ void MapEditorState::updateButtonLayout() {
 
     // btnType
     std::string typeLabel = m_isCampaign ? LOC("EDITOR_TYPE_CAMPAIGN") : LOC("EDITOR_TYPE_TEST");
-    float typeW = std::max(86.0f, getTextW(typeLabel, topFontScale) + 22.0f);
+    float typeW = std::max(80.0f, getTextW(typeLabel, topFontScale) + 18.0f);
     EditorButton btnType;
     btnType.pos = glm::vec2(leftX, topY);
     btnType.size = glm::vec2(typeW, topH);
@@ -338,7 +344,7 @@ void MapEditorState::updateButtonLayout() {
 
     // btnNewMap
     std::string newLabel = LOC("EDITOR_NEW_MAP");
-    float newW = std::max(74.0f, getTextW(newLabel, topFontScale) + 20.0f);
+    float newW = std::max(70.0f, getTextW(newLabel, topFontScale) + 18.0f);
     EditorButton btnNewMap;
     btnNewMap.pos = glm::vec2(leftX, topY);
     btnNewMap.size = glm::vec2(newW, topH);
@@ -350,7 +356,7 @@ void MapEditorState::updateButtonLayout() {
 
     // btnMaps
     std::string mapsLabel = LOC("EDITOR_MAPS_LIST");
-    float mapsW = std::max(64.0f, getTextW(mapsLabel, topFontScale) + 20.0f);
+    float mapsW = std::max(60.0f, getTextW(mapsLabel, topFontScale) + 18.0f);
     EditorButton btnMaps;
     btnMaps.pos = glm::vec2(leftX, topY);
     btnMaps.size = glm::vec2(mapsW, topH);
@@ -362,48 +368,51 @@ void MapEditorState::updateButtonLayout() {
 
     m_topBarLeftEndX = leftX;
 
-    // Справа: Выбор размера карты
-    float currentTopX = static_cast<float>(m_width) - 250.0f;
+    // Справа: Выбор размера карты (динамически рассчитываем от правого края с запасом 12px)
+    float presetW = std::clamp(80.0f * topScale, 70.0f, 100.0f);
+    float decIncW = std::clamp(30.0f * topScale, 26.0f, 38.0f);
+    float rightGroupW = presetW + topPadding + (decIncW + topPadding) * 4.0f;
+    float currentTopX = static_cast<float>(m_width) - rightGroupW - 12.0f;
 
     EditorButton btnPreset;
     btnPreset.pos = glm::vec2(currentTopX, topY);
-    btnPreset.size = glm::vec2(86.0f, topH);
+    btnPreset.size = glm::vec2(presetW, topH);
     btnPreset.label = std::to_string(m_gridWidth) + "x" + std::to_string(m_gridHeight);
     btnPreset.isAction = true;
     btnPreset.actionId = 8; // Preset cycle
     m_topButtons.push_back(btnPreset);
-    currentTopX += 86.0f + topPadding;
+    currentTopX += presetW + topPadding;
 
     EditorButton btnWDec;
     btnWDec.pos = glm::vec2(currentTopX, topY);
-    btnWDec.size = glm::vec2(34.0f, topH);
+    btnWDec.size = glm::vec2(decIncW, topH);
     btnWDec.label = "W-";
     btnWDec.isAction = true;
     btnWDec.actionId = 9; // W-
     m_topButtons.push_back(btnWDec);
-    currentTopX += 34.0f + topPadding;
+    currentTopX += decIncW + topPadding;
 
     EditorButton btnWInc;
     btnWInc.pos = glm::vec2(currentTopX, topY);
-    btnWInc.size = glm::vec2(34.0f, topH);
+    btnWInc.size = glm::vec2(decIncW, topH);
     btnWInc.label = "W+";
     btnWInc.isAction = true;
     btnWInc.actionId = 10; // W+
     m_topButtons.push_back(btnWInc);
-    currentTopX += 34.0f + topPadding;
+    currentTopX += decIncW + topPadding;
 
     EditorButton btnHDec;
     btnHDec.pos = glm::vec2(currentTopX, topY);
-    btnHDec.size = glm::vec2(34.0f, topH);
+    btnHDec.size = glm::vec2(decIncW, topH);
     btnHDec.label = "H-";
     btnHDec.isAction = true;
     btnHDec.actionId = 11; // H-
     m_topButtons.push_back(btnHDec);
-    currentTopX += 34.0f + topPadding;
+    currentTopX += decIncW + topPadding;
 
     EditorButton btnHInc;
     btnHInc.pos = glm::vec2(currentTopX, topY);
-    btnHInc.size = glm::vec2(34.0f, topH);
+    btnHInc.size = glm::vec2(decIncW, topH);
     btnHInc.label = "H+";
     btnHInc.isAction = true;
     btnHInc.actionId = 12; // H+
@@ -411,13 +420,13 @@ void MapEditorState::updateButtonLayout() {
 
     // 2. КНОПКИ НИЖНЕГО ТУЛБАРА
     float scale = GetUIScale(m_width, m_height);
-    float dockH = std::clamp(54.0f * scale, 44.0f, 76.0f);
-    float btnH = dockH - std::clamp(14.0f * scale, 10.0f, 18.0f);
-    float bottomY = static_cast<float>(m_height) - dockH + 5.0f;
+    float dockH = getBottomDockHeight();
+    float btnH = dockH - 12.0f;
+    float bottomY = static_cast<float>(m_height) - dockH + 6.0f;
     float startX = 10.0f;
-    float padding = std::clamp(4.0f * scale, 2.0f, 7.0f);
+    float padding = std::clamp(4.0f * scale, 2.0f, 6.0f);
 
-    float bottomFontScale = std::clamp(0.48f * scale, 0.36f, 0.65f);
+    float bottomFontScale = std::clamp(0.46f * scale, 0.36f, 0.60f);
     m_bottomFontScale = bottomFontScale;
 
     struct BottomItem {
@@ -942,9 +951,9 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
             m_suppressPlacementUntilRelease = false;
         }
     } else {
-        float scale = GetUIScale(m_width, m_height);
-        float dockH = std::clamp(54.0f * scale, 48.0f, 58.0f);
-        if (!clickedUI && mousePos.y >= 46.0f && mousePos.y < static_cast<float>(m_height) - dockH) {
+        float topBarH = getTopBarHeight();
+        float dockH = getBottomDockHeight();
+        if (!clickedUI && mousePos.y >= topBarH && mousePos.y < static_cast<float>(m_height) - dockH) {
             if (m_grid) {
                 glm::ivec2 gridPos = m_grid->pixelToGrid(mousePos);
                 if (gridPos.x >= 0 && gridPos.x < m_gridWidth && gridPos.y >= 0 && gridPos.y < m_gridHeight) {
@@ -1039,8 +1048,9 @@ void MapEditorState::render() {
     }
 
     // 5. ВЕРХНИЙ ХЕДЕР-БАР (Глухой темный фон, текст никогда не наезжает на сетку!)
-    m_renderer->drawSprite(m_whiteTexture, glm::vec2(0.0f, 0.0f), glm::vec2(m_width, 45.0f), 0.0f, glm::vec3(0.07f, 0.08f, 0.10f));
-    m_renderer->drawSprite(m_whiteTexture, glm::vec2(0.0f, 44.0f), glm::vec2(m_width, 2.0f), 0.0f, glm::vec3(0.25f, 0.27f, 0.32f));
+    float topBarH = getTopBarHeight();
+    m_renderer->drawSprite(m_whiteTexture, glm::vec2(0.0f, 0.0f), glm::vec2(m_width, topBarH), 0.0f, glm::vec3(0.07f, 0.08f, 0.10f));
+    m_renderer->drawSprite(m_whiteTexture, glm::vec2(0.0f, topBarH - 2.0f), glm::vec2(m_width, 2.0f), 0.0f, glm::vec3(0.25f, 0.27f, 0.32f));
 
     // Отрисовка кнопок верхнего хедера
     for (const auto& btn : m_topButtons) {
@@ -1063,8 +1073,7 @@ void MapEditorState::render() {
     }
 
     // 6. НИЖНЯЯ ПАНЕЛЬ ТУЛБАРА (Dock)
-    float scale = GetUIScale(m_width, m_height);
-    float dockH = std::clamp(54.0f * scale, 48.0f, 58.0f);
+    float dockH = getBottomDockHeight();
     float dockY = static_cast<float>(m_height) - dockH;
     m_renderer->drawSprite(m_whiteTexture, glm::vec2(0.0f, dockY), glm::vec2(m_width, dockH), 0.0f, glm::vec3(0.07f, 0.08f, 0.10f));
     m_renderer->drawSprite(m_whiteTexture, glm::vec2(0.0f, dockY), glm::vec2(m_width, 2.0f), 0.0f, glm::vec3(0.25f, 0.27f, 0.32f));
@@ -1116,23 +1125,26 @@ void MapEditorState::render() {
 
     // 7. ТЕКСТ (Хедер, кнопки, клетки)
     if (m_textRenderer) {
+        float scale = GetUIScale(m_width, m_height);
         // Текст верхнего хедера
-        m_textRenderer->RenderText("MAP EDITOR", 15.0f, 14.0f, 0.85f, glm::vec3(1.0f, 0.85f, 0.2f));
+        float titleFontScale = std::clamp(0.85f * scale, 0.65f, 1.05f);
+        float titleY = (topBarH - titleFontScale * 28.0f) * 0.5f;
+        m_textRenderer->RenderText("MAP EDITOR", 15.0f, titleY, titleFontScale, glm::vec3(1.0f, 0.85f, 0.2f));
 
-        // Текст на кнопках верхнего бара
+        // Текст на кнопках верхнего бара (каноническое центрирование по td-ui)
         for (const auto& btn : m_topButtons) {
             glm::vec3 textColor = (btn.actionId == 8) ? glm::vec3(0.4f, 0.9f, 1.0f) :
                                   (btn.actionId == 14) ? glm::vec3(1.0f, 0.9f, 0.35f) :
                                   (btn.actionId == 15) ? glm::vec3(0.4f, 1.0f, 0.5f) :
                                   (btn.actionId == 16) ? glm::vec3(0.7f, 0.9f, 1.0f) : glm::vec3(0.9f);
-            float tw = m_textRenderer->CalculateTextWidth(btn.label, 0.50f);
+            float tw = m_textRenderer->CalculateTextWidth(btn.label, m_topFontScale);
             float tx = btn.pos.x + (btn.size.x - tw) * 0.5f;
-            float ty = btn.pos.y + (btn.size.y - 13.0f) * 0.5f;
-            m_textRenderer->RenderText(btn.label, tx, ty, 0.50f, textColor);
+            float ty = btn.pos.y + (btn.size.y - m_topFontScale * 28.0f) * 0.5f + 2.0f;
+            m_textRenderer->RenderText(btn.label, tx, ty, m_topFontScale, textColor);
         }
 
         // Статус / предупреждения строго между кнопками слева и размерными кнопками справа
-        float rightControlsX = static_cast<float>(m_width) - 250.0f;
+        float rightControlsX = m_topButtons.empty() ? static_cast<float>(m_width) - 260.0f : m_topButtons.back().pos.x - 170.0f;
         float statusStartX = m_topBarLeftEndX + 16.0f;
         float maxStatusWidth = (rightControlsX - 16.0f) - statusStartX;
 
@@ -1152,16 +1164,17 @@ void MapEditorState::render() {
             }
 
             if (!statusText.empty()) {
-                float sScale = 0.50f;
+                float sScale = std::clamp(0.48f * scale, 0.36f, 0.55f);
                 float sw = m_textRenderer->CalculateTextWidth(statusText, sScale);
                 if (sw > maxStatusWidth) {
-                    sScale = std::max(0.35f, sScale * (maxStatusWidth / sw));
+                    sScale = std::max(0.32f, sScale * (maxStatusWidth / sw));
                 }
-                m_textRenderer->RenderText(statusText, statusStartX, 15.0f, sScale, curColor);
+                float statusY = (topBarH - sScale * 28.0f) * 0.5f + 1.0f;
+                m_textRenderer->RenderText(statusText, statusStartX, statusY, sScale, curColor);
             }
         }
 
-        // Текст на кнопках нижнего бара (центрирован по горизонтали и вертикали)
+        // Текст на кнопках нижнего бара (центрирован по горизонтали и вертикали по формуле td-ui)
         for (const auto& btn : m_bottomButtons) {
             glm::vec3 textColor = glm::vec3(0.95f);
             if (!btn.isAction && btn.brush == m_currentBrush) {
@@ -1173,7 +1186,7 @@ void MapEditorState::render() {
             }
             float tw = m_textRenderer->CalculateTextWidth(btn.label, m_bottomFontScale);
             float tx = btn.pos.x + (btn.size.x - tw) * 0.5f;
-            float ty = btn.pos.y + (btn.size.y - 12.0f) * 0.5f;
+            float ty = btn.pos.y + (btn.size.y - m_bottomFontScale * 28.0f) * 0.5f + 2.0f;
             m_textRenderer->RenderText(btn.label, tx, ty, m_bottomFontScale, textColor);
         }
 
@@ -1248,10 +1261,8 @@ void MapEditorState::render() {
 void MapEditorState::resize(int width, int height) {
     m_width = width;
     m_height = height;
-    float scale = GetUIScale(m_width, m_height);
-    float dockH = std::clamp(54.0f * scale, 48.0f, 58.0f);
     if (m_grid) {
-        m_grid->updateCellSize(m_width, m_height, dockH + 6.0f, 46.0f);
+        m_grid->updateCellSize(m_width, m_height, getBottomDockHeight() + 6.0f, getTopBarHeight() + 6.0f);
     }
     updateButtonLayout();
 }
@@ -1360,12 +1371,12 @@ bool MapEditorState::processWaveEditorInput(GLFWwindow* window, glm::vec2 mouseP
 
     bool isShiftDown = (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS);
 
-    float scale = GetUIScale(m_width, m_height);
-    float dockH = std::clamp(54.0f * scale, 48.0f, 58.0f);
+    float topBarH = getTopBarHeight();
+    float dockH = getBottomDockHeight();
     float panelW = std::clamp(640.0f, 540.0f, static_cast<float>(m_width) - 180.0f);
     float panelX = static_cast<float>(m_width) - panelW;
-    float panelY = 46.0f;
-    float panelH = static_cast<float>(m_height) - dockH - 46.0f;
+    float panelY = topBarH;
+    float panelH = static_cast<float>(m_height) - dockH - topBarH;
 
     // 1. Обработка ввода символов с клавиатуры
     if (m_focusedField != FocusedField::None && m_focusedPartIdx >= 0) {
@@ -1734,12 +1745,12 @@ void MapEditorState::renderWaveEditor() {
         return std::string(buf);
     };
 
-    float scale = GetUIScale(m_width, m_height);
-    float dockH = std::clamp(54.0f * scale, 48.0f, 58.0f);
+    float topBarH = getTopBarHeight();
+    float dockH = getBottomDockHeight();
     float panelW = std::clamp(640.0f, 540.0f, static_cast<float>(m_width) - 180.0f);
     float panelX = static_cast<float>(m_width) - panelW;
-    float panelY = 46.0f;
-    float panelH = static_cast<float>(m_height) - dockH - 46.0f;
+    float panelY = topBarH;
+    float panelH = static_cast<float>(m_height) - dockH - topBarH;
 
     float headerH = 36.0f;
     float footerH = 32.0f;

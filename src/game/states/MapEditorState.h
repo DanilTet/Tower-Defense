@@ -105,7 +105,11 @@ private:
     float m_statusTimer = 0.0f;
     glm::vec3 m_statusColor = glm::vec3(0.9f, 0.9f, 0.9f);
     float m_topBarLeftEndX = 540.0f;
+    float m_topFontScale = 0.50f;
     float m_bottomFontScale = 0.48f;
+
+    float getTopBarHeight() const;
+    float getBottomDockHeight() const;
 
     void updateButtonLayout();
     bool isPointInRect(glm::vec2 point, glm::vec2 rectPos, glm::vec2 rectSize) const;
