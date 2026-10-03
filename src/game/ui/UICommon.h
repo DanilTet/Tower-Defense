@@ -1,6 +1,7 @@
 #pragma once
 #include <glm/glm.hpp>
 #include <algorithm>
+#include "../core/SettingsManager.h"
 
 // все опрные точки
 enum class UIAnchor {
@@ -13,14 +14,15 @@ enum class UIAnchor {
     Center
 };
 
-// четенькая функция расчета масштаба интерфейса
+// четенькая функция расчета масштаба интерфейса с учетом разрешения и пользовательской настройки
 inline float GetUIScale(int screenWidth, int screenHeight) {
     float scaleX = static_cast<float>(screenWidth) / 1280.0f;
     float scaleY = static_cast<float>(screenHeight) / 720.0f;
 
-    // выбираем минимальный масштаб чтобы интерфейс не сплющивало, с ограничением максимального размера
+    // базовый масштаб от разрешения
     float s = std::min(scaleX, scaleY);
-    return std::clamp(s, 0.70f, 1.15f);
+    float baseScale = std::clamp(s, 0.75f, 1.25f);
+    return baseScale * SettingsManager::getUIScaleMultiplier();
 }
 
 // функция которая считает левый верхний угол (X, Y) для отрисовки спрайта или текста

@@ -12,6 +12,7 @@ namespace fs = std::filesystem;
 float SettingsManager::s_masterVolume = 0.8f;
 bool SettingsManager::s_isMuted = false;
 std::string SettingsManager::s_language = "ru";
+int SettingsManager::s_uiScalePercent = 100;
 bool SettingsManager::s_loaded = false;
 
 static std::vector<std::string> getSettingsDirectories() {
@@ -61,6 +62,10 @@ void SettingsManager::load() {
                     s_masterVolume = j.value("masterVolume", 0.8f);
                     s_isMuted = j.value("isMuted", false);
                     s_language = j.value("language", "ru");
+                    s_uiScalePercent = j.value("uiScale", 100);
+                    if (s_uiScalePercent < 50 || s_uiScalePercent > 200) {
+                        s_uiScalePercent = 100;
+                    }
                     s_loaded = true;
                     break;
                 } catch (...) {
@@ -77,6 +82,7 @@ void SettingsManager::save() {
     j["masterVolume"] = s_masterVolume;
     j["isMuted"] = s_isMuted;
     j["language"] = s_language;
+    j["uiScale"] = s_uiScalePercent;
 
     auto dirs = getSettingsDirectories();
     for (const auto& d : dirs) {
@@ -118,5 +124,18 @@ void SettingsManager::setLanguage(const std::string& lang) {
         s_language = lang;
         save();
     }
+}
+
+int SettingsManager::getUIScalePercent() {
+    return s_uiScalePercent;
+}
+
+void SettingsManager::setUIScalePercent(int percent) {
+    s_uiScalePercent = std::clamp(percent, 50, 200);
+    save();
+}
+
+float SettingsManager::getUIScaleMultiplier() {
+    return static_cast<float>(s_uiScalePercent) / 100.0f;
 }
 

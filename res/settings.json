@@ -1,5 +1,6 @@
 {
     "isMuted": true,
     "language": "ru",
-    "masterVolume": 0.800000011920929
+    "masterVolume": 0.800000011920929,
+    "uiScale": 150
 }

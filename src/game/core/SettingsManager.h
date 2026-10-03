@@ -16,10 +16,15 @@ public:
     static std::string getLanguage();
     static void setLanguage(const std::string& lang);
 
+    static int getUIScalePercent();
+    static void setUIScalePercent(int percent);
+    static float getUIScaleMultiplier();
+
 private:
     static float s_masterVolume;
     static bool s_isMuted;
     static std::string s_language; // "ru", "ua", "en"
+    static int s_uiScalePercent;   // 50, 75, 100, 125, 150
     static bool s_loaded;
 };
 

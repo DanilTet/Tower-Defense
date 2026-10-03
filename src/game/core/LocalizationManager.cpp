@@ -16,6 +16,7 @@ static const std::unordered_map<std::string, std::string> s_dictRu = {
     { "SETTINGS_TITLE", "НАСТРОЙКИ" },
     { "SETTINGS_VOLUME", "Громкость звука:" },
     { "SETTINGS_LANGUAGE", "Язык:" },
+    { "SETTINGS_UI_SCALE", "Масштаб интерфейса:" },
     { "SETTINGS_CLOSE", "Закрыть" },
 
     { "PAUSE_TITLE", "ПАУЗА" },
@@ -87,6 +88,7 @@ static const std::unordered_map<std::string, std::string> s_dictUa = {
     { "SETTINGS_TITLE", "НАЛАШТУВАННЯ" },
     { "SETTINGS_VOLUME", "Гучність звуку:" },
     { "SETTINGS_LANGUAGE", "Мова:" },
+    { "SETTINGS_UI_SCALE", "Масштаб інтерфейсу:" },
     { "SETTINGS_CLOSE", "Закрити" },
 
     { "PAUSE_TITLE", "ПАУЗА" },
@@ -158,6 +160,7 @@ static const std::unordered_map<std::string, std::string> s_dictEn = {
     { "SETTINGS_TITLE", "SETTINGS" },
     { "SETTINGS_VOLUME", "Sound volume:" },
     { "SETTINGS_LANGUAGE", "Language:" },
+    { "SETTINGS_UI_SCALE", "UI Scale:" },
     { "SETTINGS_CLOSE", "Close" },
 
     { "PAUSE_TITLE", "PAUSED" },
