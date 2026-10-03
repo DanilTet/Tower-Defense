@@ -1,7 +1,11 @@
 #pragma once
 #include <memory>
 #include <vector>
+#include <string>
 #include "IGameState.h"
+
+class SpriteRenderer;
+class TextRenderer;
 
 class GameStateManager {
 private:
@@ -12,6 +16,13 @@ private:
     std::unique_ptr<IGameState> m_nextState;
     bool m_clearAllAndSet = false;
     int m_popCount = 0;
+
+    bool m_returnToEditorRequested = false;
+    std::string m_editorFallbackLevel = "";
+    int m_editorWidth = 1280;
+    int m_editorHeight = 720;
+    std::shared_ptr<SpriteRenderer> m_editorRenderer;
+    TextRenderer* m_editorTextRenderer = nullptr;
 
 public:
     GameStateManager() = default;
@@ -25,6 +36,9 @@ public:
 
     // удалить верхнее состояние (или несколько)
     void popState(int count = 1);
+
+    // безопасный возврат в редактор карт (защита от пустого стека и черного экрана)
+    void returnToMapEditor(const std::string& levelFileName, int width, int height, std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer);
 
     // системные методы
     void processInput(GLFWwindow* window, float dt);

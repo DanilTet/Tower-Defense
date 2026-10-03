@@ -50,6 +50,7 @@ private:
     bool m_isValid = true;
     bool m_isEditorTest = false;
     bool m_editorBtnPressedLastFrame = true;
+    bool m_isExitingToEditor = false;
 
     void setupUI();
     void setupEventListeners();
@@ -58,6 +59,7 @@ public:
     GameplayState(GameStateManager& stateManager, int windowWidth, int windowHeight, std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer, std::string levelPath, bool isEditorTest = false);
 
     bool isEditorTest() const { return m_isEditorTest; }
+    const std::string& getCurrentLevelPath() const { return m_currentLevelPath; }
 
     void init() override;
     void cleanup() override;

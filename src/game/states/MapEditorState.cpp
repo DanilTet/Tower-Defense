@@ -36,13 +36,22 @@ static const std::vector<glm::ivec2> c_sizePresets = {
 };
 
 MapEditorState::MapEditorState(GameStateManager& stateManager, int width, int height,
-                               std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer)
+                               std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer,
+                               const std::string& levelToLoad)
     : m_stateManager(stateManager),
       m_width(width),
       m_height(height),
       m_renderer(renderer),
       m_textRenderer(textRenderer)
 {
+    if (!levelToLoad.empty()) {
+        std::string fname = levelToLoad;
+        size_t lastSlash = fname.find_last_of("/\\");
+        if (lastSlash != std::string::npos) {
+            fname = fname.substr(lastSlash + 1);
+        }
+        m_currentLevelFileName = fname;
+    }
 }
 
 glm::vec3 MapEditorState::getIdColor(int id) const {

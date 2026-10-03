@@ -129,7 +129,7 @@
       {
         "range": 1.2,
         "damage": 0,
-        "fireRate": 3.2,
+        "fireRate": 3.5,
         "cost": 60,
         "splashRadius": 0.0,
         "rotationSpeed": 0.0,
@@ -146,7 +146,7 @@
       {
         "range": 1.2,
         "damage": 0,
-        "fireRate": 2.7,
+        "fireRate": 3.0,
         "cost": 100,
         "splashRadius": 0.0,
         "rotationSpeed": 0.0,
@@ -163,7 +163,7 @@
       {
         "range": 1.2,
         "damage": 0,
-        "fireRate": 2.2,
+        "fireRate": 2.5,
         "cost": 160,
         "splashRadius": 0.0,
         "rotationSpeed": 0.0,

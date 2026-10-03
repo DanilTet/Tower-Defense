@@ -89,8 +89,9 @@ void Enemy::update(float dt, const Grid& grid) {
     // Таймер иммунитета к повторному отталкиванию
     if (m_knockbackImmunityTimer > 0.0f) {
         m_knockbackImmunityTimer -= dt;
-        if (m_knockbackImmunityTimer < 0.0f) {
+        if (m_knockbackImmunityTimer <= 0.0f) {
             m_knockbackImmunityTimer = 0.0f;
+            m_lastPistonCell = glm::ivec2(-1, -1);
         }
     }
 
@@ -113,7 +114,7 @@ void Enemy::update(float dt, const Grid& grid) {
         m_stunTimer -= dt;
         if (m_stunTimer <= 0.0f) {
             m_stunTimer = 0.0f;
-            m_knockbackImmunityTimer = 1.4f; // При выходе из стана даём 1.4с иммунитета!
+            m_knockbackImmunityTimer = 5.0f; // При выходе из стана даём 5.0с иммунитета, чтобы выйти из зоны бойка!
         }
         // Во время оглушения враг стоит на месте
         return;
@@ -126,7 +127,7 @@ void Enemy::update(float dt, const Grid& grid) {
         if (t >= 1.0f) {
             m_pixelPos = m_knockbackTargetPos;
             m_isKnockedBack = false;
-            m_knockbackImmunityTimer = 1.4f; // По окончании отталкивания выставляем 1.4с иммунитета!
+            m_knockbackImmunityTimer = 5.0f; // По окончании отталкивания даем 5.0с иммунитета!
 
             // Перенастраиваем маршрут, чтобы враг дальше шёл от новой клетки
             applyPostKnockbackPath(m_knockbackDestCell, m_knockbackFromCell, grid);
@@ -446,6 +447,7 @@ void Enemy::pushOneCell(glm::ivec2 fromCell, glm::ivec2 punchDir, const Grid& gr
         m_isKnockedBack = false;
         m_wallImpactTimer = 0.12f;
         m_wallImpactOffset = glm::vec2(punchDir) * (grid.getCellSize() * 0.20f);
+        m_knockbackImmunityTimer = 5.8f; // Немедленный иммунитет на все время стана + движения вперед
 
         // Запуск спавна частиц удара SparkImpact в точке контакта
         if (particleSystem) {
@@ -466,6 +468,7 @@ void Enemy::pushOneCell(glm::ivec2 fromCell, glm::ivec2 punchDir, const Grid& gr
     m_knockbackTimer = 0.0f;
     m_knockbackDestCell = destCell;
     m_knockbackFromCell = fromCell;
+    m_knockbackImmunityTimer = 5.0f; // Иммунитет активен с самого начала смещения
 }
 
 void Enemy::applyPostKnockbackPath(glm::ivec2 destCell, glm::ivec2 fromCell, const Grid& grid) {

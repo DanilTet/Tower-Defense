@@ -130,8 +130,8 @@ void PauseState::processInput(GLFWwindow* window, float dt) {
         if (m_btnExit.state == 2 && isPointInRect(m_currentMousePos, m_btnExit.pos, m_btnExit.size)) {
             if (m_gameplayState && m_gameplayState->isEditorTest()) {
                 std::cout << "[PauseState] Returning to MapEditor..." << std::endl;
-                m_stateManager.popState();
-                m_stateManager.popState();
+                std::string lvlPath = m_gameplayState ? m_gameplayState->getCurrentLevelPath() : "";
+                m_stateManager.returnToMapEditor(lvlPath, m_width, m_height, m_renderer, m_textRenderer);
                 return;
             } else {
                 m_stateManager.setState(std::make_unique<MainMenuState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));

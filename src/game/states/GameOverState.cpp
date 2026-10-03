@@ -75,7 +75,7 @@ void GameOverState::processInput(GLFWwindow* window, float dt) {
         else if (m_btnMenu.state == 2) {
             if (m_isEditorTest) {
                 std::cout << "[GameOverState] Returning to MapEditor..." << std::endl;
-                m_stateManager.popState(2);
+                m_stateManager.returnToMapEditor(m_levelPath, m_width, m_height, m_renderer, m_textRenderer);
             } else {
                 // выход в меню выбора уровней
                 m_stateManager.setState(std::make_unique<LevelSelectState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));

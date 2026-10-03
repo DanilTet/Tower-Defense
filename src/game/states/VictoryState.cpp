@@ -56,7 +56,7 @@ void VictoryState::processInput(GLFWwindow* window, float dt) {
         if (m_btnNext.state == 2) {
             if (m_isEditorTest) {
                 std::cout << "[VictoryState] Returning to MapEditor..." << std::endl;
-                m_stateManager.popState(2);
+                m_stateManager.returnToMapEditor("", m_width, m_height, m_renderer, m_textRenderer);
             } else {
                 // Переход к выбору уровней
                 m_stateManager.setState(std::make_unique<LevelSelectState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));
@@ -65,7 +65,7 @@ void VictoryState::processInput(GLFWwindow* window, float dt) {
         else if (m_btnMenu.state == 2) {
             if (m_isEditorTest) {
                 std::cout << "[VictoryState] Returning to MapEditor..." << std::endl;
-                m_stateManager.popState(2);
+                m_stateManager.returnToMapEditor("", m_width, m_height, m_renderer, m_textRenderer);
             } else {
                 // Выход в главное меню (пока тоже перекинем в LevelSelect, чтобы не усложнять, потом поправишь на MainMenuState)
                 m_stateManager.setState(std::make_unique<LevelSelectState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));

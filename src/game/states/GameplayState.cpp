@@ -110,9 +110,11 @@ void GameplayState::processInput(GLFWwindow* window, float dt) {
         bool lmbDown = (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS);
         if (mouseX >= btnX && mouseX <= btnX + btnW &&
             mouseY >= btnY && mouseY <= btnY + btnH) {
-            if (lmbDown && !m_editorBtnPressedLastFrame) {
+            if (lmbDown && !m_editorBtnPressedLastFrame && !m_isExitingToEditor) {
+                m_isExitingToEditor = true;
+                m_editorBtnPressedLastFrame = true;
                 std::cout << "[GameplayState] Returning to MapEditor..." << std::endl;
-                m_stateManager.popState();
+                m_stateManager.returnToMapEditor(m_currentLevelPath, width, height, m_renderer, m_textRenderer);
                 return;
             }
         }

@@ -169,7 +169,8 @@ private:
 
 public:
     MapEditorState(GameStateManager& stateManager, int width, int height,
-                   std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer);
+                   std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer,
+                   const std::string& levelToLoad = "");
     ~MapEditorState() override = default;
 
     glm::vec3 getIdColor(int id) const;

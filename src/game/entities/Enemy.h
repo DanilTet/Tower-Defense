@@ -88,6 +88,7 @@ private:
 	float m_wallImpactTimer = 0.0f; // таймер отдачи при ударе о стену
 	glm::vec2 m_wallImpactOffset = glm::vec2(0.0f); // смещение спрайта при ударе о стену
 	float m_stunAnimAngle = 0.0f; // угол вращения звездочек стана
+	glm::ivec2 m_lastPistonCell = glm::ivec2(-1, -1); // клетка поршня, который последним оттолкнул врага
 
 	void applyPostKnockbackPath(glm::ivec2 destCell, glm::ivec2 fromCell, const Grid& grid);
 
@@ -141,6 +142,8 @@ public:
 	bool isKnockedBack() const { return m_isKnockedBack; }
 	bool isStunned() const { return m_stunTimer > 0.0f; }
 	bool isKnockbackImmune() const { return m_knockbackImmunityTimer > 0.0f; }
+	glm::ivec2 getLastPistonCell() const { return m_lastPistonCell; }
+	void setLastPistonCell(glm::ivec2 cell) { m_lastPistonCell = cell; }
 	glm::vec2 getWallImpactOffset() const { return m_wallImpactOffset; }
 	void pushOneCell(glm::ivec2 fromCell, glm::ivec2 punchDir, const Grid& grid, ParticleSystem* particleSystem = nullptr);
 	void applyKnockback(glm::vec2 direction, float force);
