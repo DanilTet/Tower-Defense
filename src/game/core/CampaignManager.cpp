@@ -267,18 +267,25 @@ void CampaignManager::unlockAllProgress() {
     saveProgress();
 }
 
+static std::string cleanLevelFileName(const std::string& filepath) {
+    fs::path p(filepath);
+    return p.filename().string();
+}
+
 bool CampaignManager::isFileInCampaign(const std::string& filename) {
     init();
+    std::string clean = cleanLevelFileName(filename);
     for (const auto& m : s_missions) {
-        if (m.file == filename) return true;
+        if (m.file == clean || m.file == filename) return true;
     }
     return false;
 }
 
 int CampaignManager::getMissionIndexByFile(const std::string& filename) {
     init();
+    std::string clean = cleanLevelFileName(filename);
     for (size_t i = 0; i < s_missions.size(); ++i) {
-        if (s_missions[i].file == filename) return static_cast<int>(i);
+        if (s_missions[i].file == clean || s_missions[i].file == filename) return static_cast<int>(i);
     }
     return -1;
 }

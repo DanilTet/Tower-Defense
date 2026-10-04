@@ -33,10 +33,6 @@ GameplayState::GameplayState(GameStateManager& stateManager, int windowWidth, in
 {
     if (m_isEditorTest) {
         m_origin = GameplayOrigin::EditorTest;
-    } else if (origin == GameplayOrigin::Campaign && !m_currentLevelPath.empty()) {
-        if (!CampaignManager::isFileInCampaign(m_currentLevelPath)) {
-            m_origin = GameplayOrigin::Custom;
-        }
     }
 }
 
