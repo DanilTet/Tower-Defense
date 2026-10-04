@@ -15,6 +15,7 @@ private:
 
 	bool m_mousePressedLastFrame = false;
 	bool m_suppressClickUntilRelease = true;
+	bool m_ctrlShiftDWasDown = false;
 
 	struct MenuLayout {
 		float btnW;

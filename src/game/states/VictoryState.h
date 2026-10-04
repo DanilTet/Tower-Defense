@@ -20,6 +20,8 @@ private:
 
     bool m_mousePressedLastFrame = false;
     bool m_isEditorTest = false;
+    std::string m_levelPath = "";
+    GameplayOrigin m_origin = GameplayOrigin::Campaign;
     glm::vec2 m_windowPos;
     glm::vec2 m_windowSize;
     float m_uiScale = 1.0f;
@@ -31,7 +33,7 @@ private:
     void updateLayout();
 
 public:
-    VictoryState(GameStateManager& stateManager, int width, int height, std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer, bool isEditorTest = false);
+    VictoryState(GameStateManager& stateManager, int width, int height, std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer, const std::string& levelPath = "", bool isEditorTest = false, GameplayOrigin origin = GameplayOrigin::Campaign);
     void init() override;
     void cleanup() override;
     void processInput(GLFWwindow* window, float dt) override;

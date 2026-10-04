@@ -118,6 +118,12 @@ void Buildpanel::BuildRenderUI(
         float textX = iconPos.x + (UI_ICON_SIZE * scale * 0.5f) - (textWidth * 0.5f);
         textRenderer->RenderText(costText,
             textX, iconPos.y + (UI_ICON_SIZE * scale) + (6.0f * scale), fontScale, textColor);
+
+        if (i < 9) {
+            std::string hotkeyText = "[" + std::to_string(i + 1) + "]";
+            float hkScale = 0.38f * scale;
+            textRenderer->RenderText(hotkeyText, iconPos.x + 2.0f * scale, iconPos.y + 2.0f * scale, hkScale, glm::vec3(0.95f, 0.85f, 0.4f));
+        }
     }
 }
 
@@ -150,3 +156,11 @@ bool Buildpanel::checkClick(float mouseX, float mouseY, int windowWidth, int win
 
     return true;
 }
+
+bool Buildpanel::selectTowerByIndex(size_t index, std::string& selectedTower) {
+    if (index < m_cachedTowers.size()) {
+        selectedTower = m_cachedTowers[index];
+        return true;
+    }
+    return false;
+}

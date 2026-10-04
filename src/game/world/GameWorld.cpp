@@ -1,6 +1,7 @@
 #include "GameWorld.h"
 #include "../entities/Enemy.h"
 #include "../ui/BuildPanel.h"
+#include "../ui/UICommon.h"
 #include <iostream>
 
 GameWorld::GameWorld() {
@@ -17,7 +18,8 @@ bool GameWorld::loadLevel(const std::string& levelPath, int windowWidth, int win
         glm::vec2(levelData.offsetX, levelData.offsetY)
     );
     float bottomBarHeight = Buildpanel::getBottomBarHeight(windowWidth, windowHeight);
-    grid->updateCellSize(windowWidth, windowHeight, bottomBarHeight);
+    float topMargin = TimeControlUI::getTopMargin(windowWidth, windowHeight);
+    grid->updateCellSize(windowWidth, windowHeight, bottomBarHeight, topMargin);
 
     if (!levelData.layout.empty()) {
         for (int y = 0; y < levelData.gridHeight; ++y) {
@@ -30,6 +32,9 @@ bool GameWorld::loadLevel(const std::string& levelPath, int windowWidth, int win
                 }
                 else if (levelData.layout[y][x] == 3) {
                     grid->setCellType(x, y, CellType::Scenery);
+                }
+                else if (levelData.layout[y][x] == 4) {
+                    grid->setCellType(x, y, CellType::Chasm);
                 }
             }
         }
@@ -94,7 +99,8 @@ void GameWorld::resize(int windowWidth, int windowHeight) {
     if (grid) {
         Grid oldGrid = *grid;
         float bottomBarHeight = Buildpanel::getBottomBarHeight(windowWidth, windowHeight);
-        grid->updateCellSize(windowWidth, windowHeight, bottomBarHeight);
+        float topMargin = TimeControlUI::getTopMargin(windowWidth, windowHeight);
+        grid->updateCellSize(windowWidth, windowHeight, bottomBarHeight, topMargin);
 
         for (const auto& enemy : entityManager->getEnemies()) {
             if (enemy) {

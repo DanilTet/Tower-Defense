@@ -2,6 +2,7 @@
 #include "GameStateManager.h"
 #include "MainMenuState.h"
 #include "GameplayState.h"
+#include "LevelSelectState.h"
 #include "../renderer/TextRenderer.h"
 #include "../renderer/SpriteRenderer.h"
 #include "../resources/ResourceManager.h"
@@ -185,6 +186,14 @@ void PauseState::processInput(GLFWwindow* window, float dt) {
                 std::cout << "[PauseState] Returning to MapEditor..." << std::endl;
                 std::string lvlPath = m_gameplayState ? m_gameplayState->getCurrentLevelPath() : "";
                 m_stateManager.returnToMapEditor(lvlPath, m_width, m_height, m_renderer, m_textRenderer);
+                return;
+            } else if (m_gameplayState && m_gameplayState->getOrigin() == GameplayOrigin::Custom) {
+                std::cout << "[PauseState] Returning to Custom LevelSelect..." << std::endl;
+                m_stateManager.setState(std::make_unique<LevelSelectState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer, LevelTab::Custom));
+                return;
+            } else if (m_gameplayState && m_gameplayState->getOrigin() == GameplayOrigin::Campaign) {
+                std::cout << "[PauseState] Returning to Campaign LevelSelect..." << std::endl;
+                m_stateManager.setState(std::make_unique<LevelSelectState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer, LevelTab::Campaign));
                 return;
             } else {
                 m_stateManager.setState(std::make_unique<MainMenuState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));

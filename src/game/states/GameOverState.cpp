@@ -2,6 +2,7 @@
 #include "GameStateManager.h"
 #include "GameplayState.h"
 #include "LevelSelectState.h"
+#include "MainMenuState.h"
 #include "../resources/ResourceManager.h"
 #include "../renderer/SpriteRenderer.h"
 #include "../renderer/TextRenderer.h"
@@ -11,8 +12,8 @@
 #include <algorithm>
 #include <iostream>
 
-GameOverState::GameOverState(GameStateManager& stateManager, int width, int height, std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer, std::string levelPath, bool isEditorTest)
-    : m_stateManager(stateManager), m_width(width), m_height(height), m_renderer(renderer), m_textRenderer(textRenderer), m_levelPath(levelPath), m_isEditorTest(isEditorTest)
+GameOverState::GameOverState(GameStateManager& stateManager, int width, int height, std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer, std::string levelPath, bool isEditorTest, GameplayOrigin origin)
+    : m_stateManager(stateManager), m_width(width), m_height(height), m_renderer(renderer), m_textRenderer(textRenderer), m_levelPath(levelPath), m_isEditorTest(isEditorTest), m_origin(origin)
 {
     m_uiTexture = std::shared_ptr<Texture2D>(ResourceManager::getTexture("uiBaseTexture"), [](Texture2D*) {});
     m_mousePressedLastFrame = true;
@@ -98,17 +99,23 @@ void GameOverState::processInput(GLFWwindow* window, float dt) {
         if (m_btnRetry.state == 2) {
             if (m_isEditorTest) {
                 m_stateManager.popState(2);
-                m_stateManager.pushState(std::make_unique<GameplayState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer, m_levelPath, true));
+                m_stateManager.pushState(std::make_unique<GameplayState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer, m_levelPath, true, m_origin));
             } else {
-                m_stateManager.setState(std::make_unique<GameplayState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer, m_levelPath));
+                m_stateManager.setState(std::make_unique<GameplayState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer, m_levelPath, false, m_origin));
             }
         }
         else if (m_btnMenu.state == 2) {
             if (m_isEditorTest) {
                 std::cout << "[GameOverState] Returning to MapEditor..." << std::endl;
                 m_stateManager.returnToMapEditor(m_levelPath, m_width, m_height, m_renderer, m_textRenderer);
+            } else if (m_origin == GameplayOrigin::Custom) {
+                std::cout << "[GameOverState] Returning to Custom LevelSelect..." << std::endl;
+                m_stateManager.setState(std::make_unique<LevelSelectState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer, LevelTab::Custom));
+            } else if (m_origin == GameplayOrigin::Campaign) {
+                std::cout << "[GameOverState] Returning to Campaign LevelSelect..." << std::endl;
+                m_stateManager.setState(std::make_unique<LevelSelectState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer, LevelTab::Campaign));
             } else {
-                m_stateManager.setState(std::make_unique<LevelSelectState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));
+                m_stateManager.setState(std::make_unique<MainMenuState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));
             }
         }
     }

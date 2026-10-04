@@ -114,12 +114,12 @@ void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies,
 		// Поршень не крутится за врагами! Он строго контролирует 1 клетку прямо перед собой
 		glm::ivec2 targetCell = getPistonTargetCell();
 		glm::vec2 targetCenter = grid.gridToPixel(targetCell.x, targetCell.y) + glm::vec2(cellSize * 0.5f);
-		float triggerRadius = cellSize * 0.65f;
+		float triggerRadius = cellSize * 0.35f; // Уменьшенный радиус, чтобы враг успевал зайти на клетку перед ударом
 
 		if (m_shotTimer <= 0.0f) {
 			Enemy* victim = nullptr;
 			for (const auto& enemy : enemies) {
-				if (!enemy || enemy->isDead() || enemy->isReachedEnd() || enemy->isKnockedBack() || enemy->isStunned()) continue;
+				if (!enemy || enemy->isDead() || enemy->isReachedEnd() || enemy->isKnockedBack() || enemy->isStunned() || enemy->isFalling()) continue;
 				if (enemy->isImmuneToPiston(glm::ivec2(m_gridX, m_gridY))) continue; // Защита от бесконечного зацикливания именно этим поршнем!
 				float dist = glm::distance(enemy->getCollider(grid).center, targetCenter);
 				if (dist < triggerRadius) {

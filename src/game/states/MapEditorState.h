@@ -17,12 +17,13 @@ class GameStateManager;
 
 enum class EditorBrush {
     Ground = 0,   // 0: Земля (можно строить и ходить)
-    Wall = 1,     // 3: Стена/Вода/Обрыв (нельзя строить, нельзя ходить)
+    Wall = 1,     // 3: Стена/Вода (нельзя строить, нельзя ходить)
     Platform = 2, // 2: Платформа (можно строить, нельзя ходить)
     Path = 3,     // 1: Дорога (нельзя строить, можно ходить)
     Spawner = 4,  // Точка спавна врагов
     Base = 5,     // База игрока
-    Eraser = 6    // Ластик: стирает тайлы, спавнеры и базы до Земли
+    Eraser = 6,   // Ластик: стирает тайлы, спавнеры и базы до Земли
+    Chasm = 7     // 4: Шурф / Обрыв (нельзя строить, нельзя ходить)
 };
 
 struct EditorButton {
@@ -260,11 +261,14 @@ private:
 
     void renderWaveEditor();
     bool processWaveEditorInput(GLFWwindow* window, glm::vec2 mousePos, bool leftDown, float dt);
+    EditorOrigin m_origin = EditorOrigin::MainMenu;
+    void returnToOrigin();
 
 public:
     MapEditorState(GameStateManager& stateManager, int width, int height,
                    std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer,
-                   const std::string& levelToLoad = "");
+                   const std::string& levelToLoad = "",
+                   EditorOrigin origin = EditorOrigin::MainMenu);
     ~MapEditorState() override = default;
 
     glm::vec3 getIdColor(int id) const;

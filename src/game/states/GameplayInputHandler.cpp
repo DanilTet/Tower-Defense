@@ -6,6 +6,7 @@
 #include "../ui/TowerMenuUI.h"
 #include "../gameplay/BuildManager.h"
 #include "../entities/Tower.h"
+#include "../ui/UICommon.h"
 
 bool GameplayInputHandler::isKeyJustPressed(GLFWwindow* window, int key) {
     if (key < 0 || key >= 1024) return false;
@@ -35,11 +36,41 @@ void GameplayInputHandler::processInput(
     std::string& selectedTowerType,
     Tower*& selectedTowerOnMap,
     std::function<void()> onPauseRequested,
-    std::function<void()> onNextWaveRequested)
+    std::function<void()> onNextWaveRequested,
+    std::function<void()> onTogglePauseRequested,
+    std::function<void()> onCycleSpeedRequested,
+    std::function<void(float)> onSetSpeedRequested)
 {
     if (isKeyJustPressed(window, GLFW_KEY_ESCAPE)) {
         if (onPauseRequested) onPauseRequested();
         return;
+    }
+
+    // Пауза по клавишам Space или P
+    if (isKeyJustPressed(window, GLFW_KEY_SPACE) || isKeyJustPressed(window, GLFW_KEY_P)) {
+        if (onTogglePauseRequested) onTogglePauseRequested();
+    }
+
+    // Переключение множителя скорости времени по клавише Tab
+    if (isKeyJustPressed(window, GLFW_KEY_TAB)) {
+        if (onCycleSpeedRequested) onCycleSpeedRequested();
+    }
+
+    // Быстрый выбор башен из дока по клавишам 1, 2, 3
+    if (isKeyJustPressed(window, GLFW_KEY_1)) {
+        if (buildPanel.selectTowerByIndex(0, selectedTowerType)) {
+            selectedTowerOnMap = nullptr;
+        }
+    }
+    if (isKeyJustPressed(window, GLFW_KEY_2)) {
+        if (buildPanel.selectTowerByIndex(1, selectedTowerType)) {
+            selectedTowerOnMap = nullptr;
+        }
+    }
+    if (isKeyJustPressed(window, GLFW_KEY_3)) {
+        if (buildPanel.selectTowerByIndex(2, selectedTowerType)) {
+            selectedTowerOnMap = nullptr;
+        }
     }
 
     if (isKeyJustPressed(window, GLFW_KEY_ENTER)) {
@@ -48,10 +79,6 @@ void GameplayInputHandler::processInput(
 
     if (isKeyJustPressed(window, GLFW_KEY_M)) {
         world.playerStats.money += 99999;
-    }
-
-    if (isKeyJustPressed(window, GLFW_KEY_SPACE)) {
-        world.spawnEnemy("Basic");
     }
 
     if (isKeyJustPressed(window, GLFW_KEY_R)) {
@@ -86,6 +113,40 @@ void GameplayInputHandler::processInput(
 
     if (mouseState == GLFW_PRESS && !m_mousePressedLastFrame) {
         m_mousePressedLastFrame = true;
+
+        // Проверяем клик по панели управления временем в HUD (кнопки и фоновая плашка)
+        UIRect panelRect = TimeControlUI::getPanelRect(windowWidth, windowHeight);
+        if (panelRect.contains(static_cast<float>(mouseX), static_cast<float>(mouseY))) {
+            UIRect pauseRect = TimeControlUI::getPauseButtonRect(windowWidth, windowHeight);
+            if (pauseRect.contains(static_cast<float>(mouseX), static_cast<float>(mouseY))) {
+                if (onTogglePauseRequested) onTogglePauseRequested();
+                return;
+            }
+
+            UIRect s1Rect = TimeControlUI::getSpeed1xButtonRect(windowWidth, windowHeight);
+            if (s1Rect.contains(static_cast<float>(mouseX), static_cast<float>(mouseY))) {
+                if (onSetSpeedRequested) onSetSpeedRequested(1.0f);
+                else if (onCycleSpeedRequested) onCycleSpeedRequested();
+                return;
+            }
+
+            UIRect s2Rect = TimeControlUI::getSpeed2xButtonRect(windowWidth, windowHeight);
+            if (s2Rect.contains(static_cast<float>(mouseX), static_cast<float>(mouseY))) {
+                if (onSetSpeedRequested) onSetSpeedRequested(2.0f);
+                else if (onCycleSpeedRequested) onCycleSpeedRequested();
+                return;
+            }
+
+            UIRect s4Rect = TimeControlUI::getSpeed4xButtonRect(windowWidth, windowHeight);
+            if (s4Rect.contains(static_cast<float>(mouseX), static_cast<float>(mouseY))) {
+                if (onSetSpeedRequested) onSetSpeedRequested(4.0f);
+                else if (onCycleSpeedRequested) onCycleSpeedRequested();
+                return;
+            }
+
+            // Клик пришелся на поля или разделители панели — поглощаем его, чтобы не прокликивать карту
+            return;
+        }
 
         float bottomBarHeight = Buildpanel::getBottomBarHeight(windowWidth, windowHeight);
         if (mouseY >= static_cast<double>(windowHeight) - bottomBarHeight) {

@@ -49,16 +49,21 @@ private:
     std::string m_saveToLoad = "";
     bool m_isValid = true;
     bool m_isEditorTest = false;
+    GameplayOrigin m_origin = GameplayOrigin::Campaign;
     bool m_editorBtnPressedLastFrame = true;
     bool m_isExitingToEditor = false;
+
+    float m_timeScale = 1.0f;
+    bool m_isPaused = false;
 
     void setupUI();
     void setupEventListeners();
 
 public:
-    GameplayState(GameStateManager& stateManager, int windowWidth, int windowHeight, std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer, std::string levelPath, bool isEditorTest = false);
+    GameplayState(GameStateManager& stateManager, int windowWidth, int windowHeight, std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer, std::string levelPath, bool isEditorTest = false, GameplayOrigin origin = GameplayOrigin::Campaign);
 
     bool isEditorTest() const { return m_isEditorTest; }
+    GameplayOrigin getOrigin() const { return m_origin; }
     const std::string& getCurrentLevelPath() const { return m_currentLevelPath; }
 
     void init() override;
@@ -67,6 +72,12 @@ public:
     void update(float dt) override;
     void render() override;
     void resize(int width, int height) override;
+
+    void cycleTimeScale();
+    void setTimeScale(float scale);
+    void togglePause();
+    float getTimeScale() const { return m_timeScale; }
+    bool isPaused() const { return m_isPaused; }
 
     void startNextWave();
     void restartGame();

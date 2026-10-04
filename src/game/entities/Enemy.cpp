@@ -4,6 +4,7 @@
 #include "world/Grid.h"
 #include <iostream>
 #include <cmath>
+#include <algorithm>
 #include "core/ConfigManager.h"
 #include "world/Pathfinder.h"
 #include "../../resources/ResourceManager.h"
@@ -50,8 +51,20 @@ Enemy::Enemy(const std::vector<glm::ivec2>& gridPath, const Grid& grid, const st
 
 // Обновление логики и расчет движения
 void Enemy::update(float dt, const Grid& grid) {
-    // Если враг достиг конца или нету пути - выходим
-    if (m_reachedEnd || m_path.empty()) return;
+    if (m_reachedEnd) return;
+
+    // 0. Состояние падения в шурф / обрыв (CellType::Chasm)
+    if (m_isFalling) {
+        m_fallTimer += dt;
+        if (m_fallTimer >= FALL_DURATION) {
+            // Мгновенная гибель (Instakill) на дне шурфа без нанесения урона базе!
+            m_health = 0;
+        }
+        return; // Во время падения любое другое движение и действия заблокированы
+    }
+
+    // Если не падает и нет пути, и не в толчке — выходим
+    if (m_path.empty() && !m_isKnockedBack) return;
 
     // --- ОБРАБОТКА СТАТУС-ЭФФЕКТОВ (Замедление и Яд) ---
     float maxSlow = 0.0f;
@@ -128,6 +141,14 @@ void Enemy::update(float dt, const Grid& grid) {
             m_pixelPos = m_knockbackTargetPos;
             m_isKnockedBack = false;
 
+            // Если конечная клетка оказалась шурфом/обрывом — запускаем падение!
+            if (m_knockbackDestCell.x >= 0 && m_knockbackDestCell.x < grid.getWidth() &&
+                m_knockbackDestCell.y >= 0 && m_knockbackDestCell.y < grid.getHeight() &&
+                grid.getCellType(m_knockbackDestCell.x, m_knockbackDestCell.y) == CellType::Chasm) {
+                startFalling(m_knockbackDestCell, grid);
+                return;
+            }
+
             // Перенастраиваем маршрут, чтобы враг дальше шёл от новой клетки
             applyPostKnockbackPath(m_knockbackDestCell, m_knockbackFromCell, grid);
         }
@@ -138,6 +159,15 @@ void Enemy::update(float dt, const Grid& grid) {
         }
 
         // Во время отталкивания стандартное движение по маршруту заблокировано
+        return;
+    }
+
+    // Дополнительная проверка на нахождение на клетке обрыва
+    glm::ivec2 curCell = grid.pixelToGrid(m_pixelPos + glm::vec2(grid.getCellSize() * 0.5f));
+    if (curCell.x >= 0 && curCell.x < grid.getWidth() &&
+        curCell.y >= 0 && curCell.y < grid.getHeight() &&
+        grid.getCellType(curCell.x, curCell.y) == CellType::Chasm) {
+        startFalling(curCell, grid);
         return;
     }
 
@@ -220,13 +250,46 @@ void Enemy::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture,
     EnemyStats stats = Enemy::getStatsfromEnemyType(m_type);
     float cellSize = grid.getCellSize();
 
-	// Вычисляем размер спрайта врага в пикселях, умножая базовый размер клетки на масштаб размера из характеристик врага
-    float enemySizeDim = cellSize * stats.sizeScale;
-    glm::vec2 size(enemySizeDim, enemySizeDim);
+	// Базовый размер спрайта врага в пикселях
+    float baseEnemyDim = cellSize * stats.sizeScale;
+    float currentEnemyDim = baseEnemyDim;
+    float drawAngle = m_angle;
+    glm::vec3 renderColor = m_color;
 
-    // Ставим врага по центру
-    float padding = (cellSize - enemySizeDim) / 2.0f;
-    glm::vec2 centeredPos = m_pixelPos + glm::vec2(padding, padding);
+    if (m_isFalling) {
+        float progress = std::clamp(m_fallTimer / FALL_DURATION, 0.0f, 1.0f);
+
+        // 1. Уменьшение масштаба спрайта к центру клетки (1.0 -> 0.0)
+        float scale = 1.0f - progress;
+        currentEnemyDim = baseEnemyDim * scale;
+
+        // 2. Вращение: закручивание в бездну обрыва (720 градусов)
+        drawAngle = m_angle + progress * 720.0f;
+
+        // 3. Затенение: погружение в глубокую темноту бездны
+        float shade = (1.0f - progress * 0.90f);
+        renderColor = glm::mix(m_color, glm::vec3(0.02f, 0.02f, 0.04f), progress) * shade;
+    }
+    else {
+        if (m_stunTimer > 0.0f) {
+            renderColor = glm::vec3(1.0f, 0.85f, 0.25f); // Золотисто-желтый оттенок оглушения
+        }
+        else if (isPoisoned() && isSlowed()) {
+            renderColor = glm::vec3(0.3f, 0.95f, 0.75f); // Ядовито-ртутный бирюзовый оттенок
+        }
+        else if (isPoisoned()) {
+            renderColor = glm::vec3(0.35f, 1.0f, 0.35f); // Токсично-зеленый оттенок
+        }
+        else if (isSlowed()) {
+            renderColor = glm::vec3(0.45f, 0.75f, 1.0f); // Замедленно-синий оттенок
+        }
+    }
+
+    glm::vec2 size(currentEnemyDim, currentEnemyDim);
+
+    // Центрируем спрайт относительно клетки
+    glm::vec2 cellCenter = m_pixelPos + glm::vec2(cellSize * 0.5f);
+    glm::vec2 drawPos = cellCenter - size * 0.5f + m_wallImpactOffset;
 
     // Отправляем команду в SpriteRenderer
     Texture2D* enemyTex = ResourceManager::getTexture(stats.textureId);
@@ -237,56 +300,41 @@ void Enemy::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture,
 
     SpriteUV currentFrameUV = m_animator.getCurrentUV();
 
-    glm::vec3 renderColor = m_color;
-    if (m_stunTimer > 0.0f) {
-        renderColor = glm::vec3(1.0f, 0.85f, 0.25f); // Золотисто-желтый оттенок оглушения
-    }
-    else if (isPoisoned() && isSlowed()) {
-        renderColor = glm::vec3(0.3f, 0.95f, 0.75f); // Ядовито-ртутный бирюзовый оттенок
-    }
-    else if (isPoisoned()) {
-        renderColor = glm::vec3(0.35f, 1.0f, 0.35f); // Токсично-зеленый оттенок
-    }
-    else if (isSlowed()) {
-        renderColor = glm::vec3(0.45f, 0.75f, 1.0f); // Замедленно-синий оттенок
+    if (currentEnemyDim > 0.5f) {
+        renderer->drawSprite(enemyTexPtr, drawPos, size, drawAngle, renderColor, currentFrameUV);
     }
 
-    glm::vec2 drawPos = centeredPos + m_wallImpactOffset;
+    // Если враг падает в бездну, скрываем звездочки стана, полоску здоровья и хитбокс
+    if (!m_isFalling) {
+        // --- ОТРИСОВКА ВРАЩАЮЩИХСЯ ЗВЕЗДОЧЕК СТАНА НАД ГОЛОВОЙ ВРАГА ---
+        if (m_stunTimer > 0.0f) {
+            Texture2D* starTex = ResourceManager::getTexture("particleTexture");
+            if (!starTex) starTex = radiusTex.get();
+            std::shared_ptr<Texture2D> starTexPtr(starTex, [](Texture2D*) {});
 
-    renderer->drawSprite(enemyTexPtr, drawPos, size, m_angle, renderColor, currentFrameUV);
+            glm::vec2 headCenter = drawPos + glm::vec2(size.x * 0.5f, -size.y * 0.05f);
+            float rx = size.x * 0.42f;
+            float ry = size.y * 0.16f;
+            glm::vec2 starSize(size.x * 0.22f, size.x * 0.22f);
 
-    // --- ОТРИСОВКА ВРАЩАЮЩИХСЯ ЗВЕЗДОЧЕК СТАНА НАД ГОЛОВОЙ ВРАГА ---
-    if (m_stunTimer > 0.0f) {
-        Texture2D* starTex = ResourceManager::getTexture("particleTexture");
-        if (!starTex) starTex = radiusTex.get();
-        std::shared_ptr<Texture2D> starTexPtr(starTex, [](Texture2D*) {});
-
-        glm::vec2 headCenter = drawPos + glm::vec2(size.x * 0.5f, -size.y * 0.05f);
-        float rx = size.x * 0.42f;
-        float ry = size.y * 0.16f;
-        glm::vec2 starSize(size.x * 0.22f, size.x * 0.22f);
-
-        for (int i = 0; i < 3; ++i) {
-            float starAngle = m_stunAnimAngle + i * (2.0f * 3.14159265f / 3.0f);
-            glm::vec2 starPos = headCenter + glm::vec2(std::cos(starAngle) * rx, std::sin(starAngle) * ry);
-            float starRot = glm::degrees(starAngle * 2.5f);
-            glm::vec2 starDrawPos = starPos - starSize * 0.5f;
-            renderer->drawSprite(starTexPtr, starDrawPos, starSize, starRot, glm::vec3(1.0f, 0.95f, 0.25f));
+            for (int i = 0; i < 3; ++i) {
+                float starAngle = m_stunAnimAngle + i * (2.0f * 3.14159265f / 3.0f);
+                glm::vec2 starPos = headCenter + glm::vec2(std::cos(starAngle) * rx, std::sin(starAngle) * ry);
+                float starRot = glm::degrees(starAngle * 2.5f);
+                glm::vec2 starDrawPos = starPos - starSize * 0.5f;
+                renderer->drawSprite(starTexPtr, starDrawPos, starSize, starRot, glm::vec3(1.0f, 0.95f, 0.25f));
+            }
         }
+
+        // --- ОТРИСОВКА ПОЛОСКИ ЗДОРОВЬЯ (HEALTH BAR) ЧЕРЕЗ HealthBarRenderer ---
+        HealthBarRenderer::draw(renderer, texture, drawPos, baseEnemyDim, m_health, stats.Maxhealth);
+
+        // --- ОТРИСОВКА ХИТБОКСА (ДЕБАГ) ---
+        CircleCollider collider = getCollider(grid);
+        glm::vec2 hitboxSize(collider.radius * 2.0f, collider.radius * 2.0f);
+        glm::vec2 hitboxPos = (collider.center + m_wallImpactOffset) - glm::vec2(collider.radius, collider.radius);
+        renderer->drawSprite(radiusTex, hitboxPos, hitboxSize, 0.0f, glm::vec3(1.0f, 0.0f, 0.0f));
     }
-
-    // --- ОТРИСОВКА ПОЛОСКИ ЗДОРОВЬЯ (HEALTH BAR) ЧЕРЕЗ HealthBarRenderer ---
-    HealthBarRenderer::draw(renderer, texture, drawPos, enemySizeDim, m_health, stats.Maxhealth);
-
-    // --- ОТРИСОВКА ХИТБОКСА (ДЕБАГ) ---
-
-    CircleCollider collider = getCollider(grid);
-
-    glm::vec2 hitboxSize(collider.radius * 2.0f, collider.radius * 2.0f);
-    glm::vec2 hitboxPos = (collider.center + m_wallImpactOffset) - glm::vec2(collider.radius, collider.radius);
-
-    // ИСПРАВЛЕНИЕ 2: drawSprite с маленькой буквы и передаем radiusTex без звездочки (это shared_ptr)
-    renderer->drawSprite(radiusTex, hitboxPos, hitboxSize, 0.0f, glm::vec3(1.0f, 0.0f, 0.0f));
 }
 
 void Enemy::recalculatePosition(const Grid& oldGrid, const Grid& newGrid) {
@@ -326,11 +374,16 @@ void Enemy::recalculatePosition(const Grid& oldGrid, const Grid& newGrid) {
 
 // функция которая дает хитбокс зависимо от размера окна
 CircleCollider Enemy::getCollider(const Grid& grid) const {
-    // умножаем коэффициент на текущий размер клетки из сетки
-    float currentRadius = m_radiusMultiplier * grid.getCellSize();
-
     float halfCell = grid.getCellSize() / 2.0f;
     glm::vec2 center = m_pixelPos + glm::vec2(halfCell, halfCell);
+
+    // При падении в бездну хитбокс схлопывается
+    if (m_isFalling) {
+        return { center, 0.0f };
+    }
+
+    // умножаем коэффициент на текущий размер клетки из сетки
+    float currentRadius = m_radiusMultiplier * grid.getCellSize();
 
     // возвращаем готовую структуру центр врага и его динамический радиус
     return { center, currentRadius };
@@ -452,17 +505,21 @@ bool Enemy::isImmuneToPiston(glm::ivec2 pistonCell) const {
 }
 
 void Enemy::pushOneCell(glm::ivec2 fromCell, glm::ivec2 punchDir, const Grid& grid, ParticleSystem* particleSystem) {
-    if (m_reachedEnd) return;
+    if (m_reachedEnd || m_isFalling) return;
 
     glm::ivec2 destCell = fromCell + punchDir;
     glm::ivec2 pistonCell = fromCell - punchDir;
     addPistonCooldown(pistonCell, 5.0f); // Кулдаун именно для этого поршня, чтобы не забивать в цикл!
 
-    // Проверяем, свободна ли клетка назначения (не стена, не башня, не декорация и не за краем карты)
-    bool canPush = Pathfinder::isCellWalkable(grid, destCell.x, destCell.y);
+    // Проверяем, свободна ли клетка назначения (проходимая клетка ИЛИ клетка обрыва/шурфа)
+    bool isChasm = false;
+    if (destCell.x >= 0 && destCell.x < grid.getWidth() && destCell.y >= 0 && destCell.y < grid.getHeight()) {
+        isChasm = (grid.getCellType(destCell.x, destCell.y) == CellType::Chasm);
+    }
+    bool canPush = Pathfinder::isCellWalkable(grid, destCell.x, destCell.y) || isChasm;
 
     if (!canPush) {
-        // Удар о препятствие: враг остаётся на месте, оглушается на 0.8с, 0 урона!
+        // Удар о препятствие (стена, башня, декорация): враг остаётся на месте, оглушается на 0.8с, 0 урона!
         m_stunTimer = 0.8f;
         m_isKnockedBack = false;
         m_wallImpactTimer = 0.12f;
@@ -487,6 +544,19 @@ void Enemy::pushOneCell(glm::ivec2 fromCell, glm::ivec2 punchDir, const Grid& gr
     m_knockbackTimer = 0.0f;
     m_knockbackDestCell = destCell;
     m_knockbackFromCell = fromCell;
+}
+
+void Enemy::startFalling(glm::ivec2 chasmCell, const Grid& grid) {
+    m_isFalling = true;
+    m_fallTimer = 0.0f;
+    m_isKnockedBack = false;
+    m_stunTimer = 0.0f;
+    m_wallImpactTimer = 0.0f;
+    m_wallImpactOffset = glm::vec2(0.0f);
+    m_statusEffects.clear();
+    m_path.clear();
+    m_currentWayPoint = 0;
+    m_pixelPos = grid.gridToPixel(chasmCell.x, chasmCell.y);
 }
 
 void Enemy::applyPostKnockbackPath(glm::ivec2 destCell, glm::ivec2 fromCell, const Grid& grid) {

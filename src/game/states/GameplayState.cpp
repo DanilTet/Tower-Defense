@@ -4,8 +4,10 @@
 #include "MainMenuState.h"
 #include "GameOverState.h"
 #include "VictoryState.h"
+#include "LevelSelectState.h"
 #include "../core/ConfigManager.h"
 #include "../core/LevelManager.h"
+#include "../core/CampaignManager.h"
 #include "../core/EventBus.h"
 #include "../core/SaveManager.h"
 #include "../core/SettingsManager.h"
@@ -18,7 +20,7 @@
 #include <iostream>
 #include <algorithm>
 
-GameplayState::GameplayState(GameStateManager& stateManager, int windowWidth, int windowHeight, std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer, std::string levelPath, bool isEditorTest)
+GameplayState::GameplayState(GameStateManager& stateManager, int windowWidth, int windowHeight, std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer, std::string levelPath, bool isEditorTest, GameplayOrigin origin)
     : m_stateManager(stateManager),
     width(windowWidth),
     height(windowHeight),
@@ -26,8 +28,16 @@ GameplayState::GameplayState(GameStateManager& stateManager, int windowWidth, in
     m_textRenderer(textRenderer),
     m_selectedTowerType(""),
     m_currentLevelPath(levelPath),
-    m_isEditorTest(isEditorTest)
+    m_isEditorTest(isEditorTest),
+    m_origin(origin)
 {
+    if (m_isEditorTest) {
+        m_origin = GameplayOrigin::EditorTest;
+    } else if (origin == GameplayOrigin::Campaign && !m_currentLevelPath.empty()) {
+        if (!CampaignManager::isFileInCampaign(m_currentLevelPath)) {
+            m_origin = GameplayOrigin::Custom;
+        }
+    }
 }
 
 void GameplayState::cleanup() {
@@ -137,37 +147,72 @@ void GameplayState::processInput(GLFWwindow* window, float dt) {
         },
         [this]() {
             startNextWave();
+        },
+        [this]() {
+            togglePause();
+        },
+        [this]() {
+            cycleTimeScale();
+        },
+        [this](float speed) {
+            setTimeScale(speed);
         }
     );
 }
 
 void GameplayState::update(float dt) {
     if (!m_isValid) {
-        m_stateManager.setState(std::make_unique<MainMenuState>(m_stateManager, width, height, m_renderer, m_textRenderer));
+        if (m_origin == GameplayOrigin::Custom) {
+            m_stateManager.setState(std::make_unique<LevelSelectState>(m_stateManager, width, height, m_renderer, m_textRenderer, LevelTab::Custom));
+        } else if (m_origin == GameplayOrigin::Campaign) {
+            m_stateManager.setState(std::make_unique<LevelSelectState>(m_stateManager, width, height, m_renderer, m_textRenderer, LevelTab::Campaign));
+        } else {
+            m_stateManager.setState(std::make_unique<MainMenuState>(m_stateManager, width, height, m_renderer, m_textRenderer));
+        }
         return;
     }
 
-    if (m_world->grid && m_pathVisualizer) {
-        m_pathVisualizer->update(dt, m_world->grid->getCellSize());
+    // Если активна тактическая пауза, мир и анимации таймеров не продвигаются
+    if (m_isPaused) {
+        return;
     }
 
-    m_world->update(dt);
+    // Масштабируем deltaTime с защитой от скачков кадров (макс 50мс)
+    float clampedDt = std::min(dt, 0.05f);
+    float scaledDt = clampedDt * m_timeScale;
+
+    // Субстеппинг с фиксированным шагом не более 16.6мс для предотвращения туннелирования коллизий
+    const float maxSubstep = 0.0166667f;
+    float remainingDt = scaledDt;
+    while (remainingDt > 0.0001f) {
+        float step = std::min(remainingDt, maxSubstep);
+
+        if (m_world->grid && m_pathVisualizer) {
+            m_pathVisualizer->update(step, m_world->grid->getCellSize());
+        }
+
+        m_world->update(step);
+        remainingDt -= step;
+    }
 
     if (m_world->playerStats.baseHealth <= 0) {
         m_world->playerStats.baseHealth = 0;
         if (m_isEditorTest) {
-            m_stateManager.pushState(std::make_unique<GameOverState>(m_stateManager, width, height, m_renderer, m_textRenderer, m_currentLevelPath, true));
+            m_stateManager.pushState(std::make_unique<GameOverState>(m_stateManager, width, height, m_renderer, m_textRenderer, m_currentLevelPath, true, m_origin));
         } else {
-            m_stateManager.setState(std::make_unique<GameOverState>(m_stateManager, width, height, m_renderer, m_textRenderer, m_currentLevelPath));
+            m_stateManager.setState(std::make_unique<GameOverState>(m_stateManager, width, height, m_renderer, m_textRenderer, m_currentLevelPath, false, m_origin));
         }
         return;
     }
 
     if (m_world->waveManager->isAllWavesCompleted() && m_world->entityManager->getEnemies().empty()) {
         if (m_isEditorTest) {
-            m_stateManager.pushState(std::make_unique<VictoryState>(m_stateManager, width, height, m_renderer, m_textRenderer, true));
+            m_stateManager.pushState(std::make_unique<VictoryState>(m_stateManager, width, height, m_renderer, m_textRenderer, m_currentLevelPath, true, m_origin));
         } else {
-            m_stateManager.setState(std::make_unique<VictoryState>(m_stateManager, width, height, m_renderer, m_textRenderer));
+            if (m_origin == GameplayOrigin::Campaign) {
+                CampaignManager::completeMission(m_currentLevelPath);
+            }
+            m_stateManager.setState(std::make_unique<VictoryState>(m_stateManager, width, height, m_renderer, m_textRenderer, m_currentLevelPath, false, m_origin));
         }
         return;
     }
@@ -191,7 +236,9 @@ void GameplayState::render() {
         mousePos,
         this->width,
         this->height,
-        pistonAngle
+        pistonAngle,
+        m_timeScale,
+        m_isPaused
     );
 
     if (m_isEditorTest && m_renderer && m_textRenderer) {
@@ -239,6 +286,27 @@ void GameplayState::startNextWave() {
         m_world->waveManager->startNextWave();
     }
 }
+
+void GameplayState::cycleTimeScale() {
+    if (m_timeScale < 1.5f) {
+        m_timeScale = 2.0f;
+    } else if (m_timeScale < 3.0f) {
+        m_timeScale = 4.0f;
+    } else {
+        m_timeScale = 1.0f;
+    }
+    m_isPaused = false;
+}
+
+void GameplayState::setTimeScale(float scale) {
+    m_timeScale = scale;
+    m_isPaused = false;
+}
+
+void GameplayState::togglePause() {
+    m_isPaused = !m_isPaused;
+}
+
 
 void GameplayState::restartGame() {
     m_world = std::make_unique<GameWorld>();

@@ -19,7 +19,7 @@ Enemy* TowerTargetingSystem::selectTarget(
     int minHealth = 999999;
 
     for (const auto& enemy : enemies) {
-        if (!enemy || enemy->isReachedEnd() || enemy->isDead()) continue;
+        if (!enemy || enemy->isReachedEnd() || enemy->isDead() || enemy->isFalling()) continue;
 
         if (towerCollider.intersects(enemy->getCollider(grid))) {
             switch (mode) {

@@ -52,6 +52,8 @@ public:
 
 	// чекаем кликнули по панельки ли не
 	bool checkClick(float mouseX, float mouseY, int windowWidth, int windowHeight, std::string& selectedTower);
+	bool selectTowerByIndex(size_t index, std::string& selectedTower);
+	const std::vector<std::string>& getCachedTowers() const { return m_cachedTowers; }
 	
 	// методы для панельки
 	glm::vec2 getUIPanelPos(int windowWidth, int windowHeight) const; // получить позицию панельки относительно верхнего левого угла панельки

@@ -4,6 +4,7 @@
 #include "GameplayState.h"
 #include "MapEditorState.h"
 #include "SettingsState.h"
+#include "../core/CampaignManager.h"
 #include "../core/LocalizationManager.h"
 #include "../core/SettingsManager.h"
 #include "../renderer/TextRenderer.h"
@@ -55,6 +56,21 @@ void MainMenuState::processInput(GLFWwindow* window, float dt) {
     double mouseX, mouseY;
     glfwGetCursorPos(window, &mouseX, &mouseY);
 
+    // Хоткей переключения Dev Mode: Ctrl + Shift + D
+    bool ctrlDown = (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_RIGHT_CONTROL) == GLFW_PRESS);
+    bool shiftDown = (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS);
+    bool dDown = (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS);
+
+    if (ctrlDown && shiftDown && dDown) {
+        if (!m_ctrlShiftDWasDown) {
+            m_ctrlShiftDWasDown = true;
+            CampaignManager::toggleDevMode();
+            std::cout << "[MainMenu] Dev Mode toggled: " << (CampaignManager::isDevMode() ? "ON" : "OFF") << std::endl;
+        }
+    } else {
+        m_ctrlShiftDWasDown = false;
+    }
+
     int mouseState = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
 
     // Защита от случайного клика-сквозь при переходе из другого стейта
@@ -76,14 +92,14 @@ void MainMenuState::processInput(GLFWwindow* window, float dt) {
         // если клик по старт гейм
         if (isButtonClicked(mouseX, mouseY, layout.btnX, layout.startBtnY, layout.btnW, layout.btnH)) {
             std::cout << "[MainMenu] Clicked 'Start Game' (mouse=" << mouseX << "," << mouseY << ") -> LevelSelectState" << std::endl;
-            m_stateManager.setState(std::make_unique<LevelSelectState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));
+            m_stateManager.setState(std::make_unique<LevelSelectState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer, LevelSelectState::getLastActiveTab()));
             return;
         }
 
         // Клик по Load Game
         if (isButtonClicked(mouseX, mouseY, layout.btnX, layout.loadBtnY, layout.btnW, layout.btnH)) {
             std::cout << "[MainMenu] Clicked 'Load Game' (mouse=" << mouseX << "," << mouseY << ") -> GameplayState" << std::endl;
-            auto loadState = std::make_unique<GameplayState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer, "");
+            auto loadState = std::make_unique<GameplayState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer, "", false, GameplayOrigin::MainMenu);
             loadState->setSaveToLoad("savegame");
 
             m_stateManager.setState(std::move(loadState));
@@ -93,7 +109,7 @@ void MainMenuState::processInput(GLFWwindow* window, float dt) {
         // Клик по Map Editor
         if (isButtonClicked(mouseX, mouseY, layout.btnX, layout.editorBtnY, layout.btnW, layout.btnH)) {
             std::cout << "[MainMenu] Clicked 'Map Editor' (mouse=" << mouseX << "," << mouseY << ") -> MapEditorState" << std::endl;
-            m_stateManager.setState(std::make_unique<MapEditorState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));
+            m_stateManager.setState(std::make_unique<MapEditorState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer, "", EditorOrigin::MainMenu));
             return;
         }
 
@@ -137,6 +153,13 @@ void MainMenuState::render() {
     renderBtnText("> " + LOC("BTN_MAP_EDITOR") + " <", layout.editorBtnY, glm::vec3(0.9f, 0.8f, 0.2f));
     renderBtnText("> " + LOC("BTN_SETTINGS") + " <", layout.settingsBtnY, glm::vec3(0.75f, 0.88f, 1.0f));
     renderBtnText("> " + LOC("BTN_EXIT") + " <", layout.exitBtnY, glm::vec3(1.0f, 0.3f, 0.3f));
+
+    if (CampaignManager::isDevMode()) {
+        float fDev = std::clamp(0.44f * SettingsManager::getUIScaleMultiplier(), 0.32f, 0.55f);
+        std::string devBadge = "[ DEV MODE: ON ]";
+        float dbw = m_textRenderer->CalculateTextWidth(devBadge, fDev);
+        m_textRenderer->RenderText(devBadge, static_cast<float>(m_width) - dbw - 20.0f, 20.0f, fDev, glm::vec3(0.95f, 0.65f, 0.20f));
+    }
 
     m_renderer->endBatch(); // закрываем пакет
 }

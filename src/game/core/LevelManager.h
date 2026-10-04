@@ -63,6 +63,7 @@ public:
     static std::vector<std::string> getLevelDirectories();
     static void syncLevelsBetweenSourceAndBuild();
     static std::vector<LevelInfo> getAvailableLevels();
+    static std::vector<LevelInfo> getCustomLevels();
     static bool saveLevel(const std::string& levelFileName, const LevelMapData& data);
     static bool renameLevel(const std::string& oldFileName, const std::string& newFileName);
     static bool setLevelCampaign(const std::string& levelFileName, bool isCampaign);

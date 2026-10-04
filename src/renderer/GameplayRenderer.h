@@ -45,7 +45,9 @@ public:
         const glm::vec2& mousePos,
         int windowWidth,
         int windowHeight,
-        float pistonPlacementAngle = 270.0f
+        float pistonPlacementAngle = 270.0f,
+        float timeScale = 1.0f,
+        bool isPaused = false
     );
 };
 

@@ -56,6 +56,11 @@ bool Grid::canBuildAt(int gridX, int gridY) const {
 
 	CellType type = getCellType(gridX, gridY);
 
+	// строить на обрыве/шурфе нельзя
+	if (type == CellType::Chasm) {
+		return false;
+	}
+
 	// строить можно
 	return (type == CellType::Ground || type == CellType::Platform);
 }
@@ -107,6 +112,10 @@ void Grid::draw(SpriteRenderer* renderer, std::shared_ptr<Texture2D> whiteTextur
 					fillColor   = glm::vec3(0.20f, 0.35f, 0.52f);
 					borderColor = glm::vec3(0.11f, 0.20f, 0.32f);
 					break;
+				case CellType::Chasm: // Шурф / обрыв / провал: глубокая шахтная бездна
+					fillColor   = glm::vec3(0.04f, 0.04f, 0.06f);
+					borderColor = glm::vec3(0.02f, 0.02f, 0.03f);
+					break;
 				case CellType::Spawner: // Точка спавна врагов: Пурпурный / фиолетовый
 					fillColor   = glm::vec3(0.65f, 0.35f, 0.75f);
 					borderColor = glm::vec3(0.38f, 0.16f, 0.46f);
@@ -126,6 +135,16 @@ void Grid::draw(SpriteRenderer* renderer, std::shared_ptr<Texture2D> whiteTextur
 
 			// 2. Внутренний квадрат (основной цвет ячейки)
 			renderer->drawSprite(whiteTexture, pixelPos + innerOffset, innerSize, 0.0f, fillColor * color);
+
+			// 3. Для клетки обрыва (Chasm) рисуем глубокую сердцевину провала
+			if (type == CellType::Chasm) {
+				float depthPadding = std::max(2.0f, std::round(m_cellSize * 0.16f));
+				glm::vec2 pitOffset(depthPadding, depthPadding);
+				glm::vec2 pitSize(m_cellSize - 2.0f * depthPadding, m_cellSize - 2.0f * depthPadding);
+				if (pitSize.x > 0.0f && pitSize.y > 0.0f) {
+					renderer->drawSprite(whiteTexture, pixelPos + pitOffset, pitSize, 0.0f, glm::vec3(0.015f, 0.015f, 0.025f) * color);
+				}
+			}
 		}
 	}
 }

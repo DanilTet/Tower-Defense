@@ -20,6 +20,7 @@ int Pathfinder::getOctileDistance(glm::ivec2 a, glm::ivec2 b) const {
 bool Pathfinder::isCellWalkable(const Grid& grid, int x, int y) {
     if (x < 0 || x >= grid.getWidth() || y < 0 || y >= grid.getHeight()) return false;
     CellType t = grid.getCellType(x, y);
+    if (t == CellType::Chasm) return false; // Обрыв/шурф непроходим для обычного поиска пути
     return t == CellType::Ground || t == CellType::Path || t == CellType::Spawner || t == CellType::Base;
 }
 

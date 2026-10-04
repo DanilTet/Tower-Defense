@@ -35,6 +35,8 @@ add_executable(${PROJECT_NAME}
     src/game/core/Game.cpp
     src/game/core/ConfigManager.h
     src/game/core/ConfigManager.cpp
+    src/game/core/CampaignManager.h
+    src/game/core/CampaignManager.cpp
     src/game/core/WaveManager.h
     src/game/core/WaveManager.cpp
 

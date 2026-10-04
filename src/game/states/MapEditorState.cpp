@@ -1,6 +1,7 @@
 #include "MapEditorState.h"
 #include "GameStateManager.h"
 #include "MainMenuState.h"
+#include "LevelSelectState.h"
 #include "GameplayState.h"
 #include "../renderer/SpriteRenderer.h"
 #include "../renderer/TextRenderer.h"
@@ -37,12 +38,13 @@ static const std::vector<glm::ivec2> c_sizePresets = {
 
 MapEditorState::MapEditorState(GameStateManager& stateManager, int width, int height,
                                std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer,
-                               const std::string& levelToLoad)
+                               const std::string& levelToLoad, EditorOrigin origin)
     : m_stateManager(stateManager),
       m_width(width),
       m_height(height),
       m_renderer(renderer),
-      m_textRenderer(textRenderer)
+      m_textRenderer(textRenderer),
+      m_origin(origin)
 {
     if (!levelToLoad.empty()) {
         std::string fname = levelToLoad;
@@ -51,6 +53,19 @@ MapEditorState::MapEditorState(GameStateManager& stateManager, int width, int he
             fname = fname.substr(lastSlash + 1);
         }
         m_currentLevelFileName = fname;
+    }
+}
+
+void MapEditorState::returnToOrigin() {
+    if (m_origin == EditorOrigin::Campaign) {
+        std::cout << "[MapEditor] Returning to Campaign LevelSelect..." << std::endl;
+        m_stateManager.setState(std::make_unique<LevelSelectState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer, LevelTab::Campaign));
+    } else if (m_origin == EditorOrigin::Custom) {
+        std::cout << "[MapEditor] Returning to Custom LevelSelect..." << std::endl;
+        m_stateManager.setState(std::make_unique<LevelSelectState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer, LevelTab::Custom));
+    } else {
+        std::cout << "[MapEditor] Returning to MainMenu..." << std::endl;
+        m_stateManager.setState(std::make_unique<MainMenuState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));
     }
 }
 
@@ -169,6 +184,8 @@ void MapEditorState::loadLevelByName(const std::string& fileName) {
                 m_grid->setCellType(x, y, CellType::Platform);
             } else if (cellVal == 3) {
                 m_grid->setCellType(x, y, CellType::Scenery);
+            } else if (cellVal == 4) {
+                m_grid->setCellType(x, y, CellType::Chasm);
             } else {
                 m_grid->setCellType(x, y, CellType::Ground);
             }
@@ -236,6 +253,7 @@ void MapEditorState::resizeMap(int newW, int newH) {
             if (cellVal == 1) m_grid->setCellType(x, y, CellType::Path);
             else if (cellVal == 2) m_grid->setCellType(x, y, CellType::Platform);
             else if (cellVal == 3) m_grid->setCellType(x, y, CellType::Scenery);
+            else if (cellVal == 4) m_grid->setCellType(x, y, CellType::Chasm);
             else m_grid->setCellType(x, y, CellType::Ground);
         }
     }
@@ -449,13 +467,14 @@ void MapEditorState::updateButtonLayout() {
     };
 
     std::vector<BottomItem> items;
-    // Кисти (1-6 + 0)
+    // Кисти (1-7 + 0)
     items.push_back({ "1:" + LOC("EDITOR_GROUND"),   false, EditorBrush::Ground,   0, 0.0f });
     items.push_back({ "2:" + LOC("EDITOR_WALL"),     false, EditorBrush::Wall,     0, 0.0f });
     items.push_back({ "3:" + LOC("EDITOR_PLATFORM"), false, EditorBrush::Platform, 0, 0.0f });
     items.push_back({ "4:" + LOC("EDITOR_PATH"),     false, EditorBrush::Path,     0, 0.0f });
     items.push_back({ "5:" + LOC("EDITOR_SPAWNER"),  false, EditorBrush::Spawner,  0, 0.0f });
     items.push_back({ "6:" + LOC("EDITOR_BASE"),     false, EditorBrush::Base,     0, 0.0f });
+    items.push_back({ "7:" + LOC("EDITOR_CHASM"),    false, EditorBrush::Chasm,    0, 0.0f });
     items.push_back({ "0:" + LOC("EDITOR_ERASER"),   false, EditorBrush::Eraser,   0, 0.0f });
 
     // ID блок
@@ -484,7 +503,7 @@ void MapEditorState::updateButtonLayout() {
             it.width = std::max(56.0f, tw + 18.0f);
         }
         totalWidth += it.width + padding;
-        if (i == 6 || i == 9) totalWidth += 6.0f; // Разделители
+        if (i == 7 || i == 10) totalWidth += 6.0f; // Разделители
     }
 
     // Если всё вместе шире экрана (например, на маленьком разрешении 1024x768), пропорционально уменьшаем
@@ -509,7 +528,7 @@ void MapEditorState::updateButtonLayout() {
     // Размещаем кнопки
     float currentX = startX;
     for (size_t i = 0; i < items.size(); ++i) {
-        if (i == 7 || i == 10) {
+        if (i == 8 || i == 11) {
             currentX += 6.0f; // Визуальный разделитель
         }
         const auto& it = items[i];
@@ -638,6 +657,10 @@ void MapEditorState::applyBrush(int gridX, int gridY, EditorBrush brush) {
             m_rawLayout[gridY][gridX] = 1;
             m_grid->setCellType(gridX, gridY, CellType::Path);
             break;
+        case EditorBrush::Chasm:
+            m_rawLayout[gridY][gridX] = 4;
+            m_grid->setCellType(gridX, gridY, CellType::Chasm);
+            break;
         case EditorBrush::Spawner:
             m_rawLayout[gridY][gridX] = 0;
             m_grid->setCellType(gridX, gridY, CellType::Spawner);
@@ -752,7 +775,7 @@ void MapEditorState::testMap() {
     std::string testPath = "res/levels/" + m_currentLevelFileName;
     std::cout << "[MapEditor] Launching test gameplay with " << testPath << std::endl;
     m_suppressPlacementUntilRelease = true;
-    m_stateManager.pushState(std::make_unique<GameplayState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer, testPath, /*isEditorTest=*/true));
+    m_stateManager.pushState(std::make_unique<GameplayState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer, testPath, /*isEditorTest=*/true, GameplayOrigin::EditorTest));
 }
 
 void MapEditorState::processInput(GLFWwindow* window, float dt) {
@@ -843,13 +866,14 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
         if (handled) return;
     }
 
-    // Горячие клавиши 1-6 + 0/E для Ластика
+    // Горячие клавиши 1-7 + 0/E для Ластика
     if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS) m_currentBrush = EditorBrush::Ground;
     if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS) m_currentBrush = EditorBrush::Wall;
     if (glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS) m_currentBrush = EditorBrush::Platform;
     if (glfwGetKey(window, GLFW_KEY_4) == GLFW_PRESS) m_currentBrush = EditorBrush::Path;
     if (glfwGetKey(window, GLFW_KEY_5) == GLFW_PRESS) m_currentBrush = EditorBrush::Spawner;
     if (glfwGetKey(window, GLFW_KEY_6) == GLFW_PRESS) m_currentBrush = EditorBrush::Base;
+    if (glfwGetKey(window, GLFW_KEY_7) == GLFW_PRESS) m_currentBrush = EditorBrush::Chasm;
     if (glfwGetKey(window, GLFW_KEY_0) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) m_currentBrush = EditorBrush::Eraser;
 
     // Горячие клавиши переключения ID: [ и ] или - и =
@@ -1101,10 +1125,16 @@ void MapEditorState::render() {
             if (btn.brush == EditorBrush::Eraser) {
                 btnBg = glm::vec3(0.45f, 0.18f, 0.18f);
                 borderColor = glm::vec3(1.0f, 0.35f, 0.35f);
+            } else if (btn.brush == EditorBrush::Chasm) {
+                btnBg = glm::vec3(0.12f, 0.12f, 0.18f);
+                borderColor = glm::vec3(0.70f, 0.45f, 0.95f);
             }
         } else if (!btn.isAction && btn.brush == EditorBrush::Eraser) {
             btnBg = glm::vec3(0.28f, 0.15f, 0.15f);
             borderColor = glm::vec3(0.6f, 0.25f, 0.25f);
+        } else if (!btn.isAction && btn.brush == EditorBrush::Chasm) {
+            btnBg = glm::vec3(0.10f, 0.10f, 0.14f);
+            borderColor = glm::vec3(0.35f, 0.30f, 0.45f);
         } else if (btn.isAction) {
             if (btn.actionId == 2) { // Test
                 btnBg = glm::vec3(0.15f, 0.35f, 0.20f);
@@ -2979,17 +3009,17 @@ bool MapEditorState::processExitModalInput(GLFWwindow* window, glm::vec2 mousePo
         m_exitModalEscReleased = true;
         m_keyEscPressedLastFrame = false;
     } else if (m_exitModalEscReleased) {
-        std::cout << "[MapEditor] Exit Modal: ESC pressed -> exiting to MainMenu without saving" << std::endl;
-        m_stateManager.setState(std::make_unique<MainMenuState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));
+        std::cout << "[MapEditor] Exit Modal: ESC pressed -> exiting without saving" << std::endl;
+        returnToOrigin();
         return true;
     }
 
     // 3. Горячая клавиша Enter — сохранить и выйти
     bool keyEnter = (glfwGetKey(window, GLFW_KEY_ENTER) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_KP_ENTER) == GLFW_PRESS);
     if (keyEnter) {
-        std::cout << "[MapEditor] Exit Modal: Enter pressed -> saving and exiting to MainMenu" << std::endl;
+        std::cout << "[MapEditor] Exit Modal: Enter pressed -> saving and exiting" << std::endl;
         saveMap();
-        m_stateManager.setState(std::make_unique<MainMenuState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));
+        returnToOrigin();
         return true;
     }
 
@@ -3001,14 +3031,14 @@ bool MapEditorState::processExitModalInput(GLFWwindow* window, glm::vec2 mousePo
         if (isPointInRect(mousePos, l.btnSaveExitPos, l.btnSaveExitSize)) {
             std::cout << "[MapEditor] Exit Modal: Clicked [Save and Exit] -> saving and exiting" << std::endl;
             saveMap();
-            m_stateManager.setState(std::make_unique<MainMenuState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));
+            returnToOrigin();
             return true;
         }
 
         // Кнопка [ Выйти без сохранения ]
         if (isPointInRect(mousePos, l.btnDiscardPos, l.btnDiscardSize)) {
             std::cout << "[MapEditor] Exit Modal: Clicked [Discard and Exit] -> exiting without saving" << std::endl;
-            m_stateManager.setState(std::make_unique<MainMenuState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));
+            returnToOrigin();
             return true;
         }
 

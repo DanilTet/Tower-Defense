@@ -89,6 +89,11 @@ private:
 	float m_stunAnimAngle = 0.0f; // угол вращения звездочек стана
 	std::vector<std::pair<glm::ivec2, float>> m_pistonCooldowns; // кулдауны конкретных поршней для защиты от локального зацикливания
 
+	// Состояние падения в шурф / обрыв (CellType::Chasm)
+	bool m_isFalling = false;
+	float m_fallTimer = 0.0f;
+	const float FALL_DURATION = 0.45f;
+
 	void applyPostKnockbackPath(glm::ivec2 destCell, glm::ivec2 fromCell, const Grid& grid);
 
 public:
@@ -112,6 +117,7 @@ public:
 	glm::vec2 getPixelPos() const { return m_pixelPos; }
 	bool isReachedEnd() const { return m_reachedEnd; }
 	void takeDamage(int damage) {
+		if (m_isFalling) return;
 		m_health -= damage;
 	}
 
@@ -140,10 +146,12 @@ public:
 	float getSpeedModifier() const { return m_speedModifier; }
 	bool isKnockedBack() const { return m_isKnockedBack; }
 	bool isStunned() const { return m_stunTimer > 0.0f; }
+	bool isFalling() const { return m_isFalling; }
 	bool isKnockbackImmune() const { return false; } // глобального иммунитета больше нет
 	void addPistonCooldown(glm::ivec2 pistonCell, float duration = 5.0f);
 	bool isImmuneToPiston(glm::ivec2 pistonCell) const;
 	glm::vec2 getWallImpactOffset() const { return m_wallImpactOffset; }
 	void pushOneCell(glm::ivec2 fromCell, glm::ivec2 punchDir, const Grid& grid, ParticleSystem* particleSystem = nullptr);
+	void startFalling(glm::ivec2 chasmCell, const Grid& grid);
 	void applyKnockback(glm::vec2 direction, float force);
 };

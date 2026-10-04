@@ -2,6 +2,24 @@
 
 struct GLFWwindow;
 
+enum class LevelTab {
+    Campaign,
+    Custom
+};
+
+enum class GameplayOrigin {
+    Campaign,
+    Custom,
+    EditorTest,
+    MainMenu
+};
+
+enum class EditorOrigin {
+    MainMenu,
+    Campaign,
+    Custom
+};
+
 class IGameState {
 public:
     virtual ~IGameState() = default;

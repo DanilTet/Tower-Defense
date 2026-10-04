@@ -1,6 +1,9 @@
 #include "VictoryState.h"
 #include "GameStateManager.h"
+#include "GameplayState.h"
 #include "LevelSelectState.h"
+#include "MainMenuState.h"
+#include "../core/CampaignManager.h"
 #include "../resources/ResourceManager.h"
 #include "../renderer/SpriteRenderer.h"
 #include "../renderer/TextRenderer.h"
@@ -10,8 +13,8 @@
 #include <algorithm>
 #include <iostream>
 
-VictoryState::VictoryState(GameStateManager& stateManager, int width, int height, std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer, bool isEditorTest)
-    : m_stateManager(stateManager), m_width(width), m_height(height), m_renderer(renderer), m_textRenderer(textRenderer), m_isEditorTest(isEditorTest)
+VictoryState::VictoryState(GameStateManager& stateManager, int width, int height, std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer, const std::string& levelPath, bool isEditorTest, GameplayOrigin origin)
+    : m_stateManager(stateManager), m_width(width), m_height(height), m_renderer(renderer), m_textRenderer(textRenderer), m_levelPath(levelPath), m_isEditorTest(isEditorTest), m_origin(origin)
 {
     m_uiTexture = std::shared_ptr<Texture2D>(ResourceManager::getTexture("uiBaseTexture"), [](Texture2D*) {});
     m_mousePressedLastFrame = true;
@@ -93,16 +96,34 @@ void VictoryState::processInput(GLFWwindow* window, float dt) {
             if (m_isEditorTest) {
                 std::cout << "[VictoryState] Returning to MapEditor..." << std::endl;
                 m_stateManager.returnToMapEditor("", m_width, m_height, m_renderer, m_textRenderer);
+            } else if (m_origin == GameplayOrigin::Campaign) {
+                std::string nextFile = CampaignManager::getNextMissionFile(m_levelPath);
+                if (!nextFile.empty()) {
+                    std::string nextPath = "res/levels/" + nextFile;
+                    std::cout << "[VictoryState] Launching next campaign mission: " << nextPath << std::endl;
+                    m_stateManager.setState(std::make_unique<GameplayState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer, nextPath, false, GameplayOrigin::Campaign));
+                } else {
+                    std::cout << "[VictoryState] Campaign completed! Returning to Campaign menu..." << std::endl;
+                    m_stateManager.setState(std::make_unique<LevelSelectState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer, LevelTab::Campaign));
+                }
+            } else if (m_origin == GameplayOrigin::Custom) {
+                m_stateManager.setState(std::make_unique<LevelSelectState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer, LevelTab::Custom));
             } else {
-                m_stateManager.setState(std::make_unique<LevelSelectState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));
+                m_stateManager.setState(std::make_unique<MainMenuState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));
             }
         }
         else if (m_btnMenu.state == 2) {
             if (m_isEditorTest) {
                 std::cout << "[VictoryState] Returning to MapEditor..." << std::endl;
                 m_stateManager.returnToMapEditor("", m_width, m_height, m_renderer, m_textRenderer);
+            } else if (m_origin == GameplayOrigin::Custom) {
+                std::cout << "[VictoryState] Returning to Custom LevelSelect..." << std::endl;
+                m_stateManager.setState(std::make_unique<LevelSelectState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer, LevelTab::Custom));
+            } else if (m_origin == GameplayOrigin::Campaign) {
+                std::cout << "[VictoryState] Returning to Campaign LevelSelect..." << std::endl;
+                m_stateManager.setState(std::make_unique<LevelSelectState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer, LevelTab::Campaign));
             } else {
-                m_stateManager.setState(std::make_unique<LevelSelectState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));
+                m_stateManager.setState(std::make_unique<MainMenuState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));
             }
         }
     }

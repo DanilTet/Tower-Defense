@@ -48,7 +48,7 @@ void Projectile::update(float dt, const std::vector<std::unique_ptr<Enemy>>& ene
     // ищем цель по айдишнику
     if(m_targetId != -1) {
         for (const auto& enemy : enemies) {
-            if (enemy && !enemy->isDead() && !enemy->isReachedEnd() && enemy->getId() == m_targetId) {
+            if (enemy && !enemy->isDead() && !enemy->isReachedEnd() && !enemy->isFalling() && enemy->getId() == m_targetId) {
                 target = enemy.get();
                 break;
             }
@@ -92,6 +92,9 @@ void Projectile::update(float dt, const std::vector<std::unique_ptr<Enemy>>& ene
         // если враг умер или потерян то сбрасуем айдишник
         m_targetId = -1;
     }
+    // сохраняем предыдущую позицию для непрерывной проверки коллизий (CCD)
+    glm::vec2 prevPos = m_pos;
+
     // двигаем пулю
     m_pos += m_direction * m_speed * dt;
 
@@ -102,18 +105,31 @@ void Projectile::update(float dt, const std::vector<std::unique_ptr<Enemy>>& ene
         particleSystem.emit(trail, trail.spawnCount);
     }
 
-    CircleCollider myCollider = { m_pos, m_radius };
+    glm::vec2 travelVec = m_pos - prevPos;
+    float travelDistSq = glm::dot(travelVec, travelVec);
 
     // проверка на столкновение
     for (const auto& enemy : enemies) {
-        if (!enemy || enemy->isDead() || enemy->isReachedEnd()) continue;
+        if (!enemy || enemy->isDead() || enemy->isReachedEnd() || enemy->isFalling()) continue;
 
         // если включен аркадный режим, пропускаем всех врагов, кроме текущей цели
         if (m_hitOnlyTarget && m_targetId != -1 && enemy->getId() != m_targetId) {
             continue;
         }
 
-        if (myCollider.intersects(enemy->getCollider(grid))) {
+        CircleCollider enemyCol = enemy->getCollider(grid);
+        float combinedRadius = m_radius + enemyCol.radius;
+
+        // Swept CCD: расстояние от центра врага до отрезка пути [prevPos, m_pos]
+        float t = (travelDistSq > 0.0001f) 
+            ? glm::clamp(glm::dot(enemyCol.center - prevPos, travelVec) / travelDistSq, 0.0f, 1.0f) 
+            : 0.0f;
+        glm::vec2 closestPoint = prevPos + travelVec * t;
+        float distSq = glm::dot(enemyCol.center - closestPoint, enemyCol.center - closestPoint);
+
+        if (distSq <= combinedRadius * combinedRadius) {
+            m_pos = closestPoint; // точная точка контакта
+
             // спавн партиклов взрыва или попадания
             if (!m_impactParticle.empty()) {
                 ParticleEmitterProps impact = ConfigManager::getParticleProps(m_impactParticle);
@@ -126,7 +142,7 @@ void Projectile::update(float dt, const std::vector<std::unique_ptr<Enemy>>& ene
                 CircleCollider explosion = { m_pos, splashPixels };
 
                 for (const auto& otherEnemy : enemies) {
-                    if (!otherEnemy || otherEnemy->isDead() || otherEnemy->isReachedEnd()) continue;
+                    if (!otherEnemy || otherEnemy->isDead() || otherEnemy->isReachedEnd() || otherEnemy->isFalling()) continue;
                     if (explosion.intersects(otherEnemy->getCollider(grid))) {
                         otherEnemy->takeDamage(m_damage);
                         if (m_slowDuration > 0.0f && m_slowPercent > 0.0f) {

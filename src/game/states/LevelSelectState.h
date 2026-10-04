@@ -7,30 +7,41 @@
 #include <glm/glm.hpp>
 #include "PauseState.h"
 #include "../core/LevelManager.h"
+#include "../core/CampaignManager.h"
 
 class GameStateManager;
 class SpriteRenderer;
 class TextRenderer;
 class Texture2D;
 
-struct LevelCardUI {
+struct CampaignMissionCardUI {
     UIButton cardBtn;
-    std::string levelPath;
+    std::string missionId;
     std::string filename;
     std::string displayName;
-    bool isCampaign = false;
-    bool isBuiltIn = false;
-    std::vector<std::string> tags;
+    std::string description;
+    int order = 1;
+    bool isUnlocked = false;
+    bool isCompleted = false;
+
     UIButton playBtn;
-    UIButton typeToggleBtn;
-    UIButton renameBtn;
-    UIButton tagsBtn;
+    UIButton btnUp;
+    UIButton btnDown;
+    UIButton btnEdit;
+    UIButton btnRemove;
 };
 
-enum class CategoryFilter {
-    All,
-    Campaign,
-    Test
+struct CustomCardUI {
+    UIButton cardBtn;
+    std::string filename;
+    std::string displayName;
+    std::string fullPath;
+    std::vector<std::string> tags;
+
+    UIButton playBtn;
+    UIButton editBtn;
+    UIButton renameBtn;
+    UIButton deleteBtn;
 };
 
 struct TagChip {
@@ -52,39 +63,55 @@ private:
     bool m_suppressClickUntilRelease = true;
     glm::vec2 m_mousePos{ 0.0f, 0.0f };
 
-    std::vector<LevelCardUI> m_levelCards;
-    UIButton m_btnBack;
-    UIButton m_btnEditor;
+    // Вкладки
+    LevelTab m_activeTab = LevelTab::Campaign;
+    UIButton m_tabCampaign;
+    UIButton m_tabCustom;
 
+    // Режим разработчика (Ctrl + Shift + D)
+    static LevelTab s_lastActiveTab;
+    bool m_isDevMode = false;
+    bool m_ctrlShiftDWasDown = false;
+    UIButton m_btnDevModeToggle;
+    UIButton m_btnDevAddMission;
+    UIButton m_btnDevUnlockAll;
+    UIButton m_btnDevResetProgress;
+
+    // Списки карточек
+    std::vector<CampaignMissionCardUI> m_campaignCards;
+    std::vector<CustomCardUI> m_customCards;
+
+    // Нижняя навигация
+    UIButton m_btnBack;
+    UIButton m_btnEditor; // Для вкладки кастомных карт
+
+    // Пагинация
     int m_currentPage = 0;
     int m_totalPages = 1;
     UIButton m_btnPrevPage;
     UIButton m_btnNextPage;
 
-    // Фильтрация и поиск
-    CategoryFilter m_selectedCategory = CategoryFilter::All;
-    UIButton m_tabAll;
-    UIButton m_tabCampaign;
-    UIButton m_tabTest;
-
+    // Поиск (для вкладки кастомных карт)
     std::string m_searchQuery = "";
     bool m_isSearchActive = false;
     glm::vec2 m_searchBoxPos{ 0.0f, 0.0f };
     glm::vec2 m_searchBoxSize{ 220.0f, 32.0f };
     std::vector<TagChip> m_filterChips;
 
-    // Модальное окно переименования
+    // Модальное окно переименования кастомной карты
     bool m_isRenameModalOpen = false;
     std::string m_renameInputText = "";
     std::string m_renameTargetFileName = "";
     float m_cursorBlinkTimer = 0.0f;
 
-    // Модальное окно управления тегами
-    bool m_isTagsModalOpen = false;
-    std::string m_tagsTargetFileName = "";
-    std::vector<std::string> m_currentLevelTags;
-    std::string m_tagInputText = "";
-    std::vector<TagChip> m_quickAddChips;
+    // Модальное окно подтверждения удаления кастомной карты
+    bool m_isDeleteModalOpen = false;
+    std::string m_deleteTargetFileName = "";
+
+    // Модальное окно добавления карты в кампанию (Dev Mode)
+    bool m_isAddMissionModalOpen = false;
+    std::vector<std::string> m_availableFilesToAdd;
+    int m_addMissionScrollOffset = 0;
 
     struct KeyRepeatState {
         bool isDown = false;
@@ -93,72 +120,30 @@ private:
     };
     std::unordered_map<int, KeyRepeatState> m_keyStates;
 
-    struct RenameModalLayout {
-        glm::vec2 modalSize{ 0.0f };
-        glm::vec2 modalPos{ 0.0f };
-        float headerH = 38.0f;
-        float padX = 24.0f;
-        float subY = 0.0f;
-        glm::vec2 boxPos{ 0.0f };
-        glm::vec2 boxSize{ 0.0f };
-        glm::vec2 btnSavePos{ 0.0f };
-        glm::vec2 btnSaveSize{ 0.0f };
-        glm::vec2 btnCancelPos{ 0.0f };
-        glm::vec2 btnCancelSize{ 0.0f };
-        float fTitle = 0.68f;
-        float fSub = 0.46f;
-        float fInput = 0.56f;
-        float fBtn = 0.52f;
-    };
-
-    struct ExistingTagChipUI {
-        glm::vec2 chipPos{ 0.0f };
-        glm::vec2 chipSize{ 0.0f };
-        glm::vec2 delPos{ 0.0f };
-        glm::vec2 delSize{ 0.0f };
-        std::string tag;
-    };
-
-    struct TagsModalLayout {
-        glm::vec2 modalSize{ 0.0f };
-        glm::vec2 modalPos{ 0.0f };
-        float headerH = 38.0f;
-        float padX = 24.0f;
-        float fTitle = 0.68f;
-        std::vector<ExistingTagChipUI> existingChips;
-        float fExistingChip = 0.48f;
-        float fDel = 0.44f;
-        glm::vec2 popLabelPos{ 0.0f };
-        float fPopLabel = 0.46f;
-        std::vector<TagChip> quickChips;
-        float fQuickChip = 0.44f;
-        glm::vec2 boxPos{ 0.0f };
-        glm::vec2 boxSize{ 0.0f };
-        float fInput = 0.50f;
-        glm::vec2 btnAddPos{ 0.0f };
-        glm::vec2 btnAddSize{ 0.0f };
-        float fAddBtn = 0.48f;
-        glm::vec2 btnDonePos{ 0.0f };
-        glm::vec2 btnDoneSize{ 0.0f };
-        float fDoneBtn = 0.54f;
-    };
-
-    RenameModalLayout getRenameModalLayout();
-    TagsModalLayout getTagsModalLayout();
-
     bool isPointInRect(glm::vec2 point, glm::vec2 rectPos, glm::vec2 rectSize);
+    void drawQuad(glm::vec2 pos, glm::vec2 size, glm::vec3 color, const std::shared_ptr<Texture2D>& tex = nullptr);
+    void drawQuadRGBA(glm::vec2 pos, glm::vec2 size, glm::vec4 color, const std::shared_ptr<Texture2D>& tex = nullptr);
+
+    void initCampaignLayout(float uiScale, float tabY, float tabH, float bottomY, float navBtnH);
+    void initCustomLayout(float uiScale, float tabY, float tabH, float bottomY, float navBtnH);
+
     void openRenameModal(const std::string& targetFileName);
     void confirmRename();
     bool processRenameModalInput(GLFWwindow* window, glm::vec2 mousePos, bool leftDown, float dt);
-    void renderRenameModal();
+    void renderRenameModal(float uiScale);
 
-    void openTagsModal(const std::string& targetFileName);
-    void saveAndCloseTagsModal();
-    bool processTagsModalInput(GLFWwindow* window, glm::vec2 mousePos, bool leftDown, float dt);
-    void renderTagsModal();
+    void openDeleteModal(const std::string& targetFileName);
+    void confirmDelete();
+    bool processDeleteModalInput(GLFWwindow* window, glm::vec2 mousePos, bool leftDown, float dt);
+    void renderDeleteModal(float uiScale);
+
+    void openAddMissionModal();
+    bool processAddMissionModalInput(GLFWwindow* window, glm::vec2 mousePos, bool leftDown, float dt);
+    void renderAddMissionModal(float uiScale);
 
 public:
-    LevelSelectState(GameStateManager& stateManager, int width, int height, std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer);
+    static LevelTab getLastActiveTab() { return s_lastActiveTab; }
+    LevelSelectState(GameStateManager& stateManager, int width, int height, std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer, LevelTab initialTab = LevelTab::Campaign);
     void init() override;
     void cleanup() override;
     void processInput(GLFWwindow* window, float dt) override;

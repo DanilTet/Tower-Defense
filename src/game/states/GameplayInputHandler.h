@@ -35,7 +35,10 @@ public:
         std::string& selectedTowerType,
         Tower*& selectedTowerOnMap,
         std::function<void()> onPauseRequested,
-        std::function<void()> onNextWaveRequested
+        std::function<void()> onNextWaveRequested,
+        std::function<void()> onTogglePauseRequested = nullptr,
+        std::function<void()> onCycleSpeedRequested = nullptr,
+        std::function<void(float)> onSetSpeedRequested = nullptr
     );
 
     glm::vec2 getMousePos() const { return m_currentMousePos; }
