@@ -92,6 +92,7 @@ private:
     bool m_isCampaign = false;
     std::vector<std::string> m_tags;
     bool m_suppressPlacementUntilRelease = true;
+    bool m_suppressClickUntilRelease = true;
 
     // Состояния модальных окон управления картами
     bool m_isRenameModalOpen = false;
@@ -101,6 +102,12 @@ private:
     int m_mapsScrollOffset = 0;
     bool m_isExitModalOpen = false;
     bool m_exitModalEscReleased = false;
+
+    // Флаг изменений и авто-открытия модального окна карт при запуске
+    bool m_isDirty = false;
+    bool m_isInitialModalLaunch = false;
+    int m_diagInputFrames = 0;
+    int m_diagRenderFrames = 0;
 
     std::string m_statusMessage = "";
     float m_statusTimer = 0.0f;
@@ -160,7 +167,10 @@ private:
         glm::vec2 btnDelSize;
         bool hasDel = false;
         int levelIdx = 0;
+        LevelInfo levelInfo;
     };
+
+    std::vector<LevelInfo> getFilteredModalLevels() const;
 
     struct MapsModalLayout {
         glm::vec2 modalPos;

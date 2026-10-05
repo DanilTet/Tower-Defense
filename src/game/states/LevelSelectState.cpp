@@ -88,12 +88,12 @@ void LevelSelectState::init() {
     float uiScale = SettingsManager::getUIScaleMultiplier();
 
     // Размеры и позиции вкладок
-    float tabH = std::clamp(34.0f * uiScale, 26.0f, 46.0f);
-    float tabY = std::clamp(16.0f + 24.0f * uiScale, 14.0f, 54.0f);
-    float tabW = std::clamp(180.0f * uiScale, 130.0f, 260.0f);
-    float tabGap = std::clamp(12.0f * uiScale, 8.0f, 18.0f);
+    float tabH = std::clamp(34.0f * uiScale, 26.0f, 44.0f);
+    float tabY = std::clamp(14.0f + 20.0f * uiScale, 14.0f, 50.0f);
+    float tabW = std::clamp(160.0f * uiScale, 110.0f, 220.0f);
+    float tabGap = std::clamp(8.0f * uiScale, 6.0f, 14.0f);
 
-    float startTabsX = 36.0f * uiScale;
+    float startTabsX = std::clamp(28.0f * uiScale, 16.0f, 40.0f);
 
     m_tabCampaign.pos = glm::vec2(startTabsX, tabY);
     m_tabCampaign.size = glm::vec2(tabW, tabH);
@@ -104,10 +104,10 @@ void LevelSelectState::init() {
     m_tabCustom.text = LOC("LEVEL_TAB_CUSTOM");
 
     // Бейдж-кнопка переключения Dev Mode
-    float fDevBadge = std::clamp(0.48f * uiScale, 0.36f, 0.62f);
+    float fDevBadge = std::clamp(0.44f * uiScale, 0.32f, 0.55f);
     std::string badgeText = m_isDevMode ? LOC("CAMPAIGN_DEV_MODE_ON") : "[ DEV MODE: ВЫКЛ ]";
-    float bW = m_textRenderer ? (m_textRenderer->CalculateTextWidth(badgeText, fDevBadge) + 24.0f) : (160.0f * uiScale);
-    float bX = m_tabCustom.pos.x + m_tabCustom.size.x + 16.0f * uiScale;
+    float bW = m_textRenderer ? (m_textRenderer->CalculateTextWidth(badgeText, fDevBadge) + 18.0f) : (140.0f * uiScale);
+    float bX = m_tabCustom.pos.x + m_tabCustom.size.x + tabGap;
     m_btnDevModeToggle.pos = glm::vec2(bX, tabY);
     m_btnDevModeToggle.size = glm::vec2(bW, tabH);
     m_btnDevModeToggle.text = badgeText;
@@ -143,8 +143,23 @@ void LevelSelectState::init() {
     // Кнопки управления автора в Dev Mode (правая верхняя часть экрана)
     if (m_isDevMode && m_activeTab == LevelTab::Campaign) {
         float devBtnH = tabH;
-        float addMissionBtnW = std::clamp(180.0f * uiScale, 130.0f, 240.0f);
-        float unlockBtnW = std::clamp(140.0f * uiScale, 100.0f, 180.0f);
+        float addMissionBtnW = std::clamp(145.0f * uiScale, 110.0f, 185.0f);
+        float unlockBtnW = std::clamp(115.0f * uiScale, 85.0f, 145.0f);
+        float btnDevGap = std::clamp(6.0f * uiScale, 4.0f, 10.0f);
+
+        // Проверяем, чтобы правый блок кнопок не наезжал на кнопку DEV MODE
+        float totalDevWidth = addMissionBtnW + unlockBtnW * 2.0f + btnDevGap * 2.0f;
+        float minStartX = bX + bW + tabGap;
+        float desiredStartX = static_cast<float>(m_width) - startTabsX - totalDevWidth;
+        if (desiredStartX < minStartX) {
+            float availW = (static_cast<float>(m_width) - startTabsX) - minStartX;
+            if (availW > 0.0f) {
+                float factor = std::clamp(availW / totalDevWidth, 0.65f, 1.0f);
+                addMissionBtnW *= factor;
+                unlockBtnW *= factor;
+                btnDevGap = std::max(3.0f, btnDevGap * factor);
+            }
+        }
 
         float rightX = static_cast<float>(m_width) - startTabsX;
 
@@ -153,11 +168,11 @@ void LevelSelectState::init() {
         m_btnDevResetProgress.text = "СБРОСИТЬ";
 
         m_btnDevUnlockAll.size = glm::vec2(unlockBtnW, devBtnH);
-        m_btnDevUnlockAll.pos = glm::vec2(m_btnDevResetProgress.pos.x - unlockBtnW - 8.0f, tabY);
+        m_btnDevUnlockAll.pos = glm::vec2(m_btnDevResetProgress.pos.x - unlockBtnW - btnDevGap, tabY);
         m_btnDevUnlockAll.text = "ОТКРЫТЬ ВСЕ";
 
         m_btnDevAddMission.size = glm::vec2(addMissionBtnW, devBtnH);
-        m_btnDevAddMission.pos = glm::vec2(m_btnDevUnlockAll.pos.x - addMissionBtnW - 8.0f, tabY);
+        m_btnDevAddMission.pos = glm::vec2(m_btnDevUnlockAll.pos.x - addMissionBtnW - btnDevGap, tabY);
         m_btnDevAddMission.text = "+ В КАМПАНИЮ";
     }
 

@@ -18,6 +18,7 @@
 #include <filesystem>
 #include "../core/InputManager.h"
 #include "../core/LocalizationManager.h"
+#include "../core/CampaignManager.h"
 
 static const std::vector<glm::ivec2> c_sizePresets = {
     { 8, 5 },
@@ -53,7 +54,14 @@ MapEditorState::MapEditorState(GameStateManager& stateManager, int width, int he
             fname = fname.substr(lastSlash + 1);
         }
         m_currentLevelFileName = fname;
+    } else {
+        m_isMapsModalOpen = true;
+        m_isInitialModalLaunch = true;
     }
+    std::cout << "[MapEditor] Ctor: levelToLoad='" << levelToLoad << "', currentLevel='" << m_currentLevelFileName
+              << "', m_isMapsModalOpen=" << (m_isMapsModalOpen ? "true" : "false")
+              << ", m_isInitialModalLaunch=" << (m_isInitialModalLaunch ? "true" : "false")
+              << ", m_suppressClick=" << (m_suppressClickUntilRelease ? "true" : "false") << std::endl;
 }
 
 void MapEditorState::returnToOrigin() {
@@ -82,7 +90,10 @@ glm::vec3 MapEditorState::getIdColor(int id) const {
 }
 
 void MapEditorState::init() {
-    std::cout << "[MapEditor] Initialized (resolution: " << m_width << "x" << m_height << ")" << std::endl;
+    std::cout << "[MapEditor] init(): resolution=" << m_width << "x" << m_height
+              << ", m_isMapsModalOpen=" << (m_isMapsModalOpen ? "true" : "false")
+              << ", m_isInitialModalLaunch=" << (m_isInitialModalLaunch ? "true" : "false")
+              << ", m_suppressClick=" << (m_suppressClickUntilRelease ? "true" : "false") << std::endl;
     ResourceManager::loadTexture("uiBaseTexture", "res/textures/ui_space.png");
     ResourceManager::loadTexture("arrowTexture", "res/textures/pathArrow.png");
 
@@ -133,7 +144,9 @@ void MapEditorState::loadLevelByName(const std::string& fileName) {
     }
 
     if (data.gridWidth <= 0 || data.gridHeight <= 0) {
-        data = LevelManager::loadLevelMap("res/levels/level_1.json");
+        if (m_currentLevelFileName != "level_editor.json") {
+            data = LevelManager::loadLevelMap("res/levels/level_1.json");
+        }
     }
 
     if (data.gridWidth > 0 && data.gridHeight > 0) {
@@ -157,9 +170,17 @@ void MapEditorState::loadLevelByName(const std::string& fileName) {
         m_cellSize = 64.0f;
         m_spawners.clear();
         m_bases.clear();
+        m_bases.push_back(BaseData(17, 6, 0));
+        SpawnerData sp;
+        sp.pos = glm::ivec2(2, 6);
+        sp.targetBaseIndex = 0;
+        m_spawners.push_back(sp);
         m_rawLayout.assign(12, std::vector<int>(20, 0));
         m_waves.clear();
-        std::cout << "[MapEditor] Fallback to default layout 20x12" << std::endl;
+        m_isCampaign = false;
+        m_tags = { "Тест" };
+        m_currentLevelDisplayName = "MY MAP";
+        std::cout << "[MapEditor] In-memory blank template 20x12 initialized (no disk write)" << std::endl;
     }
 
     if (m_waves.empty()) {
@@ -207,6 +228,8 @@ void MapEditorState::loadLevelByName(const std::string& fileName) {
     m_grid->saveOriginalGrid();
     m_pathfinder = std::make_unique<Pathfinder>(m_gridWidth, m_gridHeight);
     recalculatePaths();
+
+    m_isDirty = false;
 
     updateButtonLayout();
 }
@@ -689,6 +712,7 @@ void MapEditorState::applyBrush(int gridX, int gridY, EditorBrush brush) {
 
     m_grid->saveOriginalGrid();
     recalculatePaths();
+    m_isDirty = true;
 }
 
 void MapEditorState::eraseCell(int gridX, int gridY) {
@@ -710,6 +734,7 @@ void MapEditorState::eraseCell(int gridX, int gridY) {
     m_grid->setCellType(gridX, gridY, CellType::Ground);
     m_grid->saveOriginalGrid();
     recalculatePaths();
+    m_isDirty = true;
 }
 
 void MapEditorState::saveMap() {
@@ -731,6 +756,7 @@ void MapEditorState::saveMap() {
     std::cout << "[MapEditor] saveMap: file=" << m_currentLevelFileName << ", name=" << m_currentLevelDisplayName << ", size=" << m_gridWidth << "x" << m_gridHeight << ", result=" << (ok ? "SUCCESS" : "FAIL") << std::endl;
 
     if (ok) {
+        m_isDirty = false;
         m_statusMessage = "Map saved: " + m_currentLevelDisplayName + " (" + std::to_string(m_gridWidth) + "x" + std::to_string(m_gridHeight) + ")!";
         m_statusColor = glm::vec3(0.2f, 1.0f, 0.3f);
     } else {
@@ -787,6 +813,30 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
     bool leftDown = (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS);
     bool rightDown = (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS);
 
+    if (m_diagInputFrames < 6) {
+        std::cout << "[MapEditor] processInput frame " << m_diagInputFrames
+                  << ": leftDown=" << leftDown << ", rightDown=" << rightDown
+                  << ", m_isLeftMouseDown=" << m_isLeftMouseDown
+                  << ", m_suppressClick=" << m_suppressClickUntilRelease
+                  << ", m_isMapsModalOpen=" << (m_isMapsModalOpen ? "true" : "false")
+                  << ", mousePos=(" << mousePos.x << "," << mousePos.y << ")" << std::endl;
+        m_diagInputFrames++;
+    }
+
+    // Подавляем клики от предыдущего состояния до полного отпускания кнопок мыши
+    if (m_suppressClickUntilRelease) {
+        if (!leftDown && !rightDown) {
+            std::cout << "[MapEditor] Mouse released -> m_suppressClickUntilRelease cleared" << std::endl;
+            m_suppressClickUntilRelease = false;
+            m_isLeftMouseDown = false;
+            m_isRightMouseDown = false;
+        } else {
+            m_isLeftMouseDown = leftDown;
+            m_isRightMouseDown = rightDown;
+            return;
+        }
+    }
+
     // Если открыто модальное окно подтверждения выхода
     if (m_isExitModalOpen) {
         bool handled = processExitModalInput(window, mousePos, leftDown, dt);
@@ -837,8 +887,12 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
             return;
         }
         if (m_isMapsModalOpen) {
+            std::cout << "[MapEditor] Maps modal closed by global ESC, m_isInitialModalLaunch=" << m_isInitialModalLaunch << std::endl;
             m_isMapsModalOpen = false;
             m_keyEscPressedLastFrame = keyEsc;
+            if (m_isInitialModalLaunch) {
+                returnToOrigin();
+            }
             return;
         }
         if (m_isWaveEditorOpen) {
@@ -929,6 +983,9 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
                 else if (btn.actionId == 15) {
                     std::string newF = LevelManager::createNewLevel("custom_map");
                     loadLevelByName(newF);
+                    m_suppressPlacementUntilRelease = true;
+                    m_suppressClickUntilRelease = true;
+                    m_isLeftMouseDown = true;
                     m_statusMessage = "Created map: " + m_currentLevelDisplayName;
                     m_statusColor = glm::vec3(0.2f, 1.0f, 0.4f);
                     m_statusTimer = 3.5f;
@@ -937,6 +994,7 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
                     m_isMapsModalOpen = true;
                     m_mapsScrollOffset = 0;
                     m_suppressPlacementUntilRelease = true;
+                    m_suppressClickUntilRelease = true;
                 }
                 else if (btn.actionId == 17) {
                     m_isCampaign = !m_isCampaign;
@@ -1280,6 +1338,9 @@ void MapEditorState::render() {
 
     // 9. МОДАЛЬНОЕ ОКНО СПИСКА КАРТ (если активно)
     if (m_isMapsModalOpen) {
+        if (m_diagRenderFrames < 6) {
+            std::cout << "[MapEditor] render(): m_isMapsModalOpen=true, dispatching renderMapsModal() frame " << m_diagRenderFrames << std::endl;
+        }
         m_renderer->beginBatch();
         renderMapsModal();
         m_renderer->endBatch();
@@ -2178,6 +2239,7 @@ void MapEditorState::openRenameModal(const std::string& targetFileName) {
     m_isRenameModalOpen = true;
     m_cursorBlinkTimer = 0.0f;
     m_suppressPlacementUntilRelease = true;
+    m_suppressClickUntilRelease = true;
 }
 
 void MapEditorState::confirmRename() {
@@ -2333,11 +2395,27 @@ bool MapEditorState::processRenameModalInput(GLFWwindow* window, glm::vec2 mouse
     return true;
 }
 
+std::vector<LevelInfo> MapEditorState::getFilteredModalLevels() const {
+    auto all = LevelManager::getAvailableLevels();
+    bool dev = CampaignManager::isDevMode();
+    if (dev) {
+        return all;
+    }
+    // Если Dev Mode выключен - показываем только кастомные уровни
+    std::vector<LevelInfo> filtered;
+    for (const auto& lvl : all) {
+        if (!CampaignManager::isFileInCampaign(lvl.filename)) {
+            filtered.push_back(lvl);
+        }
+    }
+    return filtered;
+}
+
 MapEditorState::MapsModalLayout MapEditorState::getMapsModalLayout() const {
     MapsModalLayout layout;
     float scale = GetUIScale(m_width, m_height);
 
-    layout.fTitle = std::clamp(0.68f * scale, 0.48f, 0.86f);
+    layout.fTitle = std::clamp(0.68f * scale, 0.48f, 0.88f);
     layout.fSub = std::clamp(0.50f * scale, 0.38f, 0.65f);
     layout.fNew = std::clamp(0.50f * scale, 0.36f, 0.64f);
     layout.fCardName = std::clamp(0.54f * scale, 0.38f, 0.70f);
@@ -2397,7 +2475,7 @@ MapEditorState::MapsModalLayout MapEditorState::getMapsModalLayout() const {
 
     layout.maxVisible = std::max(1, static_cast<int>((availListH + layout.itemGap) / (layout.itemH + layout.itemGap)));
 
-    auto levels = LevelManager::getAvailableLevels();
+    auto levels = getFilteredModalLevels();
     layout.totalLevels = static_cast<int>(levels.size());
     layout.hasPagination = (layout.totalLevels > layout.maxVisible);
     layout.maxOffset = std::max(0, layout.totalLevels - layout.maxVisible);
@@ -2420,6 +2498,7 @@ MapEditorState::MapsModalLayout MapEditorState::getMapsModalLayout() const {
 
         MapCardLayout card;
         card.levelIdx = idx;
+        card.levelInfo = lvl;
         card.hasDel = !lvl.isBuiltIn;
         card.cardPos = glm::vec2(layout.modalPos.x + cardMarginX, layout.listStartY + i * (layout.itemH + layout.itemGap));
         card.cardSize = glm::vec2(cardW, layout.itemH);
@@ -2458,8 +2537,12 @@ bool MapEditorState::processMapsModalInput(GLFWwindow* window, glm::vec2 mousePo
     MapsModalLayout l = getMapsModalLayout();
 
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS && !m_keyEscPressedLastFrame) {
+        std::cout << "[MapEditor] Maps modal closed by ESC (processMapsModalInput), m_isInitialModalLaunch=" << m_isInitialModalLaunch << std::endl;
         m_isMapsModalOpen = false;
         m_suppressPlacementUntilRelease = true;
+        if (m_isInitialModalLaunch) {
+            returnToOrigin();
+        }
         return true;
     }
 
@@ -2507,14 +2590,16 @@ bool MapEditorState::processMapsModalInput(GLFWwindow* window, glm::vec2 mousePo
         }
     }
 
-    auto levels = LevelManager::getAvailableLevels();
-
     if (leftDown && !m_isLeftMouseDown) {
         if (isPointInRect(mousePos, l.btnNewPos, l.btnNewSize)) {
+            std::cout << "[MapEditor] Maps modal: clicked + New Map" << std::endl;
             std::string newF = LevelManager::createNewLevel("custom_map");
             loadLevelByName(newF);
             m_isMapsModalOpen = false;
+            m_isInitialModalLaunch = false;
             m_suppressPlacementUntilRelease = true;
+            m_suppressClickUntilRelease = true;
+            m_isLeftMouseDown = true;
             m_statusMessage = "Created and loaded: " + m_currentLevelDisplayName;
             m_statusColor = glm::vec3(0.2f, 1.0f, 0.4f);
             m_statusTimer = 3.5f;
@@ -2523,8 +2608,12 @@ bool MapEditorState::processMapsModalInput(GLFWwindow* window, glm::vec2 mousePo
 
         if (isPointInRect(mousePos, l.btnClosePos, l.btnCloseSize) ||
             isPointInRect(mousePos, l.btnCloseCrossPos, l.btnCloseCrossSize)) {
+            std::cout << "[MapEditor] Maps modal closed by Close/Cross button, m_isInitialModalLaunch=" << m_isInitialModalLaunch << std::endl;
             m_isMapsModalOpen = false;
             m_suppressPlacementUntilRelease = true;
+            if (m_isInitialModalLaunch) {
+                returnToOrigin();
+            }
             return true;
         }
 
@@ -2547,13 +2636,15 @@ bool MapEditorState::processMapsModalInput(GLFWwindow* window, glm::vec2 mousePo
             }
         }
 
+        auto levels = getFilteredModalLevels();
         for (const auto& card : l.visibleCards) {
-            if (card.levelIdx >= static_cast<int>(levels.size())) continue;
-            const auto& lvl = levels[card.levelIdx];
+            const auto& lvl = card.levelInfo;
 
             if (isPointInRect(mousePos, card.btnLoadPos, card.btnLoadSize)) {
+                std::cout << "[MapEditor] Maps modal: clicked Load map (" << lvl.filename << ")" << std::endl;
                 loadLevelByName(lvl.filename);
                 m_isMapsModalOpen = false;
+                m_isInitialModalLaunch = false;
                 m_suppressPlacementUntilRelease = true;
                 m_statusMessage = "Loaded map: " + m_currentLevelDisplayName;
                 m_statusColor = glm::vec3(0.3f, 0.9f, 1.0f);
@@ -2572,7 +2663,7 @@ bool MapEditorState::processMapsModalInput(GLFWwindow* window, glm::vec2 mousePo
                 if (lvl.filename == m_currentLevelFileName) {
                     loadLevelByName("level_editor.json");
                 }
-                int newTotal = static_cast<int>(LevelManager::getAvailableLevels().size());
+                int newTotal = static_cast<int>(getFilteredModalLevels().size());
                 int newMaxOffset = std::max(0, newTotal - l.maxVisible);
                 m_mapsScrollOffset = std::clamp(m_mapsScrollOffset, 0, newMaxOffset);
                 m_suppressPlacementUntilRelease = true;
@@ -2581,8 +2672,14 @@ bool MapEditorState::processMapsModalInput(GLFWwindow* window, glm::vec2 mousePo
         }
 
         if (!isPointInRect(mousePos, l.modalPos, l.modalSize)) {
+            std::cout << "[MapEditor] Maps modal closed by OUTSIDE CLICK at (" << mousePos.x << "," << mousePos.y 
+                      << ") modalPos=(" << l.modalPos.x << "," << l.modalPos.y << ") modalSize=(" << l.modalSize.x << "," << l.modalSize.y 
+                      << "), m_isInitialModalLaunch=" << m_isInitialModalLaunch << std::endl;
             m_isMapsModalOpen = false;
             m_suppressPlacementUntilRelease = true;
+            if (m_isInitialModalLaunch) {
+                returnToOrigin();
+            }
             return true;
         }
     }
@@ -2668,9 +2765,17 @@ void MapEditorState::renderRenameModal() {
 }
 
 void MapEditorState::renderMapsModal() {
-    m_renderer->drawSpriteRGBA(m_whiteTexture, glm::vec2(0.0f), glm::vec2(m_width, m_height), 0.0f, glm::vec4(0.04f, 0.05f, 0.07f, 0.78f));
-
     MapsModalLayout l = getMapsModalLayout();
+
+    if (m_diagRenderFrames < 6) {
+        std::cout << "[MapEditor] renderMapsModal() drawing frame " << m_diagRenderFrames
+                  << ": modalPos=(" << l.modalPos.x << "," << l.modalPos.y
+                  << "), modalSize=(" << l.modalSize.x << "," << l.modalSize.y
+                  << "), totalLevels=" << l.totalLevels << ", visibleCards=" << l.visibleCards.size() << std::endl;
+        m_diagRenderFrames++;
+    }
+
+    m_renderer->drawSpriteRGBA(m_whiteTexture, glm::vec2(0.0f), glm::vec2(m_width, m_height), 0.0f, glm::vec4(0.04f, 0.05f, 0.07f, 0.78f));
 
     // Modal background & borders
     m_renderer->drawSprite(m_whiteTexture, l.modalPos, l.modalSize, 0.0f, glm::vec3(0.12f, 0.13f, 0.17f));
@@ -2711,12 +2816,9 @@ void MapEditorState::renderMapsModal() {
         m_renderer->drawSprite(m_whiteTexture, l.btnScrollDownPos + glm::vec2(1.0f), l.btnScrollDownSize - glm::vec2(2.0f), 0.0f, downBg);
     }
 
-    auto levels = LevelManager::getAvailableLevels();
-
     // Render cards
     for (const auto& card : l.visibleCards) {
-        if (card.levelIdx >= static_cast<int>(levels.size())) continue;
-        const auto& lvl = levels[card.levelIdx];
+        const auto& lvl = card.levelInfo;
 
         bool isCurrent = (lvl.filename == m_currentLevelFileName);
         glm::vec3 cardBg = isCurrent ? glm::vec3(0.18f, 0.24f, 0.35f) : glm::vec3(0.15f, 0.16f, 0.21f);
@@ -2822,8 +2924,7 @@ void MapEditorState::renderMapsModal() {
 
         // Render card text
         for (const auto& card : l.visibleCards) {
-            if (card.levelIdx >= static_cast<int>(levels.size())) continue;
-            const auto& lvl = levels[card.levelIdx];
+            const auto& lvl = card.levelInfo;
 
             bool isCurrent = (lvl.filename == m_currentLevelFileName);
             std::string label = lvl.name;
@@ -2900,9 +3001,15 @@ void MapEditorState::renderMapsModal() {
 }
 
 void MapEditorState::openExitModal() {
+    if (!m_isDirty) {
+        std::cout << "[MapEditor] openExitModal: Map is not dirty (unmodified), exiting directly to origin." << std::endl;
+        returnToOrigin();
+        return;
+    }
     std::cout << "[MapEditor] openExitModal: exit confirmation dialog opened" << std::endl;
     m_isExitModalOpen = true;
     m_suppressPlacementUntilRelease = true;
+    m_suppressClickUntilRelease = true;
     m_exitModalEscReleased = false;
 }
 
