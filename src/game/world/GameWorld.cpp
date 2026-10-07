@@ -36,6 +36,9 @@ bool GameWorld::loadLevel(const std::string& levelPath, int windowWidth, int win
                 else if (levelData.layout[y][x] == 4) {
                     grid->setCellType(x, y, CellType::Chasm);
                 }
+                else if (levelData.layout[y][x] == 5) {
+                    grid->setCellType(x, y, CellType::Rail);
+                }
             }
         }
     }
@@ -59,6 +62,7 @@ bool GameWorld::loadLevel(const std::string& levelPath, int windowWidth, int win
     entityManager = std::make_unique<EntityManager>();
 
     recalculateAllPaths();
+    minecartManager.init(levelData, grid->getCellSize(), grid->getOffset());
     return true;
 }
 
@@ -93,6 +97,11 @@ void GameWorld::update(float dt) {
         }
     }
     entityManager->update(dt, *grid);
+    minecartManager.update(dt, entityManager->getEnemies());
+}
+
+void GameWorld::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> whiteTexture) {
+    minecartManager.render(renderer, whiteTexture);
 }
 
 void GameWorld::resize(int windowWidth, int windowHeight) {
@@ -101,6 +110,7 @@ void GameWorld::resize(int windowWidth, int windowHeight) {
         float bottomBarHeight = Buildpanel::getBottomBarHeight(windowWidth, windowHeight);
         float topMargin = TimeControlUI::getTopMargin(windowWidth, windowHeight);
         grid->updateCellSize(windowWidth, windowHeight, bottomBarHeight, topMargin);
+        minecartManager.updateCellSize(grid->getCellSize(), grid->getOffset());
 
         for (const auto& enemy : entityManager->getEnemies()) {
             if (enemy) {

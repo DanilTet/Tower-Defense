@@ -68,7 +68,8 @@ void GameplayRenderer::renderFrame(
     int windowHeight,
     float pistonPlacementAngle,
     float timeScale,
-    bool isPaused)
+    bool isPaused,
+    bool showPathArrows)
 {
     if (!m_renderer) return;
 
@@ -95,14 +96,16 @@ void GameplayRenderer::renderFrame(
     }
 
     // 3. Стрелочки пути
-    for (const auto& path : world.paths) {
-        if (world.grid) {
-            pathVisualizer.renderPathArrows(
-                m_renderer.get(),
-                m_arrowTexture,
-                path,
-                *world.grid
-            );
+    if (showPathArrows) {
+        for (const auto& path : world.paths) {
+            if (world.grid) {
+                pathVisualizer.renderPathArrows(
+                    m_renderer.get(),
+                    m_arrowTexture,
+                    path,
+                    *world.grid
+                );
+            }
         }
     }
 
@@ -119,6 +122,9 @@ void GameplayRenderer::renderFrame(
             selectedTowerOnMap
         );
     }
+
+    // 4.1. Отрисовка вагонетки и опасности на рельсах
+    world.render(m_renderer.get(), m_whiteTexture);
 
     m_renderer->flush();
 

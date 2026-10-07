@@ -9,31 +9,15 @@
 #include "../world/Grid.h"
 #include "../world/Pathfinder.h"
 #include "../ui/PathRenderer.h"
+#include "../editor/EditorMinecartModal.h"
+#include "../editor/EditorWaveModal.h"
+#include "../editor/EditorMapsBrowserModal.h"
+#include "../editor/EditorToolbarUI.h"
 
 class SpriteRenderer;
 class TextRenderer;
 class Texture2D;
 class GameStateManager;
-
-enum class EditorBrush {
-    Ground = 0,   // 0: Земля (можно строить и ходить)
-    Wall = 1,     // 3: Стена/Вода (нельзя строить, нельзя ходить)
-    Platform = 2, // 2: Платформа (можно строить, нельзя ходить)
-    Path = 3,     // 1: Дорога (нельзя строить, можно ходить)
-    Spawner = 4,  // Точка спавна врагов
-    Base = 5,     // База игрока
-    Eraser = 6,   // Ластик: стирает тайлы, спавнеры и базы до Земли
-    Chasm = 7     // 4: Шурф / Обрыв (нельзя строить, нельзя ходить)
-};
-
-struct EditorButton {
-    glm::vec2 pos;
-    glm::vec2 size;
-    std::string label;
-    EditorBrush brush = EditorBrush::Wall;
-    bool isAction = false;
-    int actionId = 0; // 1: Save, 2: Test, 3: Clear, 4: Exit, 5: ID-, 6: ID Cycle, 7: ID+, 8: Preset, 9: W-, 10: W+, 11: H-, 12: H+
-};
 
 class MapEditorState : public IGameState {
 private:
@@ -57,7 +41,10 @@ private:
 
     std::vector<SpawnerData> m_spawners;
     std::vector<BaseData> m_bases;
-    std::vector<std::vector<int>> m_rawLayout; // 0: Ground, 1: Path, 2: Platform, 3: Scenery
+    std::vector<std::vector<int>> m_rawLayout; // 0: Ground, 1: Path, 2: Platform, 3: Scenery, 4: Chasm, 5: Rail
+    std::vector<MinecartData> m_minecarts;
+    std::vector<glm::ivec2> m_railPath;        // BFS-маршрут від start до end по рейках
+    bool m_isRailPathValid = false;            // true якщо шлях знайдено
     std::vector<std::vector<glm::ivec2>> m_activePaths;
     bool m_hasInvalidSpawner = false;
     bool m_missingBaseWarning = false;
@@ -69,9 +56,7 @@ private:
 
     // Данные и состояние редактора волн
     std::vector<WaveConfig> m_waves;
-    int m_selectedWaveIdx = 0;
-    int m_wavePartsScrollOffset = 0;
-    bool m_isWaveEditorOpen = false;
+    EditorWaveModal m_waveModal;
     bool m_keyWPressedLastFrame = false;
 
     bool m_isLeftMouseDown = false;
@@ -82,9 +67,16 @@ private:
     bool m_keyEscPressedLastFrame = false;
     bool m_keyLeftBracketLastFrame = false;
     bool m_keyRightBracketLastFrame = false;
+    bool m_keyVPressedLastFrame = false;
+    bool m_keyTabPressedLastFrame = false;
 
-    std::vector<EditorButton> m_bottomButtons;
-    std::vector<EditorButton> m_topButtons;
+    // Инструменты и отображение
+    bool m_showPathArrows = true;
+    bool m_isBoxFilling = false;
+    glm::ivec2 m_boxStartCell = glm::ivec2(-1);
+    glm::ivec2 m_boxCurrentCell = glm::ivec2(-1);
+
+    EditorToolbarUI m_toolbarUI;
 
     std::string m_editorSavePath = "res/levels/level_editor.json";
     std::string m_currentLevelFileName = "level_editor.json";
@@ -94,34 +86,34 @@ private:
     bool m_suppressPlacementUntilRelease = true;
     bool m_suppressClickUntilRelease = true;
 
-    // Состояния модальных окон управления картами
-    bool m_isRenameModalOpen = false;
-    std::string m_renameInputText = "";
-    std::string m_renameTargetFileName = "";
-    bool m_isMapsModalOpen = false;
-    int m_mapsScrollOffset = 0;
+    // Модальні вікна керування картами
+    EditorMapsBrowserModal m_mapsBrowserModal;
     bool m_isExitModalOpen = false;
     bool m_exitModalEscReleased = false;
 
-    // Флаг изменений и авто-открытия модального окна карт при запуске
+    // Флаг изменений
     bool m_isDirty = false;
-    bool m_isInitialModalLaunch = false;
     int m_diagInputFrames = 0;
     int m_diagRenderFrames = 0;
 
     std::string m_statusMessage = "";
     float m_statusTimer = 0.0f;
     glm::vec3 m_statusColor = glm::vec3(0.9f, 0.9f, 0.9f);
-    float m_topBarLeftEndX = 540.0f;
-    float m_topFontScale = 0.50f;
-    float m_bottomFontScale = 0.48f;
+
+    // Всплывающие уведомления (Toast Feedback)
+    std::string m_toastMessage = "";
+    float m_toastTimer = 0.0f;
+    glm::vec4 m_toastColor = glm::vec4(0.2f, 0.8f, 0.3f, 1.0f);
+    void showToast(const std::string& msg, const glm::vec4& color = glm::vec4(0.2f, 0.8f, 0.3f, 1.0f));
 
     float getTopBarHeight() const;
     float getBottomDockHeight() const;
+    EditorContext buildEditorContext() const;
 
     void updateButtonLayout();
     bool isPointInRect(glm::vec2 point, glm::vec2 rectPos, glm::vec2 rectSize) const;
     void recalculatePaths();
+    void recalculateRailPath(); // BFS-валідація маршруту рейок від start до end
     void applyBrush(int gridX, int gridY, EditorBrush brush);
     void eraseCell(int gridX, int gridY);
     void saveMap();
@@ -133,6 +125,9 @@ private:
     void cycleSelectedId(int step);
     void resizeMap(int newW, int newH);
     void cycleMapSizePreset();
+
+    // Модальне вікно налаштувань вагонетки
+    EditorMinecartModal m_minecartModal;
 
     struct ExitModalLayout {
         glm::vec2 modalPos;
@@ -156,99 +151,11 @@ private:
     };
     ExitModalLayout getExitModalLayout() const;
 
-    struct MapCardLayout {
-        glm::vec2 cardPos;
-        glm::vec2 cardSize;
-        glm::vec2 btnLoadPos;
-        glm::vec2 btnLoadSize;
-        glm::vec2 btnRenPos;
-        glm::vec2 btnRenSize;
-        glm::vec2 btnDelPos;
-        glm::vec2 btnDelSize;
-        bool hasDel = false;
-        int levelIdx = 0;
-        LevelInfo levelInfo;
-    };
-
-    std::vector<LevelInfo> getFilteredModalLevels() const;
-
-    struct MapsModalLayout {
-        glm::vec2 modalPos;
-        glm::vec2 modalSize;
-        float headerH = 40.0f;
-        glm::vec2 btnCloseCrossPos;
-        glm::vec2 btnCloseCrossSize;
-        glm::vec2 btnNewPos;
-        glm::vec2 btnNewSize;
-        glm::vec2 btnClosePos;
-        glm::vec2 btnCloseSize;
-        glm::vec2 btnScrollUpPos;
-        glm::vec2 btnScrollUpSize;
-        glm::vec2 btnScrollDownPos;
-        glm::vec2 btnScrollDownSize;
-        glm::vec2 btnPrevPagePos;
-        glm::vec2 btnPrevPageSize;
-        glm::vec2 btnNextPagePos;
-        glm::vec2 btnNextPageSize;
-        bool hasPagination = false;
-        int totalLevels = 0;
-        int maxVisible = 6;
-        int currentOffset = 0;
-        int maxOffset = 0;
-        float listStartY = 0.0f;
-        float itemH = 48.0f;
-        float itemGap = 6.0f;
-        float fTitle = 0.68f;
-        float fSub = 0.50f;
-        float fNew = 0.50f;
-        float fCardName = 0.54f;
-        float fCardSub = 0.42f;
-        float fActionBtn = 0.48f;
-        float fClose = 0.52f;
-        float fCross = 0.55f;
-        std::vector<MapCardLayout> visibleCards;
-    };
-    MapsModalLayout getMapsModalLayout() const;
-
-    struct RenameModalLayout {
-        glm::vec2 modalPos;
-        glm::vec2 modalSize;
-        float headerH = 40.0f;
-        glm::vec2 btnCloseCrossPos;
-        glm::vec2 btnCloseCrossSize;
-        glm::vec2 boxPos;
-        glm::vec2 boxSize;
-        glm::vec2 btnSavePos;
-        glm::vec2 btnSaveSize;
-        glm::vec2 btnCancelPos;
-        glm::vec2 btnCancelSize;
-        float fTitle = 0.68f;
-        float fSub = 0.48f;
-        float fInput = 0.58f;
-        float fBtn = 0.48f;
-        float fCross = 0.55f;
-        float subY = 0.0f;
-    };
-    RenameModalLayout getRenameModalLayout() const;
-
-    void openRenameModal(const std::string& targetFileName = "");
-    void confirmRename();
-    void renderRenameModal();
-    void renderMapsModal();
-    bool processRenameModalInput(GLFWwindow* window, glm::vec2 mousePos, bool leftDown, float dt);
-    bool processMapsModalInput(GLFWwindow* window, glm::vec2 mousePos, bool leftDown, float dt);
 
     void openExitModal();
     void closeExitModal();
     void renderExitModal();
     bool processExitModalInput(GLFWwindow* window, glm::vec2 mousePos, bool leftDown, float dt);
-
-    enum class FocusedField {
-        None,
-        Count,
-        Interval,
-        Delay
-    };
 
     struct KeyRepeatState {
         bool isDown = false;
@@ -258,19 +165,7 @@ private:
     std::unordered_map<int, KeyRepeatState> m_keyStates;
 
     glm::vec2 m_mousePos = glm::vec2(0.0f);
-    FocusedField m_focusedField = FocusedField::None;
-    int m_focusedPartIdx = -1;
-    std::string m_inputText = "";
-    bool m_fieldJustFocused = false;
     float m_cursorBlinkTimer = 0.0f;
-    int m_openDropdownPartIdx = -1; // -1 = закрыт
-
-    void commitFocusedInput();
-    void startEditingField(int partIdx, FocusedField field);
-    void cycleNextInputField();
-
-    void renderWaveEditor();
-    bool processWaveEditorInput(GLFWwindow* window, glm::vec2 mousePos, bool leftDown, float dt);
     EditorOrigin m_origin = EditorOrigin::MainMenu;
     void returnToOrigin();
 

@@ -56,8 +56,8 @@ bool Grid::canBuildAt(int gridX, int gridY) const {
 
 	CellType type = getCellType(gridX, gridY);
 
-	// строить на обрыве/шурфе нельзя
-	if (type == CellType::Chasm) {
+	// строить на обрыве/шурфе или на рельсах нельзя
+	if (type == CellType::Chasm || type == CellType::Rail) {
 		return false;
 	}
 
@@ -124,6 +124,10 @@ void Grid::draw(SpriteRenderer* renderer, std::shared_ptr<Texture2D> whiteTextur
 					fillColor   = glm::vec3(0.25f, 0.70f, 0.85f);
 					borderColor = glm::vec3(0.12f, 0.42f, 0.55f);
 					break;
+				case CellType::Rail: // Рельсы / колія вагонетки: темный гравий/балласт со стальными рельсами
+					fillColor   = glm::vec3(0.25f, 0.24f, 0.26f);
+					borderColor = glm::vec3(0.14f, 0.13f, 0.16f);
+					break;
 				default:
 					fillColor   = glm::vec3(0.38f, 0.65f, 0.38f);
 					borderColor = glm::vec3(0.20f, 0.42f, 0.20f);
@@ -143,6 +147,122 @@ void Grid::draw(SpriteRenderer* renderer, std::shared_ptr<Texture2D> whiteTextur
 				glm::vec2 pitSize(m_cellSize - 2.0f * depthPadding, m_cellSize - 2.0f * depthPadding);
 				if (pitSize.x > 0.0f && pitSize.y > 0.0f) {
 					renderer->drawSprite(whiteTexture, pixelPos + pitOffset, pitSize, 0.0f, glm::vec3(0.015f, 0.015f, 0.025f) * color);
+				}
+			}
+
+			// 4. Для клетки рельсов (Rail) рисуем стилизованную колію с авто-тайлингом и бесшовными поворотами
+			if (type == CellType::Rail) {
+				bool up    = (y > 0 && getCellType(x, y - 1) == CellType::Rail);
+				bool down  = (y < m_height - 1 && getCellType(x, y + 1) == CellType::Rail);
+				bool left  = (x > 0 && getCellType(x - 1, y) == CellType::Rail);
+				bool right = (x < m_width - 1 && getCellType(x + 1, y) == CellType::Rail);
+
+				bool hasVert  = (up || down);
+				bool hasHoriz = (left || right);
+
+				float railOffset = std::max(3.0f, std::round(m_cellSize * 0.22f));
+				float railThick  = std::max(2.0f, std::round(m_cellSize * 0.08f));
+				float tiePadding = std::max(1.0f, std::round(m_cellSize * 0.08f));
+				float tieThick   = std::max(2.0f, std::round(m_cellSize * 0.12f));
+
+				glm::vec3 woodCol  = glm::vec3(0.42f, 0.28f, 0.18f) * color;
+				glm::vec3 steelCol = glm::vec3(0.80f, 0.82f, 0.88f) * color;
+
+				float r1 = railOffset;
+				float r2 = m_cellSize - railOffset - railThick;
+
+				if (!hasVert && !hasHoriz) {
+					// Изолированная клетка: горизонтальные рельсы по умолчанию (вертикальные шпалы)
+					for (int i = 0; i < 3; ++i) {
+						float tieX = pixelPos.x + (m_cellSize * 0.25f) * (static_cast<float>(i) + 0.5f);
+						renderer->drawSprite(whiteTexture, glm::vec2(tieX, pixelPos.y + tiePadding),
+											 glm::vec2(tieThick, m_cellSize - 2.0f * tiePadding), 0.0f, woodCol);
+					}
+					renderer->drawSprite(whiteTexture, glm::vec2(pixelPos.x, pixelPos.y + r1), glm::vec2(m_cellSize, railThick), 0.0f, steelCol);
+					renderer->drawSprite(whiteTexture, glm::vec2(pixelPos.x, pixelPos.y + r2), glm::vec2(m_cellSize, railThick), 0.0f, steelCol);
+				} else if (hasVert && !hasHoriz) {
+					// Чистая вертикаль
+					for (int i = 0; i < 3; ++i) {
+						float tieY = pixelPos.y + (m_cellSize * 0.25f) * (static_cast<float>(i) + 0.5f);
+						renderer->drawSprite(whiteTexture, glm::vec2(pixelPos.x + tiePadding, tieY),
+											 glm::vec2(m_cellSize - 2.0f * tiePadding, tieThick), 0.0f, woodCol);
+					}
+					renderer->drawSprite(whiteTexture, glm::vec2(pixelPos.x + r1, pixelPos.y), glm::vec2(railThick, m_cellSize), 0.0f, steelCol);
+					renderer->drawSprite(whiteTexture, glm::vec2(pixelPos.x + r2, pixelPos.y), glm::vec2(railThick, m_cellSize), 0.0f, steelCol);
+				} else if (hasHoriz && !hasVert) {
+					// Чистая горизонталь
+					for (int i = 0; i < 3; ++i) {
+						float tieX = pixelPos.x + (m_cellSize * 0.25f) * (static_cast<float>(i) + 0.5f);
+						renderer->drawSprite(whiteTexture, glm::vec2(tieX, pixelPos.y + tiePadding),
+											 glm::vec2(tieThick, m_cellSize - 2.0f * tiePadding), 0.0f, woodCol);
+					}
+					renderer->drawSprite(whiteTexture, glm::vec2(pixelPos.x, pixelPos.y + r1), glm::vec2(m_cellSize, railThick), 0.0f, steelCol);
+					renderer->drawSprite(whiteTexture, glm::vec2(pixelPos.x, pixelPos.y + r2), glm::vec2(m_cellSize, railThick), 0.0f, steelCol);
+				} else {
+					// Повороты и перекрестки (есть и вертикаль, и горизонталь)
+					if (up) {
+						renderer->drawSprite(whiteTexture, glm::vec2(pixelPos.x + tiePadding, pixelPos.y + m_cellSize * 0.15f),
+											 glm::vec2(m_cellSize - 2.0f * tiePadding, tieThick), 0.0f, woodCol);
+					}
+					if (down) {
+						renderer->drawSprite(whiteTexture, glm::vec2(pixelPos.x + tiePadding, pixelPos.y + m_cellSize * 0.73f),
+											 glm::vec2(m_cellSize - 2.0f * tiePadding, tieThick), 0.0f, woodCol);
+					}
+					if (left) {
+						renderer->drawSprite(whiteTexture, glm::vec2(pixelPos.x + m_cellSize * 0.15f, pixelPos.y + tiePadding),
+											 glm::vec2(tieThick, m_cellSize - 2.0f * tiePadding), 0.0f, woodCol);
+					}
+					if (right) {
+						renderer->drawSprite(whiteTexture, glm::vec2(pixelPos.x + m_cellSize * 0.73f, pixelPos.y + tiePadding),
+											 glm::vec2(tieThick, m_cellSize - 2.0f * tiePadding), 0.0f, woodCol);
+					}
+					float diagSz = std::max(4.0f, std::round(m_cellSize * 0.26f));
+					renderer->drawSprite(whiteTexture, pixelPos + glm::vec2((m_cellSize - diagSz) * 0.5f),
+										 glm::vec2(diagSz), 0.0f, woodCol);
+
+					if (down && right && !up && !left) {
+						// Поворот: Снизу направо
+						renderer->drawSprite(whiteTexture, glm::vec2(pixelPos.x + r1, pixelPos.y + r1), glm::vec2(railThick, m_cellSize - r1), 0.0f, steelCol);
+						renderer->drawSprite(whiteTexture, glm::vec2(pixelPos.x + r1, pixelPos.y + r1), glm::vec2(m_cellSize - r1, railThick), 0.0f, steelCol);
+						renderer->drawSprite(whiteTexture, glm::vec2(pixelPos.x + r2, pixelPos.y + r2), glm::vec2(railThick, m_cellSize - r2), 0.0f, steelCol);
+						renderer->drawSprite(whiteTexture, glm::vec2(pixelPos.x + r2, pixelPos.y + r2), glm::vec2(m_cellSize - r2, railThick), 0.0f, steelCol);
+					} else if (down && left && !up && !right) {
+						// Поворот: Снизу налево
+						renderer->drawSprite(whiteTexture, glm::vec2(pixelPos.x + r2, pixelPos.y + r1), glm::vec2(railThick, m_cellSize - r1), 0.0f, steelCol);
+						renderer->drawSprite(whiteTexture, glm::vec2(pixelPos.x, pixelPos.y + r1), glm::vec2(r2 + railThick, railThick), 0.0f, steelCol);
+						renderer->drawSprite(whiteTexture, glm::vec2(pixelPos.x + r1, pixelPos.y + r2), glm::vec2(railThick, m_cellSize - r2), 0.0f, steelCol);
+						renderer->drawSprite(whiteTexture, glm::vec2(pixelPos.x, pixelPos.y + r2), glm::vec2(r1 + railThick, railThick), 0.0f, steelCol);
+					} else if (up && right && !down && !left) {
+						// Поворот: Сверху направо
+						renderer->drawSprite(whiteTexture, glm::vec2(pixelPos.x + r1, pixelPos.y), glm::vec2(railThick, r2 + railThick), 0.0f, steelCol);
+						renderer->drawSprite(whiteTexture, glm::vec2(pixelPos.x + r1, pixelPos.y + r2), glm::vec2(m_cellSize - r1, railThick), 0.0f, steelCol);
+						renderer->drawSprite(whiteTexture, glm::vec2(pixelPos.x + r2, pixelPos.y), glm::vec2(railThick, r1 + railThick), 0.0f, steelCol);
+						renderer->drawSprite(whiteTexture, glm::vec2(pixelPos.x + r2, pixelPos.y + r1), glm::vec2(m_cellSize - r2, railThick), 0.0f, steelCol);
+					} else if (up && left && !down && !right) {
+						// Поворот: Сверху налево
+						renderer->drawSprite(whiteTexture, glm::vec2(pixelPos.x + r2, pixelPos.y), glm::vec2(railThick, r2 + railThick), 0.0f, steelCol);
+						renderer->drawSprite(whiteTexture, glm::vec2(pixelPos.x, pixelPos.y + r2), glm::vec2(r2 + railThick, railThick), 0.0f, steelCol);
+						renderer->drawSprite(whiteTexture, glm::vec2(pixelPos.x + r1, pixelPos.y), glm::vec2(railThick, r1 + railThick), 0.0f, steelCol);
+						renderer->drawSprite(whiteTexture, glm::vec2(pixelPos.x, pixelPos.y + r1), glm::vec2(r1 + railThick, railThick), 0.0f, steelCol);
+					} else {
+						// Т-образные соединения и перекрестки (3-4 соседа)
+						if (up) {
+							renderer->drawSprite(whiteTexture, glm::vec2(pixelPos.x + r1, pixelPos.y), glm::vec2(railThick, m_cellSize * 0.5f), 0.0f, steelCol);
+							renderer->drawSprite(whiteTexture, glm::vec2(pixelPos.x + r2, pixelPos.y), glm::vec2(railThick, m_cellSize * 0.5f), 0.0f, steelCol);
+						}
+						if (down) {
+							renderer->drawSprite(whiteTexture, glm::vec2(pixelPos.x + r1, pixelPos.y + m_cellSize * 0.5f), glm::vec2(railThick, m_cellSize * 0.5f), 0.0f, steelCol);
+							renderer->drawSprite(whiteTexture, glm::vec2(pixelPos.x + r2, pixelPos.y + m_cellSize * 0.5f), glm::vec2(railThick, m_cellSize * 0.5f), 0.0f, steelCol);
+						}
+						if (left) {
+							renderer->drawSprite(whiteTexture, glm::vec2(pixelPos.x, pixelPos.y + r1), glm::vec2(m_cellSize * 0.5f, railThick), 0.0f, steelCol);
+							renderer->drawSprite(whiteTexture, glm::vec2(pixelPos.x, pixelPos.y + r2), glm::vec2(m_cellSize * 0.5f, railThick), 0.0f, steelCol);
+						}
+						if (right) {
+							renderer->drawSprite(whiteTexture, glm::vec2(pixelPos.x + m_cellSize * 0.5f, pixelPos.y + r1), glm::vec2(m_cellSize * 0.5f, railThick), 0.0f, steelCol);
+							renderer->drawSprite(whiteTexture, glm::vec2(pixelPos.x + m_cellSize * 0.5f, pixelPos.y + r2), glm::vec2(m_cellSize * 0.5f, railThick), 0.0f, steelCol);
+						}
+					}
 				}
 			}
 		}

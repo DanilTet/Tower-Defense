@@ -27,6 +27,19 @@ struct SpawnerData {
     int targetBaseIndex = -1; // -1 = искать ближайшую базу, >= 0 = конкретный ID базы
 };
 
+// Конфигурация вагонетки (Hazard-ловушка)
+struct MinecartData {
+    glm::ivec2 start = glm::ivec2(-1, -1); // Депо / Точка старта (Grid X, Y)
+    glm::ivec2 end = glm::ivec2(-1, -1);   // Тупик / Точка финиша (Grid X, Y)
+    float interval = 25.0f;                // Интервал между рейсами (сек)
+    float warningTime = 3.0f;              // Время предупреждения перед стартом (сек)
+    float speed = 8.0f;                    // Скорость движения (клеток/сек)
+
+    bool hasStart() const { return start.x >= 0 && start.y >= 0; }
+    bool hasEnd() const { return end.x >= 0 && end.y >= 0; }
+    bool isConfigured() const { return hasStart() && hasEnd(); }
+};
+
 // четенькая структура где храниться структура левела
 struct LevelMapData {
     std::string name = "";          // Отображаемое имя (UTF-8, RU/UA/EN)
@@ -41,6 +54,7 @@ struct LevelMapData {
     std::vector<SpawnerData> spawners;
     std::vector<BaseData> bases;
     std::vector<std::vector<int>> layout;
+    std::vector<MinecartData> minecarts;
     std::vector<WaveConfig> waves;
 };
 

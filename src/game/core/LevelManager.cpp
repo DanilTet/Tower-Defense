@@ -82,6 +82,7 @@ LevelMapData LevelManager::loadLevelMap(const std::string& filepath) {
             //2 = Платформа(Platform)
             //3 = Вода / Скала(Scenery)
             //4 = Шурф / Обрыв(Chasm)
+            //5 = Рельсы(Rail)
             if (j["map"].contains("layout")) {
                 for (const auto& row : j["map"]["layout"]) {
                     std::vector<int> rowData;
@@ -94,12 +95,46 @@ LevelMapData LevelManager::loadLevelMap(const std::string& filepath) {
                             else if (s == "platform") rowData.push_back(2);
                             else if (s == "scenery" || s == "wall") rowData.push_back(3);
                             else if (s == "chasm") rowData.push_back(4);
+                            else if (s == "rail") rowData.push_back(5);
                             else rowData.push_back(0);
                         } else {
                             rowData.push_back(0);
                         }
                     }
                     data.layout.push_back(rowData);
+                }
+            }
+
+            // читаем вагонетки если есть
+            const json* minecartsJson = nullptr;
+            if (j["map"].contains("minecarts") && j["map"]["minecarts"].is_array()) {
+                minecartsJson = &j["map"]["minecarts"];
+            } else if (j.contains("minecarts") && j["minecarts"].is_array()) {
+                minecartsJson = &j["minecarts"];
+            }
+
+            if (minecartsJson) {
+                auto parsePoint = [](const json& p) -> glm::ivec2 {
+                    if (p.is_array() && p.size() >= 2) {
+                        return glm::ivec2(p[0].get<int>(), p[1].get<int>());
+                    } else if (p.is_object()) {
+                        return glm::ivec2(p.value("x", -1), p.value("y", -1));
+                    }
+                    return glm::ivec2(-1, -1);
+                };
+
+                for (const auto& cartNode : *minecartsJson) {
+                    MinecartData cart;
+                    if (cartNode.contains("start")) {
+                        cart.start = parsePoint(cartNode["start"]);
+                    }
+                    if (cartNode.contains("end")) {
+                        cart.end = parsePoint(cartNode["end"]);
+                    }
+                    cart.interval = cartNode.value("interval", 25.0f);
+                    cart.warningTime = cartNode.value("warningTime", 3.0f);
+                    cart.speed = cartNode.value("speed", 8.0f);
+                    data.minecarts.push_back(cart);
                 }
             }
         }
@@ -185,6 +220,23 @@ bool LevelManager::saveLevelMap(const std::string& filepath, const LevelMapData&
         });
     }
     j["map"]["bases"] = basesJson;
+
+    // Сохраняем вагонетки
+    if (!data.minecarts.empty()) {
+        json minecartsJson = json::array();
+        for (const auto& cart : data.minecarts) {
+            minecartsJson.push_back({
+                { "start", { { "x", cart.start.x }, { "y", cart.start.y } } },
+                { "end", { { "x", cart.end.x }, { "y", cart.end.y } } },
+                { "interval", cart.interval },
+                { "warningTime", cart.warningTime },
+                { "speed", cart.speed }
+            });
+        }
+        j["map"]["minecarts"] = minecartsJson;
+    } else if (j["map"].contains("minecarts")) {
+        j["map"].erase("minecarts");
+    }
 
     // Сохраняем волны
     if (!data.waves.empty()) {

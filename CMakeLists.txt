@@ -60,6 +60,8 @@ add_executable(${PROJECT_NAME}
     src/game/world/PathService.cpp
     src/game/world/GameWorld.h
     src/game/world/GameWorld.cpp
+    src/game/world/MinecartManager.h
+    src/game/world/MinecartManager.cpp
 
     # === СИСТЕМНЫЕ МОДУЛИ ДВИЖКА ===
 
@@ -111,6 +113,11 @@ add_executable(${PROJECT_NAME}
     src/game/ui/VolumeSliderWidget.h
     src/game/ui/VolumeSliderWidget.cpp
 
+    src/game/ui/level_select/CampaignTabView.h
+    src/game/ui/level_select/CampaignTabView.cpp
+    src/game/ui/level_select/CustomMapsTabView.h
+    src/game/ui/level_select/CustomMapsTabView.cpp
+
     src/game/gameplay/BuildManager.h
     src/game/gameplay/BuildManager.cpp
 
@@ -151,6 +158,14 @@ add_executable(${PROJECT_NAME}
     src/game/states/LevelSelectState.cpp
     src/game/states/MapEditorState.h
     src/game/states/MapEditorState.cpp
+    src/game/editor/EditorMinecartModal.h
+    src/game/editor/EditorMinecartModal.cpp
+    src/game/editor/EditorWaveModal.h
+    src/game/editor/EditorWaveModal.cpp
+    src/game/editor/EditorMapsBrowserModal.h
+    src/game/editor/EditorMapsBrowserModal.cpp
+    src/game/editor/EditorToolbarUI.h
+    src/game/editor/EditorToolbarUI.cpp
     src/game/states/SettingsState.h
     src/game/states/SettingsState.cpp
     src/game/core/SaveManager.cpp

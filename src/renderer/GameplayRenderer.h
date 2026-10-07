@@ -47,7 +47,8 @@ public:
         int windowHeight,
         float pistonPlacementAngle = 270.0f,
         float timeScale = 1.0f,
-        bool isPaused = false
+        bool isPaused = false,
+        bool showPathArrows = true
     );
 };
 
