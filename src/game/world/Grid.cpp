@@ -75,7 +75,7 @@ void Grid::setCellType(int gridX, int gridY, CellType type) {
 }
 
 // Отрисовка всей карты ячейка за ячейкой (минималистичный плоский стиль с темной окантовкой)
-void Grid::draw(SpriteRenderer* renderer, std::shared_ptr<Texture2D> whiteTexture, glm::vec3 color) {
+void Grid::draw(SpriteRenderer* renderer, std::shared_ptr<Texture2D> whiteTexture, glm::vec3 color, const std::string& backgroundPreset) {
 	if (!renderer || !whiteTexture) return;
 
 	glm::vec2 cellSizeVec(m_cellSize, m_cellSize);
@@ -96,13 +96,23 @@ void Grid::draw(SpriteRenderer* renderer, std::shared_ptr<Texture2D> whiteTextur
 			glm::vec3 borderColor;
 
 			switch (type) {
-				case CellType::Platform: // Высота 3: Светло-серый гранитный / каменный
-					fillColor   = glm::vec3(0.70f, 0.72f, 0.76f);
-					borderColor = glm::vec3(0.40f, 0.42f, 0.46f);
+				case CellType::Platform: // Высота 3: Светло-серый гранитный / каменный (или травянистый газон холма/обочины)
+					if (backgroundPreset == "pipes_canal") {
+						fillColor   = glm::vec3(0.32f, 0.58f, 0.30f); // Сочная трава обочины холма
+						borderColor = glm::vec3(0.20f, 0.40f, 0.18f); // Темный контур газона
+					} else {
+						fillColor   = glm::vec3(0.70f, 0.72f, 0.76f);
+						borderColor = glm::vec3(0.40f, 0.42f, 0.46f);
+					}
 					break;
-				case CellType::Ground: // Высота 2: Травянисто-зеленый
-					fillColor   = glm::vec3(0.38f, 0.65f, 0.38f);
-					borderColor = glm::vec3(0.20f, 0.42f, 0.20f);
+				case CellType::Ground: // Высота 2: Травянисто-зеленый (или тёмный асфальт полотна)
+					if (backgroundPreset == "pipes_canal") {
+						fillColor   = glm::vec3(0.22f, 0.23f, 0.25f); // Тёмный асфальт полотна
+						borderColor = glm::vec3(0.14f, 0.15f, 0.17f); // Стык / битумный шов
+					} else {
+						fillColor   = glm::vec3(0.38f, 0.65f, 0.38f);
+						borderColor = glm::vec3(0.20f, 0.42f, 0.20f);
+					}
 					break;
 				case CellType::Path: // Высота 1: Теплый песочно-глиняный
 					fillColor   = glm::vec3(0.80f, 0.70f, 0.52f);
@@ -129,8 +139,13 @@ void Grid::draw(SpriteRenderer* renderer, std::shared_ptr<Texture2D> whiteTextur
 					borderColor = glm::vec3(0.14f, 0.13f, 0.16f);
 					break;
 				default:
-					fillColor   = glm::vec3(0.38f, 0.65f, 0.38f);
-					borderColor = glm::vec3(0.20f, 0.42f, 0.20f);
+					if (backgroundPreset == "pipes_canal") {
+						fillColor   = glm::vec3(0.22f, 0.23f, 0.25f);
+						borderColor = glm::vec3(0.14f, 0.15f, 0.17f);
+					} else {
+						fillColor   = glm::vec3(0.38f, 0.65f, 0.38f);
+						borderColor = glm::vec3(0.20f, 0.42f, 0.20f);
+					}
 					break;
 			}
 

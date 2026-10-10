@@ -43,7 +43,8 @@ void GameplayState::cleanup() {
 
 void GameplayState::setupUI() {
     m_buildPanel = std::make_unique<Buildpanel>();
-    m_buildPanel->initPanelData();
+    const auto& allowedTowers = m_world ? m_world->levelData.allowedTowers : std::vector<std::string>{};
+    m_buildPanel->initPanelData(allowedTowers);
     m_placementUI = std::make_unique<PlacementUI>();
     m_pathVisualizer = std::make_unique<PathVisualizer>();
     m_statsPanel = std::make_unique<StatsPanel>();
@@ -278,8 +279,8 @@ void GameplayState::render() {
 }
 
 void GameplayState::startNextWave() {
-    if (m_world && m_world->waveManager) {
-        m_world->waveManager->startNextWave();
+    if (m_world) {
+        m_world->triggerEarlyWave();
     }
 }
 
@@ -309,6 +310,9 @@ void GameplayState::restartGame() {
     m_world->loadLevel(m_currentLevelPath, this->width, this->height);
     m_selectedTowerType = "";
     m_selectedTowerOnMap = nullptr;
+    if (m_buildPanel) {
+        m_buildPanel->initPanelData(m_world->levelData.allowedTowers);
+    }
     std::cout << "Game Restarted!" << std::endl;
 }
 

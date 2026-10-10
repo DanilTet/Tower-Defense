@@ -10,6 +10,7 @@
 #include "Grid.h"
 #include "Pathfinder.h"
 #include "MinecartManager.h"
+#include "../../particles/EnvironmentParticleManager.h"
 
 class SpriteRenderer;
 class Texture2D;
@@ -20,6 +21,9 @@ struct GameWorld {
     std::unique_ptr<WaveManager> waveManager;
     std::unique_ptr<EntityManager> entityManager;
     MinecartManager minecartManager;
+    EnvironmentParticleManager envParticleManager;
+    std::vector<ParticleEmitterConfig> emitters;
+    std::vector<DecorationConfig> decorations;
 
     PlayerStats playerStats;
 
@@ -29,6 +33,14 @@ struct GameWorld {
     std::vector<glm::ivec2> levelPath;
 
     std::string currentLevelPath;
+    std::string currentBackground = "default";
+    LevelMapData::CameraSettings cameraSettings;
+    LevelMapData levelData;
+
+    glm::vec2 getWorldCamCenter() const;
+    glm::vec2 getCombatCameraPan(int windowWidth, int windowHeight) const;
+    glm::mat4 getViewMatrix(int windowWidth, int windowHeight) const;
+    glm::vec2 screenToWorld(glm::vec2 screenPos, int windowWidth, int windowHeight) const;
 
     GameWorld();
     ~GameWorld() = default;
@@ -40,4 +52,10 @@ struct GameWorld {
     void render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> whiteTexture);
     void resize(int windowWidth, int windowHeight);
     void spawnEnemy(const std::string& type, int spawnerIndex = 0);
+    void demolishDecorationsInCell(int gridX, int gridY);
+
+    // Ранний вызов волны (Фаза 4.2)
+    bool canCallEarlyWave() const;
+    int getEarlyCallBonus() const;
+    void triggerEarlyWave();
 };

@@ -15,7 +15,8 @@ public:
         int currentHp,
         int maxHp,
         float yOffset = -10.0f,
-        float barHeight = 6.0f
+        float barHeight = 6.0f,
+        float alpha = 1.0f
     );
 };
 

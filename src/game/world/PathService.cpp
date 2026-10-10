@@ -100,7 +100,14 @@ bool PathService::isPlacementValid(
     const std::vector<std::vector<glm::ivec2>>* currentPaths,
     const std::vector<std::unique_ptr<Enemy>>* activeEnemies)
 {
-    // --- 0. ПРОВЕРКА: Не стоит ли на клетке живой враг? ---
+    // --- 0. ПРОВЕРКА: Не стоит ли на клетке живой враг, спавнер или база? ---
+    for (const auto& sp : spawners) {
+        if (sp.pos.x == gridX && sp.pos.y == gridY) return false;
+    }
+    for (const auto& b : bases) {
+        if (b.x == gridX && b.y == gridY) return false;
+    }
+
     if (activeEnemies) {
         for (const auto& enemy : *activeEnemies) {
             if (!enemy || enemy->isDead() || enemy->isReachedEnd()) continue;

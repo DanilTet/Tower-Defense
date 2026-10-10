@@ -8,6 +8,8 @@
 #include "../../particles/ParticleSystem.h"
 #include "../gameplay/EntityManager.h"
 #include "TowerTargetingSystem.h"
+#include "../../resources/ResourceManager.h"
+#include <cmath>
 
 TowerStats Tower::getStatsfromTowerType(const std::string& type) {
 	return ConfigManager::getTowerStats(type);
@@ -73,6 +75,52 @@ void Tower::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> atlasTex
 	// рисуем (добавляем 90 градусов, чтобы выровнять текстуру дула/бойка с направлением)
 	renderer->drawSprite(atlasTexture, drawPos, size, m_angle + 90.0f, color, towerUV);
 
+	// Для T3 Поршня ("Шипованный боёк") отрисовываем стальные шипы на передней кромке ударной плиты
+	if (m_type == "Piston" && m_currentLevel >= 3) {
+		std::shared_ptr<Texture2D> whiteTex(ResourceManager::getWhiteTexture(), [](Texture2D*) {});
+		if (whiteTex) {
+			glm::vec2 currentCenter = drawPos + size * 0.5f;
+			float angleRad = glm::radians(m_angle);
+			glm::vec2 forward = glm::vec2(std::cos(angleRad), std::sin(angleRad));
+			glm::vec2 right = glm::vec2(-std::sin(angleRad), std::cos(angleRad));
+
+			// 1. Усилительная стальная планка на ударной плите
+			glm::vec2 barCenter = currentCenter + forward * (cellSize * 0.38f);
+			glm::vec2 barSize = glm::vec2(cellSize * 0.58f, cellSize * 0.08f);
+			renderer->drawSprite(whiteTex, barCenter - barSize * 0.5f, barSize, m_angle + 90.0f, glm::vec3(0.18f, 0.20f, 0.24f));
+
+			glm::vec2 barEdgeCenter = currentCenter + forward * (cellSize * 0.40f);
+			glm::vec2 barEdgeSize = glm::vec2(cellSize * 0.54f, cellSize * 0.02f);
+			renderer->drawSprite(whiteTex, barEdgeCenter - barEdgeSize * 0.5f, barEdgeSize, m_angle + 90.0f, glm::vec3(0.50f, 0.55f, 0.62f));
+
+			// 2. Ряд из 4 стальных шипов вдоль передней кромки бойка
+			float lateralOffsets[4] = { -0.19f * cellSize, -0.065f * cellSize, 0.065f * cellSize, 0.19f * cellSize };
+			for (int i = 0; i < 4; ++i) {
+				glm::vec2 spikeBase = currentCenter + forward * (cellSize * 0.38f) + right * lateralOffsets[i];
+
+				// Основание-хвостовик шипа
+				glm::vec2 shankCenter = spikeBase + forward * (cellSize * 0.035f);
+				glm::vec2 shankSize = glm::vec2(cellSize * 0.08f, cellSize * 0.07f);
+				renderer->drawSprite(whiteTex, shankCenter - shankSize * 0.5f, shankSize, m_angle + 90.0f, glm::vec3(0.15f, 0.17f, 0.20f));
+
+				// Основное тело клиновидного шипа (темная сталь)
+				glm::vec2 spikeCenter = spikeBase + forward * (cellSize * 0.08f);
+				glm::vec2 spikeSize = glm::vec2(cellSize * 0.12f, cellSize * 0.12f);
+				renderer->drawSprite(whiteTex, spikeCenter - spikeSize * 0.5f, spikeSize, m_angle + 45.0f, glm::vec3(0.26f, 0.29f, 0.34f));
+
+				// Продольная стальная грань / светлый металлический блеск
+				glm::vec2 hlCenter = spikeBase + forward * (cellSize * 0.095f);
+				glm::vec2 hlSize = glm::vec2(cellSize * 0.07f, cellSize * 0.07f);
+				renderer->drawSprite(whiteTex, hlCenter - hlSize * 0.5f, hlSize, m_angle + 45.0f, glm::vec3(0.70f, 0.77f, 0.88f));
+
+				// Яркий точечный блик на самом острие кончика
+				glm::vec2 tipCenter = spikeBase + forward * (cellSize * 0.135f);
+				glm::vec2 tipSize = glm::vec2(cellSize * 0.032f, cellSize * 0.032f);
+				renderer->drawSprite(whiteTex, tipCenter - tipSize * 0.5f, tipSize, m_angle + 45.0f, glm::vec3(0.96f, 0.98f, 1.0f));
+			}
+		}
+	}
+
 	if (isSelected) {
 		if (m_type == "Piston") {
 			// Для поршня подсвечиваем конкретную клетку удара перед ним
@@ -111,35 +159,74 @@ void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies,
 	glm::vec2 towerCenter = grid.gridToPixel(m_gridX, m_gridY) + glm::vec2(cellSize / 2.0f);
 
 	if (m_type == "Piston") {
-		// Поршень не крутится за врагами! Он строго контролирует 1 клетку прямо перед собой
+		// Поршень не крутится за врагами! Он строго контролирует 1 целевую клетку прямо перед собой
 		glm::ivec2 targetCell = getPistonTargetCell();
+		if (targetCell.x < 0 || targetCell.x >= grid.getWidth() || targetCell.y < 0 || targetCell.y >= grid.getHeight()) {
+			return;
+		}
+
 		glm::vec2 targetCenter = grid.gridToPixel(targetCell.x, targetCell.y) + glm::vec2(cellSize * 0.5f);
-		float triggerRadius = cellSize * 0.35f; // Уменьшенный радиус, чтобы враг успевал зайти на клетку перед ударом
+		float triggerRadius = cellSize * 0.55f;
 
 		if (m_shotTimer <= 0.0f) {
-			Enemy* victim = nullptr;
+			std::vector<Enemy*> hitEnemies;
 			for (const auto& enemy : enemies) {
 				if (!enemy || enemy->isDead() || enemy->isReachedEnd() || enemy->isKnockedBack() || enemy->isStunned() || enemy->isFalling()) continue;
 				if (enemy->isImmuneToPiston(glm::ivec2(m_gridX, m_gridY))) continue; // Защита от бесконечного зацикливания именно этим поршнем!
 				float dist = glm::distance(enemy->getCollider(grid).center, targetCenter);
-				if (dist < triggerRadius) {
-					victim = enemy.get();
-					break;
+				if (dist <= triggerRadius) {
+					hitEnemies.push_back(enemy.get());
 				}
 			}
 
-			if (victim != nullptr) {
-				victim->addPistonCooldown(glm::ivec2(m_gridX, m_gridY), 5.0f);
+			if (!hitEnemies.empty()) {
 				m_punchAnimTimer = 0.20f;
-
-				// Поршень НЕ наносит урон, а отталкивает ровно на 1 клетку!
 				glm::ivec2 punchDir = targetCell - glm::ivec2(m_gridX, m_gridY);
-				victim->pushOneCell(targetCell, punchDir, grid, &particleSystem);
 
+				for (Enemy* victim : hitEnemies) {
+					float pushDist = 1.0f;
+					if (m_currentLevel == 1) {
+						const std::string& type = victim->getType();
+						if (type == "Tank" || type == "Mercury_Large") {
+							pushDist = 0.25f; // T1: микро-сдвиг тяжелых врагов
+						} else {
+							pushDist = 1.0f; // T1: полный толчок легких и средних врагов
+						}
+					} else if (m_currentLevel == 2) {
+						pushDist = 1.0f; // T2: полный толчок абсолютно всех врагов
+					} else if (m_currentLevel >= 3) {
+						pushDist = 1.3f; // T3: усиленный толчок на 1.3 клетки
+
+						// T3 "Шипованный боёк":
+						// 1. Мгновенный физический урон шипами
+						victim->takeDamage(35);
+						// 2. Кровотечение (DoT: 12 урона в секунду в течение 4 секунд -> 6 урона каждые 0.5 сек)
+						victim->applyBleed(4.0f, 0.5f, 6);
+						// 3. Срез брони / уязвимость (+40% входящего урона от всех башен на 4 секунды)
+						victim->applyVulnerable(4.0f, 1.4f);
+					}
+
+					victim->addPistonCooldown(glm::ivec2(m_gridX, m_gridY), 5.0f);
+					victim->pushOneCell(targetCell, punchDir, grid, &particleSystem, pushDist);
+				}
+
+				// Базовые частицы удара бойка в точке удара
 				if (!m_impactParticle.empty()) {
 					ParticleEmitterProps impact = ConfigManager::getParticleProps(m_impactParticle);
-					impact.position = victim->getCollider(grid).center;
+					impact.position = targetCenter;
 					particleSystem.emit(impact, impact.spawnCount);
+				}
+
+				// Визуальный отклик T3: брызги и искры шипов в точке удара бойка
+				if (m_currentLevel >= 3) {
+					ParticleEmitterProps sparks = ConfigManager::getParticleProps("SparkImpact");
+					sparks.position = targetCenter;
+					sparks.velocityVariation = 160.0f;
+					particleSystem.emit(sparks, sparks.spawnCount);
+
+					ParticleEmitterProps blood = ConfigManager::getParticleProps("BloodSplatter");
+					blood.position = targetCenter;
+					particleSystem.emit(blood, blood.spawnCount);
 				}
 
 				Event e;
@@ -200,9 +287,12 @@ bool Tower::upgrade(int& playerMoney) {
 	// увеличиваем лвл
 	int nextLevel = m_currentLevel + 1;
 	TowerStats nextStats = ConfigManager::getTowerStats(m_type, nextLevel);
+	if (nextStats.cost <= 0 && nextStats.damage <= 0 && nextStats.range <= 0.0f) {
+		return false; // защита от невалидных статов следующего уровня
+	}
 
 	if (playerMoney >= nextStats.cost) {
-		playerMoney -= nextStats.cost; // заберяем деняк
+		playerMoney -= nextStats.cost; // забираем деньги
 		m_currentLevel = nextLevel;
 
 		applyStats(nextStats);

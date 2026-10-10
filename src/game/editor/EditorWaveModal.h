@@ -19,6 +19,46 @@ enum class WaveFocusedField {
     Delay
 };
 
+struct WaveModalLayout {
+    float scale = 1.0f;
+    glm::vec2 modalPos{0.0f};
+    glm::vec2 modalSize{0.0f};
+    float headerH = 40.0f;
+    float footerH = 32.0f;
+
+    // Header close button
+    glm::vec2 btnClosePos{0.0f};
+    glm::vec2 btnCloseSize{0.0f};
+
+    // Left column (waves list)
+    glm::vec2 colLeftPos{0.0f};
+    glm::vec2 colLeftSize{0.0f};
+    glm::vec2 btnAddWavePos{0.0f};
+    glm::vec2 btnAddWaveSize{0.0f};
+    glm::vec2 btnDuplicateWavePos{0.0f};
+    glm::vec2 btnDuplicateWaveSize{0.0f};
+    float waveListStartY = 0.0f;
+    float waveItemH = 36.0f;
+    float waveItemGap = 4.0f;
+    int maxVisibleWaves = 8;
+    glm::vec2 btnWaveScrollUpPos{0.0f};
+    glm::vec2 btnWaveScrollDownPos{0.0f};
+    glm::vec2 btnWaveScrollSize{0.0f};
+
+    // Right column (selected wave configurator)
+    glm::vec2 colRightPos{0.0f};
+    glm::vec2 colRightSize{0.0f};
+    float rHeaderH = 36.0f;
+    glm::vec2 btnAddPartPos{0.0f};
+    glm::vec2 btnAddPartSize{0.0f};
+
+    // Batches list
+    float cardsStartY = 0.0f;
+    float cardH = 88.0f;
+    float cardGap = 8.0f;
+    int maxVisibleParts = 4;
+};
+
 class EditorWaveModal {
 public:
     EditorWaveModal() = default;
@@ -57,6 +97,12 @@ public:
     int getSelectedWaveIdx() const { return m_selectedWaveIdx; }
     void setSelectedWaveIdx(int idx) { m_selectedWaveIdx = idx; }
 
+    const WaveModalLayout& getLayout() const { return m_layout; }
+    void updateLayout(int screenWidth, int screenHeight);
+
+    static std::string getSpawnerLabel(int spawnerId);
+    static glm::vec3 getSpawnerColor(int spawnerId);
+
 private:
     bool m_isOpen = false;
     bool m_wasLeftDown = false;
@@ -64,6 +110,7 @@ private:
 
     int m_selectedWaveIdx = 0;
     int m_wavePartsScrollOffset = 0;
+    int m_wavesScrollOffset = 0;
 
     WaveFocusedField m_focusedField = WaveFocusedField::None;
     int m_focusedPartIdx = -1;
@@ -71,6 +118,8 @@ private:
     bool m_fieldJustFocused = false;
     float m_cursorBlinkTimer = 0.0f;
     int m_openDropdownPartIdx = -1; // -1 = closed
+
+    WaveModalLayout m_layout;
 
     struct KeyRepeatState {
         bool isDown = false;

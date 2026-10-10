@@ -9,6 +9,7 @@ class TextRenderer;
 class Texture2D;
 
 enum class EditorBrush {
+    None = -1,     // Нейтральный курсор / выделение
     Ground = 0,    // 0: Земля (можно строить и ходить)
     Wall = 1,      // 3: Стена/Вода (нельзя строить, нельзя ходить)
     Platform = 2,  // 2: Платформа (можно строить, нельзя ходить)
@@ -19,12 +20,36 @@ enum class EditorBrush {
     Chasm = 7,     // 4: Шурф / Обрыв (нельзя строить, нельзя ходить)
     Rail = 8,      // 5: Рельсы (нельзя строить, можно ходить)
     RailStart = 9, // Маркер Депо / Старт вагонетки
-    RailEnd = 10   // Маркер Тупик / Финиш вагонетки
+    RailEnd = 10,  // Маркер Тупик / Финиш вагонетки
+    EmitterSteamJet = 11,  // Эмиттер: Свищ пара
+    EmitterWaterDrip = 12, // Эмиттер: Капель
+    EmitterSparks = 13,    // Эмиттер: Искры
+    EmitterSmoke = 14,     // Эмиттер: Дым
+    EmitterFog = 15,       // Эмиттер: Туман
+    DecorBush = 16,        // Декор: Куст
+    DecorGrass = 17,       // Декор: Пучок травы (grass_tuft)
+    DecorGrassField = 18,  // Декор: Поле травы (grass_field)
+    DecorFlower = 19,      // Декор: Цветы
+    DecorStone = 20,       // Декор: Камень
+    DecorHelmet = 21,      // Декор: Каска
+    DecorPickaxe = 22,     // Декор: Кирка
+    DecorPuddle = 23,      // Декор: Лужа
+    DecorCrack = 24,       // Декор: Трещина
+    DecorFog = 25          // Декор: Туман
 };
 
 enum class PaletteCategory {
     Tiles,
-    SpecialObjects
+    SpecialObjects,
+    Particles,
+    Decorations
+};
+
+enum class HudPreviewMode {
+    None = 0,
+    Scale100,
+    Scale125,
+    Scale150
 };
 
 enum class EditorActionType {
@@ -43,7 +68,16 @@ enum class EditorActionType {
     ToggleCampaign,
     ToggleWavesModal,
     ToggleMinecartModal,
-    SwitchPaletteCategory
+    SwitchPaletteCategory,
+    ToggleBackground,
+    ToggleCameraMode,
+    LockCamera,
+    ResetCamera,
+    ToggleHelpModal,
+    ToggleHudPreview,
+    OpenLevelSettingsModal,
+    ModifyStartingMoney,
+    ModifyStartingHealth
 };
 
 struct EditorAction {
@@ -51,12 +85,14 @@ struct EditorAction {
     EditorBrush brush = EditorBrush::Wall;
     int intParam = 0;   // e.g. delta step for resize or cycleId
     int intParam2 = 0;  // secondary delta (e.g. height delta for resize)
+    bool isAltDown = false;
 };
 
 struct EditorButton {
     glm::vec2 pos{0.0f};
     glm::vec2 size{0.0f};
     std::string label;
+    std::string tooltip;
     EditorBrush brush = EditorBrush::Wall;
     bool isAction = false;
     int actionId = 0;
@@ -68,6 +104,9 @@ struct EditorContext {
     std::string currentLevelDisplayName = "level_editor";
     std::string currentLevelFileName = "level_editor.json";
     bool isCampaign = false;
+    std::string background = "default";
+    bool cameraIsCustom = false;
+    bool cameraConfigMode = false;
     int gridWidth = 20;
     int gridHeight = 12;
     EditorBrush currentBrush = EditorBrush::Wall;
@@ -83,7 +122,12 @@ struct EditorContext {
     size_t railPathSize = 0;
     bool isWaveModalOpen = false;
     bool isMinecartModalOpen = false;
+    bool isHelpModalOpen = false;
+    bool isLevelSettingsModalOpen = false;
     PaletteCategory currentCategory = PaletteCategory::Tiles;
+    HudPreviewMode hudPreviewMode = HudPreviewMode::None;
+    int startingMoney = 50;
+    int startingHealth = 20;
 };
 
 class EditorToolbarUI {
@@ -95,7 +139,7 @@ public:
 
     void updateLayout(TextRenderer* textRenderer, const EditorContext& ctx);
 
-    EditorAction handleInput(float mouseX, float mouseY, bool mousePressed, bool wasMousePressed, bool isShiftDown, const EditorContext& ctx);
+    EditorAction handleInput(float mouseX, float mouseY, bool mousePressed, bool wasMousePressed, bool isShiftDown, const EditorContext& ctx, bool isAltDown = false);
     EditorAction handleInput(float mouseX, float mouseY, bool mousePressed, bool mouseReleased, EditorContext& ctx);
 
     void render(SpriteRenderer* renderer, TextRenderer* textRenderer,

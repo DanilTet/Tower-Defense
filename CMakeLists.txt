@@ -72,6 +72,10 @@ add_executable(${PROJECT_NAME}
     src/renderer/TextRenderer.cpp
     src/renderer/GameplayRenderer.h
     src/renderer/GameplayRenderer.cpp
+    src/renderer/BackgroundRenderer.h
+    src/renderer/BackgroundRenderer.cpp
+    src/renderer/DecorationRenderer.h
+    src/renderer/DecorationRenderer.cpp
 
     # Resources (Ресурсы)
     src/resources/ResourceManager.h
@@ -150,6 +154,8 @@ add_executable(${PROJECT_NAME}
     src/game/states/GameplayState.cpp
 
     src/particles/ParticleSystem.cpp
+    src/particles/EnvironmentParticleManager.h
+    src/particles/EnvironmentParticleManager.cpp
     src/game/states/MainMenuState.cpp
     src/game/states/PauseState.cpp
 
@@ -164,8 +170,20 @@ add_executable(${PROJECT_NAME}
     src/game/editor/EditorWaveModal.cpp
     src/game/editor/EditorMapsBrowserModal.h
     src/game/editor/EditorMapsBrowserModal.cpp
+    src/game/editor/EditorHelpModal.h
+    src/game/editor/EditorHelpModal.cpp
     src/game/editor/EditorToolbarUI.h
     src/game/editor/EditorToolbarUI.cpp
+    src/game/editor/EditorLevelSettingsModal.h
+    src/game/editor/EditorLevelSettingsModal.cpp
+    src/game/editor/EditorExitModal.h
+    src/game/editor/EditorExitModal.cpp
+    src/game/editor/EditorEmitterInspector.h
+    src/game/editor/EditorEmitterInspector.cpp
+    src/game/editor/EditorDecorInspector.h
+    src/game/editor/EditorDecorInspector.cpp
+    src/game/editor/EditorEntityInspector.h
+    src/game/editor/EditorEntityInspector.cpp
     src/game/states/SettingsState.h
     src/game/states/SettingsState.cpp
     src/game/core/SaveManager.cpp
@@ -193,11 +211,6 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     "${CMAKE_CURRENT_SOURCE_DIR}/external/freetype/lib/freetype.dll"
     $<TARGET_FILE_DIR:${PROJECT_NAME}>
-    COMMAND ${CMAKE_COMMAND} -E make_directory
-    "$<TARGET_FILE_DIR:${PROJECT_NAME}>/res/levels"
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-    "$<TARGET_FILE_DIR:${PROJECT_NAME}>/res/levels"
-    "${CMAKE_CURRENT_SOURCE_DIR}/res/levels"
     COMMAND ${CMAKE_COMMAND} -E copy_directory
     "${CMAKE_CURRENT_SOURCE_DIR}/res"
     "$<TARGET_FILE_DIR:${PROJECT_NAME}>/res"

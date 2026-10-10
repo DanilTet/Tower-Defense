@@ -161,6 +161,16 @@ bool ConfigManager::loadConfigs(const std::string& towerPath, const std::string&
 			stats.textureId = eData.value("textureId", "towerTexture");
 			stats.deathSound = eData.value("deathSound", "");
 			stats.deathParticle = eData.value("deathParticle", "BloodSplatter");
+			stats.splitChildType = eData.value("splitChildType", "");
+			stats.splitCount = eData.value("splitCount", 0);
+			stats.splitScatterRadius = eData.value("splitScatterRadius", 14.0f);
+
+			if (eData.contains("splitOnDeath") && eData["splitOnDeath"].is_object()) {
+				const auto& sData = eData["splitOnDeath"];
+				stats.splitChildType = sData.value("childType", stats.splitChildType);
+				stats.splitCount = sData.value("count", stats.splitCount);
+				stats.splitScatterRadius = sData.value("scatterOffset", stats.splitScatterRadius);
+			}
 
 			stats.color = glm::vec3(1.0f);
 			if (eData.contains("color") && eData["color"].is_array() && eData["color"].size() >= 3) {

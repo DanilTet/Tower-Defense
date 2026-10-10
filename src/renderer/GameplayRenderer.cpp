@@ -1,6 +1,8 @@
 #include "GameplayRenderer.h"
 #include "SpriteRenderer.h"
 #include "TextRenderer.h"
+#include "BackgroundRenderer.h"
+#include "DecorationRenderer.h"
 #include "../textures/Texture2D.h"
 #include "../resources/ResourceManager.h"
 #include "../game/core/ConfigManager.h"
@@ -12,6 +14,7 @@
 #include "../game/ui/TowerMenuUI.h"
 #include "../game/ui/UICommon.h"
 #include "../game/entities/Tower.h"
+#include <glm/gtc/matrix_transform.hpp>
 
 static std::string getPistonDirectionName(float angle) {
     if (std::abs(angle - 270.0f) < 5.0f || std::abs(angle - (-90.0f)) < 5.0f) return "ВВЕРХ";
@@ -38,6 +41,9 @@ void GameplayRenderer::loadTextures() {
     ResourceManager::loadTexture("arrowTexture", "res/textures/pathArrow.png");
     ResourceManager::loadTexture("particleTexture", "res/textures/particle.png");
     ResourceManager::loadTexture("uiBaseTexture", "res/textures/ui_space.png");
+    ResourceManager::loadTexture("mercury_slime_large", "res/textures/enemies/mercury_slime_large.png");
+    ResourceManager::loadTexture("mercury_slime_medium", "res/textures/enemies/mercury_slime_medium.png");
+    ResourceManager::loadTexture("mercury_slime_small", "res/textures/enemies/mercury_slime_small.png");
 
     auto wrapNoDelete = [](const std::string& name) {
         Texture2D* tex = ResourceManager::getTexture(name);
@@ -73,26 +79,51 @@ void GameplayRenderer::renderFrame(
 {
     if (!m_renderer) return;
 
+    glm::mat4 P_screen = glm::ortho(0.0f, static_cast<float>(windowWidth), static_cast<float>(windowHeight), 0.0f, -1.0f, 1.0f);
+    glm::mat4 V = world.getViewMatrix(windowWidth, windowHeight);
+    glm::mat4 worldProj = P_screen * V;
+
+    // 1. Устанавливаем матрицу камеры для мировых объектов (с учетом Zoom и Pan)
+    m_renderer->setProjection(worldProj);
+    if (m_textRenderer) m_textRenderer->updateProjection(worldProj);
     m_renderer->beginBatch();
 
-    // 1. Отрисовка сплошного минималистичного фона и нижней панели (Dock)
+    // 1.1. Фоновая подложка (default или pipes_canal в мировых координатах)
     if (m_whiteTexture) {
-        // Основной фон
-        m_renderer->drawSprite(m_whiteTexture, glm::vec2(0.0f, 0.0f), glm::vec2(windowWidth, windowHeight), 0.0f, glm::vec3(0.12f, 0.13f, 0.16f));
-
-        // Полоса нижней панели управления (Dock)
-        float bottomBarHeight = Buildpanel::getBottomBarHeight(windowWidth, windowHeight);
-        float barY = static_cast<float>(windowHeight) - bottomBarHeight;
-
-        // Разделительная линия сверху нижней панели
-        m_renderer->drawSprite(m_whiteTexture, glm::vec2(0.0f, barY), glm::vec2(static_cast<float>(windowWidth), 2.0f), 0.0f, glm::vec3(0.22f, 0.24f, 0.29f));
-        // Темная подложка дока
-        m_renderer->drawSprite(m_whiteTexture, glm::vec2(0.0f, barY + 2.0f), glm::vec2(static_cast<float>(windowWidth), bottomBarHeight - 2.0f), 0.0f, glm::vec3(0.08f, 0.09f, 0.11f));
+        BackgroundRenderer::render(
+            m_renderer.get(),
+            m_whiteTexture,
+            world.currentBackground,
+            world.grid.get(),
+            static_cast<float>(windowWidth),
+            static_cast<float>(windowHeight)
+        );
     }
 
     // 2. Отрисовка игровой сетки
     if (world.grid) {
-        world.grid->draw(m_renderer.get(), m_whiteTexture, { 1.0f, 1.0f, 1.0f });
+        world.grid->draw(m_renderer.get(), m_whiteTexture, { 1.0f, 1.0f, 1.0f }, world.currentBackground);
+    }
+
+    // 2.1. Цветные тайлы/маркеры спавнеров и баз (только если visibleInGame == true)
+    if (world.grid && m_whiteTexture) {
+        float cellSize = world.grid->getCellSize();
+        for (const auto& sp : world.spawners) {
+            if (sp.visibleInGame) {
+                glm::vec2 pPos = world.grid->gridToPixel(sp.pos.x, sp.pos.y);
+                glm::vec3 spColor = glm::vec3(0.95f, 0.85f, 0.20f);
+                m_renderer->drawSprite(m_whiteTexture, pPos + glm::vec2(2.0f), glm::vec2(cellSize - 4.0f), 0.0f, spColor);
+                m_renderer->drawSprite(m_whiteTexture, pPos + glm::vec2(5.0f), glm::vec2(cellSize - 10.0f), 0.0f, spColor * 0.85f);
+            }
+        }
+        for (const auto& b : world.bases) {
+            if (b.visibleInGame) {
+                glm::vec2 pPos = world.grid->gridToPixel(b.x, b.y);
+                glm::vec3 bCol = glm::vec3(0.25f, 0.70f, 0.85f);
+                m_renderer->drawSprite(m_whiteTexture, pPos + glm::vec2(2.0f), glm::vec2(cellSize - 4.0f), 0.0f, bCol);
+                m_renderer->drawSprite(m_whiteTexture, pPos + glm::vec2(5.0f), glm::vec2(cellSize - 10.0f), 0.0f, bCol * 0.85f);
+            }
+        }
     }
 
     // 3. Стрелочки пути
@@ -106,6 +137,15 @@ void GameplayRenderer::renderFrame(
                     *world.grid
                 );
             }
+        }
+    }
+
+    // 3.1. Декорации земли и объектов (ПОД мобами и снарядами, но ПОВЕРХ тайлов)
+    if (m_whiteTexture && !world.decorations.empty()) {
+        if (world.grid) {
+            DecorationRenderer::renderDecorations(m_renderer.get(), m_whiteTexture, world.decorations, *world.grid, -1, false);
+        } else {
+            DecorationRenderer::renderDecorations(m_renderer.get(), m_whiteTexture, world.decorations, -1, 64.0f, false);
         }
     }
 
@@ -126,13 +166,13 @@ void GameplayRenderer::renderFrame(
     // 4.1. Отрисовка вагонетки и опасности на рельсах
     world.render(m_renderer.get(), m_whiteTexture);
 
-    m_renderer->flush();
-
-    // 5. Отрисовка интерфейса
-    if (world.grid) {
-        towerMenuUI.render(selectedTowerOnMap, m_renderer.get(), m_textRenderer, m_uiBaseTexture, *world.grid);
+    // 4.2. Меню башни на поле (привязано к мировым координатам башни)
+    if (world.grid && selectedTowerOnMap) {
+        towerMenuUI.render(selectedTowerOnMap, m_renderer.get(), m_textRenderer, m_uiBaseTexture, *world.grid, world.levelData.getMaxTierForTower(selectedTowerOnMap->getType()));
     }
 
+    // 4.3. Голограмма размещения башни (привязана к мировым координатам курсора)
+    glm::vec2 worldMouse = world.screenToWorld(mousePos, windowWidth, windowHeight);
     bool hasPath = !world.paths.empty();
     glm::vec2 currentPanelPos = buildPanel.getUIPanelPos(windowWidth, windowHeight);
 
@@ -142,7 +182,7 @@ void GameplayRenderer::renderFrame(
             m_mainAtlas,
             m_radiusTexture,
             *world.grid,
-            mousePos,
+            worldMouse,
             selectedTowerType,
             world.playerStats,
             currentPanelPos,
@@ -151,6 +191,25 @@ void GameplayRenderer::renderFrame(
             pistonPlacementAngle
         );
     }
+
+    // 4.4. Декорации верхнего слоя (туман/тьма) — ПОВЕРХ мобов, HP-баров, спецэффектов, но ПОД интерфейсом
+    if (m_whiteTexture && !world.decorations.empty()) {
+        if (world.grid) {
+            DecorationRenderer::renderDecorations(m_renderer.get(), m_whiteTexture, world.decorations, *world.grid, -1, true);
+        } else {
+            DecorationRenderer::renderDecorations(m_renderer.get(), m_whiteTexture, world.decorations, -1, 64.0f, true);
+        }
+    }
+
+    // Завершаем пакет отрисовки мировых объектов
+    m_renderer->endBatch();
+
+    // 5. Переключаемся на экранную проекцию для UI (HUD, панель строительства, статы)
+    m_renderer->setProjection(P_screen);
+    if (m_textRenderer) m_textRenderer->updateProjection(P_screen);
+    m_renderer->beginBatch();
+
+
 
     statsPanel.drawStatsPanel(world.playerStats, world.waveManager.get(), m_textRenderer, windowWidth, windowHeight);
 
@@ -162,7 +221,8 @@ void GameplayRenderer::renderFrame(
         m_uiBaseTexture,
         windowWidth,
         windowHeight,
-        selectedTowerType
+        selectedTowerType,
+        world.levelData.allowedTowers
     );
 
     // 6. Подсказка управления поворотом для поршня (клавиша R)
@@ -202,6 +262,7 @@ void GameplayRenderer::renderFrame(
         UIRect s1Rect    = TimeControlUI::getSpeed1xButtonRect(windowWidth, windowHeight);
         UIRect s2Rect    = TimeControlUI::getSpeed2xButtonRect(windowWidth, windowHeight);
         UIRect s4Rect    = TimeControlUI::getSpeed4xButtonRect(windowWidth, windowHeight);
+        UIRect waveRect  = TimeControlUI::getWaveButtonRect(windowWidth, windowHeight);
 
         UIRect hpBadge    = TimeControlUI::getStatsBadgeRect(0, windowWidth, windowHeight);
         UIRect moneyBadge = TimeControlUI::getStatsBadgeRect(1, windowWidth, windowHeight);
@@ -211,10 +272,16 @@ void GameplayRenderer::renderFrame(
         bool s1Hov    = s1Rect.contains(mousePos.x, mousePos.y);
         bool s2Hov    = s2Rect.contains(mousePos.x, mousePos.y);
         bool s4Hov    = s4Rect.contains(mousePos.x, mousePos.y);
+        bool waveHov  = waveRect.contains(mousePos.x, mousePos.y);
 
         bool is1x = (!isPaused && timeScale < 1.5f);
         bool is2x = (!isPaused && timeScale >= 1.5f && timeScale < 3.0f);
         bool is4x = (!isPaused && timeScale >= 3.0f);
+
+        bool canCallWave = world.waveManager ? world.waveManager->canCallEarlyWave() : false;
+        bool isBeforeStart = world.waveManager ? (!world.waveManager->isGameStarted() && !world.waveManager->isWaveActive()) : false;
+        bool isAllWavesDone = world.waveManager ? world.waveManager->isAllWavesCompleted() : false;
+        int bonus = world.waveManager ? world.waveManager->getEarlyCallBonus() : 0;
 
         // --- Фоновая плашка панели (тёмный графит с рамкой и верхним акцентом) ---
         m_renderer->drawSprite(m_whiteTexture,
@@ -301,6 +368,33 @@ void GameplayRenderer::renderFrame(
             glm::vec3(1.00f, 0.52f, 0.14f),
             glm::vec3(0.16f, 0.17f, 0.22f));
 
+        // Кнопка раннего вызова волны (справа от 4x под индикатором волны)
+        if (isAllWavesDone) {
+            // Все волны завершены: неактивна (затемнена)
+            drawBtn(waveRect, false, false,
+                glm::vec3(0.12f, 0.13f, 0.16f),
+                glm::vec3(0.20f, 0.22f, 0.28f),
+                glm::vec3(0.12f, 0.13f, 0.16f));
+        } else if (isBeforeStart) {
+            // До старта игры: сочная зелёная подсветка "Старт [Space]"
+            drawBtn(waveRect, true, waveHov,
+                glm::vec3(0.12f, 0.32f, 0.18f),
+                glm::vec3(0.35f, 0.95f, 0.50f),
+                glm::vec3(0.10f, 0.24f, 0.14f));
+        } else if (canCallWave) {
+            // Во время паузы: акцентный жёлто-зелёный цвет (+N$ бонус)
+            drawBtn(waveRect, true, waveHov,
+                glm::vec3(0.32f, 0.30f, 0.08f),
+                glm::vec3(0.96f, 0.88f, 0.22f),
+                glm::vec3(0.22f, 0.20f, 0.08f));
+        } else {
+            // Во время активного спавна: неактивна (затемнена)
+            drawBtn(waveRect, false, false,
+                glm::vec3(0.12f, 0.13f, 0.16f),
+                glm::vec3(0.20f, 0.22f, 0.28f),
+                glm::vec3(0.12f, 0.13f, 0.16f));
+        }
+
         m_renderer->flush();
 
         // --- Текст бейджей статистики ---
@@ -336,9 +430,39 @@ void GameplayRenderer::renderFrame(
         renderBtnLabel("2x",                  s2Rect,   is2x,       glm::vec3(0.40f, 0.88f, 1.00f));
         renderBtnLabel("4x",                  s4Rect,   is4x,       glm::vec3(1.00f, 0.68f, 0.28f));
 
+        // --- Текст кнопки вызова волны ---
+        std::string waveBtnText;
+        glm::vec3 waveBtnTextColor;
+        if (isAllWavesDone) {
+            waveBtnText = "Победа!";
+            waveBtnTextColor = glm::vec3(0.40f, 0.44f, 0.52f);
+        } else if (isBeforeStart) {
+            waveBtnText = "Старт";
+            waveBtnTextColor = waveHov ? glm::vec3(1.0f, 1.0f, 1.0f) : glm::vec3(0.60f, 1.00f, 0.70f);
+        } else if (canCallWave) {
+            waveBtnText = "Волна (+" + std::to_string(bonus) + "$)";
+            waveBtnTextColor = waveHov ? glm::vec3(1.0f, 1.0f, 1.0f) : glm::vec3(0.98f, 0.92f, 0.40f);
+        } else {
+            waveBtnText = "Волна идет...";
+            waveBtnTextColor = glm::vec3(0.45f, 0.48f, 0.56f);
+        }
+
+        auto renderWaveBtnLabel = [&](const std::string& label, const UIRect& rect, glm::vec3 col) {
+            float fs = std::clamp(0.40f * scale, 0.28f, 0.54f);
+            float tw = m_textRenderer->CalculateTextWidth(label, fs);
+            if (tw > rect.width - 8.0f * scale) {
+                fs = fs * ((rect.width - 8.0f * scale) / tw);
+                tw = m_textRenderer->CalculateTextWidth(label, fs);
+            }
+            float tx = rect.x + (rect.width - tw) * 0.5f;
+            float ty = rect.y + (rect.height - fs * 28.0f) * 0.5f + 2.0f;
+            m_textRenderer->RenderText(label, tx, ty, fs, col);
+        };
+        renderWaveBtnLabel(waveBtnText, waveRect, waveBtnTextColor);
+
         // --- Баннер паузы (по центру экрана сверху) ---
         if (isPaused) {
-            std::string banner = "[ || ]  ПАУЗА  (Space / P — продолжить)";
+            std::string banner = "[ || ]  ПАУЗА  (P — продолжить)";
             float bfs = std::clamp(0.55f * scale, 0.40f, 0.72f);
             float bw  = m_textRenderer->CalculateTextWidth(banner, bfs);
             float bx  = (static_cast<float>(windowWidth) - bw) * 0.5f;

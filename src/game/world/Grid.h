@@ -1,5 +1,6 @@
 #pragma once
 #include <vector>
+#include <string>
 #include <memory>
 #include <glm/glm.hpp>
 
@@ -45,7 +46,8 @@ public:
 
 	void draw(SpriteRenderer* renderer,
 		std::shared_ptr<Texture2D> whiteTexture,
-		glm::vec3 color = glm::vec3(1.0f, 1.0f, 1.0f));
+		glm::vec3 color = glm::vec3(1.0f, 1.0f, 1.0f),
+		const std::string& backgroundPreset = "default");
 
 	void updateCellSize(int windowWidth, int windowHeight, float bottomMargin = 0.0f, float topMargin = 0.0f); // обновляем размер клеток с учетом доступной высоты
 	float getCellSize() const { return m_cellSize; } // получаем размер клетки

@@ -12,7 +12,14 @@
 #include "../editor/EditorMinecartModal.h"
 #include "../editor/EditorWaveModal.h"
 #include "../editor/EditorMapsBrowserModal.h"
+#include "../editor/EditorHelpModal.h"
 #include "../editor/EditorToolbarUI.h"
+#include "../editor/EditorLevelSettingsModal.h"
+#include "../editor/EditorExitModal.h"
+#include "../editor/EditorEmitterInspector.h"
+#include "../editor/EditorDecorInspector.h"
+#include "../editor/EditorEntityInspector.h"
+#include "../../particles/EnvironmentParticleManager.h"
 
 class SpriteRenderer;
 class TextRenderer;
@@ -69,6 +76,16 @@ private:
     bool m_keyRightBracketLastFrame = false;
     bool m_keyVPressedLastFrame = false;
     bool m_keyTabPressedLastFrame = false;
+    bool m_keyFPressedLastFrame = false;
+    bool m_keyHPressedLastFrame = false;
+    bool m_keyF1PressedLastFrame = false;
+    bool m_keyUPressedLastFrame = false;
+    bool m_keyRPressedLastFrame = false;
+    float m_defaultEmitterAngle = 90.0f; // Угол струи по умолчанию (90 deg = вниз)
+
+    // Предпросмотр боевого интерфейса (Combat HUD Preview)
+    HudPreviewMode m_hudPreviewMode = HudPreviewMode::None;
+    void cycleHudPreviewMode();
 
     // Инструменты и отображение
     bool m_showPathArrows = true;
@@ -76,20 +93,54 @@ private:
     glm::ivec2 m_boxStartCell = glm::ivec2(-1);
     glm::ivec2 m_boxCurrentCell = glm::ivec2(-1);
 
+    // Интерактивная камера редактора (Zoom & Pan)
+    float m_zoom = 1.0f; // диапазон [0.4f, 2.5f]
+    glm::vec2 m_cameraPan = glm::vec2(0.0f);
+    bool m_isPanning = false;
+    glm::vec2 m_prevMousePos = glm::vec2(0.0f);
+
+    glm::vec2 screenToWorld(glm::vec2 screenPos) const {
+        return (screenPos - m_cameraPan) / m_zoom;
+    }
+    glm::vec2 worldToScreen(glm::vec2 worldPos) const {
+        return worldPos * m_zoom + m_cameraPan;
+    }
+
     EditorToolbarUI m_toolbarUI;
 
     std::string m_editorSavePath = "res/levels/level_editor.json";
     std::string m_currentLevelFileName = "level_editor.json";
     std::string m_currentLevelDisplayName = "level_editor";
     bool m_isCampaign = false;
+    std::string m_background = "default";
+    LevelMapData::CameraSettings m_cameraSettings;
+    bool m_isCameraConfigMode = false;
     std::vector<std::string> m_tags;
+    int m_startingMoney = 50;
+    int m_startingHealth = 20;
+    std::vector<std::string> m_allowedTowers = { "Basic", "Mercury", "Piston" };
+    int m_maxUpgradeTier = 3;
+    std::unordered_map<std::string, int> m_towerMaxTiers = { { "Basic", 3 }, { "Mercury", 3 }, { "Piston", 3 } };
+    std::vector<ParticleEmitterConfig> m_emitters;
+    EnvironmentParticleManager m_envParticleManager;
+    int m_selectedEmitterIndex = -1;
+    bool m_isDraggingEmitter = false;
+    glm::vec2 m_emitterDragOffset = glm::vec2(0.0f);
+
+    std::vector<DecorationConfig> m_decorations;
+    int m_selectedDecorationIndex = -1;
+    bool m_isDraggingDecoration = false;
+    glm::vec2 m_decorationDragOffset = glm::vec2(0.0f);
+    float m_defaultDecorationRotation = 0.0f;
+
     bool m_suppressPlacementUntilRelease = true;
     bool m_suppressClickUntilRelease = true;
 
     // Модальні вікна керування картами
     EditorMapsBrowserModal m_mapsBrowserModal;
-    bool m_isExitModalOpen = false;
-    bool m_exitModalEscReleased = false;
+    EditorHelpModal m_helpModal;
+    EditorExitModal m_exitModal;
+    EditorLevelSettingsModal m_levelSettingsModal;
 
     // Флаг изменений
     bool m_isDirty = false;
@@ -111,11 +162,16 @@ private:
     EditorContext buildEditorContext() const;
 
     void updateButtonLayout();
+    void updateGridDimensions();
     bool isPointInRect(glm::vec2 point, glm::vec2 rectPos, glm::vec2 rectSize) const;
     void recalculatePaths();
     void recalculateRailPath(); // BFS-валідація маршруту рейок від start до end
     void applyBrush(int gridX, int gridY, EditorBrush brush);
     void eraseCell(int gridX, int gridY);
+    int findNearestEmitterIndex(glm::vec2 worldPos, float maxDist = 24.0f) const;
+    void eraseEmitterNear(glm::vec2 worldPos, float maxDist = 24.0f);
+    int findNearestDecorationIndex(glm::vec2 worldPos, float maxDist = 24.0f) const;
+    void eraseDecorationNear(glm::vec2 worldPos, float maxDist = 24.0f);
     void saveMap();
     void loadInitialMap();
     void loadLevelByName(const std::string& fileName);
@@ -123,39 +179,31 @@ private:
     void testMap();
     void clearMap();
     void cycleSelectedId(int step);
-    void resizeMap(int newW, int newH);
+    glm::vec2 getDefaultWorldCenter() const;
+    glm::vec2 getWorldCamCenter() const;
+    glm::vec2 getCameraViewportSize() const;
+    glm::vec2 worldPixelToTile(glm::vec2 worldPos) const;
+    glm::vec2 tileToWorldPixel(glm::vec2 tilePos) const;
+    void resizeMap(int newW, int newH, bool expandFromStart = false);
+    void shiftMap(int dx, int dy);
     void cycleMapSizePreset();
 
     // Модальне вікно налаштувань вагонетки
     EditorMinecartModal m_minecartModal;
 
-    struct ExitModalLayout {
-        glm::vec2 modalPos;
-        glm::vec2 modalSize;
-        float headerH = 40.0f;
-        glm::vec2 btnCloseCrossPos;
-        glm::vec2 btnCloseCrossSize;
-        glm::vec2 btnSaveExitPos;
-        glm::vec2 btnSaveExitSize;
-        glm::vec2 btnDiscardPos;
-        glm::vec2 btnDiscardSize;
-        glm::vec2 btnCancelPos;
-        glm::vec2 btnCancelSize;
-        float fTitle = 0.68f;
-        float fQuestion = 0.66f;
-        float fSub = 0.48f;
-        float fBtn = 0.46f;
-        float fCross = 0.55f;
-        float questionY = 0.0f;
-        float subY = 0.0f;
-    };
-    ExitModalLayout getExitModalLayout() const;
-
-
     void openExitModal();
     void closeExitModal();
-    void renderExitModal();
-    bool processExitModalInput(GLFWwindow* window, glm::vec2 mousePos, bool leftDown, float dt);
+    void renderHudPreview();
+    void renderHudPreviewText();
+    void renderEmitters(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture);
+
+    EditorEmitterInspector m_emitterInspector;
+
+    EditorDecorInspector m_decorInspector;
+
+    EditorEntityInspector m_entityInspector;
+    int m_selectedEntityIndex = -1;
+    EditorEntityType m_selectedEntityType = EditorEntityType::Spawner;
 
     struct KeyRepeatState {
         bool isDown = false;

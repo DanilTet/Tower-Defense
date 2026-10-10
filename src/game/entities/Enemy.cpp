@@ -18,13 +18,15 @@ EnemyStats Enemy::getStatsfromEnemyType(const std::string& type) {
 }
 
 // конструктор который вызывается при спавне крипа
-Enemy::Enemy(const std::vector<glm::ivec2>& gridPath, const Grid& grid, const std::string& type, int targetBaseIndex)
+Enemy::Enemy(const std::vector<glm::ivec2>& gridPath, const Grid& grid, const std::string& type, int targetBaseIndex, bool enableFadeIn, bool enableFadeOut)
     : m_path(gridPath), // сохраняем ссылку на маршрут врага по клеткам сетки
     m_currentWayPoint(0), // начинаем с первой контрольной точки маршрута
     m_reachedEnd(false), // изначально враг не достиг конца маршрута
     m_type(type), // сохраняем тип врага
     m_distanceTraveled(0.0f),// инициализация одометра
-    m_targetBaseIndex(targetBaseIndex) // СОХРАНЯЕМ ИНДЕКС БАЗЫ
+    m_targetBaseIndex(targetBaseIndex), // СОХРАНЯЕМ ИНДЕКС БАЗЫ
+    m_enableFadeIn(enableFadeIn),
+    m_enableFadeOut(enableFadeOut)
 {
     m_id = s_nextId++; // выдаем уникальный айди
 
@@ -35,6 +37,9 @@ Enemy::Enemy(const std::vector<glm::ivec2>& gridPath, const Grid& grid, const st
     m_color = stats.color;
     m_deathSound = stats.deathSound;
     m_deathParticle = stats.deathParticle;
+    m_splitChildType = stats.splitChildType;
+    m_splitCount = stats.splitCount;
+    m_splitScatterRadius = stats.splitScatterRadius;
 
     m_radiusMultiplier = stats.sizeScale / 2.0f; // хитбокс
 	// Если маршрут не пустой, то устанавливаем начальную позицию врага в пикселях на основе первой контрольной точки маршрута
@@ -47,11 +52,90 @@ Enemy::Enemy(const std::vector<glm::ivec2>& gridPath, const Grid& grid, const st
         m_animator.addAnimation(pair.first, pair.second);
     }
     m_animator.play("Walk");
+    m_visibilityAlpha = m_enableFadeIn ? 0.0f : 1.0f;
+    updateVisibilityAlpha(grid);
+}
+
+Enemy::Enemy(const std::vector<glm::ivec2>& gridPath, const Grid& grid, const std::string& type, int targetBaseIndex, size_t currentWaypoint, glm::vec2 spawnPixelPos, bool enableFadeIn, bool enableFadeOut)
+    : m_path(gridPath),
+    m_currentWayPoint(currentWaypoint),
+    m_reachedEnd(false),
+    m_type(type),
+    m_distanceTraveled(0.0f),
+    m_targetBaseIndex(targetBaseIndex),
+    m_pixelPos(spawnPixelPos),
+    m_enableFadeIn(enableFadeIn),
+    m_enableFadeOut(enableFadeOut)
+{
+    m_id = s_nextId++;
+
+    EnemyStats stats = Enemy::getStatsfromEnemyType(type);
+    m_speed = stats.speed;
+	m_health = stats.Maxhealth;
+    m_reward = stats.reward;
+    m_color = stats.color;
+    m_deathSound = stats.deathSound;
+    m_deathParticle = stats.deathParticle;
+    m_splitChildType = stats.splitChildType;
+    m_splitCount = stats.splitCount;
+    m_splitScatterRadius = stats.splitScatterRadius;
+
+    m_radiusMultiplier = stats.sizeScale / 2.0f;
+
+    if (m_currentWayPoint >= m_path.size()) {
+        m_currentWayPoint = m_path.empty() ? 0 : m_path.size() - 1;
+    }
+
+    for(const auto& pair : stats.animations) {
+        m_animator.addAnimation(pair.first, pair.second);
+    }
+    m_animator.play("Walk");
+
+    m_distanceTraveled = 0.0f;
+    for (size_t i = 1; i <= m_currentWayPoint && i < m_path.size(); ++i) {
+        m_distanceTraveled += glm::distance(
+            grid.gridToPixel(m_path[i].x, m_path[i].y),
+            grid.gridToPixel(m_path[i - 1].x, m_path[i - 1].y)
+        );
+    }
+    updateVisibilityAlpha(grid);
+}
+
+void Enemy::updateVisibilityAlpha(const Grid& grid) {
+    float cellSize = grid.getCellSize();
+    if (cellSize <= 0.001f) {
+        m_visibilityAlpha = 1.0f;
+        return;
+    }
+
+    float fadeDist = 1.5f * cellSize;
+
+    // 1. При спавне: alpha плавно растет от 0.0f до 1.0f на первых 1.5 тайлах пройденного пути
+    float spawnAlpha = m_enableFadeIn ? std::clamp(m_distanceTraveled / fadeDist, 0.0f, 1.0f) : 1.0f;
+
+    // 2. При подходе к базе: если оставшаяся дистанция до конца пути меньше 1.5 тайлов, alpha плавно спадает от 1.0f до 0.0f
+    float remainingDist = 0.0f;
+    if (m_reachedEnd) {
+        remainingDist = 0.0f;
+    } else if (m_currentWayPoint < m_path.size()) {
+        glm::vec2 targetPixelPos = grid.gridToPixel(m_path[m_currentWayPoint].x, m_path[m_currentWayPoint].y);
+        remainingDist = glm::distance(m_pixelPos, targetPixelPos);
+        for (size_t i = m_currentWayPoint; i + 1 < m_path.size(); ++i) {
+            remainingDist += glm::distance(
+                grid.gridToPixel(m_path[i].x, m_path[i].y),
+                grid.gridToPixel(m_path[i + 1].x, m_path[i + 1].y)
+            );
+        }
+    }
+
+    float baseAlpha = m_enableFadeOut ? std::clamp(remainingDist / fadeDist, 0.0f, 1.0f) : 1.0f;
+    m_visibilityAlpha = std::clamp(std::min(spawnAlpha, baseAlpha), 0.0f, 1.0f);
 }
 
 // Обновление логики и расчет движения
 void Enemy::update(float dt, const Grid& grid) {
     if (m_reachedEnd) return;
+    updateVisibilityAlpha(grid);
 
     // 0. Состояние падения в шурф / обрыв (CellType::Chasm)
     if (m_isFalling) {
@@ -83,6 +167,17 @@ void Enemy::update(float dt, const Grid& grid) {
                 if (m_health <= 0) {
                     m_health = 0;
                     return; // Враг погиб от яда, движение прекращается
+                }
+            }
+        }
+        else if (effect.type == StatusType::Bleed) {
+            effect.tickTimer += dt;
+            if (effect.tickTimer >= effect.tickInterval) {
+                effect.tickTimer -= effect.tickInterval;
+                m_health -= effect.damagePerTick;
+                if (m_health <= 0) {
+                    m_health = 0;
+                    return; // Враг погиб от кровотечения, движение прекращается
                 }
             }
         }
@@ -141,11 +236,20 @@ void Enemy::update(float dt, const Grid& grid) {
             m_pixelPos = m_knockbackTargetPos;
             m_isKnockedBack = false;
 
-            // Если конечная клетка оказалась шурфом/обрывом — запускаем падение!
+            // Определяем клетку приземления
+            glm::ivec2 landingCell = grid.pixelToGrid(m_pixelPos + glm::vec2(grid.getCellSize() * 0.5f));
+
+            // Если конечная клетка или клетка приземления оказалась шурфом/обрывом — гарантированно вызываем падение (инстакилл)!
             if (m_knockbackDestCell.x >= 0 && m_knockbackDestCell.x < grid.getWidth() &&
                 m_knockbackDestCell.y >= 0 && m_knockbackDestCell.y < grid.getHeight() &&
                 grid.getCellType(m_knockbackDestCell.x, m_knockbackDestCell.y) == CellType::Chasm) {
                 startFalling(m_knockbackDestCell, grid);
+                return;
+            }
+            if (landingCell.x >= 0 && landingCell.x < grid.getWidth() &&
+                landingCell.y >= 0 && landingCell.y < grid.getHeight() &&
+                grid.getCellType(landingCell.x, landingCell.y) == CellType::Chasm) {
+                startFalling(landingCell, grid);
                 return;
             }
 
@@ -240,6 +344,8 @@ void Enemy::update(float dt, const Grid& grid) {
         m_pixelPos += direction * moveDistance;
         m_distanceTraveled += moveDistance; // плюсуем пройденое расстояние за кадр
     }
+
+    updateVisibilityAlpha(grid);
 }
 
 // отрисовка врага на экране
@@ -274,6 +380,9 @@ void Enemy::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture,
         if (m_stunTimer > 0.0f) {
             renderColor = glm::vec3(1.0f, 0.85f, 0.25f); // Золотисто-желтый оттенок оглушения
         }
+        else if (isBleeding() || isVulnerable()) {
+            renderColor = glm::vec3(1.0f, 0.35f, 0.35f); // Кроваво-багровый оттенок шипов/кровотечения
+        }
         else if (isPoisoned() && isSlowed()) {
             renderColor = glm::vec3(0.3f, 0.95f, 0.75f); // Ядовито-ртутный бирюзовый оттенок
         }
@@ -300,8 +409,13 @@ void Enemy::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture,
 
     SpriteUV currentFrameUV = m_animator.getCurrentUV();
 
+    // Скрываем врага, если он полностью растворен в тумане
+    if (m_visibilityAlpha <= 0.001f) {
+        return;
+    }
+
     if (currentEnemyDim > 0.5f) {
-        renderer->drawSprite(enemyTexPtr, drawPos, size, drawAngle, renderColor, currentFrameUV);
+        renderer->drawSpriteRGBA(enemyTexPtr, drawPos, size, drawAngle, glm::vec4(renderColor, m_visibilityAlpha), currentFrameUV);
     }
 
     // Если враг падает в бездну, скрываем звездочки стана, полоску здоровья и хитбокс
@@ -322,18 +436,20 @@ void Enemy::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture,
                 glm::vec2 starPos = headCenter + glm::vec2(std::cos(starAngle) * rx, std::sin(starAngle) * ry);
                 float starRot = glm::degrees(starAngle * 2.5f);
                 glm::vec2 starDrawPos = starPos - starSize * 0.5f;
-                renderer->drawSprite(starTexPtr, starDrawPos, starSize, starRot, glm::vec3(1.0f, 0.95f, 0.25f));
+                renderer->drawSpriteRGBA(starTexPtr, starDrawPos, starSize, starRot, glm::vec4(1.0f, 0.95f, 0.25f, m_visibilityAlpha));
             }
         }
 
         // --- ОТРИСОВКА ПОЛОСКИ ЗДОРОВЬЯ (HEALTH BAR) ЧЕРЕЗ HealthBarRenderer ---
-        HealthBarRenderer::draw(renderer, texture, drawPos, baseEnemyDim, m_health, stats.Maxhealth);
+        if (m_visibilityAlpha >= 0.2f) {
+            HealthBarRenderer::draw(renderer, texture, drawPos, baseEnemyDim, m_health, stats.Maxhealth, -10.0f, 6.0f, m_visibilityAlpha);
+        }
 
         // --- ОТРИСОВКА ХИТБОКСА (ДЕБАГ) ---
         CircleCollider collider = getCollider(grid);
         glm::vec2 hitboxSize(collider.radius * 2.0f, collider.radius * 2.0f);
         glm::vec2 hitboxPos = (collider.center + m_wallImpactOffset) - glm::vec2(collider.radius, collider.radius);
-        renderer->drawSprite(radiusTex, hitboxPos, hitboxSize, 0.0f, glm::vec3(1.0f, 0.0f, 0.0f));
+        renderer->drawSpriteRGBA(radiusTex, hitboxPos, hitboxSize, 0.0f, glm::vec4(1.0f, 0.0f, 0.0f, m_visibilityAlpha));
     }
 }
 
@@ -437,6 +553,13 @@ void Enemy::recalculatePath(Pathfinder* pathfinder, const Grid& grid, const std:
     if (!bestPath.empty()) {
         m_path = bestPath;
         m_currentWayPoint = 0;
+        glm::ivec2 endPos = m_path.back();
+        for (const auto& b : bases) {
+            if (b.x == endPos.x && b.y == endPos.y) {
+                m_enableFadeOut = b.enableFadeOut;
+                break;
+            }
+        }
     } else {
         // Тупик: пути нет. Очищаем маршрут, чтобы моб не шел сквозь башни!
         m_path.clear();
@@ -471,6 +594,31 @@ void Enemy::applyPoison(float duration, float tickInterval, int damagePerTick) {
     m_statusEffects.push_back({ StatusType::Poison, duration, 0.0f, tickInterval, 0.0f, damagePerTick });
 }
 
+void Enemy::applyBleed(float duration, float tickInterval, int damagePerTick) {
+    for (auto& effect : m_statusEffects) {
+        if (effect.type == StatusType::Bleed) {
+            effect.duration = std::max(effect.duration, duration);
+            if (damagePerTick > effect.damagePerTick) {
+                effect.damagePerTick = damagePerTick;
+                effect.tickInterval = tickInterval;
+            }
+            return;
+        }
+    }
+    m_statusEffects.push_back({ StatusType::Bleed, duration, 0.0f, tickInterval, 0.0f, damagePerTick });
+}
+
+void Enemy::applyVulnerable(float duration, float multiplier) {
+    for (auto& effect : m_statusEffects) {
+        if (effect.type == StatusType::Vulnerable) {
+            effect.duration = std::max(effect.duration, duration);
+            effect.intensity = std::max(effect.intensity, multiplier);
+            return;
+        }
+    }
+    m_statusEffects.push_back({ StatusType::Vulnerable, duration, multiplier, 0.0f, 0.0f, 0 });
+}
+
 bool Enemy::isSlowed() const {
     for (const auto& e : m_statusEffects) {
         if (e.type == StatusType::Slow && e.duration > 0.0f) return true;
@@ -483,6 +631,30 @@ bool Enemy::isPoisoned() const {
         if (e.type == StatusType::Poison && e.duration > 0.0f) return true;
     }
     return false;
+}
+
+bool Enemy::isBleeding() const {
+    for (const auto& e : m_statusEffects) {
+        if (e.type == StatusType::Bleed && e.duration > 0.0f) return true;
+    }
+    return false;
+}
+
+bool Enemy::isVulnerable() const {
+    for (const auto& e : m_statusEffects) {
+        if (e.type == StatusType::Vulnerable && e.duration > 0.0f) return true;
+    }
+    return false;
+}
+
+float Enemy::getDamageMultiplier() const {
+    float mult = 1.0f;
+    for (const auto& e : m_statusEffects) {
+        if (e.type == StatusType::Vulnerable && e.duration > 0.0f) {
+            if (e.intensity > mult) mult = e.intensity;
+        }
+    }
+    return mult;
 }
 
 void Enemy::addPistonCooldown(glm::ivec2 pistonCell, float duration) {
@@ -504,8 +676,8 @@ bool Enemy::isImmuneToPiston(glm::ivec2 pistonCell) const {
     return false;
 }
 
-void Enemy::pushOneCell(glm::ivec2 fromCell, glm::ivec2 punchDir, const Grid& grid, ParticleSystem* particleSystem) {
-    if (m_reachedEnd || m_isFalling) return;
+void Enemy::pushOneCell(glm::ivec2 fromCell, glm::ivec2 punchDir, const Grid& grid, ParticleSystem* particleSystem, float pushDistance) {
+    if (m_reachedEnd || m_isFalling || isDead()) return;
 
     glm::ivec2 destCell = fromCell + punchDir;
     glm::ivec2 pistonCell = fromCell - punchDir;
@@ -536,14 +708,52 @@ void Enemy::pushOneCell(glm::ivec2 fromCell, glm::ivec2 punchDir, const Grid& gr
         return;
     }
 
-    // Запускаем смещение ровно на 1 клетку
+    // Если толчок больше 1 клетки, проверяем следующую клетку за destCell, чтобы не выбивать в стену
+    if (pushDistance > 1.0f) {
+        glm::ivec2 nextCell = destCell + punchDir;
+        bool nextWalkable = (nextCell.x >= 0 && nextCell.x < grid.getWidth() && nextCell.y >= 0 && nextCell.y < grid.getHeight()) &&
+                            (Pathfinder::isCellWalkable(grid, nextCell.x, nextCell.y) || grid.getCellType(nextCell.x, nextCell.y) == CellType::Chasm);
+        if (!nextWalkable) {
+            pushDistance = 1.0f; // Ограничиваем дистанцию, чтобы не клипаться сквозь препятствие
+        }
+    }
+
+    glm::vec2 pushDirVec = glm::vec2(punchDir);
+    float cellSize = grid.getCellSize();
+    float pushPixels = cellSize * pushDistance;
+
+    // Микро-разброс (расклеивание пачки): перпендикулярный тангенциальный разброс (scatter jitter)
+    float spreadScale = (pushDistance < 0.5f) ? 0.35f : 1.0f;
+    float randomSpread = ((rand() % 100) / 100.0f - 0.5f) * (cellSize * 0.25f) * spreadScale;
+    glm::vec2 perpDir = glm::vec2(-pushDirVec.y, pushDirVec.x);
+    glm::vec2 individualOffset = pushDirVec * pushPixels + perpDir * randomSpread;
+
+    glm::vec2 targetPos = m_pixelPos + individualOffset;
+    glm::ivec2 targetCell = grid.pixelToGrid(targetPos + glm::vec2(cellSize * 0.5f));
+
+    // Проверяем, не выбивает ли перпендикулярный разброс в непроходимое препятствие
+    if (targetCell.x < 0 || targetCell.x >= grid.getWidth() || targetCell.y < 0 || targetCell.y >= grid.getHeight() ||
+        (!Pathfinder::isCellWalkable(grid, targetCell.x, targetCell.y) && grid.getCellType(targetCell.x, targetCell.y) != CellType::Chasm)) {
+        // Откатываем перпендикулярный разброс, оставляя чистый вектор толчка
+        individualOffset = pushDirVec * pushPixels;
+        targetPos = m_pixelPos + individualOffset;
+        targetCell = grid.pixelToGrid(targetPos + glm::vec2(cellSize * 0.5f));
+    }
+
+    if (targetCell.x >= 0 && targetCell.x < grid.getWidth() && targetCell.y >= 0 && targetCell.y < grid.getHeight()) {
+        if (grid.getCellType(targetCell.x, targetCell.y) == CellType::Chasm) {
+            // Если приземляется в шурф — гарантируем целевую клетку шурфа
+            destCell = targetCell;
+        }
+    }
+
     m_isKnockedBack = true;
     m_knockbackStartPos = m_pixelPos;
-    m_knockbackTargetPos = grid.gridToPixel(destCell.x, destCell.y);
-    m_knockbackDuration = 0.20f;
+    m_knockbackTargetPos = targetPos;
     m_knockbackTimer = 0.0f;
-    m_knockbackDestCell = destCell;
     m_knockbackFromCell = fromCell;
+    m_knockbackDuration = (pushDistance < 0.5f) ? 0.12f : 0.20f;
+    m_knockbackDestCell = (pushDistance < 0.5f) ? fromCell : targetCell;
 }
 
 void Enemy::startFalling(glm::ivec2 chasmCell, const Grid& grid) {
@@ -603,14 +813,33 @@ void Enemy::applyPostKnockbackPath(glm::ivec2 destCell, glm::ivec2 fromCell, con
             if (distManhattan == 1 && Pathfinder::isCellWalkable(grid, nextP.x, nextP.y)) {
                 resumeIdx = static_cast<size_t>(fromIndex + 1);
             }
+            else {
+                // Ищем ближайшую проходимую точку вперед по маршруту исходя из новой фактической позиции врага
+                float bestDistSq = 1e9f;
+                size_t bestIdx = static_cast<size_t>(fromIndex);
+                glm::vec2 enemyCenter = m_pixelPos + glm::vec2(grid.getCellSize() * 0.5f);
+                for (size_t i = static_cast<size_t>(fromIndex); i < m_path.size(); ++i) {
+                    if (!Pathfinder::isCellWalkable(grid, m_path[i].x, m_path[i].y)) continue;
+                    glm::vec2 wpCenter = grid.gridToPixel(m_path[i].x, m_path[i].y) + glm::vec2(grid.getCellSize() * 0.5f);
+                    glm::vec2 diff = enemyCenter - wpCenter;
+                    float dSq = glm::dot(diff, diff);
+                    if (dSq < bestDistSq) {
+                        bestDistSq = dSq;
+                        bestIdx = i;
+                    }
+                }
+                resumeIdx = bestIdx;
+            }
         }
         else if (fromIndex == -1) {
-            // Если fromCell не найден, ищем ближайшую проходимую точку маршрута
+            // Если fromCell не найден, ищем ближайшую проходимую точку маршрута исходя из фактической позиции
             float bestDistSq = 1e9f;
             size_t bestIdx = 0;
+            glm::vec2 enemyCenter = m_pixelPos + glm::vec2(grid.getCellSize() * 0.5f);
             for (size_t i = 0; i < m_path.size(); ++i) {
                 if (!Pathfinder::isCellWalkable(grid, m_path[i].x, m_path[i].y)) continue;
-                glm::vec2 diff = glm::vec2(destCell - m_path[i]);
+                glm::vec2 wpCenter = grid.gridToPixel(m_path[i].x, m_path[i].y) + glm::vec2(grid.getCellSize() * 0.5f);
+                glm::vec2 diff = enemyCenter - wpCenter;
                 float dSq = glm::dot(diff, diff);
                 if (dSq < bestDistSq) {
                     bestDistSq = dSq;

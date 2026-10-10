@@ -1,0 +1,951 @@
+{
+  "allowedTowers": [
+    "Basic"
+  ],
+  "background": "pipes_canal",
+  "camera": {
+    "isCustom": true,
+    "tileX": 16.512041091918945,
+    "tileY": 3.560786008834839,
+    "x": 16.512041091918945,
+    "y": 3.560786008834839,
+    "zoom": 1.2665777206420898
+  },
+  "isCampaign": true,
+  "map": {
+    "allowedTowers": [
+      "Basic"
+    ],
+    "bases": [
+      {
+        "enableFadeOut": true,
+        "id": 0,
+        "visibleInGame": false,
+        "x": 28,
+        "y": 2
+      },
+      {
+        "enableFadeOut": true,
+        "id": 0,
+        "visibleInGame": false,
+        "x": 28,
+        "y": 3
+      },
+      {
+        "enableFadeOut": true,
+        "id": 0,
+        "visibleInGame": false,
+        "x": 28,
+        "y": 4
+      }
+    ],
+    "cellSize": 77.57575988769531,
+    "decorations": [
+      {
+        "destructible": true,
+        "id": 2,
+        "opacity": 0.5,
+        "rotation": 0.0,
+        "scale": 1.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "tilePos": {
+          "x": 12.5,
+          "y": 5.5
+        },
+        "tileX": 12.5,
+        "tileY": 5.5,
+        "type": "grass_field",
+        "worldPos": {
+          "x": 969.697021484375,
+          "y": 813.6514892578125
+        }
+      },
+      {
+        "destructible": true,
+        "id": 2,
+        "opacity": 0.5,
+        "rotation": 0.0,
+        "scale": 1.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "tilePos": {
+          "x": 9.5,
+          "y": 1.5
+        },
+        "tileX": 9.5,
+        "tileY": 1.5,
+        "type": "grass_field",
+        "worldPos": {
+          "x": 736.9697265625,
+          "y": 503.3484802246094
+        }
+      },
+      {
+        "destructible": true,
+        "id": 3,
+        "opacity": 0.5,
+        "rotation": 0.0,
+        "scale": 1.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "tilePos": {
+          "x": 13.5,
+          "y": 0.5
+        },
+        "tileX": 13.5,
+        "tileY": 0.5,
+        "type": "grass_field",
+        "worldPos": {
+          "x": 1047.272705078125,
+          "y": 425.772705078125
+        }
+      },
+      {
+        "destructible": false,
+        "id": 4,
+        "opacity": 0.5,
+        "rotation": 180.0,
+        "scale": 1.2000000476837158,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "tilePos": {
+          "x": 6.505015850067139,
+          "y": 7.409729957580566
+        },
+        "tileX": 6.505015850067139,
+        "tileY": 7.409729957580566,
+        "type": "crack",
+        "worldPos": {
+          "x": 504.6315612792969,
+          "y": 961.80029296875
+        }
+      },
+      {
+        "destructible": false,
+        "id": 5,
+        "opacity": 0.5,
+        "rotation": 0.0,
+        "scale": 1.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "tilePos": {
+          "x": 10.884936332702637,
+          "y": 7.962397575378418
+        },
+        "tileX": 10.884936332702637,
+        "tileY": 7.962397575378418,
+        "type": "crack",
+        "worldPos": {
+          "x": 844.4072265625,
+          "y": 1004.673828125
+        }
+      },
+      {
+        "destructible": true,
+        "id": 6,
+        "opacity": 0.44999998807907104,
+        "rotation": 0.0,
+        "scale": 1.100000023841858,
+        "scaleX": 1.600000023841858,
+        "scaleY": 1.100000023841858,
+        "tilePos": {
+          "x": 9.310775756835938,
+          "y": 4.419339656829834
+        },
+        "tileX": 9.310775756835938,
+        "tileY": 4.419339656829834,
+        "type": "puddle",
+        "worldPos": {
+          "x": 722.29052734375,
+          "y": 729.8184814453125
+        }
+      },
+      {
+        "destructible": true,
+        "id": 7,
+        "opacity": 0.5,
+        "rotation": 0.0,
+        "scale": 1.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "tilePos": {
+          "x": 17.5,
+          "y": 1.5
+        },
+        "tileX": 17.5,
+        "tileY": 1.5,
+        "type": "grass_field",
+        "worldPos": {
+          "x": 1357.5758056640625,
+          "y": 503.3484802246094
+        }
+      },
+      {
+        "destructible": true,
+        "id": 8,
+        "opacity": 0.5,
+        "rotation": 0.0,
+        "scale": 1.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "tilePos": {
+          "x": 16.5,
+          "y": 1.5
+        },
+        "tileX": 16.5,
+        "tileY": 1.5,
+        "type": "grass_field",
+        "worldPos": {
+          "x": 1280.0,
+          "y": 503.3484802246094
+        }
+      },
+      {
+        "destructible": true,
+        "id": 9,
+        "opacity": 0.5,
+        "rotation": 0.0,
+        "scale": 1.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "tilePos": {
+          "x": 19.5,
+          "y": 6.5
+        },
+        "tileX": 19.5,
+        "tileY": 6.5,
+        "type": "grass_field",
+        "worldPos": {
+          "x": 1512.727294921875,
+          "y": 891.227294921875
+        }
+      },
+      {
+        "destructible": true,
+        "id": 10,
+        "opacity": 0.5,
+        "rotation": 0.0,
+        "scale": 1.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "tilePos": {
+          "x": 23.5,
+          "y": 5.5
+        },
+        "tileX": 23.5,
+        "tileY": 5.5,
+        "type": "grass_field",
+        "worldPos": {
+          "x": 1823.0303955078125,
+          "y": 813.6514892578125
+        }
+      },
+      {
+        "destructible": true,
+        "id": 11,
+        "opacity": 0.5,
+        "rotation": 0.0,
+        "scale": 1.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "tilePos": {
+          "x": 25.5,
+          "y": 0.5
+        },
+        "tileX": 25.5,
+        "tileY": 0.5,
+        "type": "grass_field",
+        "worldPos": {
+          "x": 1978.181884765625,
+          "y": 425.772705078125
+        }
+      },
+      {
+        "destructible": true,
+        "id": 12,
+        "opacity": 0.5,
+        "rotation": 0.0,
+        "scale": 1.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "tilePos": {
+          "x": 10.892010688781738,
+          "y": 8.540145874023438
+        },
+        "tileX": 10.892010688781738,
+        "tileY": 8.540145874023438,
+        "type": "puddle",
+        "worldPos": {
+          "x": 844.9559936523438,
+          "y": 1049.4931640625
+        }
+      },
+      {
+        "destructible": true,
+        "id": 13,
+        "opacity": 0.5,
+        "rotation": 135.0,
+        "scale": 1.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "tilePos": {
+          "x": 22.511993408203125,
+          "y": -0.8809792995452881
+        },
+        "tileX": 22.511993408203125,
+        "tileY": -0.8809792995452881,
+        "type": "crack",
+        "worldPos": {
+          "x": 1746.385009765625,
+          "y": 318.6422119140625
+        }
+      },
+      {
+        "destructible": true,
+        "id": 14,
+        "opacity": 0.5,
+        "rotation": 180.0,
+        "scale": 1.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "tilePos": {
+          "x": 6.6212053298950195,
+          "y": -0.495617151260376
+        },
+        "tileX": 6.6212053298950195,
+        "tileY": -0.495617151260376,
+        "type": "crack",
+        "worldPos": {
+          "x": 513.64501953125,
+          "y": 348.5369567871094
+        }
+      },
+      {
+        "destructible": true,
+        "id": 15,
+        "opacity": 0.5,
+        "rotation": 180.0,
+        "scale": 0.699999988079071,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "tilePos": {
+          "x": 15.577592849731445,
+          "y": 7.913864612579346
+        },
+        "tileX": 15.577592849731445,
+        "tileY": 7.913864612579346,
+        "type": "crack",
+        "worldPos": {
+          "x": 1208.443603515625,
+          "y": 1000.908935546875
+        }
+      },
+      {
+        "destructible": true,
+        "id": 16,
+        "opacity": 0.5,
+        "rotation": 180.0,
+        "scale": 1.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "tilePos": {
+          "x": 15.565384864807129,
+          "y": 8.47476577758789
+        },
+        "tileX": 15.565384864807129,
+        "tileY": 8.47476577758789,
+        "type": "puddle",
+        "worldPos": {
+          "x": 1207.49658203125,
+          "y": 1044.4212646484375
+        }
+      },
+      {
+        "destructible": true,
+        "id": 18,
+        "opacity": 0.5,
+        "rotation": 0.0,
+        "scale": 1.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "tilePos": {
+          "x": 8.576858520507813,
+          "y": 6.409273624420166
+        },
+        "tileX": 8.576858520507813,
+        "tileY": 6.409273624420166,
+        "type": "grass_tuft",
+        "worldPos": {
+          "x": 665.3563232421875,
+          "y": 884.1890869140625
+        }
+      },
+      {
+        "destructible": true,
+        "id": 19,
+        "opacity": 0.5,
+        "rotation": 0.0,
+        "scale": 1.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "tilePos": {
+          "x": 9.5,
+          "y": 5.5
+        },
+        "tileX": 9.5,
+        "tileY": 5.5,
+        "type": "grass_field",
+        "worldPos": {
+          "x": 736.9697265625,
+          "y": 813.6514892578125
+        }
+      },
+      {
+        "destructible": true,
+        "id": 20,
+        "opacity": 0.5,
+        "rotation": 315.0,
+        "scale": 1.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "tilePos": {
+          "x": 7.836493492126465,
+          "y": -1.614330768585205
+        },
+        "tileX": 7.836493492126465,
+        "tileY": -1.614330768585205,
+        "type": "flower",
+        "worldPos": {
+          "x": 607.9219360351563,
+          "y": 261.75189208984375
+        }
+      },
+      {
+        "destructible": true,
+        "id": 21,
+        "opacity": 0.5,
+        "rotation": 0.0,
+        "scale": 1.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "tilePos": {
+          "x": 13.586834907531738,
+          "y": 8.653464317321777
+        },
+        "tileX": 13.586834907531738,
+        "tileY": 8.653464317321777,
+        "type": "flower",
+        "worldPos": {
+          "x": 1054.009033203125,
+          "y": 1058.283935546875
+        }
+      },
+      {
+        "destructible": false,
+        "id": 21,
+        "opacity": 1.0,
+        "rotation": 90.0,
+        "scale": 2.0999999046325684,
+        "scaleX": 3.0,
+        "scaleY": 3.0,
+        "tilePos": {
+          "x": 3.557103395462036,
+          "y": 2.890120267868042
+        },
+        "tileX": 3.557103395462036,
+        "tileY": 2.890120267868042,
+        "type": "fog",
+        "worldPos": {
+          "x": 275.94500732421875,
+          "y": 611.1881103515625
+        }
+      },
+      {
+        "destructible": false,
+        "id": 22,
+        "opacity": 1.0,
+        "rotation": 270.0,
+        "scale": 2.9000000953674316,
+        "scaleX": 2.5,
+        "scaleY": 1.2999999523162842,
+        "tilePos": {
+          "x": 29.53660011291504,
+          "y": 3.8147542476654053
+        },
+        "tileX": 29.53660011291504,
+        "tileY": 3.8147542476654053,
+        "type": "fog",
+        "worldPos": {
+          "x": 2291.32421875,
+          "y": 682.9172973632813
+        }
+      }
+    ],
+    "emitters": [
+      {
+        "angleDeg": 315.0,
+        "burstDuration": 0.699999988079071,
+        "id": 1,
+        "loop": false,
+        "particleScale": 1.2000000476837158,
+        "periodMax": 40.0,
+        "periodMin": 25.0,
+        "speed": 450.0,
+        "tilePos": {
+          "x": 6.537864685058594,
+          "y": 7.320586681365967
+        },
+        "type": "steam_jet"
+      },
+      {
+        "angleDeg": 90.0,
+        "burstDuration": 0.8999999761581421,
+        "id": 2,
+        "loop": false,
+        "particleScale": 1.2000000476837158,
+        "periodMax": 11.0,
+        "periodMin": 5.0,
+        "speed": 120.0,
+        "tilePos": {
+          "x": 10.881659507751465,
+          "y": 7.86679220199585
+        },
+        "type": "water_drip"
+      },
+      {
+        "angleDeg": 225.0,
+        "burstDuration": 2.5,
+        "id": 3,
+        "loop": false,
+        "particleScale": 0.800000011920929,
+        "periodMax": 40.0,
+        "periodMin": 25.0,
+        "speed": 450.0,
+        "tilePos": {
+          "x": 22.518735885620117,
+          "y": -0.8817887306213379
+        },
+        "type": "steam_jet"
+      },
+      {
+        "angleDeg": 135.0,
+        "burstDuration": 0.4000000059604645,
+        "id": 4,
+        "loop": false,
+        "particleScale": 0.5,
+        "periodMax": 40.0,
+        "periodMin": 20.0,
+        "speed": 120.0,
+        "tilePos": {
+          "x": 6.6194024085998535,
+          "y": -0.523514449596405
+        },
+        "type": "steam_jet"
+      },
+      {
+        "angleDeg": 90.0,
+        "burstDuration": 1.0,
+        "id": 5,
+        "loop": false,
+        "particleScale": 0.5,
+        "periodMax": 40.0,
+        "periodMin": 25.0,
+        "speed": 40.0,
+        "tilePos": {
+          "x": 15.551097869873047,
+          "y": 7.897402763366699
+        },
+        "type": "water_drip"
+      }
+    ],
+    "height": 7,
+    "layout": [
+      [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        3,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ]
+    ],
+    "maxUpgradeTier": 3,
+    "offsetX": 0.0,
+    "offsetY": 386.9848327636719,
+    "spawners": [
+      {
+        "enableFadeIn": true,
+        "groupId": -1,
+        "targetBaseIndex": -1,
+        "visibleInGame": false,
+        "x": 4,
+        "y": 2
+      },
+      {
+        "enableFadeIn": true,
+        "groupId": -1,
+        "targetBaseIndex": -1,
+        "visibleInGame": false,
+        "x": 4,
+        "y": 3
+      },
+      {
+        "enableFadeIn": true,
+        "groupId": -1,
+        "targetBaseIndex": -1,
+        "visibleInGame": false,
+        "x": 4,
+        "y": 4
+      }
+    ],
+    "startingHealth": 100,
+    "startingMoney": 50,
+    "towerMaxTiers": {
+      "Basic": 2,
+      "Mercury": 3,
+      "Piston": 3
+    },
+    "width": 33
+  },
+  "maxUpgradeTier": 3,
+  "name": "Канал",
+  "startingHealth": 100,
+  "startingMoney": 50,
+  "tags": [
+    "Тест"
+  ],
+  "towerMaxTiers": {
+    "Basic": 2,
+    "Mercury": 3,
+    "Piston": 3
+  },
+  "waves": [
+    {
+      "parts": [
+        {
+          "count": 10,
+          "delayAfter": 2.0,
+          "interval": 1.0,
+          "spawner_id": -1,
+          "type": "Coal"
+        },
+        {
+          "count": 15,
+          "delayAfter": 2.0,
+          "interval": 1.0,
+          "spawner_id": -1,
+          "type": "Basic"
+        },
+        {
+          "count": 5,
+          "delayAfter": 2.0,
+          "interval": 0.800000011920929,
+          "spawner_id": -1,
+          "type": "Basic"
+        }
+      ]
+    },
+    {
+      "parts": [
+        {
+          "count": 15,
+          "delayAfter": 2.0,
+          "interval": 0.800000011920929,
+          "spawner_id": -1,
+          "type": "Basic"
+        },
+        {
+          "count": 20,
+          "delayAfter": 2.0,
+          "interval": 0.800000011920929,
+          "spawner_id": -1,
+          "type": "Basic"
+        },
+        {
+          "count": 5,
+          "delayAfter": 2.0,
+          "interval": 1.0,
+          "spawner_id": -1,
+          "type": "Fast"
+        }
+      ]
+    },
+    {
+      "parts": [
+        {
+          "count": 17,
+          "delayAfter": 2.0,
+          "interval": 0.800000011920929,
+          "spawner_id": -1,
+          "type": "Basic"
+        },
+        {
+          "count": 10,
+          "delayAfter": 2.0,
+          "interval": 1.0,
+          "spawner_id": -1,
+          "type": "Basic"
+        },
+        {
+          "count": 10,
+          "delayAfter": 2.0,
+          "interval": 0.800000011920929,
+          "spawner_id": -1,
+          "type": "Basic"
+        },
+        {
+          "count": 10,
+          "delayAfter": 2.0,
+          "interval": 0.800000011920929,
+          "spawner_id": -1,
+          "type": "Fast"
+        },
+        {
+          "count": 10,
+          "delayAfter": 2.0,
+          "interval": 0.800000011920929,
+          "spawner_id": -1,
+          "type": "Basic"
+        }
+      ]
+    }
+  ]
+}

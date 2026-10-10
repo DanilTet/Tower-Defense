@@ -5,10 +5,14 @@
 #include "GameplayState.h"
 #include "../renderer/SpriteRenderer.h"
 #include "../renderer/TextRenderer.h"
+#include "../renderer/BackgroundRenderer.h"
+#include "../renderer/DecorationRenderer.h"
 #include "../resources/ResourceManager.h"
 #include "../textures/Texture2D.h"
 #include "../world/PathService.h"
 #include "../ui/UICommon.h"
+#include "../ui/BuildPanel.h"
+#include <glm/gtc/matrix_transform.hpp>
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include <fstream>
@@ -86,6 +90,7 @@ void MapEditorState::init() {
               << ", m_suppressClick=" << (m_suppressClickUntilRelease ? "true" : "false") << std::endl;
     ResourceManager::loadTexture("uiBaseTexture", "res/textures/ui_space.png");
     ResourceManager::loadTexture("arrowTexture", "res/textures/pathArrow.png");
+    ResourceManager::loadTexture("particleTexture", "res/textures/particle.png");
 
     auto wrapNoDelete = [](const std::string& name) {
         Texture2D* tex = ResourceManager::getTexture(name);
@@ -101,6 +106,9 @@ void MapEditorState::init() {
 }
 
 void MapEditorState::cleanup() {
+    glm::mat4 P_screen = glm::ortho(0.0f, static_cast<float>(m_width), static_cast<float>(m_height), 0.0f, -1.0f, 1.0f);
+    if (m_renderer) m_renderer->setProjection(P_screen);
+    if (m_textRenderer) m_textRenderer->updateProjection(P_screen);
     std::cout << "[MapEditor] Cleanup completed" << std::endl;
 }
 
@@ -148,8 +156,23 @@ void MapEditorState::loadLevelByName(const std::string& fileName) {
         m_rawLayout = data.layout;
         m_minecarts = data.minecarts;
         m_waves = data.waves;
+        m_emitters = data.emitters;
+        m_envParticleManager.setEmitters(m_emitters);
+        m_decorations = data.decorations;
+        m_selectedDecorationIndex = -1;
+        m_isDraggingDecoration = false;
+        m_selectedEntityIndex = -1;
+        m_entityInspector.resetPosition();
         m_isCampaign = data.isCampaign;
+        m_background = data.background.empty() ? "default" : data.background;
+        m_cameraSettings = data.camera;
+        m_isCameraConfigMode = false;
         m_tags = data.tags;
+        m_startingMoney = data.startingMoney;
+        m_startingHealth = data.startingHealth;
+        m_allowedTowers = data.allowedTowers;
+        m_maxUpgradeTier = data.maxUpgradeTier;
+        m_towerMaxTiers = data.towerMaxTiers;
         if (!data.name.empty()) {
             m_currentLevelDisplayName = data.name;
         }
@@ -165,12 +188,28 @@ void MapEditorState::loadLevelByName(const std::string& fileName) {
         SpawnerData sp;
         sp.pos = glm::ivec2(2, 6);
         sp.targetBaseIndex = 0;
+        sp.groupId = 0;
         m_spawners.push_back(sp);
         m_rawLayout.assign(12, std::vector<int>(20, 0));
         m_minecarts.clear();
         m_waves.clear();
+        m_emitters.clear();
+        m_envParticleManager.clear();
+        m_decorations.clear();
+        m_selectedDecorationIndex = -1;
+        m_isDraggingDecoration = false;
+        m_selectedEntityIndex = -1;
+        m_entityInspector.resetPosition();
         m_isCampaign = false;
+        m_background = "default";
+        m_cameraSettings = LevelMapData::CameraSettings();
+        m_isCameraConfigMode = false;
         m_tags = { "Тест" };
+        m_startingMoney = 50;
+        m_startingHealth = 20;
+        m_allowedTowers = { "Basic", "Mercury", "Piston" };
+        m_maxUpgradeTier = 3;
+        m_towerMaxTiers = { { "Basic", 3 }, { "Mercury", 3 }, { "Piston", 3 } };
         m_currentLevelDisplayName = "MY MAP";
         std::cout << "[MapEditor] In-memory blank template 20x12 initialized (no disk write)" << std::endl;
     }
@@ -190,7 +229,7 @@ void MapEditorState::loadLevelByName(const std::string& fileName) {
     }
 
     m_grid = std::make_unique<Grid>(m_gridWidth, m_gridHeight, m_cellSize);
-    m_grid->updateCellSize(m_width, m_height, getBottomDockHeight() + 6.0f, getTopBarHeight() + 6.0f);
+    updateGridDimensions();
 
     for (int y = 0; y < m_gridHeight; ++y) {
         for (int x = 0; x < m_gridWidth; ++x) {
@@ -229,6 +268,16 @@ void MapEditorState::loadLevelByName(const std::string& fileName) {
 
     m_isDirty = false;
 
+    glm::vec2 screenCenter = glm::vec2(static_cast<float>(m_width) * 0.5f, static_cast<float>(m_height) * 0.5f);
+    if (m_cameraSettings.isCustom && m_cameraSettings.targetTile.x >= 0.0f && m_cameraSettings.targetTile.y >= 0.0f) {
+        m_zoom = std::clamp(m_cameraSettings.zoom, 0.4f, 2.5f);
+        m_cameraPan = screenCenter - getWorldCamCenter() * m_zoom;
+    } else {
+        m_zoom = 1.0f;
+        glm::vec2 defCenter = getDefaultWorldCenter();
+        m_cameraPan = screenCenter - defCenter * m_zoom;
+    }
+
     updateButtonLayout();
 }
 
@@ -236,42 +285,101 @@ void MapEditorState::loadInitialMap() {
     loadLevelByName(m_currentLevelFileName);
 }
 
-void MapEditorState::resizeMap(int newW, int newH) {
+void MapEditorState::resizeMap(int newW, int newH, bool expandFromStart) {
     newW = std::clamp(newW, 1, 250);
     newH = std::clamp(newH, 1, 250);
     if (newW == m_gridWidth && newH == m_gridHeight) return;
 
-    // Сохраняем существующие тайлы
+    int oldW = m_gridWidth;
+    int oldH = m_gridHeight;
+    int offsetX = expandFromStart ? (newW - oldW) : 0;
+    int offsetY = expandFromStart ? (newH - oldH) : 0;
+
+    // Сохраняем существующие тайлы с учетом смещения
     std::vector<std::vector<int>> newLayout(newH, std::vector<int>(newW, 0));
-    for (int y = 0; y < std::min(m_gridHeight, newH); ++y) {
-        for (int x = 0; x < std::min(m_gridWidth, newW); ++x) {
-            newLayout[y][x] = m_rawLayout[y][x];
+    for (int y = 0; y < oldH; ++y) {
+        int ny = y + offsetY;
+        if (ny < 0 || ny >= newH) continue;
+        for (int x = 0; x < oldW; ++x) {
+            int nx = x + offsetX;
+            if (nx < 0 || nx >= newW) continue;
+            newLayout[ny][nx] = m_rawLayout[y][x];
         }
     }
     m_rawLayout = newLayout;
     m_gridWidth = newW;
     m_gridHeight = newH;
 
-    // Удаляем спавнеры и базы, вышедшие за границы новой сетки
+    // Смещаем спавнеры и удаляем вышедшие за границы новой сетки
+    for (auto& s : m_spawners) {
+        s.pos += glm::ivec2(offsetX, offsetY);
+    }
     m_spawners.erase(
         std::remove_if(m_spawners.begin(), m_spawners.end(),
-                       [newW, newH](const SpawnerData& s) { return s.pos.x >= newW || s.pos.y >= newH; }),
+                       [newW, newH](const SpawnerData& s) {
+                           return s.pos.x < 0 || s.pos.x >= newW || s.pos.y < 0 || s.pos.y >= newH;
+                       }),
         m_spawners.end()
     );
 
+    // Смещаем базы и удаляем вышедшие за границы новой сетки
+    for (auto& b : m_bases) {
+        b.x += offsetX;
+        b.y += offsetY;
+    }
     m_bases.erase(
         std::remove_if(m_bases.begin(), m_bases.end(),
-                       [newW, newH](const BaseData& b) { return b.x >= newW || b.y >= newH; }),
+                       [newW, newH](const BaseData& b) {
+                           return b.x < 0 || b.x >= newW || b.y < 0 || b.y >= newH;
+                       }),
         m_bases.end()
     );
 
+    // Смещаем вагонетки
     for (auto& mc : m_minecarts) {
-        if (mc.start.x >= newW || mc.start.y >= newH) mc.start = glm::ivec2(-1, -1);
-        if (mc.end.x >= newW || mc.end.y >= newH) mc.end = glm::ivec2(-1, -1);
+        if (mc.start.x >= 0 && mc.start.y >= 0) {
+            mc.start += glm::ivec2(offsetX, offsetY);
+            if (mc.start.x < 0 || mc.start.x >= newW || mc.start.y < 0 || mc.start.y >= newH) {
+                mc.start = glm::ivec2(-1, -1);
+            }
+        }
+        if (mc.end.x >= 0 && mc.end.y >= 0) {
+            mc.end += glm::ivec2(offsetX, offsetY);
+            if (mc.end.x < 0 || mc.end.x >= newW || mc.end.y < 0 || mc.end.y >= newH) {
+                mc.end = glm::ivec2(-1, -1);
+            }
+        }
+    }
+
+    // Смещаем эмиттеры частиц
+    for (auto& e : m_emitters) {
+        e.tilePos += glm::vec2(static_cast<float>(offsetX), static_cast<float>(offsetY));
+    }
+    m_emitters.erase(
+        std::remove_if(m_emitters.begin(), m_emitters.end(),
+                       [newW, newH](const ParticleEmitterConfig& e) {
+                           return e.tilePos.x < -20.0f || e.tilePos.x > (newW + 20.0f) ||
+                                  e.tilePos.y < -20.0f || e.tilePos.y > (newH + 20.0f);
+                       }),
+        m_emitters.end()
+    );
+    m_envParticleManager.setEmitters(m_emitters);
+
+    // Смещаем декорации
+    for (auto& d : m_decorations) {
+        d.tilePos += glm::vec2(static_cast<float>(offsetX), static_cast<float>(offsetY));
+    }
+
+    // Смещаем кастомную камеру при наличии или при активном режиме настройки камеры
+    if ((m_cameraSettings.isCustom || m_isCameraConfigMode) &&
+        m_cameraSettings.targetTile.x >= 0.0f && m_cameraSettings.targetTile.y >= 0.0f) {
+        if (expandFromStart) {
+            m_cameraSettings.targetTile += glm::vec2(static_cast<float>(offsetX), static_cast<float>(offsetY));
+        }
     }
 
     m_grid = std::make_unique<Grid>(m_gridWidth, m_gridHeight, m_cellSize);
-    m_grid->updateCellSize(m_width, m_height, getBottomDockHeight() + 6.0f, getTopBarHeight() + 6.0f);
+    updateGridDimensions();
 
     for (int y = 0; y < m_gridHeight; ++y) {
         for (int x = 0; x < m_gridWidth; ++x) {
@@ -292,15 +400,140 @@ void MapEditorState::resizeMap(int newW, int newH) {
         m_grid->setCellType(b.x, b.y, CellType::Base);
     }
 
+    // Обновляем мировую позицию декораций
+    for (auto& d : m_decorations) {
+        d.worldPos = m_grid->getOffset() + d.tilePos * m_grid->getCellSize();
+    }
+
     m_grid->saveOriginalGrid();
     m_pathfinder = std::make_unique<Pathfinder>(m_gridWidth, m_gridHeight);
     recalculatePaths();
 
+    m_isDirty = true;
     m_statusMessage = "Grid resized to " + std::to_string(m_gridWidth) + "x" + std::to_string(m_gridHeight);
     m_statusColor = glm::vec3(0.3f, 0.9f, 1.0f);
     m_statusTimer = 2.5f;
 
     updateButtonLayout();
+}
+
+void MapEditorState::shiftMap(int dx, int dy) {
+    if (dx == 0 && dy == 0) return;
+    if (m_gridWidth <= 0 || m_gridHeight <= 0) return;
+
+    // Сдвиг сетки тайлов
+    std::vector<std::vector<int>> newLayout(m_gridHeight, std::vector<int>(m_gridWidth, 0));
+    for (int y = 0; y < m_gridHeight; ++y) {
+        int ny = y + dy;
+        if (ny < 0 || ny >= m_gridHeight) continue;
+        for (int x = 0; x < m_gridWidth; ++x) {
+            int nx = x + dx;
+            if (nx < 0 || nx >= m_gridWidth) continue;
+            newLayout[ny][nx] = m_rawLayout[y][x];
+        }
+    }
+    m_rawLayout = newLayout;
+
+    // Сдвиг спавнеров
+    for (auto& s : m_spawners) {
+        s.pos += glm::ivec2(dx, dy);
+    }
+    m_spawners.erase(
+        std::remove_if(m_spawners.begin(), m_spawners.end(),
+                       [this](const SpawnerData& s) {
+                           return s.pos.x < 0 || s.pos.x >= m_gridWidth || s.pos.y < 0 || s.pos.y >= m_gridHeight;
+                       }),
+        m_spawners.end()
+    );
+
+    // Сдвиг баз
+    for (auto& b : m_bases) {
+        b.x += dx;
+        b.y += dy;
+    }
+    m_bases.erase(
+        std::remove_if(m_bases.begin(), m_bases.end(),
+                       [this](const BaseData& b) {
+                           return b.x < 0 || b.x >= m_gridWidth || b.y < 0 || b.y >= m_gridHeight;
+                       }),
+        m_bases.end()
+    );
+
+    // Сдвиг вагонеток
+    for (auto& mc : m_minecarts) {
+        if (mc.start.x >= 0 && mc.start.y >= 0) {
+            mc.start += glm::ivec2(dx, dy);
+            if (mc.start.x < 0 || mc.start.x >= m_gridWidth || mc.start.y < 0 || mc.start.y >= m_gridHeight) {
+                mc.start = glm::ivec2(-1, -1);
+            }
+        }
+        if (mc.end.x >= 0 && mc.end.y >= 0) {
+            mc.end += glm::ivec2(dx, dy);
+            if (mc.end.x < 0 || mc.end.x >= m_gridWidth || mc.end.y < 0 || mc.end.y >= m_gridHeight) {
+                mc.end = glm::ivec2(-1, -1);
+            }
+        }
+    }
+
+    // Сдвиг эмиттеров частиц
+    for (auto& e : m_emitters) {
+        e.tilePos += glm::vec2(static_cast<float>(dx), static_cast<float>(dy));
+    }
+    m_emitters.erase(
+        std::remove_if(m_emitters.begin(), m_emitters.end(),
+                       [this](const ParticleEmitterConfig& e) {
+                           return e.tilePos.x < -20.0f || e.tilePos.x > (m_gridWidth + 20.0f) ||
+                                  e.tilePos.y < -20.0f || e.tilePos.y > (m_gridHeight + 20.0f);
+                       }),
+        m_emitters.end()
+    );
+    m_envParticleManager.setEmitters(m_emitters);
+
+    // Сдвиг декораций
+    for (auto& d : m_decorations) {
+        d.tilePos += glm::vec2(static_cast<float>(dx), static_cast<float>(dy));
+        if (m_grid) {
+            d.worldPos = m_grid->getOffset() + d.tilePos * m_grid->getCellSize();
+        }
+    }
+
+    // Сдвиг кастомной камеры
+    if (m_cameraSettings.isCustom && m_cameraSettings.targetTile.x >= 0.0f && m_cameraSettings.targetTile.y >= 0.0f) {
+        m_cameraSettings.targetTile += glm::vec2(static_cast<float>(dx), static_cast<float>(dy));
+    }
+
+    // Перезаполняем ячейки Grid
+    if (m_grid) {
+        for (int y = 0; y < m_gridHeight; ++y) {
+            for (int x = 0; x < m_gridWidth; ++x) {
+                int cellVal = m_rawLayout[y][x];
+                if (cellVal == 1) m_grid->setCellType(x, y, CellType::Path);
+                else if (cellVal == 2) m_grid->setCellType(x, y, CellType::Platform);
+                else if (cellVal == 3) m_grid->setCellType(x, y, CellType::Scenery);
+                else if (cellVal == 4) m_grid->setCellType(x, y, CellType::Chasm);
+                else if (cellVal == 5) m_grid->setCellType(x, y, CellType::Rail);
+                else m_grid->setCellType(x, y, CellType::Ground);
+            }
+        }
+
+        for (const auto& sp : m_spawners) {
+            m_grid->setCellType(sp.pos.x, sp.pos.y, CellType::Spawner);
+        }
+        for (const auto& b : m_bases) {
+            m_grid->setCellType(b.x, b.y, CellType::Base);
+        }
+        m_grid->saveOriginalGrid();
+    }
+
+    recalculatePaths();
+    m_isDirty = true;
+
+    std::string dirStr = "";
+    if (dx < 0) dirStr = "влево";
+    else if (dx > 0) dirStr = "вправо";
+    else if (dy < 0) dirStr = "вверх";
+    else if (dy > 0) dirStr = "вниз";
+    showToast("Карта сдвинута " + dirStr + " на 1 кл.", glm::vec4(0.4f, 0.85f, 1.0f, 1.0f));
 }
 
 void MapEditorState::cycleMapSizePreset() {
@@ -315,10 +548,19 @@ void MapEditorState::cycleMapSizePreset() {
 }
 
 void MapEditorState::cycleSelectedId(int step) {
-    if (step > 0) {
-        m_selectedId = (m_selectedId >= 5) ? -1 : (m_selectedId + 1);
-    } else if (step < 0) {
-        m_selectedId = (m_selectedId <= -1) ? 5 : (m_selectedId - 1);
+    if (m_currentBrush == EditorBrush::Base) {
+        if (m_selectedId < 0) m_selectedId = 0;
+        if (step > 0) {
+            m_selectedId = (m_selectedId >= 5) ? 0 : (m_selectedId + 1);
+        } else if (step < 0) {
+            m_selectedId = (m_selectedId <= 0) ? 5 : (m_selectedId - 1);
+        }
+    } else {
+        if (step > 0) {
+            m_selectedId = (m_selectedId >= 5) ? -1 : (m_selectedId + 1);
+        } else if (step < 0) {
+            m_selectedId = (m_selectedId <= -1) ? 5 : (m_selectedId - 1);
+        }
     }
 
     std::string idStr = (m_selectedId == -1) ? "Auto" : ("#" + std::to_string(m_selectedId));
@@ -350,6 +592,9 @@ EditorContext MapEditorState::buildEditorContext() const {
     ctx.currentLevelDisplayName = m_currentLevelDisplayName;
     ctx.currentLevelFileName = m_currentLevelFileName;
     ctx.isCampaign = m_isCampaign;
+    ctx.background = m_background;
+    ctx.cameraIsCustom = m_cameraSettings.isCustom;
+    ctx.cameraConfigMode = m_isCameraConfigMode;
     ctx.gridWidth = m_gridWidth;
     ctx.gridHeight = m_gridHeight;
     ctx.currentBrush = m_currentBrush;
@@ -365,8 +610,51 @@ EditorContext MapEditorState::buildEditorContext() const {
     ctx.railPathSize = m_railPath.size();
     ctx.isWaveModalOpen = m_waveModal.isOpen();
     ctx.isMinecartModalOpen = m_minecartModal.isOpen();
+    ctx.isHelpModalOpen = m_helpModal.isOpen();
+    ctx.isLevelSettingsModalOpen = m_levelSettingsModal.isOpen();
     ctx.currentCategory = m_toolbarUI.getCategory();
+    ctx.hudPreviewMode = m_hudPreviewMode;
+    ctx.startingMoney = m_startingMoney;
+    ctx.startingHealth = m_startingHealth;
     return ctx;
+}
+
+void MapEditorState::cycleHudPreviewMode() {
+    switch (m_hudPreviewMode) {
+        case HudPreviewMode::None:     m_hudPreviewMode = HudPreviewMode::Scale100; break;
+        case HudPreviewMode::Scale100:  m_hudPreviewMode = HudPreviewMode::Scale125; break;
+        case HudPreviewMode::Scale125:  m_hudPreviewMode = HudPreviewMode::Scale150; break;
+        case HudPreviewMode::Scale150:  m_hudPreviewMode = HudPreviewMode::None;     break;
+    }
+    updateGridDimensions();
+    updateButtonLayout();
+    if (m_hudPreviewMode == HudPreviewMode::None) {
+        showToast("HUD Preview: Выкл", glm::vec4(0.7f, 0.7f, 0.7f, 1.0f));
+    } else if (m_hudPreviewMode == HudPreviewMode::Scale100) {
+        showToast("HUD Preview: 100%", glm::vec4(1.0f, 0.85f, 0.25f, 1.0f));
+    } else if (m_hudPreviewMode == HudPreviewMode::Scale125) {
+        showToast("HUD Preview: 125%", glm::vec4(1.0f, 0.85f, 0.25f, 1.0f));
+    } else if (m_hudPreviewMode == HudPreviewMode::Scale150) {
+        showToast("HUD Preview: 150%", glm::vec4(1.0f, 0.85f, 0.25f, 1.0f));
+    }
+}
+
+void MapEditorState::updateGridDimensions() {
+    if (!m_grid) return;
+    if (m_isCameraConfigMode || m_hudPreviewMode != HudPreviewMode::None) {
+        // Синхронизация с боем: используем те же отступы сетки, что и в GameplayState
+        float bottomMargin = Buildpanel::getBottomBarHeight(m_width, m_height);
+        float topMargin = TimeControlUI::getTopMargin(m_width, m_height);
+        m_grid->updateCellSize(m_width, m_height, bottomMargin, topMargin);
+    } else {
+        // Обычный режим редактора: центрирование между верхним хедером и нижним доком редактора
+        m_grid->updateCellSize(m_width, m_height, getBottomDockHeight() + 6.0f, getTopBarHeight() + 6.0f);
+    }
+
+    // Актуализируем мировые позиции всех декораций из их tilePos
+    for (auto& d : m_decorations) {
+        d.worldPos = m_grid->getOffset() + d.tilePos * m_grid->getCellSize();
+    }
 }
 
 void MapEditorState::updateButtonLayout() {
@@ -490,26 +778,91 @@ void MapEditorState::recalculateRailPath() {
 void MapEditorState::applyBrush(int gridX, int gridY, EditorBrush brush) {
     if (gridX < 0 || gridX >= m_gridWidth || gridY < 0 || gridY >= m_gridHeight) return;
 
-    // Режим ластика: очищает клетку до чистой Земли
+    // Режим ластика:
     if (brush == EditorBrush::Eraser) {
+        if (m_toolbarUI.getCategory() == PaletteCategory::Particles) {
+            glm::vec2 worldPos = m_grid->getOffset() + glm::vec2(gridX + 0.5f, gridY + 0.5f) * m_grid->getCellSize();
+            eraseEmitterNear(worldPos, m_grid->getCellSize() * 0.75f);
+            return;
+        }
         eraseCell(gridX, gridY);
+        return;
+    }
+
+    // Режим эмиттеров частиц (Свищ пара, Капель, Искры, Дым, Туман)
+    if (brush == EditorBrush::EmitterSteamJet || brush == EditorBrush::EmitterWaterDrip ||
+        brush == EditorBrush::EmitterSparks || brush == EditorBrush::EmitterSmoke ||
+        brush == EditorBrush::EmitterFog) {
+        std::string eType = "steam_jet";
+        std::string eName = "Свищ пара";
+        float pMin = 6.0f, pMax = 14.0f, bDur = 2.5f;
+
+        if (brush == EditorBrush::EmitterWaterDrip) {
+            eType = "water_drip";
+            eName = "Капель";
+            pMin = 1.0f; pMax = 3.0f; bDur = 0.5f;
+        } else if (brush == EditorBrush::EmitterSparks) {
+            eType = "sparks";
+            eName = "Искры";
+            pMin = 4.0f; pMax = 10.0f; bDur = 0.8f;
+        } else if (brush == EditorBrush::EmitterSmoke) {
+            eType = "smoke";
+            eName = "Дым";
+            pMin = 3.0f; pMax = 8.0f; bDur = 3.0f;
+        } else if (brush == EditorBrush::EmitterFog) {
+            eType = "fog";
+            eName = "Туман";
+            pMin = 0.5f; pMax = 1.0f; bDur = 10.0f;
+        }
+
+        glm::vec2 targetCenter = glm::vec2(gridX + 0.5f, gridY + 0.5f);
+        bool found = false;
+        for (auto& em : m_emitters) {
+            if (glm::distance(em.tilePos, targetCenter) < 0.6f) {
+                em.type = eType;
+                em.periodMin = pMin;
+                em.periodMax = pMax;
+                em.burstDuration = bDur;
+                m_envParticleManager.setEmitters(m_emitters);
+                found = true;
+                break;
+            }
+        }
+
+        if (!found) {
+            ParticleEmitterConfig cfg;
+            cfg.id = static_cast<int>(m_emitters.size()) + 1;
+            cfg.type = eType;
+            cfg.tilePos = targetCenter;
+            cfg.angleDeg = m_defaultEmitterAngle;
+            cfg.periodMin = pMin;
+            cfg.periodMax = pMax;
+            cfg.burstDuration = bDur;
+            m_emitters.push_back(cfg);
+            m_envParticleManager.setEmitters(m_emitters);
+        }
+
+        m_statusMessage = "Эмиттер [" + eName + "] установлен на (" + std::to_string(gridX) + ", " + std::to_string(gridY) + ")";
+        m_statusColor = glm::vec3(0.5f, 0.85f, 1.0f);
+        m_statusTimer = 2.0f;
+        showToast("Эмиттер: " + eName, glm::vec4(0.4f, 0.85f, 1.0f, 1.0f));
+        m_isDirty = true;
         return;
     }
 
     // Особый случай: клик по УЖЕ существующему спавнеру
     if (brush == EditorBrush::Spawner) {
-        for (auto& sp : m_spawners) {
+        for (size_t i = 0; i < m_spawners.size(); ++i) {
+            auto& sp = m_spawners[i];
             if (sp.pos.x == gridX && sp.pos.y == gridY) {
-                if (sp.targetBaseIndex == m_selectedId) {
-                    sp.targetBaseIndex = (sp.targetBaseIndex >= 5) ? -1 : (sp.targetBaseIndex + 1);
-                } else {
-                    sp.targetBaseIndex = m_selectedId;
-                }
+                m_selectedEntityType = EditorEntityType::Spawner;
+                m_selectedEntityIndex = static_cast<int>(i);
+                m_selectedDecorationIndex = -1;
+                m_selectedEmitterIndex = -1;
                 std::string idStr = (sp.targetBaseIndex == -1) ? "Auto" : ("#" + std::to_string(sp.targetBaseIndex));
-                m_statusMessage = "Spawner at (" + std::to_string(gridX) + "," + std::to_string(gridY) + ") target Base ID set to: " + idStr;
+                m_statusMessage = "Spawner at (" + std::to_string(gridX) + "," + std::to_string(gridY) + ") selected, target Base ID: " + idStr;
                 m_statusColor = getIdColor(sp.targetBaseIndex);
                 m_statusTimer = 2.5f;
-                recalculatePaths();
                 return;
             }
         }
@@ -517,18 +870,16 @@ void MapEditorState::applyBrush(int gridX, int gridY, EditorBrush brush) {
 
     // Особый случай: клик по УЖЕ существующей базе
     if (brush == EditorBrush::Base) {
-        int baseTargetId = (m_selectedId < 0) ? 0 : m_selectedId;
-        for (auto& b : m_bases) {
+        for (size_t i = 0; i < m_bases.size(); ++i) {
+            auto& b = m_bases[i];
             if (b.x == gridX && b.y == gridY) {
-                if (b.id == baseTargetId) {
-                    b.id = (b.id >= 5) ? 0 : (b.id + 1);
-                } else {
-                    b.id = baseTargetId;
-                }
-                m_statusMessage = "Base at (" + std::to_string(gridX) + "," + std::to_string(gridY) + ") ID set to: #" + std::to_string(b.id);
+                m_selectedEntityType = EditorEntityType::Base;
+                m_selectedEntityIndex = static_cast<int>(i);
+                m_selectedDecorationIndex = -1;
+                m_selectedEmitterIndex = -1;
+                m_statusMessage = "Base at (" + std::to_string(gridX) + "," + std::to_string(gridY) + ") selected, ID: #" + std::to_string(b.id);
                 m_statusColor = getIdColor(b.id);
                 m_statusTimer = 2.5f;
-                recalculatePaths();
                 return;
             }
         }
@@ -601,7 +952,11 @@ void MapEditorState::applyBrush(int gridX, int gridY, EditorBrush brush) {
         case EditorBrush::Spawner:
             m_rawLayout[gridY][gridX] = 0;
             m_grid->setCellType(gridX, gridY, CellType::Spawner);
-            m_spawners.push_back({ glm::ivec2(gridX, gridY), m_selectedId });
+            m_spawners.push_back(SpawnerData(glm::ivec2(gridX, gridY), m_selectedId, m_selectedId, false, true));
+            m_selectedEntityType = EditorEntityType::Spawner;
+            m_selectedEntityIndex = static_cast<int>(m_spawners.size()) - 1;
+            m_selectedDecorationIndex = -1;
+            m_selectedEmitterIndex = -1;
             {
                 std::string idStr = (m_selectedId == -1) ? "Auto" : ("#" + std::to_string(m_selectedId));
                 m_statusMessage = "Placed Spawner with target Base ID: " + idStr;
@@ -614,7 +969,11 @@ void MapEditorState::applyBrush(int gridX, int gridY, EditorBrush brush) {
                 int baseId = (m_selectedId < 0) ? 0 : m_selectedId;
                 m_rawLayout[gridY][gridX] = 0;
                 m_grid->setCellType(gridX, gridY, CellType::Base);
-                m_bases.push_back(BaseData(gridX, gridY, baseId));
+                m_bases.push_back(BaseData(gridX, gridY, baseId, false, true));
+                m_selectedEntityType = EditorEntityType::Base;
+                m_selectedEntityIndex = static_cast<int>(m_bases.size()) - 1;
+                m_selectedDecorationIndex = -1;
+                m_selectedEmitterIndex = -1;
                 m_statusMessage = "Placed Base with ID: #" + std::to_string(baseId);
                 m_statusColor = getIdColor(baseId);
                 m_statusTimer = 2.0f;
@@ -631,6 +990,18 @@ void MapEditorState::applyBrush(int gridX, int gridY, EditorBrush brush) {
 
 void MapEditorState::eraseCell(int gridX, int gridY) {
     if (gridX < 0 || gridX >= m_gridWidth || gridY < 0 || gridY >= m_gridHeight) return;
+
+    if (m_selectedEntityIndex >= 0) {
+        if (m_selectedEntityType == EditorEntityType::Spawner && m_selectedEntityIndex < static_cast<int>(m_spawners.size())) {
+            if (m_spawners[m_selectedEntityIndex].pos.x == gridX && m_spawners[m_selectedEntityIndex].pos.y == gridY) {
+                m_selectedEntityIndex = -1;
+            }
+        } else if (m_selectedEntityType == EditorEntityType::Base && m_selectedEntityIndex < static_cast<int>(m_bases.size())) {
+            if (m_bases[m_selectedEntityIndex].x == gridX && m_bases[m_selectedEntityIndex].y == gridY) {
+                m_selectedEntityIndex = -1;
+            }
+        }
+    }
 
     m_spawners.erase(
         std::remove_if(m_spawners.begin(), m_spawners.end(),
@@ -653,6 +1024,16 @@ void MapEditorState::eraseCell(int gridX, int gridY) {
         }
     }
 
+    m_emitters.erase(
+        std::remove_if(m_emitters.begin(), m_emitters.end(),
+                       [gridX, gridY](const ParticleEmitterConfig& e) {
+                           return static_cast<int>(std::round(e.tilePos.x)) == gridX &&
+                                  static_cast<int>(std::round(e.tilePos.y)) == gridY;
+                       }),
+        m_emitters.end()
+    );
+    m_envParticleManager.removeEmitterAt(gridX, gridY);
+
     m_rawLayout[gridY][gridX] = 0;
     m_grid->setCellType(gridX, gridY, CellType::Ground);
     m_grid->saveOriginalGrid();
@@ -660,10 +1041,79 @@ void MapEditorState::eraseCell(int gridX, int gridY) {
     m_isDirty = true;
 }
 
+int MapEditorState::findNearestEmitterIndex(glm::vec2 worldPos, float maxDist) const {
+    if (!m_grid || m_emitters.empty()) return -1;
+    float cellSize = m_grid->getCellSize();
+    int bestIdx = -1;
+    float bestDistSq = maxDist * maxDist;
+
+    for (size_t i = 0; i < m_emitters.size(); ++i) {
+        glm::vec2 emWorld = m_grid->getOffset() + m_emitters[i].tilePos * cellSize;
+        float dSq = glm::dot(worldPos - emWorld, worldPos - emWorld);
+        if (dSq < bestDistSq) {
+            bestDistSq = dSq;
+            bestIdx = static_cast<int>(i);
+        }
+    }
+    return bestIdx;
+}
+
+void MapEditorState::eraseEmitterNear(glm::vec2 worldPos, float maxDist) {
+    int idx = findNearestEmitterIndex(worldPos, maxDist);
+    if (idx >= 0 && idx < static_cast<int>(m_emitters.size())) {
+        std::string eName = m_emitters[idx].type;
+        m_emitters.erase(m_emitters.begin() + idx);
+        m_envParticleManager.setEmitters(m_emitters);
+        if (m_selectedEmitterIndex == idx) {
+            m_selectedEmitterIndex = -1;
+            m_isDraggingEmitter = false;
+        } else if (m_selectedEmitterIndex > idx) {
+            m_selectedEmitterIndex--;
+        }
+        m_isDirty = true;
+        showToast("Эмиттер удален: " + eName, glm::vec4(1.0f, 0.4f, 0.4f, 1.0f));
+    }
+}
+
+int MapEditorState::findNearestDecorationIndex(glm::vec2 worldPos, float maxDist) const {
+    if (m_decorations.empty()) return -1;
+    int bestIdx = -1;
+    float bestDistSq = maxDist * maxDist;
+
+    for (size_t i = 0; i < m_decorations.size(); ++i) {
+        glm::vec2 decWorld = m_grid ? (m_grid->getOffset() + m_decorations[i].tilePos * m_grid->getCellSize()) : m_decorations[i].worldPos;
+        glm::vec2 diff = worldPos - decWorld;
+        float dSq = glm::dot(diff, diff);
+        if (dSq < bestDistSq) {
+            bestDistSq = dSq;
+            bestIdx = static_cast<int>(i);
+        }
+    }
+    return bestIdx;
+}
+
+void MapEditorState::eraseDecorationNear(glm::vec2 worldPos, float maxDist) {
+    int idx = findNearestDecorationIndex(worldPos, maxDist);
+    if (idx >= 0 && idx < static_cast<int>(m_decorations.size())) {
+        std::string dName = m_decorations[idx].type;
+        m_decorations.erase(m_decorations.begin() + idx);
+        if (m_selectedDecorationIndex == idx) {
+            m_selectedDecorationIndex = -1;
+            m_isDraggingDecoration = false;
+        } else if (m_selectedDecorationIndex > idx) {
+            m_selectedDecorationIndex--;
+        }
+        m_isDirty = true;
+        showToast("Декор удален: " + dName, glm::vec4(1.0f, 0.4f, 0.4f, 1.0f));
+    }
+}
+
 void MapEditorState::saveMap() {
     LevelMapData data;
     data.name = m_currentLevelDisplayName;
     data.isCampaign = m_isCampaign;
+    data.background = m_background;
+    data.camera = m_cameraSettings;
     data.tags = m_tags;
     data.gridWidth = m_gridWidth;
     data.gridHeight = m_gridHeight;
@@ -682,15 +1132,27 @@ void MapEditorState::saveMap() {
     }
     data.minecarts = activeCarts;
     data.waves = m_waves;
+    data.emitters = m_emitters;
+    if (m_grid) {
+        for (auto& dec : m_decorations) {
+            dec.worldPos = m_grid->getOffset() + dec.tilePos * m_grid->getCellSize();
+        }
+    }
+    data.decorations = m_decorations;
+    data.startingMoney = m_startingMoney;
+    data.startingHealth = m_startingHealth;
+    data.allowedTowers = m_allowedTowers;
+    data.maxUpgradeTier = m_maxUpgradeTier;
+    data.towerMaxTiers = m_towerMaxTiers;
 
     bool ok = LevelManager::saveLevel(m_currentLevelFileName, data);
-    std::cout << "[MapEditor] saveMap: file=" << m_currentLevelFileName << ", name=" << m_currentLevelDisplayName << ", size=" << m_gridWidth << "x" << m_gridHeight << ", result=" << (ok ? "SUCCESS" : "FAIL") << std::endl;
+    std::cout << "[MapEditor] saveMap: file=" << m_currentLevelFileName << ", name=" << m_currentLevelDisplayName << ", size=" << m_gridWidth << "x" << m_gridHeight << ", money=" << m_startingMoney << ", hp=" << m_startingHealth << ", result=" << (ok ? "SUCCESS" : "FAIL") << std::endl;
 
     if (ok) {
         m_isDirty = false;
-        m_statusMessage = "Map saved: " + m_currentLevelDisplayName + " (" + std::to_string(m_gridWidth) + "x" + std::to_string(m_gridHeight) + ")!";
+        m_statusMessage = "Map saved: " + m_currentLevelDisplayName + " (" + std::to_string(m_gridWidth) + "x" + std::to_string(m_gridHeight) + ") [$" + std::to_string(m_startingMoney) + " | " + std::to_string(m_startingHealth) + " HP]!";
         m_statusColor = glm::vec3(0.2f, 1.0f, 0.3f);
-        showToast("Карта успешно сохранена!", glm::vec4(0.2f, 0.8f, 0.3f, 1.0f));
+        showToast("Карта сохранена: $" + std::to_string(m_startingMoney) + " | " + std::to_string(m_startingHealth) + " HP", glm::vec4(0.2f, 0.8f, 0.3f, 1.0f));
     } else {
         m_statusMessage = "Error saving map file!";
         m_statusColor = glm::vec3(1.0f, 0.3f, 0.3f);
@@ -702,6 +1164,18 @@ void MapEditorState::saveMap() {
 void MapEditorState::clearMap() {
     m_spawners.clear();
     m_bases.clear();
+    m_emitters.clear();
+    m_envParticleManager.clear();
+    m_decorations.clear();
+    m_startingMoney = 50;
+    m_startingHealth = 20;
+    m_allowedTowers = { "Basic", "Mercury", "Piston" };
+    m_maxUpgradeTier = 3;
+    m_towerMaxTiers = { { "Basic", 3 }, { "Mercury", 3 }, { "Piston", 3 } };
+    m_selectedDecorationIndex = -1;
+    m_isDraggingDecoration = false;
+    m_selectedEntityIndex = -1;
+    m_entityInspector.resetPosition();
     m_minecarts.clear();
     m_minecarts.push_back(MinecartData{});
     for (int y = 0; y < m_gridHeight; ++y) {
@@ -776,11 +1250,36 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
     }
 
     // Если открыто модальное окно подтверждения выхода
-    if (m_isExitModalOpen) {
-        bool handled = processExitModalInput(window, mousePos, leftDown, dt);
+    if (m_exitModal.isOpen()) {
+        int key = 0;
+        bool keyReleased = false;
+        if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_RELEASE) {
+            key = GLFW_KEY_ESCAPE;
+            keyReleased = true;
+        } else if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
+            key = GLFW_KEY_ESCAPE;
+            keyReleased = false;
+        } else if (glfwGetKey(window, GLFW_KEY_ENTER) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_KP_ENTER) == GLFW_PRESS) {
+            key = GLFW_KEY_ENTER;
+            keyReleased = false;
+        }
+
+        bool mouseClicked = leftDown && !m_isLeftMouseDown;
+        ExitModalAction action = m_exitModal.handleInput(mousePos, mouseClicked, key, keyReleased);
         m_isLeftMouseDown = leftDown;
         m_isRightMouseDown = rightDown;
-        if (handled) return;
+
+        if (action == ExitModalAction::SaveAndExit) {
+            saveMap();
+            returnToOrigin();
+            return;
+        } else if (action == ExitModalAction::DiscardAndExit) {
+            returnToOrigin();
+            return;
+        } else if (action == ExitModalAction::Cancel) {
+            return;
+        }
+        return;
     }
 
     // Если открыто модальное окно управления картами (список карт / переименование)
@@ -831,6 +1330,37 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
         if (handled) return;
     }
 
+    // Если открыто модальное окно настроек уровня и экономики
+    if (m_levelSettingsModal.isOpen()) {
+        bool keyEscCheck = (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS);
+        bool handled = m_levelSettingsModal.handleInput(window, mousePos, leftDown, !leftDown && m_isLeftMouseDown,
+                                                       keyEscCheck && !m_keyEscPressedLastFrame, dt,
+                                                       m_width, m_height,
+                                                       m_startingMoney, m_startingHealth,
+                                                       m_allowedTowers, m_towerMaxTiers,
+                                                       m_maxUpgradeTier, m_isDirty);
+        if (keyEscCheck && !m_keyEscPressedLastFrame) {
+            m_keyEscPressedLastFrame = keyEscCheck;
+        }
+        m_isLeftMouseDown = leftDown;
+        m_isRightMouseDown = rightDown;
+        m_suppressPlacementUntilRelease = true;
+        if (handled) return;
+    }
+
+    // Если открыто модальное окно справки по управлению
+    if (m_helpModal.isOpen()) {
+        bool keyEscCheck = (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS);
+        bool handled = m_helpModal.handleInput(window, mousePos, leftDown, !leftDown && m_isLeftMouseDown, keyEscCheck && !m_keyEscPressedLastFrame);
+        if (keyEscCheck && !m_keyEscPressedLastFrame) {
+            m_keyEscPressedLastFrame = keyEscCheck;
+        }
+        m_isLeftMouseDown = leftDown;
+        m_isRightMouseDown = rightDown;
+        m_suppressPlacementUntilRelease = true;
+        if (handled) return;
+    }
+
     // Горячая клавиша Waves (W)
     bool keyW = (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS);
     if (keyW && !m_keyWPressedLastFrame) {
@@ -843,10 +1373,50 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
     }
     m_keyWPressedLastFrame = keyW;
 
+    // Горячая клавиша Справки (H или F1)
+    bool keyH = (glfwGetKey(window, GLFW_KEY_H) == GLFW_PRESS);
+    bool keyF1 = (glfwGetKey(window, GLFW_KEY_F1) == GLFW_PRESS);
+    if ((keyH && !m_keyHPressedLastFrame) || (keyF1 && !m_keyF1PressedLastFrame)) {
+        m_helpModal.toggle();
+        m_suppressPlacementUntilRelease = true;
+    }
+    m_keyHPressedLastFrame = keyH;
+    m_keyF1PressedLastFrame = keyF1;
+
     // Горячая клавиша Escape
     bool keyEsc = (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS);
     if (keyEsc && !m_keyEscPressedLastFrame) {
-        if (m_isExitModalOpen) {
+        if (m_helpModal.isOpen()) {
+            m_helpModal.close();
+            m_keyEscPressedLastFrame = keyEsc;
+            return;
+        }
+        if (m_selectedDecorationIndex >= 0) {
+            m_selectedDecorationIndex = -1;
+            m_isDraggingDecoration = false;
+            m_keyEscPressedLastFrame = keyEsc;
+            return;
+        }
+        if (m_selectedEmitterIndex >= 0) {
+            m_selectedEmitterIndex = -1;
+            m_isDraggingEmitter = false;
+            m_keyEscPressedLastFrame = keyEsc;
+            return;
+        }
+        if (m_selectedEntityIndex >= 0) {
+            m_selectedEntityIndex = -1;
+            m_keyEscPressedLastFrame = keyEsc;
+            return;
+        }
+        if (m_currentBrush != EditorBrush::None) {
+            m_currentBrush = EditorBrush::None;
+            m_isDraggingDecoration = false;
+            m_isDraggingEmitter = false;
+            showToast("Кисть сброшена (нейтральный курсор)");
+            m_keyEscPressedLastFrame = keyEsc;
+            return;
+        }
+        if (m_exitModal.isOpen()) {
             closeExitModal();
             m_keyEscPressedLastFrame = keyEsc;
             return;
@@ -863,6 +1433,11 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
         }
         if (m_minecartModal.isOpen()) {
             m_minecartModal.close();
+            m_keyEscPressedLastFrame = keyEsc;
+            return;
+        }
+        if (m_levelSettingsModal.isOpen()) {
+            m_levelSettingsModal.close();
             m_keyEscPressedLastFrame = keyEsc;
             return;
         }
@@ -901,6 +1476,12 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
         if (m_toolbarUI.getCategory() == PaletteCategory::Tiles) {
             m_toolbarUI.setCategory(PaletteCategory::SpecialObjects);
             showToast("Палитра: Спец-объекты");
+        } else if (m_toolbarUI.getCategory() == PaletteCategory::SpecialObjects) {
+            m_toolbarUI.setCategory(PaletteCategory::Particles);
+            showToast("Палитра: Партиклы");
+        } else if (m_toolbarUI.getCategory() == PaletteCategory::Particles) {
+            m_toolbarUI.setCategory(PaletteCategory::Decorations);
+            showToast("Палитра: Декор");
         } else {
             m_toolbarUI.setCategory(PaletteCategory::Tiles);
             showToast("Палитра: Тайлы");
@@ -922,6 +1503,18 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
                 updateButtonLayout();
                 showToast("Палитра: Спец-объекты");
             }
+        } else if (glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS) {
+            if (m_toolbarUI.getCategory() != PaletteCategory::Particles) {
+                m_toolbarUI.setCategory(PaletteCategory::Particles);
+                updateButtonLayout();
+                showToast("Палитра: Партиклы");
+            }
+        } else if (glfwGetKey(window, GLFW_KEY_4) == GLFW_PRESS) {
+            if (m_toolbarUI.getCategory() != PaletteCategory::Decorations) {
+                m_toolbarUI.setCategory(PaletteCategory::Decorations);
+                updateButtonLayout();
+                showToast("Палитра: Декор");
+            }
         }
     } else if (!isAlt) {
         // Цифровые горячие клавиши внутри активной вкладки
@@ -933,6 +1526,7 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
         bool key6 = (glfwGetKey(window, GLFW_KEY_6) == GLFW_PRESS);
         bool key7 = (glfwGetKey(window, GLFW_KEY_7) == GLFW_PRESS);
         bool key8 = (glfwGetKey(window, GLFW_KEY_8) == GLFW_PRESS);
+        bool key9 = (glfwGetKey(window, GLFW_KEY_9) == GLFW_PRESS);
         bool key0 = (glfwGetKey(window, GLFW_KEY_0) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS);
 
         if (key0) {
@@ -943,34 +1537,62 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
             if (key3) m_currentBrush = EditorBrush::Platform;
             if (key4) m_currentBrush = EditorBrush::Path;
             if (key5) m_currentBrush = EditorBrush::Chasm;
-        } else { // SpecialObjects
+        } else if (m_toolbarUI.getCategory() == PaletteCategory::SpecialObjects) {
             if (key1) m_currentBrush = EditorBrush::Spawner;
-            if (key2) m_currentBrush = EditorBrush::Base;
+            if (key2) {
+                m_currentBrush = EditorBrush::Base;
+                if (m_selectedId < 0) {
+                    m_selectedId = 0;
+                    updateButtonLayout();
+                }
+            }
             if (key3) m_currentBrush = EditorBrush::Rail;
             if (key4) m_currentBrush = EditorBrush::RailStart;
             if (key5) m_currentBrush = EditorBrush::RailEnd;
+        } else if (m_toolbarUI.getCategory() == PaletteCategory::Particles) {
+            if (key1) m_currentBrush = EditorBrush::EmitterSteamJet;
+            if (key2) m_currentBrush = EditorBrush::EmitterWaterDrip;
+            if (key3) m_currentBrush = EditorBrush::EmitterSparks;
+            if (key4) m_currentBrush = EditorBrush::EmitterSmoke;
+            if (key5) m_currentBrush = EditorBrush::EmitterFog;
+        } else if (m_toolbarUI.getCategory() == PaletteCategory::Decorations) {
+            if (key1) m_currentBrush = EditorBrush::DecorBush;
+            if (key2) m_currentBrush = EditorBrush::DecorGrass;
+            if (key3) m_currentBrush = EditorBrush::DecorGrassField;
+            if (key4) m_currentBrush = EditorBrush::DecorFlower;
+            if (key5) m_currentBrush = EditorBrush::DecorStone;
+            if (key6) m_currentBrush = EditorBrush::DecorHelmet;
+            if (key7) m_currentBrush = EditorBrush::DecorPickaxe;
+            if (key8) m_currentBrush = EditorBrush::DecorPuddle;
+            if (key9) m_currentBrush = EditorBrush::DecorCrack;
+            if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS) m_currentBrush = EditorBrush::DecorFog;
         }
 
-        // Прямые клавиши 6, 7, 8 с переключением категории при необходимости
-        if (key6) {
-            m_currentBrush = EditorBrush::Base;
-            if (m_toolbarUI.getCategory() != PaletteCategory::SpecialObjects) {
-                m_toolbarUI.setCategory(PaletteCategory::SpecialObjects);
-                updateButtonLayout();
+        // Прямые клавиши 6, 7, 8 с переключением категории при необходимости (если не на вкладке Декор)
+        if (m_toolbarUI.getCategory() != PaletteCategory::Decorations) {
+            if (key6) {
+                m_currentBrush = EditorBrush::Base;
+                if (m_selectedId < 0) {
+                    m_selectedId = 0;
+                }
+                if (m_toolbarUI.getCategory() != PaletteCategory::SpecialObjects) {
+                    m_toolbarUI.setCategory(PaletteCategory::SpecialObjects);
+                    updateButtonLayout();
+                }
             }
-        }
-        if (key7) {
-            m_currentBrush = EditorBrush::Chasm;
-            if (m_toolbarUI.getCategory() != PaletteCategory::Tiles) {
-                m_toolbarUI.setCategory(PaletteCategory::Tiles);
-                updateButtonLayout();
+            if (key7) {
+                m_currentBrush = EditorBrush::Chasm;
+                if (m_toolbarUI.getCategory() != PaletteCategory::Tiles) {
+                    m_toolbarUI.setCategory(PaletteCategory::Tiles);
+                    updateButtonLayout();
+                }
             }
-        }
-        if (key8) {
-            m_currentBrush = EditorBrush::Rail;
-            if (m_toolbarUI.getCategory() != PaletteCategory::SpecialObjects) {
-                m_toolbarUI.setCategory(PaletteCategory::SpecialObjects);
-                updateButtonLayout();
+            if (key8) {
+                m_currentBrush = EditorBrush::Rail;
+                if (m_toolbarUI.getCategory() != PaletteCategory::SpecialObjects) {
+                    m_toolbarUI.setCategory(PaletteCategory::SpecialObjects);
+                    updateButtonLayout();
+                }
             }
         }
     }
@@ -1003,23 +1625,515 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
     }
     m_keyTPressedLastFrame = keyT;
 
-    // Горячая клавиша Clear (C)
+    // Горячая клавиша Камеры (C)
     bool keyC = (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS);
     if (keyC && !m_keyCPressedLastFrame) {
-        clearMap();
+        m_isCameraConfigMode = !m_isCameraConfigMode;
+        if (m_isCameraConfigMode) {
+            if (!m_cameraSettings.isCustom) {
+                glm::vec2 worldCenter = screenToWorld(glm::vec2(static_cast<float>(m_width) * 0.5f, static_cast<float>(m_height) * 0.5f));
+                m_cameraSettings.targetTile = worldPixelToTile(worldCenter);
+                m_cameraSettings.zoom = m_zoom;
+            }
+            showToast("Режим камеры: сдвиньте/зуммируйте и нажмите [Зафиксировать камеру]", glm::vec4(0.35f, 0.85f, 1.0f, 1.0f));
+        } else {
+            showToast("Режим камеры выключен", glm::vec4(0.8f, 0.8f, 0.8f, 1.0f));
+        }
+        updateGridDimensions();
+        updateButtonLayout();
     }
     m_keyCPressedLastFrame = keyC;
 
+    // Горячая клавиша предпросмотра боевого HUD (U)
+    bool keyU = (glfwGetKey(window, GLFW_KEY_U) == GLFW_PRESS);
+    if (keyU && !m_keyUPressedLastFrame) {
+        cycleHudPreviewMode();
+    }
+    m_keyUPressedLastFrame = keyU;
+
+    // Горячая клавиша поворота направления струи эмиттера или декора (R)
+    bool keyR = (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS);
+    if (keyR && !m_keyRPressedLastFrame) {
+        glm::vec2 mousePosLocal = glm::vec2(static_cast<float>(mousePos.x), static_cast<float>(mousePos.y));
+        glm::vec2 worldPos = screenToWorld(mousePosLocal);
+        if (m_toolbarUI.getCategory() == PaletteCategory::Decorations) {
+            int targetIdx = m_selectedDecorationIndex;
+            if (targetIdx < 0 || targetIdx >= static_cast<int>(m_decorations.size())) {
+                targetIdx = findNearestDecorationIndex(worldPos, 28.0f);
+            }
+
+            if (targetIdx >= 0 && targetIdx < static_cast<int>(m_decorations.size())) {
+                m_decorations[targetIdx].rotation = std::fmod(m_decorations[targetIdx].rotation + 45.0f, 360.0f);
+                if (m_decorations[targetIdx].rotation < 0.0f) m_decorations[targetIdx].rotation += 360.0f;
+                m_selectedDecorationIndex = targetIdx;
+                showToast("Угол декора: " + std::to_string(static_cast<int>(m_decorations[targetIdx].rotation)) + "°", glm::vec4(0.4f, 0.85f, 1.0f, 1.0f));
+                m_isDirty = true;
+            } else {
+                m_defaultDecorationRotation = std::fmod(m_defaultDecorationRotation + 45.0f, 360.0f);
+                if (m_defaultDecorationRotation < 0.0f) m_defaultDecorationRotation += 360.0f;
+                showToast("Угол по умолчанию: " + std::to_string(static_cast<int>(m_defaultDecorationRotation)) + "°", glm::vec4(0.4f, 0.85f, 1.0f, 1.0f));
+            }
+        } else {
+            int targetIdx = m_selectedEmitterIndex;
+            if (targetIdx < 0 || targetIdx >= static_cast<int>(m_emitters.size())) {
+                targetIdx = findNearestEmitterIndex(worldPos, 28.0f);
+            }
+
+            if (targetIdx >= 0 && targetIdx < static_cast<int>(m_emitters.size())) {
+                m_emitters[targetIdx].angleDeg = std::fmod(m_emitters[targetIdx].angleDeg + 45.0f, 360.0f);
+                if (m_emitters[targetIdx].angleDeg < 0.0f) m_emitters[targetIdx].angleDeg += 360.0f;
+                m_envParticleManager.setEmitters(m_emitters);
+                m_selectedEmitterIndex = targetIdx;
+                showToast("Угол струи: " + std::to_string(static_cast<int>(m_emitters[targetIdx].angleDeg)) + "°", glm::vec4(0.4f, 0.85f, 1.0f, 1.0f));
+                m_isDirty = true;
+            } else {
+                m_defaultEmitterAngle = std::fmod(m_defaultEmitterAngle + 45.0f, 360.0f);
+                if (m_defaultEmitterAngle < 0.0f) m_defaultEmitterAngle += 360.0f;
+                showToast("Угол струи по умолчанию: " + std::to_string(static_cast<int>(m_defaultEmitterAngle)) + "°", glm::vec4(0.4f, 0.85f, 1.0f, 1.0f));
+            }
+        }
+    }
+    m_keyRPressedLastFrame = keyR;
+
+    // Стрелочки клавиатуры для ювелирного сдвига выделенного декора (1px / 8px со Shift)
+    if (!isCtrl && m_toolbarUI.getCategory() == PaletteCategory::Decorations &&
+        m_selectedDecorationIndex >= 0 && m_selectedDecorationIndex < static_cast<int>(m_decorations.size())) {
+        float stepPx = isShift ? 8.0f : 1.0f;
+        float cellSize = (m_grid && m_grid->getCellSize() > 0.001f) ? m_grid->getCellSize() : 64.0f;
+        float stepTile = stepPx / cellSize;
+
+        bool arrowMoved = false;
+        int arrowKeys[4] = { GLFW_KEY_LEFT, GLFW_KEY_RIGHT, GLFW_KEY_UP, GLFW_KEY_DOWN };
+        glm::vec2 arrowDeltas[4] = {
+            glm::vec2(-stepTile, 0.0f),
+            glm::vec2(+stepTile, 0.0f),
+            glm::vec2(0.0f, -stepTile),
+            glm::vec2(0.0f, +stepTile)
+        };
+
+        for (int k = 0; k < 4; ++k) {
+            int key = arrowKeys[k];
+            bool isDown = (glfwGetKey(window, key) == GLFW_PRESS);
+            auto& state = m_keyStates[key];
+            bool trigger = false;
+            if (isDown) {
+                if (!state.isDown) {
+                    trigger = true;
+                    state.holdTimer = 0.0f;
+                    state.repeatTimer = 0.0f;
+                } else {
+                    state.holdTimer += dt;
+                    if (state.holdTimer >= 0.20f) {
+                        state.repeatTimer += dt;
+                        if (state.repeatTimer >= 0.03f) {
+                            trigger = true;
+                            state.repeatTimer = 0.0f;
+                        }
+                    }
+                }
+            }
+            state.isDown = isDown;
+
+            if (trigger) {
+                m_decorations[m_selectedDecorationIndex].tilePos += arrowDeltas[k];
+                if (m_grid) {
+                    m_decorations[m_selectedDecorationIndex].worldPos = m_grid->getOffset() + m_decorations[m_selectedDecorationIndex].tilePos * m_grid->getCellSize();
+                }
+                arrowMoved = true;
+            }
+        }
+
+        if (arrowMoved) {
+            m_isDirty = true;
+        }
+
+        // Клавиша Delete / Backspace для удаления выделенного декора
+        bool keyDel = (glfwGetKey(window, GLFW_KEY_DELETE) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_BACKSPACE) == GLFW_PRESS);
+        if (keyDel) {
+            std::string dName = m_decorations[m_selectedDecorationIndex].type;
+            m_decorations.erase(m_decorations.begin() + m_selectedDecorationIndex);
+            m_selectedDecorationIndex = -1;
+            m_isDraggingDecoration = false;
+            m_isDirty = true;
+            showToast("Декор удален: " + dName, glm::vec4(1.0f, 0.4f, 0.4f, 1.0f));
+        }
+    }
+
+    // Стрелочки клавиатуры для ювелирного сдвига выделенного эмиттера (1px / 8px со Shift)
+    if (!isCtrl && m_toolbarUI.getCategory() == PaletteCategory::Particles &&
+        m_selectedEmitterIndex >= 0 && m_selectedEmitterIndex < static_cast<int>(m_emitters.size())) {
+        float stepPx = isShift ? 8.0f : 1.0f;
+        float stepTile = stepPx / m_grid->getCellSize();
+
+        bool arrowMoved = false;
+        int arrowKeys[4] = { GLFW_KEY_LEFT, GLFW_KEY_RIGHT, GLFW_KEY_UP, GLFW_KEY_DOWN };
+        glm::vec2 arrowDeltas[4] = {
+            glm::vec2(-stepTile, 0.0f),
+            glm::vec2(+stepTile, 0.0f),
+            glm::vec2(0.0f, -stepTile),
+            glm::vec2(0.0f, +stepTile)
+        };
+
+        for (int k = 0; k < 4; ++k) {
+            int key = arrowKeys[k];
+            bool isDown = (glfwGetKey(window, key) == GLFW_PRESS);
+            auto& state = m_keyStates[key];
+            bool trigger = false;
+            if (isDown) {
+                if (!state.isDown) {
+                    trigger = true;
+                    state.holdTimer = 0.0f;
+                    state.repeatTimer = 0.0f;
+                } else {
+                    state.holdTimer += dt;
+                    if (state.holdTimer >= 0.20f) {
+                        state.repeatTimer += dt;
+                        if (state.repeatTimer >= 0.03f) {
+                            trigger = true;
+                            state.repeatTimer = 0.0f;
+                        }
+                    }
+                }
+            }
+            state.isDown = isDown;
+
+            if (trigger) {
+                m_emitters[m_selectedEmitterIndex].tilePos += arrowDeltas[k];
+                arrowMoved = true;
+            }
+        }
+
+        if (arrowMoved) {
+            m_envParticleManager.setEmitters(m_emitters);
+            m_isDirty = true;
+        }
+
+        // Клавиша Delete / Backspace для удаления выделенного эмиттера
+        bool keyDel = (glfwGetKey(window, GLFW_KEY_DELETE) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_BACKSPACE) == GLFW_PRESS);
+        if (keyDel) {
+            std::string eName = m_emitters[m_selectedEmitterIndex].type;
+            m_emitters.erase(m_emitters.begin() + m_selectedEmitterIndex);
+            m_envParticleManager.setEmitters(m_emitters);
+            m_selectedEmitterIndex = -1;
+            m_isDraggingEmitter = false;
+            m_isDirty = true;
+            showToast("Эмиттер удален: " + eName, glm::vec4(1.0f, 0.4f, 0.4f, 1.0f));
+        }
+    }
+
+    // Сдвиг всей карты (тайлы, спавны, базы, вагонетки, эмиттеры, декор): Ctrl + Стрелочки (← / → / ↑ / ↓)
+    if (isCtrl) {
+        int shiftKeys[4] = { GLFW_KEY_LEFT, GLFW_KEY_RIGHT, GLFW_KEY_UP, GLFW_KEY_DOWN };
+        int shiftDx[4] = { -1, 1, 0, 0 };
+        int shiftDy[4] = { 0, 0, -1, 1 };
+
+        for (int k = 0; k < 4; ++k) {
+            int key = shiftKeys[k];
+            bool isDown = (glfwGetKey(window, key) == GLFW_PRESS);
+            auto& state = m_keyStates[key];
+            bool trigger = false;
+            if (isDown) {
+                if (!state.isDown) {
+                    trigger = true;
+                    state.holdTimer = 0.0f;
+                    state.repeatTimer = 0.0f;
+                } else {
+                    state.holdTimer += dt;
+                    if (state.holdTimer >= 0.25f) {
+                        state.repeatTimer += dt;
+                        if (state.repeatTimer >= 0.08f) {
+                            trigger = true;
+                            state.repeatTimer = 0.0f;
+                        }
+                    }
+                }
+            }
+            state.isDown = isDown;
+
+            if (trigger) {
+                shiftMap(shiftDx[k], shiftDy[k]);
+                break;
+            }
+        }
+    }
+
+    // Панорамирование камеры:
+    // 1) В режиме настройки камеры (m_isCameraConfigMode): зажатие ПКМ или СКМ или Пробел+ЛКМ
+    // 2) В обычном режиме: зажатие СКМ или Пробел+ЛКМ
+    bool middleDown = (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_MIDDLE) == GLFW_PRESS);
+    bool spaceDown  = (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS);
+    bool rmbPanCamera = m_isCameraConfigMode && rightDown;
+    bool panActive  = middleDown || (spaceDown && leftDown) || rmbPanCamera;
+
+    if (panActive) {
+        if (m_isPanning) {
+            glm::vec2 mouseDelta = mousePos - m_prevMousePos;
+            m_cameraPan += mouseDelta;
+            if (m_isCameraConfigMode) {
+                glm::vec2 worldCenter = screenToWorld(glm::vec2(static_cast<float>(m_width) * 0.5f, static_cast<float>(m_height) * 0.5f));
+                m_cameraSettings.targetTile = worldPixelToTile(worldCenter);
+                m_cameraSettings.zoom = m_zoom;
+            }
+        }
+        m_isPanning = true;
+        m_prevMousePos = mousePos;
+        m_suppressPlacementUntilRelease = true;
+    } else {
+        m_isPanning = false;
+        m_prevMousePos = mousePos;
+    }
+
+    // В режиме настройки камеры: плавное перемещение стрелочками клавиатуры (← / → / ↑ / ↓)
+    if (m_isCameraConfigMode && !isCtrl) {
+        int camArrowKeys[4] = { GLFW_KEY_LEFT, GLFW_KEY_RIGHT, GLFW_KEY_UP, GLFW_KEY_DOWN };
+        glm::vec2 camDeltas[4] = {
+            glm::vec2(-1.0f, 0.0f),
+            glm::vec2(1.0f, 0.0f),
+            glm::vec2(0.0f, -1.0f),
+            glm::vec2(0.0f, 1.0f)
+        };
+        float stepTiles = (isShift ? 2.5f : 0.5f);
+
+        for (int k = 0; k < 4; ++k) {
+            int key = camArrowKeys[k];
+            bool isDown = (glfwGetKey(window, key) == GLFW_PRESS);
+            auto& state = m_keyStates[key];
+            bool trigger = false;
+            if (isDown) {
+                if (!state.isDown) {
+                    trigger = true;
+                    state.holdTimer = 0.0f;
+                    state.repeatTimer = 0.0f;
+                } else {
+                    state.holdTimer += dt;
+                    if (state.holdTimer >= 0.18f) {
+                        state.repeatTimer += dt;
+                        if (state.repeatTimer >= 0.03f) {
+                            trigger = true;
+                            state.repeatTimer = 0.0f;
+                        }
+                    }
+                }
+            }
+            state.isDown = isDown;
+
+            if (trigger) {
+                m_cameraSettings.targetTile += camDeltas[k] * stepTiles;
+                m_cameraSettings.zoom = m_zoom;
+                glm::vec2 screenCenter = glm::vec2(static_cast<float>(m_width) * 0.5f, static_cast<float>(m_height) * 0.5f);
+                m_cameraPan = screenCenter - getWorldCamCenter() * m_zoom;
+            }
+        }
+    }
+
+    // Зум камеры колёсиком мыши (зум в точку под курсором)
+    if (!panActive && !m_toolbarUI.isHovered(mousePos.x, mousePos.y)) {
+        float scrollY = InputManager::getScrollY();
+        if (std::abs(scrollY) > 0.01f) {
+            float zoomFactor = (scrollY > 0.0f) ? 1.12f : (1.0f / 1.12f);
+            float oldZoom = m_zoom;
+            float newZoom = std::clamp(m_zoom * zoomFactor, 0.4f, 2.5f);
+            if (newZoom != oldZoom) {
+                glm::vec2 worldPosUnderCursor = screenToWorld(mousePos);
+                m_zoom = newZoom;
+                m_cameraPan = mousePos - worldPosUnderCursor * m_zoom;
+                if (m_isCameraConfigMode) {
+                    glm::vec2 worldCenter = screenToWorld(glm::vec2(static_cast<float>(m_width) * 0.5f, static_cast<float>(m_height) * 0.5f));
+                    m_cameraSettings.targetTile = worldPixelToTile(worldCenter);
+                    m_cameraSettings.zoom = m_zoom;
+                }
+            }
+        }
+    }
+
+    // Сброс камеры (клавиша F)
+    bool keyF = (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS);
+    if (keyF && !m_keyFPressedLastFrame) {
+        m_zoom = 1.0f;
+        glm::vec2 screenCenter = glm::vec2(static_cast<float>(m_width) * 0.5f, static_cast<float>(m_height) * 0.5f);
+        glm::vec2 defCenter = getDefaultWorldCenter();
+        m_cameraPan = screenCenter - defCenter * m_zoom;
+        if (m_isCameraConfigMode) {
+            m_cameraSettings.targetTile = glm::vec2(static_cast<float>(m_gridWidth) * 0.5f, static_cast<float>(m_gridHeight) * 0.5f);
+            m_cameraSettings.zoom = m_zoom;
+        }
+        showToast("Камера центрирована (1.0x)", glm::vec4(0.3f, 0.85f, 1.0f, 1.0f));
+    }
+    m_keyFPressedLastFrame = keyF;
+
     bool clickedUI = false;
 
+    // 0. Плавающая панель настроек эмиттера партиклов (Inspector)
+    if (m_selectedEmitterIndex >= 0 && m_selectedEmitterIndex < static_cast<int>(m_emitters.size())) {
+        glm::vec2 emWorld = m_grid ? (m_grid->getOffset() + m_emitters[m_selectedEmitterIndex].tilePos * m_grid->getCellSize()) : glm::vec2(0.0f);
+        glm::vec2 emScreen = worldToScreen(emWorld);
+
+        bool handled = m_emitterInspector.handleInput(
+            mousePos, leftDown, m_isLeftMouseDown,
+            m_emitters[m_selectedEmitterIndex], m_selectedEmitterIndex, emScreen,
+            static_cast<float>(m_width), static_cast<float>(m_height),
+            getTopBarHeight(), getBottomDockHeight(),
+            /* onChanged */ [this]() {
+                m_envParticleManager.setEmitters(m_emitters);
+                m_envParticleManager.triggerBurstAt(m_selectedEmitterIndex);
+                m_isDirty = true;
+            },
+            /* onDelete */ [this]() {
+                m_emitters.erase(m_emitters.begin() + m_selectedEmitterIndex);
+                m_selectedEmitterIndex = -1;
+                m_isDraggingEmitter = false;
+                m_emitterInspector.resetPosition();
+                m_envParticleManager.setEmitters(m_emitters);
+                m_isDirty = true;
+                showToast("Эмиттер удален", glm::vec4(1.0f, 0.4f, 0.4f, 1.0f));
+            },
+            /* onClose */ [this]() {
+                m_selectedEmitterIndex = -1;
+                m_isDraggingEmitter = false;
+            },
+            /* showToast */ [this](const std::string& msg, const glm::vec4& color) {
+                showToast(msg, color);
+            }
+        );
+
+        if (handled) {
+            clickedUI = true;
+            m_isDraggingEmitter = false;
+            m_isLeftMouseDown = leftDown;
+            m_isRightMouseDown = rightDown;
+            return;
+        }
+    }
+
+    // 0.1. Плавающая панель настроек декора (Decoration Inspector)
+    if (m_selectedDecorationIndex >= 0 && m_selectedDecorationIndex < static_cast<int>(m_decorations.size())) {
+        const auto& dec = m_decorations[m_selectedDecorationIndex];
+        glm::vec2 decActualWorld = m_grid ? (m_grid->getOffset() + dec.tilePos * m_grid->getCellSize()) : dec.worldPos;
+        glm::vec2 decScreen = worldToScreen(decActualWorld);
+
+        bool handled = m_decorInspector.handleInput(
+            mousePos, leftDown, m_isLeftMouseDown,
+            m_decorations[m_selectedDecorationIndex], m_selectedDecorationIndex, decScreen,
+            static_cast<float>(m_width), static_cast<float>(m_height),
+            getTopBarHeight(), getBottomDockHeight(),
+            /* onChanged */ [this]() {
+                m_isDirty = true;
+            },
+            /* onDelete */ [this]() {
+                std::string dName = m_decorations[m_selectedDecorationIndex].type;
+                m_decorations.erase(m_decorations.begin() + m_selectedDecorationIndex);
+                m_selectedDecorationIndex = -1;
+                m_isDraggingDecoration = false;
+                m_decorInspector.resetPosition();
+                m_isDirty = true;
+                showToast("Декор удален: " + dName, glm::vec4(1.0f, 0.4f, 0.4f, 1.0f));
+            },
+            /* onClose */ [this]() {
+                m_selectedDecorationIndex = -1;
+                m_isDraggingDecoration = false;
+            },
+            /* showToast */ [this](const std::string& msg, const glm::vec4& color) {
+                showToast(msg, color);
+            }
+        );
+
+        if (handled) {
+            clickedUI = true;
+            m_isDraggingDecoration = false;
+            m_isLeftMouseDown = leftDown;
+            m_isRightMouseDown = rightDown;
+            return;
+        }
+    }
+
+    // 0.2. Плавающая панель инспектора спавнера и базы (Entity Inspector)
+    if (m_selectedEntityIndex >= 0) {
+        if (m_selectedEntityType == EditorEntityType::Spawner && m_selectedEntityIndex < static_cast<int>(m_spawners.size())) {
+            glm::vec2 entityWorld = m_grid ? (m_grid->gridToPixel(m_spawners[m_selectedEntityIndex].pos.x, m_spawners[m_selectedEntityIndex].pos.y) + glm::vec2(m_grid->getCellSize() * 0.5f)) : glm::vec2(0.0f);
+            glm::vec2 entityScreen = worldToScreen(entityWorld);
+
+            bool handled = m_entityInspector.handleInput(
+                mousePos, leftDown, m_isLeftMouseDown,
+                m_spawners[m_selectedEntityIndex], m_selectedEntityIndex, entityScreen,
+                static_cast<float>(m_width), static_cast<float>(m_height),
+                getTopBarHeight(), getBottomDockHeight(),
+                /* onChanged */ [this]() {
+                    m_isDirty = true;
+                    recalculatePaths();
+                },
+                /* onDelete */ [this]() {
+                    m_spawners.erase(m_spawners.begin() + m_selectedEntityIndex);
+                    m_selectedEntityIndex = -1;
+                    m_entityInspector.resetPosition();
+                    m_isDirty = true;
+                    recalculatePaths();
+                    showToast("Спавнер удален", glm::vec4(1.0f, 0.4f, 0.4f, 1.0f));
+                },
+                /* onClose */ [this]() {
+                    m_selectedEntityIndex = -1;
+                },
+                /* showToast */ [this](const std::string& msg, const glm::vec4& color) {
+                    showToast(msg, color);
+                }
+            );
+
+            if (handled) {
+                clickedUI = true;
+                m_isLeftMouseDown = leftDown;
+                m_isRightMouseDown = rightDown;
+                return;
+            }
+        } else if (m_selectedEntityType == EditorEntityType::Base && m_selectedEntityIndex < static_cast<int>(m_bases.size())) {
+            glm::vec2 entityWorld = m_grid ? (m_grid->gridToPixel(m_bases[m_selectedEntityIndex].x, m_bases[m_selectedEntityIndex].y) + glm::vec2(m_grid->getCellSize() * 0.5f)) : glm::vec2(0.0f);
+            glm::vec2 entityScreen = worldToScreen(entityWorld);
+
+            bool handled = m_entityInspector.handleInput(
+                mousePos, leftDown, m_isLeftMouseDown,
+                m_bases[m_selectedEntityIndex], m_selectedEntityIndex, entityScreen,
+                static_cast<float>(m_width), static_cast<float>(m_height),
+                getTopBarHeight(), getBottomDockHeight(),
+                /* onChanged */ [this]() {
+                    m_isDirty = true;
+                    recalculatePaths();
+                },
+                /* onDelete */ [this]() {
+                    m_bases.erase(m_bases.begin() + m_selectedEntityIndex);
+                    m_selectedEntityIndex = -1;
+                    m_entityInspector.resetPosition();
+                    m_isDirty = true;
+                    recalculatePaths();
+                    showToast("База удалена", glm::vec4(1.0f, 0.4f, 0.4f, 1.0f));
+                },
+                /* onClose */ [this]() {
+                    m_selectedEntityIndex = -1;
+                },
+                /* showToast */ [this](const std::string& msg, const glm::vec4& color) {
+                    showToast(msg, color);
+                }
+            );
+
+            if (handled) {
+                clickedUI = true;
+                m_isLeftMouseDown = leftDown;
+                m_isRightMouseDown = rightDown;
+                return;
+            }
+        } else {
+            m_selectedEntityIndex = -1;
+        }
+    }
+
     // 1. Проверка клика по кнопкам тулбара и палитры через EditorToolbarUI
-    EditorAction action = m_toolbarUI.handleInput(mousePos.x, mousePos.y, leftDown, m_isLeftMouseDown, isShift, buildEditorContext());
+    EditorAction action = m_toolbarUI.handleInput(mousePos.x, mousePos.y, leftDown, m_isLeftMouseDown, isShift, buildEditorContext(), isAlt);
     if (action.type != EditorActionType::None) {
         clickedUI = true;
         m_suppressPlacementUntilRelease = true;
         switch (action.type) {
             case EditorActionType::SetBrush:
                 m_currentBrush = action.brush;
+                if (m_currentBrush == EditorBrush::Base && m_selectedId < 0) {
+                    m_selectedId = 0;
+                }
                 if (m_currentBrush == EditorBrush::Spawner || m_currentBrush == EditorBrush::Base ||
                     m_currentBrush == EditorBrush::Rail || m_currentBrush == EditorBrush::RailStart ||
                     m_currentBrush == EditorBrush::RailEnd) {
@@ -1027,7 +2141,21 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
                         m_toolbarUI.setCategory(PaletteCategory::SpecialObjects);
                         updateButtonLayout();
                     }
-                } else {
+                } else if (m_currentBrush == EditorBrush::EmitterSteamJet ||
+                           m_currentBrush == EditorBrush::EmitterWaterDrip ||
+                           m_currentBrush == EditorBrush::EmitterSparks ||
+                           m_currentBrush == EditorBrush::EmitterSmoke ||
+                           m_currentBrush == EditorBrush::EmitterFog) {
+                    if (m_toolbarUI.getCategory() != PaletteCategory::Particles) {
+                        m_toolbarUI.setCategory(PaletteCategory::Particles);
+                        updateButtonLayout();
+                    }
+                } else if (m_currentBrush >= EditorBrush::DecorBush && m_currentBrush <= EditorBrush::DecorFog) {
+                    if (m_toolbarUI.getCategory() != PaletteCategory::Decorations) {
+                        m_toolbarUI.setCategory(PaletteCategory::Decorations);
+                        updateButtonLayout();
+                    }
+                } else if (m_currentBrush != EditorBrush::Eraser) {
                     if (m_toolbarUI.getCategory() != PaletteCategory::Tiles) {
                         m_toolbarUI.setCategory(PaletteCategory::Tiles);
                         updateButtonLayout();
@@ -1036,7 +2164,15 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
                 break;
             case EditorActionType::SwitchPaletteCategory:
                 updateButtonLayout();
-                showToast(m_toolbarUI.getCategory() == PaletteCategory::Tiles ? "Палитра: Тайлы" : "Палитра: Спец-объекты");
+                if (m_toolbarUI.getCategory() == PaletteCategory::Tiles) {
+                    showToast("Палитра: Тайлы");
+                } else if (m_toolbarUI.getCategory() == PaletteCategory::SpecialObjects) {
+                    showToast("Палитра: Спец-объекты");
+                } else if (m_toolbarUI.getCategory() == PaletteCategory::Particles) {
+                    showToast("Палитра: Партиклы");
+                } else {
+                    showToast("Палитра: Декор");
+                }
                 break;
             case EditorActionType::SaveMap:
                 saveMap();
@@ -1058,7 +2194,7 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
                 cycleMapSizePreset();
                 break;
             case EditorActionType::ResizeMap:
-                resizeMap(m_gridWidth + action.intParam, m_gridHeight + action.intParam2);
+                resizeMap(m_gridWidth + action.intParam, m_gridHeight + action.intParam2, action.isAltDown);
                 break;
             case EditorActionType::OpenRenameModal:
                 m_mapsBrowserModal.openRename(m_currentLevelFileName, m_currentLevelDisplayName);
@@ -1092,14 +2228,69 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
             case EditorActionType::ToggleMinecartModal:
                 m_minecartModal.toggle();
                 break;
+            case EditorActionType::ToggleBackground:
+                m_background = (m_background == "pipes_canal") ? "default" : "pipes_canal";
+                m_isDirty = true;
+                showToast(m_background == "pipes_canal" ? "Фон: Дюкеры Канала" : "Фон: Стандартный");
+                updateButtonLayout();
+                break;
+            case EditorActionType::ToggleCameraMode:
+                m_isCameraConfigMode = !m_isCameraConfigMode;
+                if (m_isCameraConfigMode) {
+                    if (!m_cameraSettings.isCustom) {
+                        glm::vec2 worldCenter = screenToWorld(glm::vec2(static_cast<float>(m_width) * 0.5f, static_cast<float>(m_height) * 0.5f));
+                        m_cameraSettings.targetTile = worldPixelToTile(worldCenter);
+                        m_cameraSettings.zoom = m_zoom;
+                    }
+                    showToast("Режим камеры: сдвиньте/зуммируйте и нажмите [Зафиксировать камеру]", glm::vec4(0.35f, 0.85f, 1.0f, 1.0f));
+                } else {
+                    showToast("Режим камеры выключен", glm::vec4(0.8f, 0.8f, 0.8f, 1.0f));
+                }
+                updateGridDimensions();
+                updateButtonLayout();
+                break;
+            case EditorActionType::LockCamera: {
+                glm::vec2 worldCenter = screenToWorld(glm::vec2(static_cast<float>(m_width) * 0.5f, static_cast<float>(m_height) * 0.5f));
+                m_cameraSettings.targetTile = worldPixelToTile(worldCenter);
+                m_cameraSettings.zoom = m_zoom;
+                m_cameraSettings.isCustom = true;
+                m_isDirty = true;
+                showToast("Стартовая камера сохранена", glm::vec4(0.35f, 1.0f, 0.55f, 1.0f));
+                updateButtonLayout();
+                break;
+            }
+            case EditorActionType::ResetCamera:
+                m_cameraSettings.isCustom = false;
+                m_isCameraConfigMode = false;
+                m_isDirty = true;
+                showToast("Камера сброшена на Авто", glm::vec4(1.0f, 0.8f, 0.35f, 1.0f));
+                updateGridDimensions();
+                updateButtonLayout();
+                break;
+            case EditorActionType::ToggleHelpModal:
+                m_helpModal.toggle();
+                m_isLeftMouseDown = true;
+                m_suppressPlacementUntilRelease = true;
+                return;
+            case EditorActionType::ToggleHudPreview:
+                cycleHudPreviewMode();
+                break;
+            case EditorActionType::OpenLevelSettingsModal:
+                m_levelSettingsModal.open(m_startingMoney, m_startingHealth, m_allowedTowers, m_towerMaxTiers);
+                m_suppressClickUntilRelease = true;
+                break;
+            case EditorActionType::ModifyStartingMoney:
+            case EditorActionType::ModifyStartingHealth:
+                break;
             default:
                 break;
         }
     }
 
     // 2. Если кликаем по рабочей области сетки
-    if (!clickedUI && !m_toolbarUI.isHovered(mousePos.x, mousePos.y) && m_grid) {
-        glm::ivec2 gridPos = m_grid->pixelToGrid(mousePos);
+    if (!clickedUI && !panActive && !m_isCameraConfigMode && !m_toolbarUI.isHovered(mousePos.x, mousePos.y) && m_grid) {
+        glm::vec2 worldMouse = screenToWorld(mousePos);
+        glm::ivec2 gridPos = m_grid->pixelToGrid(worldMouse);
         bool inBounds = (gridPos.x >= 0 && gridPos.x < m_gridWidth && gridPos.y >= 0 && gridPos.y < m_gridHeight);
 
         // 2.1. ПИПЕТКА: Alt + клик ЛКМ по ячейке
@@ -1150,14 +2341,31 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
                 if (!foundObj) {
                     int raw = m_rawLayout[gy][gx];
                     switch (raw) {
-                        case 0: pickedBrush = EditorBrush::Ground;   tileName = "Земля"; break;
+                        case 0: pickedBrush = EditorBrush::Ground;   tileName = (m_background == "pipes_canal") ? "Асфальт" : "Земля"; break;
                         case 1: pickedBrush = EditorBrush::Path;     tileName = "Дорога"; break;
-                        case 2: pickedBrush = EditorBrush::Platform; tileName = "Платформа"; break;
+                        case 2: pickedBrush = EditorBrush::Platform; tileName = (m_background == "pipes_canal") ? "Трава/Обочина" : "Платформа"; break;
                         case 3: pickedBrush = EditorBrush::Wall;     tileName = "Стена"; break;
                         case 4: pickedBrush = EditorBrush::Chasm;    tileName = "Шурф"; break;
                         case 5: pickedBrush = EditorBrush::Rail;     tileName = "Рельсы"; break;
-                        default: pickedBrush = EditorBrush::Ground;  tileName = "Земля"; break;
+                        default: pickedBrush = EditorBrush::Ground;  tileName = (m_background == "pipes_canal") ? "Асфальт" : "Земля"; break;
                     }
+                }
+
+                // Декорации (если кликнули вблизи декора)
+                int nearDec = findNearestDecorationIndex(worldMouse, 28.0f);
+                if (nearDec >= 0 && nearDec < static_cast<int>(m_decorations.size())) {
+                    const std::string& dt = m_decorations[nearDec].type;
+                    if (dt == "bush") { pickedBrush = EditorBrush::DecorBush; tileName = "Куст"; }
+                    else if (dt == "grass_tuft") { pickedBrush = EditorBrush::DecorGrass; tileName = "Пучок травы"; }
+                    else if (dt == "grass_field") { pickedBrush = EditorBrush::DecorGrassField; tileName = "Поле травы"; }
+                    else if (dt == "flower") { pickedBrush = EditorBrush::DecorFlower; tileName = "Цветы"; }
+                    else if (dt == "stone") { pickedBrush = EditorBrush::DecorStone; tileName = "Камень"; }
+                    else if (dt == "helmet") { pickedBrush = EditorBrush::DecorHelmet; tileName = "Каска"; }
+                    else if (dt == "pickaxe") { pickedBrush = EditorBrush::DecorPickaxe; tileName = "Кирка"; }
+                    else if (dt == "puddle") { pickedBrush = EditorBrush::DecorPuddle; tileName = "Лужа"; }
+                    else if (dt == "crack") { pickedBrush = EditorBrush::DecorCrack; tileName = "Трещина"; }
+                    else if (dt == "fog") { pickedBrush = EditorBrush::DecorFog; tileName = "Туман"; }
+                    foundObj = true;
                 }
 
                 m_currentBrush = pickedBrush;
@@ -1165,6 +2373,12 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
                     pickedBrush == EditorBrush::Rail || pickedBrush == EditorBrush::RailStart ||
                     pickedBrush == EditorBrush::RailEnd) {
                     m_toolbarUI.setCategory(PaletteCategory::SpecialObjects);
+                } else if (pickedBrush == EditorBrush::EmitterSteamJet || pickedBrush == EditorBrush::EmitterWaterDrip ||
+                           pickedBrush == EditorBrush::EmitterSparks || pickedBrush == EditorBrush::EmitterSmoke ||
+                           pickedBrush == EditorBrush::EmitterFog) {
+                    m_toolbarUI.setCategory(PaletteCategory::Particles);
+                } else if (pickedBrush >= EditorBrush::DecorBush && pickedBrush <= EditorBrush::DecorFog) {
+                    m_toolbarUI.setCategory(PaletteCategory::Decorations);
                 } else {
                     m_toolbarUI.setCategory(PaletteCategory::Tiles);
                 }
@@ -1174,8 +2388,8 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
                 m_suppressPlacementUntilRelease = true;
             }
         }
-        // 2.2. ПРЯМОУГОЛЬНАЯ ЗАЛИВКА: Shift + зажатый ЛКМ
-        else if (isShift && !isAlt) {
+        // 2.2. ПРЯМОУГОЛЬНАЯ ЗАЛИВКА: Shift + зажатый ЛКМ (только для тайлов и спец-объектов)
+        else if (isShift && !isAlt && m_toolbarUI.getCategory() != PaletteCategory::Particles && m_toolbarUI.getCategory() != PaletteCategory::Decorations) {
             if (leftDown) {
                 if (!m_isLeftMouseDown && inBounds) {
                     m_isBoxFilling = true;
@@ -1186,18 +2400,279 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
                 }
             }
         }
-        // 2.3. СТАНДАРТНАЯ РАБОТА С КИСТЬЮ
+        // 2.3. СВОБОДНАЯ РАБОТА С ПАРТИКЛАМИ НА ВКЛАДКЕ [3] ПАРТИКЛЫ (ВНЕ СЕТКИ, DRAG, СЛОЁНЫЙ ЛАСТИК)
+        else if (m_toolbarUI.getCategory() == PaletteCategory::Particles && !m_suppressPlacementUntilRelease) {
+            float clickRadius = std::max(20.0f, m_grid->getCellSize() * 0.45f);
+
+            // А. Перетаскивание (Drag) выделенного эмиттера зажатой мышью
+            if (leftDown && m_isDraggingEmitter && m_selectedEmitterIndex >= 0 &&
+                m_selectedEmitterIndex < static_cast<int>(m_emitters.size())) {
+                glm::vec2 targetWorld = worldMouse + m_emitterDragOffset;
+                m_emitters[m_selectedEmitterIndex].tilePos = (targetWorld - m_grid->getOffset()) / m_grid->getCellSize();
+                m_envParticleManager.setEmitters(m_emitters);
+                m_isDirty = true;
+            }
+            // Б. Одиночный клик ЛКМ
+            else if (leftDown && !m_isLeftMouseDown) {
+                // Слоёный ластик партиклов: удаляет ТОЛЬКО эмиттер под курсором, не трогая тайлы сетки!
+                if (m_currentBrush == EditorBrush::Eraser) {
+                    eraseEmitterNear(worldMouse, clickRadius);
+                } else {
+                    // Проверяем, кликнули ли по существующему эмиттеру для выделения / драга
+                    int nearestIdx = findNearestEmitterIndex(worldMouse, clickRadius);
+                    if (nearestIdx >= 0) {
+                        m_selectedEmitterIndex = nearestIdx;
+                        m_envParticleManager.triggerBurstAt(nearestIdx);
+                        m_isDraggingEmitter = true;
+                        glm::vec2 emWorld = m_grid->getOffset() + m_emitters[nearestIdx].tilePos * m_grid->getCellSize();
+                        m_emitterDragOffset = emWorld - worldMouse;
+                        showToast("Выделен эмиттер #" + std::to_string(nearestIdx + 1) + " [" + m_emitters[nearestIdx].type + "]", glm::vec4(0.4f, 0.85f, 1.0f, 1.0f));
+                    } else if (m_currentBrush != EditorBrush::None) {
+                        // Свободное размещение нового эмиттера ровно в точке курсора worldMouse
+                        std::string eType = "steam_jet";
+                        std::string eName = "Свищ пара";
+                        float pMin = 5.0f, pMax = 12.0f, bDur = 2.2f, spd = 180.0f, pScl = 1.0f;
+
+                        if (m_currentBrush == EditorBrush::EmitterWaterDrip) {
+                            eType = "water_drip"; eName = "Капель"; pMin = 2.0f; pMax = 5.0f; bDur = 1.2f; spd = 120.0f; pScl = 1.0f;
+                        } else if (m_currentBrush == EditorBrush::EmitterSparks) {
+                            eType = "sparks"; eName = "Искры"; pMin = 4.0f; pMax = 10.0f; bDur = 1.5f; spd = 220.0f; pScl = 1.0f;
+                        } else if (m_currentBrush == EditorBrush::EmitterSmoke) {
+                            eType = "smoke"; eName = "Дым"; pMin = 3.0f; pMax = 8.0f; bDur = 2.8f; spd = 140.0f; pScl = 1.2f;
+                        } else if (m_currentBrush == EditorBrush::EmitterFog) {
+                            eType = "fog"; eName = "Туман"; pMin = 0.5f; pMax = 1.0f; bDur = 10.0f; spd = 35.0f; pScl = 1.6f;
+                        }
+
+                        ParticleEmitterConfig cfg;
+                        cfg.id = static_cast<int>(m_emitters.size()) + 1;
+                        cfg.type = eType;
+                        if (eType == "fog") cfg.loopContinuous = true;
+                        cfg.tilePos = (worldMouse - m_grid->getOffset()) / m_grid->getCellSize();
+                        cfg.angleDeg = m_defaultEmitterAngle;
+                        cfg.speed = spd;
+                        cfg.particleScale = pScl;
+                        cfg.periodMin = pMin;
+                        cfg.periodMax = pMax;
+                        cfg.burstDuration = bDur;
+
+                        m_emitters.push_back(cfg);
+                        m_envParticleManager.setEmitters(m_emitters);
+                        m_selectedEmitterIndex = static_cast<int>(m_emitters.size()) - 1;
+                        m_envParticleManager.triggerBurstAt(m_selectedEmitterIndex);
+                        m_isDraggingEmitter = false;
+                        m_emitterDragOffset = glm::vec2(0.0f);
+                        m_isDirty = true;
+                        showToast("Установлен эмиттер: " + eName, glm::vec4(0.4f, 0.85f, 1.0f, 1.0f));
+                    } else {
+                        m_selectedEmitterIndex = -1;
+                    }
+                }
+            }
+            // В. Клик ПКМ на вкладке партиклов: поворот струи на 45° или слоёный ластик
+            else if (rightDown && !m_isRightMouseDown) {
+                int nearestIdx = findNearestEmitterIndex(worldMouse, clickRadius);
+                if (nearestIdx >= 0) {
+                    if (m_currentBrush == EditorBrush::Eraser) {
+                        eraseEmitterNear(worldMouse, clickRadius);
+                    } else {
+                        m_emitters[nearestIdx].angleDeg = std::fmod(m_emitters[nearestIdx].angleDeg + 45.0f, 360.0f);
+                        if (m_emitters[nearestIdx].angleDeg < 0.0f) m_emitters[nearestIdx].angleDeg += 360.0f;
+                        m_envParticleManager.setEmitters(m_emitters);
+                        m_selectedEmitterIndex = nearestIdx;
+                        m_envParticleManager.triggerBurstAt(nearestIdx);
+                        showToast("Угол струи: " + std::to_string(static_cast<int>(m_emitters[nearestIdx].angleDeg)) + "°", glm::vec4(0.4f, 0.85f, 1.0f, 1.0f));
+                        m_isDirty = true;
+                    }
+                } else {
+                    m_selectedEmitterIndex = -1;
+                    if (m_currentBrush != EditorBrush::None) {
+                        m_currentBrush = EditorBrush::None;
+                        showToast("Кисть сброшена (нейтральный курсор)");
+                    }
+                }
+            }
+        }
+        // 2.4. СВОБОДНАЯ РАБОТА С ДЕКОРОМ НА ВКЛАДКЕ [4] ДЕКОР (ВНЕ СЕТКИ, DRAG & DROP, СЛОЁНЫЙ ЛАСТИК)
+        else if (m_toolbarUI.getCategory() == PaletteCategory::Decorations && !m_suppressPlacementUntilRelease) {
+            float clickRadius = std::max(22.0f, m_grid->getCellSize() * 0.45f);
+
+            // А. Перетаскивание (Drag & Drop) выделенного декора зажатой мышью
+            if (leftDown && m_isDraggingDecoration && m_selectedDecorationIndex >= 0 &&
+                m_selectedDecorationIndex < static_cast<int>(m_decorations.size())) {
+                glm::vec2 targetWorld = worldMouse + m_decorationDragOffset;
+                if (m_grid && m_grid->getCellSize() > 0.001f) {
+                    m_decorations[m_selectedDecorationIndex].tilePos = (targetWorld - m_grid->getOffset()) / m_grid->getCellSize();
+                    m_decorations[m_selectedDecorationIndex].worldPos = targetWorld;
+                } else {
+                    m_decorations[m_selectedDecorationIndex].worldPos = targetWorld;
+                }
+                m_isDirty = true;
+            }
+            // Б. Одиночный клик ЛКМ
+            else if (leftDown && !m_isLeftMouseDown) {
+                // Слоёный ластик декора: удаляет ТОЛЬКО декор под курсором, не трогая тайлы сетки!
+                if (m_currentBrush == EditorBrush::Eraser) {
+                    eraseDecorationNear(worldMouse, clickRadius);
+                } else {
+                    // Проверяем, кликнули ли по существующему декору для выделения / драга
+                    int nearestIdx = findNearestDecorationIndex(worldMouse, clickRadius);
+                    if (nearestIdx >= 0) {
+                        m_selectedDecorationIndex = nearestIdx;
+                        m_isDraggingDecoration = true;
+                        glm::vec2 decActualWorld = m_grid ? (m_grid->getOffset() + m_decorations[nearestIdx].tilePos * m_grid->getCellSize()) : m_decorations[nearestIdx].worldPos;
+                        m_decorationDragOffset = decActualWorld - worldMouse;
+                        showToast("Выделен декор #" + std::to_string(m_decorations[nearestIdx].id) + " [" + m_decorations[nearestIdx].type + "]", glm::vec4(0.4f, 0.85f, 1.0f, 1.0f));
+                    } else if (m_currentBrush != EditorBrush::None) {
+                        // Свободное размещение нового декора ровно в мировой точке курсора worldMouse
+                        std::string dType = "bush";
+                        std::string dName = "Куст";
+                        bool isDestructible = true;
+
+                        if (m_currentBrush == EditorBrush::DecorGrass) {
+                            dType = "grass_tuft"; dName = "Пучок травы";
+                        } else if (m_currentBrush == EditorBrush::DecorGrassField) {
+                            dType = "grass_field"; dName = "Поле травы";
+                        } else if (m_currentBrush == EditorBrush::DecorFlower) {
+                            dType = "flower"; dName = "Цветы";
+                        } else if (m_currentBrush == EditorBrush::DecorStone) {
+                            dType = "stone"; dName = "Камень";
+                        } else if (m_currentBrush == EditorBrush::DecorHelmet) {
+                            dType = "helmet"; dName = "Каска";
+                        } else if (m_currentBrush == EditorBrush::DecorPickaxe) {
+                            dType = "pickaxe"; dName = "Кирка";
+                        } else if (m_currentBrush == EditorBrush::DecorPuddle) {
+                            dType = "puddle"; dName = "Лужа";
+                        } else if (m_currentBrush == EditorBrush::DecorCrack) {
+                            dType = "crack"; dName = "Трещина";
+                        } else if (m_currentBrush == EditorBrush::DecorFog) {
+                            dType = "fog"; dName = "Туман"; isDestructible = false;
+                        }
+
+                        DecorationConfig cfg;
+                        cfg.id = static_cast<int>(m_decorations.size()) + 1;
+                        cfg.type = dType;
+                        if (dType == "fog") {
+                            cfg.scale = 1.4f;
+                            cfg.opacity = 0.45f;
+                            cfg.destructible = false;
+                        }
+                        if (m_grid && m_grid->getCellSize() > 0.001f) {
+                            if (m_currentBrush == EditorBrush::DecorGrassField) {
+                                glm::vec2 hoverTile = (worldMouse - m_grid->getOffset()) / m_grid->getCellSize();
+                                cfg.tilePos = glm::floor(hoverTile) + glm::vec2(0.5f);
+                                cfg.worldPos = m_grid->getOffset() + cfg.tilePos * m_grid->getCellSize();
+                            } else {
+                                cfg.tilePos = (worldMouse - m_grid->getOffset()) / m_grid->getCellSize();
+                                cfg.worldPos = worldMouse;
+                            }
+                        } else {
+                            cfg.tilePos = glm::vec2(0.0f);
+                            cfg.worldPos = worldMouse;
+                        }
+                        cfg.scale = 1.0f;
+                        cfg.scaleX = 1.0f;
+                        cfg.scaleY = 1.0f;
+                        cfg.rotation = m_defaultDecorationRotation;
+                        cfg.destructible = isDestructible;
+
+                        m_decorations.push_back(cfg);
+                        m_selectedDecorationIndex = static_cast<int>(m_decorations.size()) - 1;
+                        m_isDraggingDecoration = false;
+                        m_decorationDragOffset = glm::vec2(0.0f);
+                        m_isDirty = true;
+                        showToast("Установлен декор: " + dName, glm::vec4(0.4f, 0.85f, 1.0f, 1.0f));
+                    } else {
+                        // Клик в пустоту нейтральным курсором снимает выделение
+                        m_selectedDecorationIndex = -1;
+                    }
+                }
+            }
+            // В. Клик ПКМ на вкладке декора: поворот декора на 45° или слоёный ластик
+            else if (rightDown && !m_isRightMouseDown) {
+                int nearestIdx = findNearestDecorationIndex(worldMouse, clickRadius);
+                if (nearestIdx >= 0) {
+                    if (m_currentBrush == EditorBrush::Eraser) {
+                        eraseDecorationNear(worldMouse, clickRadius);
+                    } else {
+                        m_decorations[nearestIdx].rotation = std::fmod(m_decorations[nearestIdx].rotation + 45.0f, 360.0f);
+                        if (m_decorations[nearestIdx].rotation < 0.0f) m_decorations[nearestIdx].rotation += 360.0f;
+                        m_selectedDecorationIndex = nearestIdx;
+                        showToast("Угол декора: " + std::to_string(static_cast<int>(m_decorations[nearestIdx].rotation)) + "°", glm::vec4(0.4f, 0.85f, 1.0f, 1.0f));
+                        m_isDirty = true;
+                    }
+                } else {
+                    // Клик ПКМ в пустоту: сброс выделения и кисти в нейтральный курсор
+                    m_selectedDecorationIndex = -1;
+                    if (m_currentBrush != EditorBrush::None) {
+                        m_currentBrush = EditorBrush::None;
+                        showToast("Кисть сброшена (нейтральный курсор)");
+                    }
+                }
+            }
+        }
+        // 2.5. СТАНДАРТНАЯ РАБОТА С СЕТКОЙ (ТАЙЛЫ И СПЕЦ-ОБЪЕКТЫ)
         else if (!m_suppressPlacementUntilRelease) {
             if (inBounds) {
+                // Если мы в категории спец-объектов или нейтральном курсоре - проверяем выбор существующего спавнера/базы
+                if (leftDown && !m_isLeftMouseDown) {
+                    bool isSpecialCategory = (m_toolbarUI.getCategory() == PaletteCategory::SpecialObjects);
+                    int clickedSpawner = -1;
+                    for (int i = 0; i < static_cast<int>(m_spawners.size()); ++i) {
+                        if (m_spawners[i].pos.x == gridPos.x && m_spawners[i].pos.y == gridPos.y) {
+                            clickedSpawner = i;
+                            break;
+                        }
+                    }
+                    int clickedBase = -1;
+                    for (int i = 0; i < static_cast<int>(m_bases.size()); ++i) {
+                        if (m_bases[i].x == gridPos.x && m_bases[i].y == gridPos.y) {
+                            clickedBase = i;
+                            break;
+                        }
+                    }
+
+                    if (clickedSpawner >= 0 && (isSpecialCategory || m_currentBrush == EditorBrush::None || m_currentBrush == EditorBrush::Spawner)) {
+                        m_selectedEntityType = EditorEntityType::Spawner;
+                        m_selectedEntityIndex = clickedSpawner;
+                        m_selectedDecorationIndex = -1;
+                        m_selectedEmitterIndex = -1;
+                        showToast("Выбран спавнер S" + (m_spawners[clickedSpawner].targetBaseIndex == -1 ? ":Auto" : ">#" + std::to_string(m_spawners[clickedSpawner].targetBaseIndex)), glm::vec4(0.95f, 0.85f, 0.2f, 1.0f));
+                        m_isLeftMouseDown = leftDown;
+                        return;
+                    } else if (clickedBase >= 0 && (isSpecialCategory || m_currentBrush == EditorBrush::None || m_currentBrush == EditorBrush::Base)) {
+                        m_selectedEntityType = EditorEntityType::Base;
+                        m_selectedEntityIndex = clickedBase;
+                        m_selectedDecorationIndex = -1;
+                        m_selectedEmitterIndex = -1;
+                        showToast("Выбрана база B#" + std::to_string(m_bases[clickedBase].id), glm::vec4(0.3f, 0.8f, 1.0f, 1.0f));
+                        m_isLeftMouseDown = leftDown;
+                        return;
+                    } else if (m_currentBrush == EditorBrush::None) {
+                        m_selectedEntityIndex = -1;
+                    }
+                }
+
                 bool isSinglePointBrush = (m_currentBrush == EditorBrush::Spawner || m_currentBrush == EditorBrush::Base ||
                                            m_currentBrush == EditorBrush::RailStart || m_currentBrush == EditorBrush::RailEnd);
                 if (leftDown) {
-                    if (!isSinglePointBrush || !m_isLeftMouseDown) {
+                    if (m_currentBrush != EditorBrush::None && (!isSinglePointBrush || !m_isLeftMouseDown)) {
                         applyBrush(gridPos.x, gridPos.y, m_currentBrush);
                     }
                 } else if (rightDown) {
-                    eraseCell(gridPos.x, gridPos.y);
+                    if (m_rawLayout[gridPos.y][gridPos.x] == 0 && m_currentBrush != EditorBrush::None) {
+                        // Клик ПКМ по пустой земле с активной кистью: сброс кисти в нейтральный курсор
+                        if (!m_isRightMouseDown) {
+                            m_currentBrush = EditorBrush::None;
+                            showToast("Кисть сброшена (нейтральный курсор)");
+                        }
+                    } else {
+                        eraseCell(gridPos.x, gridPos.y);
+                    }
                 }
+            } else if (rightDown && !m_isRightMouseDown && m_currentBrush != EditorBrush::None) {
+                // Клик ПКМ вне сетки: сброс активной кисти в нейтральный курсор
+                m_currentBrush = EditorBrush::None;
+                showToast("Кисть сброшена (нейтральный курсор)");
             }
         }
     }
@@ -1225,6 +2700,11 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
         m_boxCurrentCell = glm::ivec2(-1);
     }
 
+    if (!leftDown) {
+        m_isDraggingEmitter = false;
+        m_isDraggingDecoration = false;
+    }
+
     if (!leftDown && !rightDown) {
         m_suppressPlacementUntilRelease = false;
     }
@@ -1238,6 +2718,7 @@ void MapEditorState::update(float dt) {
 
     if (m_grid) {
         m_pathVisualizer.update(dt, m_grid->getCellSize());
+        m_envParticleManager.update(dt, *m_grid);
     }
 
     if (m_waveModal.isOpen()) {
@@ -1246,6 +2727,10 @@ void MapEditorState::update(float dt) {
 
     if (m_mapsBrowserModal.isOpen()) {
         m_mapsBrowserModal.update(dt);
+    }
+
+    if (m_levelSettingsModal.isOpen()) {
+        m_levelSettingsModal.update(dt);
     }
 
     if (m_statusTimer > 0.0f) {
@@ -1266,14 +2751,37 @@ void MapEditorState::update(float dt) {
 }
 
 void MapEditorState::render() {
+    glm::mat4 P_screen = glm::ortho(0.0f, static_cast<float>(m_width), static_cast<float>(m_height), 0.0f, -1.0f, 1.0f);
+
+    // 0. Экранный фон окна за пределами игровой сцены
+    m_renderer->setProjection(P_screen);
+    if (m_textRenderer) m_textRenderer->updateProjection(P_screen);
+    m_renderer->beginBatch();
+    m_renderer->drawSprite(m_whiteTexture, glm::vec2(0.0f), glm::vec2(m_width, m_height), 0.0f, glm::vec3(0.08f, 0.09f, 0.12f));
+    m_renderer->endBatch();
+
+    // 1. Установка матрицы камеры мира (Zoom & Pan)
+    glm::mat4 V = glm::mat4(1.0f);
+    V = glm::translate(V, glm::vec3(m_cameraPan, 0.0f));
+    V = glm::scale(V, glm::vec3(m_zoom, m_zoom, 1.0f));
+    glm::mat4 cameraProj = P_screen * V;
+
+    m_renderer->setProjection(cameraProj);
     m_renderer->beginBatch();
 
-    // 1. Темный космический фон рабочей зоны
-    m_renderer->drawSprite(m_whiteTexture, glm::vec2(0.0f), glm::vec2(m_width, m_height), 0.0f, glm::vec3(0.09f, 0.10f, 0.13f));
+    // 1.1. Отрисовка фона игровой зоны (в мировых координатах)
+    BackgroundRenderer::render(
+        m_renderer.get(),
+        m_whiteTexture,
+        m_background,
+        m_grid.get(),
+        static_cast<float>(m_width),
+        static_cast<float>(m_height)
+    );
 
     // 2. Игровая сетка (отцентрирована строго между верхним и нижним барами)
     if (m_grid) {
-        m_grid->draw(m_renderer.get(), m_whiteTexture, glm::vec3(1.0f));
+        m_grid->draw(m_renderer.get(), m_whiteTexture, glm::vec3(1.0f), m_background);
     }
 
     // 3. Стрелочки путей в реальном времени с цветом, соответствующим целевой базе!
@@ -1292,11 +2800,22 @@ void MapEditorState::render() {
         float cellSize = m_grid->getCellSize();
 
         // Базы
-        for (const auto& b : m_bases) {
+        for (size_t bi = 0; bi < m_bases.size(); ++bi) {
+            const auto& b = m_bases[bi];
             glm::vec2 pPos = m_grid->gridToPixel(b.x, b.y);
             glm::vec3 bCol = getIdColor(b.id);
             m_renderer->drawSprite(m_whiteTexture, pPos + glm::vec2(2.0f), glm::vec2(cellSize - 4.0f), 0.0f, bCol);
             m_renderer->drawSprite(m_whiteTexture, pPos + glm::vec2(5.0f), glm::vec2(cellSize - 10.0f), 0.0f, bCol * 0.85f);
+
+            // Рамка выделения, если база выбрана в инспекторе
+            if (m_selectedEntityIndex == static_cast<int>(bi) && m_selectedEntityType == EditorEntityType::Base) {
+                float selB = 2.5f;
+                glm::vec4 selCol(1.0f, 1.0f, 1.0f, 0.95f);
+                m_renderer->drawSpriteRGBA(m_whiteTexture, pPos, glm::vec2(cellSize, selB), 0.0f, selCol);
+                m_renderer->drawSpriteRGBA(m_whiteTexture, pPos + glm::vec2(0.0f, cellSize - selB), glm::vec2(cellSize, selB), 0.0f, selCol);
+                m_renderer->drawSpriteRGBA(m_whiteTexture, pPos, glm::vec2(selB, cellSize), 0.0f, selCol);
+                m_renderer->drawSpriteRGBA(m_whiteTexture, pPos + glm::vec2(cellSize - selB, 0.0f), glm::vec2(selB, cellSize), 0.0f, selCol);
+            }
         }
 
         // Спавнеры
@@ -1314,6 +2833,16 @@ void MapEditorState::render() {
 
             m_renderer->drawSprite(m_whiteTexture, pPos + glm::vec2(2.0f), glm::vec2(cellSize - 4.0f), 0.0f, spColor);
             m_renderer->drawSprite(m_whiteTexture, pPos + glm::vec2(5.0f), glm::vec2(cellSize - 10.0f), 0.0f, spColor * 0.85f);
+
+            // Рамка выделения, если спавнер выбран в инспекторе
+            if (m_selectedEntityIndex == static_cast<int>(i) && m_selectedEntityType == EditorEntityType::Spawner) {
+                float selB = 2.5f;
+                glm::vec4 selCol(1.0f, 1.0f, 1.0f, 0.95f);
+                m_renderer->drawSpriteRGBA(m_whiteTexture, pPos, glm::vec2(cellSize, selB), 0.0f, selCol);
+                m_renderer->drawSpriteRGBA(m_whiteTexture, pPos + glm::vec2(0.0f, cellSize - selB), glm::vec2(cellSize, selB), 0.0f, selCol);
+                m_renderer->drawSpriteRGBA(m_whiteTexture, pPos, glm::vec2(selB, cellSize), 0.0f, selCol);
+                m_renderer->drawSpriteRGBA(m_whiteTexture, pPos + glm::vec2(cellSize - selB, 0.0f), glm::vec2(selB, cellSize), 0.0f, selCol);
+            }
         }
 
         // Маркеры вагонетки (Депо/Старт и Тупик/Конец)
@@ -1372,71 +2901,323 @@ void MapEditorState::render() {
         m_renderer->drawSpriteRGBA(m_whiteTexture, boxPos + glm::vec2(boxSize.x - borderThick, 0.0f), glm::vec2(borderThick, boxSize.y), 0.0f, frameCol);
     }
 
-    // 5. ВЕРХНИЙ ХЕДЕР-БАР И НИЖНИЙ ТУЛБАР (EditorToolbarUI)
-    m_toolbarUI.render(m_renderer.get(), m_textRenderer, m_whiteTexture, buildEditorContext(), m_mousePos);
+    // 4.3. ВИДОИСКАТЕЛЬ СТАРТОВОЙ КАМЕРЫ (Camera Viewport Frame)
+    if (m_isCameraConfigMode || m_cameraSettings.isCustom || m_hudPreviewMode != HudPreviewMode::None) {
+        float camZoom = std::clamp(m_cameraSettings.zoom, 0.4f, 2.5f);
+        glm::vec2 camCenter = getWorldCamCenter();
 
-    // 6. ТЕКСТ (Клетки спавнеров и баз)
-    if (m_textRenderer) {
-        // Текст на клетках спавнеров и баз
-        if (m_grid) {
-            float cellSize = m_grid->getCellSize();
+        // Размер видоискателя игрока (соответствует охвату экрана при боевом зуме: screen / camZoom)
+        glm::vec2 frameSize = getCameraViewportSize();
+        float frameW = frameSize.x;
+        float frameH = frameSize.y;
+        glm::vec2 framePos = camCenter - glm::vec2(frameW * 0.5f, frameH * 0.5f);
 
-            for (const auto& b : m_bases) {
-                glm::vec2 pPos = m_grid->gridToPixel(b.x, b.y);
-                std::string baseLabel = "B#" + std::to_string(b.id);
-                m_textRenderer->RenderText(baseLabel, pPos.x + cellSize * 0.10f, pPos.y + cellSize * 0.25f, 0.70f, glm::vec3(0.05f, 0.08f, 0.15f));
-            }
+        // Полупрозрачная белая подложка видоискателя
+        float fillAlpha = m_isCameraConfigMode ? 0.08f : 0.04f;
+        m_renderer->drawSpriteRGBA(m_whiteTexture, framePos, frameSize, 0.0f, glm::vec4(1.0f, 1.0f, 1.0f, fillAlpha));
 
-            for (size_t i = 0; i < m_spawners.size(); ++i) {
-                const auto& sp = m_spawners[i];
-                glm::vec2 pPos = m_grid->gridToPixel(sp.pos.x, sp.pos.y);
-                bool isBlocked = (i >= m_activePaths.size() || m_activePaths[i].empty());
+        // Контурная рамка видоискателя
+        glm::vec4 frameCol = m_isCameraConfigMode ? glm::vec4(1.0f, 1.0f, 1.0f, 0.95f) : glm::vec4(0.85f, 0.92f, 1.0f, 0.65f);
+        float borderThick = 2.5f;
+        m_renderer->drawSpriteRGBA(m_whiteTexture, framePos, glm::vec2(frameSize.x, borderThick), 0.0f, frameCol);
+        m_renderer->drawSpriteRGBA(m_whiteTexture, framePos + glm::vec2(0.0f, frameSize.y - borderThick), glm::vec2(frameSize.x, borderThick), 0.0f, frameCol);
+        m_renderer->drawSpriteRGBA(m_whiteTexture, framePos, glm::vec2(borderThick, frameSize.y), 0.0f, frameCol);
+        m_renderer->drawSpriteRGBA(m_whiteTexture, framePos + glm::vec2(frameSize.x - borderThick, 0.0f), glm::vec2(borderThick, frameSize.y), 0.0f, frameCol);
 
-                bool hasTargetBase = (sp.targetBaseIndex == -1);
-                if (!hasTargetBase) {
-                    for (const auto& b : m_bases) {
-                        if (b.id == sp.targetBaseIndex) { hasTargetBase = true; break; }
-                    }
+        // Уголки видоискателя (Camera Viewport Brackets)
+        float cornerLen = 28.0f;
+        float cornerThick = 4.0f;
+        glm::vec4 cornerCol = m_isCameraConfigMode ? glm::vec4(0.35f, 0.90f, 1.0f, 1.0f) : glm::vec4(1.0f, 1.0f, 1.0f, 0.85f);
+        // Top-Left
+        m_renderer->drawSpriteRGBA(m_whiteTexture, framePos, glm::vec2(cornerLen, cornerThick), 0.0f, cornerCol);
+        m_renderer->drawSpriteRGBA(m_whiteTexture, framePos, glm::vec2(cornerThick, cornerLen), 0.0f, cornerCol);
+        // Top-Right
+        m_renderer->drawSpriteRGBA(m_whiteTexture, framePos + glm::vec2(frameSize.x - cornerLen, 0.0f), glm::vec2(cornerLen, cornerThick), 0.0f, cornerCol);
+        m_renderer->drawSpriteRGBA(m_whiteTexture, framePos + glm::vec2(frameSize.x - cornerThick, 0.0f), glm::vec2(cornerThick, cornerLen), 0.0f, cornerCol);
+        // Bottom-Left
+        m_renderer->drawSpriteRGBA(m_whiteTexture, framePos + glm::vec2(0.0f, frameSize.y - cornerThick), glm::vec2(cornerLen, cornerThick), 0.0f, cornerCol);
+        m_renderer->drawSpriteRGBA(m_whiteTexture, framePos + glm::vec2(0.0f, frameSize.y - cornerLen), glm::vec2(cornerThick, cornerLen), 0.0f, cornerCol);
+        // Bottom-Right
+        m_renderer->drawSpriteRGBA(m_whiteTexture, framePos + glm::vec2(frameSize.x - cornerLen, frameSize.y - cornerThick), glm::vec2(cornerLen, cornerThick), 0.0f, cornerCol);
+        m_renderer->drawSpriteRGBA(m_whiteTexture, framePos + glm::vec2(frameSize.x - cornerThick, frameSize.y - cornerLen), glm::vec2(cornerThick, cornerLen), 0.0f, cornerCol);
+
+        // Прицел центра (Center Crosshair)
+        float crossLen = 12.0f;
+        m_renderer->drawSpriteRGBA(m_whiteTexture, camCenter - glm::vec2(crossLen * 0.5f, 1.0f), glm::vec2(crossLen, 2.0f), 0.0f, cornerCol);
+        m_renderer->drawSpriteRGBA(m_whiteTexture, camCenter - glm::vec2(1.0f, crossLen * 0.5f), glm::vec2(2.0f, crossLen), 0.0f, cornerCol);
+
+        // Текстовая плашка сверху рамки
+        std::string camTitle = m_isCameraConfigMode ? "CAMERA VIEWPORT (НАСТРОЙКА)" :
+            (m_hudPreviewMode != HudPreviewMode::None ? "CAMERA VIEWPORT (БОЕВОЙ HUD)" : "CAMERA VIEWPORT (РУЧНАЯ)");
+        float fScale = 0.55f;
+        float tw = m_textRenderer ? m_textRenderer->CalculateTextWidth(camTitle, fScale) : 260.0f;
+        float badgeW = tw + 20.0f;
+        float badgeH = 24.0f;
+        glm::vec2 badgePos(framePos.x + 10.0f, framePos.y - badgeH - 4.0f);
+        m_renderer->drawSpriteRGBA(m_whiteTexture, badgePos, glm::vec2(badgeW, badgeH), 0.0f, glm::vec4(0.08f, 0.10f, 0.14f, 0.85f));
+        m_renderer->drawSpriteRGBA(m_whiteTexture, badgePos, glm::vec2(3.0f, badgeH), 0.0f, cornerCol);
+    }
+
+    // 4.4. ПРЕДПРОСМОТР БОЕВОГО ИНТЕРФЕЙСА (HUD Preview Overlay в мировых координатах видоискателя)
+    renderHudPreview();
+
+    // 4.45. ДЕКОРАТИВНЫЕ ПРОП-ОБЪЕКТЫ (ПОД ЭМИТТЕРАМИ/ПАРТИКЛАМИ, ПОВЕРХ ТАЙЛОВ)
+    if (m_grid) {
+        DecorationRenderer::renderDecorations(m_renderer.get(), m_whiteTexture, m_decorations, *m_grid, m_selectedDecorationIndex, false);
+    } else {
+        DecorationRenderer::renderDecorations(m_renderer.get(), m_whiteTexture, m_decorations, m_selectedDecorationIndex, 64.0f, false);
+    }
+
+    // Предпросмотр установки декора под курсором на вкладке [4] Декор (для обычных декораций)
+    if (m_toolbarUI.getCategory() == PaletteCategory::Decorations && !m_isDraggingDecoration &&
+        m_currentBrush != EditorBrush::Eraser && m_currentBrush != EditorBrush::None && m_currentBrush != EditorBrush::DecorFog) {
+        std::string previewType = "bush";
+        if (m_currentBrush == EditorBrush::DecorGrass) previewType = "grass_tuft";
+        else if (m_currentBrush == EditorBrush::DecorGrassField) previewType = "grass_field";
+        else if (m_currentBrush == EditorBrush::DecorFlower) previewType = "flower";
+        else if (m_currentBrush == EditorBrush::DecorStone) previewType = "stone";
+        else if (m_currentBrush == EditorBrush::DecorHelmet) previewType = "helmet";
+        else if (m_currentBrush == EditorBrush::DecorPickaxe) previewType = "pickaxe";
+        else if (m_currentBrush == EditorBrush::DecorPuddle) previewType = "puddle";
+        else if (m_currentBrush == EditorBrush::DecorCrack) previewType = "crack";
+
+        glm::vec2 worldMouse = screenToWorld(m_mousePos);
+        if (m_currentBrush == EditorBrush::DecorGrassField && m_grid && m_grid->getCellSize() > 0.001f) {
+            glm::vec2 hoverTile = (worldMouse - m_grid->getOffset()) / m_grid->getCellSize();
+            worldMouse = m_grid->getOffset() + (glm::floor(hoverTile) + glm::vec2(0.5f)) * m_grid->getCellSize();
+        }
+        float previewCellSize = m_grid ? m_grid->getCellSize() : 64.0f;
+        DecorationRenderer::renderPreview(m_renderer.get(), m_whiteTexture, previewType, worldMouse, m_defaultDecorationRotation, 1.0f, 1.0f, 1.0f, 0.5f, previewCellSize);
+    }
+
+    // 4.5. РЕНДЕРИНГ МАРКЕРОВ ЭМИТТЕРОВ ЧАСТИЦ
+    renderEmitters(m_renderer.get(), m_whiteTexture);
+
+    // 4.6. ЖИВЫЕ ЧАСТИЦЫ ЭМИТТЕРОВ ОКРУЖЕНИЯ
+    m_envParticleManager.render(m_renderer.get(), m_whiteTexture, *m_grid);
+
+    // 4.7. ДЕКОРАЦИИ ВЕРХНЕГО СЛОЯ (ТУМАН / ТЬМА) — поверх частиц, эмиттеров, предпросмотра
+    if (m_grid) {
+        DecorationRenderer::renderDecorations(m_renderer.get(), m_whiteTexture, m_decorations, *m_grid, m_selectedDecorationIndex, true);
+    } else {
+        DecorationRenderer::renderDecorations(m_renderer.get(), m_whiteTexture, m_decorations, m_selectedDecorationIndex, 64.0f, true);
+    }
+
+    // Предпросмотр установки тумана под курсором на вкладке [4] Декор (поверх частиц)
+    if (m_toolbarUI.getCategory() == PaletteCategory::Decorations && !m_isDraggingDecoration &&
+        m_currentBrush == EditorBrush::DecorFog) {
+        glm::vec2 worldMouse = screenToWorld(m_mousePos);
+        float previewCellSize = m_grid ? m_grid->getCellSize() : 64.0f;
+        DecorationRenderer::renderPreview(m_renderer.get(), m_whiteTexture, "fog", worldMouse, m_defaultDecorationRotation, 1.0f, 1.0f, 1.0f, 0.5f, previewCellSize);
+    }
+
+    m_renderer->endBatch();
+
+    // 5. Восстанавливаем проекцию экрана для элементов пользовательского интерфейса (UI) и экранного текста
+    m_renderer->setProjection(P_screen);
+    if (m_textRenderer) m_textRenderer->updateProjection(P_screen);
+
+    // 5.0. Иконки скрытия в бою (перечеркнутый глаз) для баз и спавнеров
+    if (m_whiteTexture && m_grid) {
+        float cellSize = m_grid->getCellSize();
+        float screenCellSize = cellSize * m_zoom;
+
+        m_renderer->beginBatch();
+
+        for (const auto& b : m_bases) {
+            if (!b.visibleInGame) {
+                glm::vec2 worldPos = m_grid->gridToPixel(b.x, b.y);
+                glm::vec2 screenTopLeft = worldToScreen(worldPos);
+
+                if (screenTopLeft.x + screenCellSize < 0.0f || screenTopLeft.x > m_width ||
+                    screenTopLeft.y + screenCellSize < 0.0f || screenTopLeft.y > m_height) {
+                    continue;
                 }
 
-                std::string spText;
-                if (isBlocked) {
-                    spText = "STOP";
-                } else if (sp.targetBaseIndex == -1) {
-                    spText = "S:Auto";
-                } else if (!hasTargetBase) {
-                    spText = "S>?" + std::to_string(sp.targetBaseIndex);
-                } else {
-                    spText = "S>#" + std::to_string(sp.targetBaseIndex);
+                float iconW = std::clamp(16.0f * m_zoom, 10.0f, 22.0f);
+                float iconH = iconW * 0.70f;
+                glm::vec2 iconPos(screenTopLeft.x + screenCellSize - iconW - 3.0f * m_zoom, screenTopLeft.y + 3.0f * m_zoom);
+
+                m_renderer->drawSpriteRGBA(m_whiteTexture, iconPos, glm::vec2(iconW, iconH), 0.0f, glm::vec4(0.04f, 0.06f, 0.08f, 0.80f));
+                m_renderer->drawSpriteRGBA(m_whiteTexture, iconPos + glm::vec2(iconW * 0.15f, iconH * 0.15f), glm::vec2(iconW * 0.70f, iconH * 0.70f), 0.0f, glm::vec4(0.85f, 0.90f, 0.95f, 0.75f));
+                m_renderer->drawSpriteRGBA(m_whiteTexture, iconPos + glm::vec2(iconW * 0.35f, iconH * 0.28f), glm::vec2(iconW * 0.30f, iconH * 0.44f), 0.0f, glm::vec4(0.12f, 0.15f, 0.22f, 0.90f));
+                m_renderer->drawSpriteRGBA(m_whiteTexture, iconPos + glm::vec2(iconW * 0.10f, iconH * 0.80f), glm::vec2(iconW * 0.95f, std::max(1.5f, 2.0f * m_zoom)), -35.0f, glm::vec4(1.0f, 0.32f, 0.32f, 0.95f));
+            }
+        }
+
+        for (const auto& sp : m_spawners) {
+            if (!sp.visibleInGame) {
+                glm::vec2 worldPos = m_grid->gridToPixel(sp.pos.x, sp.pos.y);
+                glm::vec2 screenTopLeft = worldToScreen(worldPos);
+
+                if (screenTopLeft.x + screenCellSize < 0.0f || screenTopLeft.x > m_width ||
+                    screenTopLeft.y + screenCellSize < 0.0f || screenTopLeft.y > m_height) {
+                    continue;
                 }
-                m_textRenderer->RenderText(spText, pPos.x + cellSize * 0.06f, pPos.y + cellSize * 0.25f, 0.62f, glm::vec3(0.05f, 0.08f, 0.12f));
+
+                float iconW = std::clamp(16.0f * m_zoom, 10.0f, 22.0f);
+                float iconH = iconW * 0.70f;
+                glm::vec2 iconPos(screenTopLeft.x + screenCellSize - iconW - 3.0f * m_zoom, screenTopLeft.y + 3.0f * m_zoom);
+
+                m_renderer->drawSpriteRGBA(m_whiteTexture, iconPos, glm::vec2(iconW, iconH), 0.0f, glm::vec4(0.04f, 0.06f, 0.08f, 0.80f));
+                m_renderer->drawSpriteRGBA(m_whiteTexture, iconPos + glm::vec2(iconW * 0.15f, iconH * 0.15f), glm::vec2(iconW * 0.70f, iconH * 0.70f), 0.0f, glm::vec4(0.85f, 0.90f, 0.95f, 0.75f));
+                m_renderer->drawSpriteRGBA(m_whiteTexture, iconPos + glm::vec2(iconW * 0.35f, iconH * 0.28f), glm::vec2(iconW * 0.30f, iconH * 0.44f), 0.0f, glm::vec4(0.12f, 0.15f, 0.22f, 0.90f));
+                m_renderer->drawSpriteRGBA(m_whiteTexture, iconPos + glm::vec2(iconW * 0.10f, iconH * 0.80f), glm::vec2(iconW * 0.95f, std::max(1.5f, 2.0f * m_zoom)), -35.0f, glm::vec4(1.0f, 0.32f, 0.32f, 0.95f));
+            }
+        }
+
+        m_renderer->endBatch();
+    }
+
+    // 5.1. ТЕКСТ НА КЛЕТКАХ СЕТКИ (в экранных координатах с учетом зума и панорамирования)
+    if (m_textRenderer && m_grid) {
+        float cellSize = m_grid->getCellSize();
+        float screenCellSize = cellSize * m_zoom;
+
+        // Базы B#ID
+        for (const auto& b : m_bases) {
+            glm::vec2 worldPos = m_grid->gridToPixel(b.x, b.y);
+            glm::vec2 screenTopLeft = worldToScreen(worldPos);
+
+            if (screenTopLeft.x + screenCellSize < 0.0f || screenTopLeft.x > m_width ||
+                screenTopLeft.y + screenCellSize < 0.0f || screenTopLeft.y > m_height) {
+                continue;
             }
 
-            // Текст на маркерах вагонетки (Депо/Старт и Тупик/Конец)
-            if (!m_minecarts.empty()) {
-                const auto& mc = m_minecarts[0];
-                if (mc.hasStart()) {
-                    glm::vec2 pPos = m_grid->gridToPixel(mc.start.x, mc.start.y);
+            std::string baseLabel = "B#" + std::to_string(b.id);
+            float fontScale = std::clamp(0.70f * m_zoom, 0.25f, 0.75f);
+            float tw = m_textRenderer->CalculateTextWidth(baseLabel, fontScale);
+            float th = fontScale * 26.0f;
+            float tx = screenTopLeft.x + (screenCellSize - tw) * 0.5f;
+            float ty = screenTopLeft.y + (screenCellSize - th) * 0.5f + 1.0f;
+            m_textRenderer->RenderText(baseLabel, tx, ty, fontScale, glm::vec3(0.05f, 0.08f, 0.15f));
+        }
+
+        // Спавнеры S>#ID / STOP / S:Auto
+        for (size_t i = 0; i < m_spawners.size(); ++i) {
+            const auto& sp = m_spawners[i];
+            glm::vec2 worldPos = m_grid->gridToPixel(sp.pos.x, sp.pos.y);
+            glm::vec2 screenTopLeft = worldToScreen(worldPos);
+
+            if (screenTopLeft.x + screenCellSize < 0.0f || screenTopLeft.x > m_width ||
+                screenTopLeft.y + screenCellSize < 0.0f || screenTopLeft.y > m_height) {
+                continue;
+            }
+
+            bool isBlocked = (i >= m_activePaths.size() || m_activePaths[i].empty());
+            bool hasTargetBase = (sp.targetBaseIndex == -1);
+            if (!hasTargetBase) {
+                for (const auto& b : m_bases) {
+                    if (b.id == sp.targetBaseIndex) { hasTargetBase = true; break; }
+                }
+            }
+
+            std::string spText;
+            if (isBlocked) {
+                spText = "STOP";
+            } else if (sp.targetBaseIndex == -1) {
+                spText = "S:Auto";
+            } else if (!hasTargetBase) {
+                spText = "S>?" + std::to_string(sp.targetBaseIndex);
+            } else {
+                spText = "S>#" + std::to_string(sp.targetBaseIndex);
+            }
+
+            float fontScale = std::clamp(0.62f * m_zoom, 0.22f, 0.70f);
+            float tw = m_textRenderer->CalculateTextWidth(spText, fontScale);
+            float th = fontScale * 26.0f;
+            float tx = screenTopLeft.x + (screenCellSize - tw) * 0.5f;
+            float ty = screenTopLeft.y + (screenCellSize - th) * 0.5f + 1.0f;
+            m_textRenderer->RenderText(spText, tx, ty, fontScale, glm::vec3(0.05f, 0.08f, 0.12f));
+        }
+
+        // Маркеры вагонетки (START / END)
+        if (!m_minecarts.empty()) {
+            const auto& mc = m_minecarts[0];
+            if (mc.hasStart()) {
+                glm::vec2 worldPos = m_grid->gridToPixel(mc.start.x, mc.start.y);
+                glm::vec2 screenTopLeft = worldToScreen(worldPos);
+                if (screenTopLeft.x + screenCellSize >= 0.0f && screenTopLeft.x <= m_width &&
+                    screenTopLeft.y + screenCellSize >= 0.0f && screenTopLeft.y <= m_height) {
                     std::string label = "START";
-                    float fScale = std::clamp(cellSize / 64.0f * 0.52f, 0.35f, 0.65f);
-                    float tw = m_textRenderer->CalculateTextWidth(label, fScale);
-                    float tx = pPos.x + (cellSize - tw) * 0.5f;
-                    float ty = pPos.y + (cellSize - fScale * 28.0f) * 0.5f + 1.0f;
-                    m_textRenderer->RenderText(label, tx, ty, fScale, glm::vec3(0.15f, 0.10f, 0.03f));
+                    float baseScale = std::clamp(cellSize / 64.0f * 0.52f, 0.35f, 0.65f);
+                    float fontScale = std::clamp(baseScale * m_zoom, 0.20f, 0.65f);
+                    float tw = m_textRenderer->CalculateTextWidth(label, fontScale);
+                    float th = fontScale * 26.0f;
+                    float tx = screenTopLeft.x + (screenCellSize - tw) * 0.5f;
+                    float ty = screenTopLeft.y + (screenCellSize - th) * 0.5f + 1.0f;
+                    m_textRenderer->RenderText(label, tx, ty, fontScale, glm::vec3(0.15f, 0.10f, 0.03f));
                 }
-                if (mc.hasEnd()) {
-                    glm::vec2 pPos = m_grid->gridToPixel(mc.end.x, mc.end.y);
+            }
+            if (mc.hasEnd()) {
+                glm::vec2 worldPos = m_grid->gridToPixel(mc.end.x, mc.end.y);
+                glm::vec2 screenTopLeft = worldToScreen(worldPos);
+                if (screenTopLeft.x + screenCellSize >= 0.0f && screenTopLeft.x <= m_width &&
+                    screenTopLeft.y + screenCellSize >= 0.0f && screenTopLeft.y <= m_height) {
                     std::string label = "END";
-                    float fScale = std::clamp(cellSize / 64.0f * 0.56f, 0.35f, 0.68f);
-                    float tw = m_textRenderer->CalculateTextWidth(label, fScale);
-                    float tx = pPos.x + (cellSize - tw) * 0.5f;
-                    float ty = pPos.y + (cellSize - fScale * 28.0f) * 0.5f + 1.0f;
-                    m_textRenderer->RenderText(label, tx, ty, fScale, glm::vec3(1.0f, 0.95f, 0.95f));
+                    float baseScale = std::clamp(cellSize / 64.0f * 0.56f, 0.35f, 0.68f);
+                    float fontScale = std::clamp(baseScale * m_zoom, 0.20f, 0.68f);
+                    float tw = m_textRenderer->CalculateTextWidth(label, fontScale);
+                    float th = fontScale * 26.0f;
+                    float tx = screenTopLeft.x + (screenCellSize - tw) * 0.5f;
+                    float ty = screenTopLeft.y + (screenCellSize - th) * 0.5f + 1.0f;
+                    m_textRenderer->RenderText(label, tx, ty, fontScale, glm::vec3(1.0f, 0.95f, 0.95f));
                 }
             }
         }
+
+        // Подписи эмиттеров частиц (ПАР, КАП, ИСК, ДЫМ и градус)
+        for (const auto& em : m_emitters) {
+            glm::vec2 worldPos = m_grid->getOffset() + em.tilePos * cellSize;
+            glm::vec2 screenCenter = worldToScreen(worldPos);
+            glm::vec2 screenTopLeft = screenCenter - glm::vec2(screenCellSize * 0.5f);
+            if (screenTopLeft.x + screenCellSize >= 0.0f && screenTopLeft.x <= m_width &&
+                screenTopLeft.y + screenCellSize >= 0.0f && screenTopLeft.y <= m_height) {
+                std::string tag = "ПАР";
+                if (em.type == "water_drip") tag = "КАП";
+                else if (em.type == "sparks") tag = "ИСК";
+                else if (em.type == "smoke") tag = "ДЫМ";
+                else if (em.type == "fog") tag = "ТУМ";
+
+                float baseScale = std::clamp(cellSize / 64.0f * 0.42f, 0.28f, 0.55f);
+                float fontScale = std::clamp(baseScale * m_zoom, 0.18f, 0.55f);
+                float tw = m_textRenderer->CalculateTextWidth(tag, fontScale);
+                float th = fontScale * 26.0f;
+                float tx = screenTopLeft.x + (screenCellSize - tw) * 0.5f;
+                float ty = screenTopLeft.y + (screenCellSize - th) * 0.5f - 4.0f * m_zoom;
+                m_textRenderer->RenderText(tag, tx, ty, fontScale, glm::vec3(1.0f, 1.0f, 1.0f));
+
+                std::string degStr = std::to_string(static_cast<int>(em.angleDeg)) + "°";
+                float degScale = fontScale * 0.82f;
+                float dtw = m_textRenderer->CalculateTextWidth(degStr, degScale);
+                float dtx = screenTopLeft.x + (screenCellSize - dtw) * 0.5f;
+                float dty = ty + th + 1.0f;
+                m_textRenderer->RenderText(degStr, dtx, dty, degScale, glm::vec3(0.85f, 0.95f, 1.0f));
+            }
+        }
+
+        // Подпись видоискателя камеры (Camera Viewport Badge)
+        if (m_isCameraConfigMode || m_cameraSettings.isCustom || m_hudPreviewMode != HudPreviewMode::None) {
+            float camZoom = std::clamp(m_cameraSettings.zoom, 0.4f, 2.5f);
+            glm::vec2 camCenter = getWorldCamCenter();
+            glm::vec2 frameSize = getCameraViewportSize();
+            glm::vec2 framePos = camCenter - frameSize * 0.5f;
+            glm::vec2 badgePos(framePos.x + 10.0f, framePos.y - 24.0f - 4.0f);
+            glm::vec2 screenBadgePos = worldToScreen(badgePos);
+
+            std::string camTitle = m_isCameraConfigMode ? "CAMERA VIEWPORT (НАСТРОЙКА)" :
+                (m_hudPreviewMode != HudPreviewMode::None ? "CAMERA VIEWPORT (БОЕВОЙ HUD)" : "CAMERA VIEWPORT (РУЧНАЯ)");
+            float badgeFontScale = std::clamp(0.55f * m_zoom, 0.28f, 0.70f);
+            m_textRenderer->RenderText(camTitle, screenBadgePos.x + 8.0f * m_zoom, screenBadgePos.y + 3.0f * m_zoom, badgeFontScale, glm::vec3(0.95f, 0.95f, 1.0f));
+        }
+
+        // Текстовые метки боевого интерфейса внутри видоискателя
+        renderHudPreviewText();
     }
 
+    // ВЕРХНИЙ ХЕДЕР-БАР И НИЖНИЙ ТУЛБАР (EditorToolbarUI)
+    m_renderer->beginBatch();
+    m_toolbarUI.render(m_renderer.get(), m_textRenderer, m_whiteTexture, buildEditorContext(), m_mousePos);
     m_renderer->endBatch();
 
     // 8. МОДАЛЬНОЕ ОКНО РЕДАКТОРА ВОЛН (если активно)
@@ -1456,9 +3237,10 @@ void MapEditorState::render() {
     }
 
     // 11. МОДАЛЬНОЕ ОКНО ПОДТВЕРЖДЕНИЯ ВЫХОДА (если активно)
-    if (m_isExitModalOpen) {
+    if (m_exitModal.isOpen()) {
         m_renderer->beginBatch();
-        renderExitModal();
+        m_exitModal.render(m_renderer.get(), m_textRenderer, m_whiteTexture,
+                           static_cast<float>(m_width), static_cast<float>(m_height), m_mousePos);
         m_renderer->endBatch();
     }
 
@@ -1469,6 +3251,72 @@ void MapEditorState::render() {
                               m_width, m_height, m_mousePos,
                               m_minecarts, m_isRailPathValid, m_railPath.size());
         m_renderer->endBatch();
+    }
+
+    // 12.2. МОДАЛЬНОЕ ОКНО СПРАВКИ ПО УПРАВЛЕНИЮ (если активно)
+    if (m_helpModal.isOpen()) {
+        m_renderer->beginBatch();
+        m_helpModal.render(m_renderer.get(), m_textRenderer, m_whiteTexture, m_width, m_height);
+        m_renderer->endBatch();
+    }
+
+    // 12.2b. МОДАЛЬНОЕ ОКНО НАСТРОЕК УРОВНЯ И ЭКОНОМИКИ (если активно)
+    if (m_levelSettingsModal.isOpen()) {
+        m_renderer->beginBatch();
+        m_levelSettingsModal.render(m_renderer.get(), m_textRenderer, m_whiteTexture, m_width, m_height, m_mousePos);
+        m_renderer->endBatch();
+    }
+
+    // 12.3. ВСПЛЫВАЮЩАЯ ПАНЕЛЬ НАСТРОЕК ВЫБРАННОГО ЭМИТТЕРА ПАРТИКЛОВ
+    if (m_selectedEmitterIndex >= 0 && m_selectedEmitterIndex < static_cast<int>(m_emitters.size())) {
+        glm::vec2 emWorld = m_grid ? (m_grid->getOffset() + m_emitters[m_selectedEmitterIndex].tilePos * m_grid->getCellSize()) : glm::vec2(0.0f);
+        glm::vec2 emScreen = worldToScreen(emWorld);
+
+        m_renderer->beginBatch();
+        m_emitterInspector.render(m_renderer.get(), m_textRenderer, m_whiteTexture,
+                                  m_emitters[m_selectedEmitterIndex], m_selectedEmitterIndex, emScreen,
+                                  static_cast<float>(m_width), static_cast<float>(m_height),
+                                  getTopBarHeight(), getBottomDockHeight(), m_mousePos);
+        m_renderer->endBatch();
+    }
+
+    // 12.4. ВСПЛЫВАЮЩАЯ ПАНЕЛЬ НАСТРОЕК ВЫБРАННОГО ДЕКОРА
+    if (m_selectedDecorationIndex >= 0 && m_selectedDecorationIndex < static_cast<int>(m_decorations.size())) {
+        const auto& dec = m_decorations[m_selectedDecorationIndex];
+        glm::vec2 decActualWorld = m_grid ? (m_grid->getOffset() + dec.tilePos * m_grid->getCellSize()) : dec.worldPos;
+        glm::vec2 decScreen = worldToScreen(decActualWorld);
+
+        m_renderer->beginBatch();
+        m_decorInspector.render(m_renderer.get(), m_textRenderer, m_whiteTexture,
+                                dec, m_selectedDecorationIndex, decScreen,
+                                static_cast<float>(m_width), static_cast<float>(m_height),
+                                getTopBarHeight(), getBottomDockHeight(), m_mousePos);
+        m_renderer->endBatch();
+    }
+
+    // 12.5. ВСПЛЫВАЮЩАЯ ПАНЕЛЬ НАСТРОЕК ВЫБРАННОГО СПАВНЕРА ИЛИ БАЗЫ (Entity Inspector)
+    if (m_selectedEntityIndex >= 0) {
+        if (m_selectedEntityType == EditorEntityType::Spawner && m_selectedEntityIndex < static_cast<int>(m_spawners.size())) {
+            glm::vec2 entWorld = m_grid ? (m_grid->gridToPixel(m_spawners[m_selectedEntityIndex].pos.x, m_spawners[m_selectedEntityIndex].pos.y) + glm::vec2(m_grid->getCellSize() * 0.5f)) : glm::vec2(0.0f);
+            glm::vec2 entScreen = worldToScreen(entWorld);
+
+            m_renderer->beginBatch();
+            m_entityInspector.render(m_renderer.get(), m_textRenderer, m_whiteTexture,
+                                     m_spawners[m_selectedEntityIndex], m_selectedEntityIndex, entScreen,
+                                     static_cast<float>(m_width), static_cast<float>(m_height),
+                                     getTopBarHeight(), getBottomDockHeight(), m_mousePos);
+            m_renderer->endBatch();
+        } else if (m_selectedEntityType == EditorEntityType::Base && m_selectedEntityIndex < static_cast<int>(m_bases.size())) {
+            glm::vec2 entWorld = m_grid ? (m_grid->gridToPixel(m_bases[m_selectedEntityIndex].x, m_bases[m_selectedEntityIndex].y) + glm::vec2(m_grid->getCellSize() * 0.5f)) : glm::vec2(0.0f);
+            glm::vec2 entScreen = worldToScreen(entWorld);
+
+            m_renderer->beginBatch();
+            m_entityInspector.render(m_renderer.get(), m_textRenderer, m_whiteTexture,
+                                     m_bases[m_selectedEntityIndex], m_selectedEntityIndex, entScreen,
+                                     static_cast<float>(m_width), static_cast<float>(m_height),
+                                     getTopBarHeight(), getBottomDockHeight(), m_mousePos);
+            m_renderer->endBatch();
+        }
     }
 
     // 13. Всплывающее тост-уведомление (Toast Feedback)
@@ -1535,13 +3383,53 @@ void MapEditorState::render() {
     }
 }
 
+glm::vec2 MapEditorState::getDefaultWorldCenter() const {
+    if (m_grid) {
+        return m_grid->getOffset() + glm::vec2(m_gridWidth, m_gridHeight) * m_grid->getCellSize() * 0.5f;
+    }
+    return glm::vec2(static_cast<float>(m_width) * 0.5f, static_cast<float>(m_height) * 0.5f);
+}
+
+glm::vec2 MapEditorState::getWorldCamCenter() const {
+    if (!m_grid) return getDefaultWorldCenter();
+    glm::vec2 targetTile = m_cameraSettings.targetTile;
+    if (targetTile.x < 0.0f || targetTile.y < 0.0f) {
+        targetTile = glm::vec2(static_cast<float>(m_gridWidth) * 0.5f,
+                               static_cast<float>(m_gridHeight) * 0.5f);
+    }
+    return m_grid->getOffset() + targetTile * m_grid->getCellSize();
+}
+
+glm::vec2 MapEditorState::getCameraViewportSize() const {
+    float camZoom = std::clamp(m_cameraSettings.zoom, 0.4f, 2.5f);
+    return glm::vec2(static_cast<float>(m_width) / camZoom,
+                     static_cast<float>(m_height) / camZoom);
+}
+
+glm::vec2 MapEditorState::worldPixelToTile(glm::vec2 worldPos) const {
+    if (!m_grid) return glm::vec2(0.0f);
+    float cellSize = m_grid->getCellSize();
+    if (cellSize <= 0.001f) return glm::vec2(0.0f);
+    return (worldPos - m_grid->getOffset()) / cellSize;
+}
+
+glm::vec2 MapEditorState::tileToWorldPixel(glm::vec2 tilePos) const {
+    if (!m_grid) return tilePos;
+    return m_grid->getOffset() + tilePos * m_grid->getCellSize();
+}
+
 void MapEditorState::resize(int width, int height) {
+    glm::vec2 oldScreenCenter = glm::vec2(static_cast<float>(m_width) * 0.5f, static_cast<float>(m_height) * 0.5f);
+    glm::vec2 worldFocus = screenToWorld(oldScreenCenter);
+
     m_width = width;
     m_height = height;
-    if (m_grid) {
-        m_grid->updateCellSize(m_width, m_height, getBottomDockHeight() + 6.0f, getTopBarHeight() + 6.0f);
-    }
+    updateGridDimensions();
     updateButtonLayout();
+
+    // Сохраняем фокус камеры на том же мировом объекте/точке при изменении размера окна
+    glm::vec2 newScreenCenter = glm::vec2(static_cast<float>(m_width) * 0.5f, static_cast<float>(m_height) * 0.5f);
+    m_cameraPan = newScreenCenter - worldFocus * m_zoom;
 }
 
 
@@ -1565,258 +3453,397 @@ void MapEditorState::openExitModal() {
         return;
     }
     std::cout << "[MapEditor] openExitModal: exit confirmation dialog opened" << std::endl;
-    m_isExitModalOpen = true;
+    m_exitModal.open(true);
     m_suppressPlacementUntilRelease = true;
     m_suppressClickUntilRelease = true;
-    m_exitModalEscReleased = false;
 }
 
 void MapEditorState::closeExitModal() {
     std::cout << "[MapEditor] closeExitModal: exit dialog closed (staying in editor)" << std::endl;
-    m_isExitModalOpen = false;
+    m_exitModal.close();
     m_suppressPlacementUntilRelease = true;
-    m_exitModalEscReleased = false;
     m_keyEscPressedLastFrame = true;
 }
 
-MapEditorState::ExitModalLayout MapEditorState::getExitModalLayout() const {
-    ExitModalLayout layout;
-    float scale = GetUIScale(m_width, m_height);
+void MapEditorState::renderHudPreview() {
+    if (m_hudPreviewMode == HudPreviewMode::None) return;
 
-    layout.fTitle = std::clamp(0.68f * scale, 0.48f, 0.88f);
-    layout.fQuestion = std::clamp(0.66f * scale, 0.46f, 0.84f);
-    layout.fSub = std::clamp(0.48f * scale, 0.35f, 0.64f);
-    layout.fBtn = std::clamp(0.46f * scale, 0.34f, 0.60f);
-    layout.fCross = std::clamp(0.55f * scale, 0.40f, 0.75f);
-
-    std::string saveExitStr = LOC("EDITOR_EXIT_SAVE_AND_EXIT");
-    std::string discardStr = LOC("EDITOR_EXIT_DISCARD");
-    std::string cancelStr = LOC("EDITOR_EXIT_CANCEL");
-
-    float w1 = m_textRenderer ? m_textRenderer->CalculateTextWidth(saveExitStr, layout.fBtn) : 130.0f;
-    float w2 = m_textRenderer ? m_textRenderer->CalculateTextWidth(discardStr, layout.fBtn) : 140.0f;
-    float w3 = m_textRenderer ? m_textRenderer->CalculateTextWidth(cancelStr, layout.fBtn) : 60.0f;
-
-    float btnPad = std::clamp(14.0f * scale, 8.0f, 20.0f);
-    float req1 = w1 + btnPad * 2.0f;
-    float req2 = w2 + btnPad * 2.0f;
-    float req3 = w3 + btnPad * 2.0f;
-    float totalReq = req1 + req2 + req3;
-
-    float sideMargin = std::clamp(18.0f * scale, 12.0f, 26.0f);
-    float btnGap = std::clamp(12.0f * scale, 8.0f, 16.0f);
-
-    float desiredW = std::max(540.0f * scale, totalReq + 2.0f * sideMargin + 2.0f * btnGap);
-    layout.modalSize.x = std::clamp(desiredW, 380.0f, static_cast<float>(m_width) - 40.0f);
-    layout.modalSize.y = std::clamp(220.0f * scale, 170.0f, static_cast<float>(m_height) - 40.0f);
-
-    layout.modalPos = glm::vec2((static_cast<float>(m_width) - layout.modalSize.x) * 0.5f,
-                                (static_cast<float>(m_height) - layout.modalSize.y) * 0.5f);
-
-    layout.headerH = std::clamp(40.0f * scale, 30.0f, 56.0f);
-
-    float crossSize = std::clamp(26.0f * scale, 20.0f, 36.0f);
-    layout.btnCloseCrossSize = glm::vec2(crossSize, crossSize);
-    layout.btnCloseCrossPos = glm::vec2(layout.modalPos.x + layout.modalSize.x - crossSize - std::clamp(8.0f * scale, 6.0f, 12.0f),
-                                        layout.modalPos.y + (layout.headerH - crossSize) * 0.5f);
-
-    float btnH = std::clamp(42.0f * scale, 32.0f, 54.0f);
-    float btnMarginBottom = std::clamp(18.0f * scale, 12.0f, 24.0f);
-    float btnY = layout.modalPos.y + layout.modalSize.y - btnH - btnMarginBottom;
-
-    float availW = layout.modalSize.x - 2.0f * sideMargin - 2.0f * btnGap;
-    float btn1W, btn2W, btn3W;
-    if (availW >= totalReq) {
-        float extra = availW - totalReq;
-        btn1W = req1 + extra * (req1 / totalReq);
-        btn2W = req2 + extra * (req2 / totalReq);
-        btn3W = req3 + extra * (req3 / totalReq);
-    } else {
-        float ratio = availW / std::max(1.0f, totalReq);
-        btn1W = req1 * ratio;
-        btn2W = req2 * ratio;
-        btn3W = req3 * ratio;
+    float previewScale = 1.0f;
+    if (m_hudPreviewMode == HudPreviewMode::Scale100) {
+        previewScale = 1.0f;
+    } else if (m_hudPreviewMode == HudPreviewMode::Scale125) {
+        previewScale = 1.25f;
+    } else if (m_hudPreviewMode == HudPreviewMode::Scale150) {
+        previewScale = 1.50f;
     }
 
-    layout.btnSaveExitPos = glm::vec2(layout.modalPos.x + sideMargin, btnY);
-    layout.btnSaveExitSize = glm::vec2(btn1W, btnH);
+    // Параметры видоискателя стартовой камеры
+    float camZoom = std::clamp(m_cameraSettings.zoom, 0.4f, 2.5f);
+    glm::vec2 camCenter = getWorldCamCenter();
+    glm::vec2 frameSize = getCameraViewportSize();
+    float frameW = frameSize.x;
+    float frameH = frameSize.y;
+    glm::vec2 framePos = camCenter - glm::vec2(frameW * 0.5f, frameH * 0.5f);
 
-    layout.btnDiscardPos = glm::vec2(layout.btnSaveExitPos.x + btn1W + btnGap, btnY);
-    layout.btnDiscardSize = glm::vec2(btn2W, btnH);
+    // Масштаб элементов HUD в мировых координатах видоискателя
+    float s = previewScale / camZoom;
 
-    layout.btnCancelPos = glm::vec2(layout.btnDiscardPos.x + btn2W + btnGap, btnY);
-    layout.btnCancelSize = glm::vec2(btn3W, btnH);
+    // Вспомогательные функции для рисования пунктирных линий (контуров безопасных зон)
+    auto drawDashedHLine = [&](float x1, float x2, float y, glm::vec4 col) {
+        float dashLen = 8.0f * (1.0f / camZoom);
+        float gapLen = 6.0f * (1.0f / camZoom);
+        float lineThick = 2.0f * (1.0f / camZoom);
+        float curX = x1;
+        while (curX < x2) {
+            float curLen = std::min(dashLen, x2 - curX);
+            m_renderer->drawSpriteRGBA(m_whiteTexture, glm::vec2(curX, y - lineThick * 0.5f), glm::vec2(curLen, lineThick), 0.0f, col);
+            curX += dashLen + gapLen;
+        }
+    };
 
-    float contentTop = layout.modalPos.y + layout.headerH;
-    float contentH = btnY - contentTop;
-    layout.questionY = contentTop + contentH * 0.28f;
-    layout.subY = contentTop + contentH * 0.62f;
+    auto drawDashedVLine = [&](float x, float y1, float y2, glm::vec4 col) {
+        float dashLen = 8.0f * (1.0f / camZoom);
+        float gapLen = 6.0f * (1.0f / camZoom);
+        float lineThick = 2.0f * (1.0f / camZoom);
+        float curY = y1;
+        while (curY < y2) {
+            float curLen = std::min(dashLen, y2 - curY);
+            m_renderer->drawSpriteRGBA(m_whiteTexture, glm::vec2(x - lineThick * 0.5f, curY), glm::vec2(lineThick, curLen), 0.0f, col);
+            curY += dashLen + gapLen;
+        }
+    };
 
-    return layout;
+    auto drawDashedRect = [&](glm::vec2 pos, glm::vec2 size, glm::vec4 col) {
+        drawDashedHLine(pos.x, pos.x + size.x, pos.y, col);
+        drawDashedHLine(pos.x, pos.x + size.x, pos.y + size.y, col);
+        drawDashedVLine(pos.x, pos.y, pos.y + size.y, col);
+        drawDashedVLine(pos.x + size.x, pos.y, pos.y + size.y, col);
+    };
+
+    glm::vec4 warnColor(1.0f, 0.78f, 0.15f, 0.95f);
+
+    // =========================================================================
+    // 1. ВЕРХНИЙ ПРАВЫЙ БЛОК: Панель ресурсов, тайм-контроль, старт волны
+    // Привязка к правому верхнему углу белой рамки видоискателя
+    // =========================================================================
+    float hudPanelW = TimeControlUI::PANEL_W * s;
+    float hudPanelH = TimeControlUI::PANEL_H * s;
+    float hudPanelX = framePos.x + frameW - hudPanelW - TimeControlUI::MARGIN_RIGHT * s;
+    float hudPanelY = framePos.y + TimeControlUI::TOP_Y * s;
+
+    // Полупрозрачный силуэт подложки верхнего правого HUD
+    m_renderer->drawSpriteRGBA(m_whiteTexture,
+        glm::vec2(hudPanelX, hudPanelY),
+        glm::vec2(hudPanelW, hudPanelH),
+        0.0f,
+        glm::vec4(0.08f, 0.10f, 0.15f, 0.75f));
+
+    // Верхняя акцентная полоска
+    m_renderer->drawSpriteRGBA(m_whiteTexture,
+        glm::vec2(hudPanelX, hudPanelY),
+        glm::vec2(hudPanelW, 2.0f * s),
+        0.0f,
+        glm::vec4(0.40f, 0.75f, 1.0f, 0.9f));
+
+    // Индикаторы статов (HP, Gold, Wave)
+    float padX = TimeControlUI::PANEL_PAD_X * s;
+    float padY = TimeControlUI::PANEL_PAD_Y * s;
+    float statsInnerW = hudPanelW - padX * 2.0f;
+    float badgeGap = 4.0f * s;
+    float b0w = std::floor((statsInnerW - badgeGap * 2.0f) * 0.28f);
+    float b1w = std::floor((statsInnerW - badgeGap * 2.0f) * 0.36f);
+    float b2w = (statsInnerW - badgeGap * 2.0f) - b0w - b1w;
+    float statsH = TimeControlUI::STATS_ROW_H * s;
+
+    // HP
+    m_renderer->drawSpriteRGBA(m_whiteTexture, glm::vec2(hudPanelX + padX, hudPanelY + padY), glm::vec2(b0w, statsH), 0.0f, glm::vec4(0.14f, 0.17f, 0.24f, 0.85f));
+    m_renderer->drawSpriteRGBA(m_whiteTexture, glm::vec2(hudPanelX + padX, hudPanelY + padY), glm::vec2(3.0f * s, statsH), 0.0f, glm::vec4(0.92f, 0.28f, 0.28f, 1.0f));
+
+    // Gold
+    m_renderer->drawSpriteRGBA(m_whiteTexture, glm::vec2(hudPanelX + padX + b0w + badgeGap, hudPanelY + padY), glm::vec2(b1w, statsH), 0.0f, glm::vec4(0.14f, 0.17f, 0.24f, 0.85f));
+    m_renderer->drawSpriteRGBA(m_whiteTexture, glm::vec2(hudPanelX + padX + b0w + badgeGap, hudPanelY + padY), glm::vec2(3.0f * s, statsH), 0.0f, glm::vec4(1.0f, 0.82f, 0.22f, 1.0f));
+
+    // Wave
+    m_renderer->drawSpriteRGBA(m_whiteTexture, glm::vec2(hudPanelX + padX + b0w + badgeGap + b1w + badgeGap, hudPanelY + padY), glm::vec2(b2w, statsH), 0.0f, glm::vec4(0.14f, 0.17f, 0.24f, 0.85f));
+    m_renderer->drawSpriteRGBA(m_whiteTexture, glm::vec2(hudPanelX + padX + b0w + badgeGap + b1w + badgeGap, hudPanelY + padY), glm::vec2(3.0f * s, statsH), 0.0f, glm::vec4(0.35f, 0.75f, 1.0f, 1.0f));
+
+    // Кнопки управления временем (||, 1x, 2x, 4x)
+    float btnY = hudPanelY + padY + statsH + TimeControlUI::ROW_GAP * s;
+    float timeBtnW = TimeControlUI::TIME_BTN_W * s;
+    float btnH = TimeControlUI::BTN_H * s;
+    float btnGap = TimeControlUI::BTN_GAP * s;
+    for (int i = 0; i < 4; ++i) {
+        float bx = hudPanelX + padX + i * (timeBtnW + btnGap);
+        m_renderer->drawSpriteRGBA(m_whiteTexture, glm::vec2(bx, btnY), glm::vec2(timeBtnW, btnH), 0.0f, glm::vec4(0.15f, 0.18f, 0.26f, 0.85f));
+    }
+
+    // Кнопка вызова волны (Start / Call Wave)
+    float waveBtnX = hudPanelX + padX + 4.0f * (timeBtnW + btnGap);
+    float waveBtnW = std::max(0.0f, (hudPanelX + hudPanelW - padX) - waveBtnX);
+    m_renderer->drawSpriteRGBA(m_whiteTexture, glm::vec2(waveBtnX, btnY), glm::vec2(waveBtnW, btnH), 0.0f, glm::vec4(0.18f, 0.45f, 0.24f, 0.90f));
+
+    // =========================================================================
+    // 2. ВЕРХНЯЯ ЛЕВАЯ КНОПКА: [ В редактор / Меню ]
+    // Привязка к левому верхнему углу белой рамки видоискателя
+    // =========================================================================
+    float topLeftBtnX = framePos.x + 20.0f * s;
+    float topLeftBtnY = framePos.y + 20.0f * s;
+    float topLeftBtnW = 150.0f * s;
+    float topLeftBtnH = 40.0f * s;
+
+    m_renderer->drawSpriteRGBA(m_whiteTexture,
+        glm::vec2(topLeftBtnX, topLeftBtnY),
+        glm::vec2(topLeftBtnW, topLeftBtnH),
+        0.0f,
+        glm::vec4(0.11f, 0.14f, 0.18f, 0.75f));
+    m_renderer->drawSpriteRGBA(m_whiteTexture,
+        glm::vec2(topLeftBtnX, topLeftBtnY),
+        glm::vec2(4.0f * s, topLeftBtnH),
+        0.0f,
+        glm::vec4(1.0f, 0.80f, 0.20f, 0.9f));
+
+    // =========================================================================
+    // 3. НИЖНЯЯ ПАНЕЛЬ СЛОТОВ БАШЕН (BuildPanel)
+    // Привязка строго по центру нижней кромки белой рамки видоискателя
+    // =========================================================================
+    size_t towerCount = 3;
+    float basePanelW = (Buildpanel::DOCK_PADDING * 2.0f) + (towerCount * Buildpanel::CARD_WIDTH) + ((towerCount - 1) * Buildpanel::DOCK_GAP);
+    float dockW = basePanelW * s;
+    float dockH = Buildpanel::UI_PANEL_HEIGHT * s;
+    float dockX = framePos.x + (frameW - dockW) * 0.5f;
+    float bottomMargin = Buildpanel::DOCK_BOTTOM_MARGIN * s;
+    float dockY = framePos.y + frameH - dockH - bottomMargin;
+
+    // Плавающий остров дока (подложка под карточки)
+    m_renderer->drawSpriteRGBA(m_whiteTexture,
+        glm::vec2(dockX, dockY),
+        glm::vec2(dockW, dockH),
+        0.0f,
+        glm::vec4(0.06f, 0.08f, 0.11f, 0.75f));
+
+    // Тонкая кайма острова
+    float islandBorderT = 1.5f * s;
+    glm::vec4 islandBorder(0.22f, 0.28f, 0.38f, 0.65f);
+    m_renderer->drawSpriteRGBA(m_whiteTexture, glm::vec2(dockX, dockY), glm::vec2(dockW, islandBorderT), 0.0f, islandBorder);
+    m_renderer->drawSpriteRGBA(m_whiteTexture, glm::vec2(dockX, dockY + dockH - islandBorderT), glm::vec2(dockW, islandBorderT), 0.0f, islandBorder);
+    m_renderer->drawSpriteRGBA(m_whiteTexture, glm::vec2(dockX, dockY), glm::vec2(islandBorderT, dockH), 0.0f, islandBorder);
+    m_renderer->drawSpriteRGBA(m_whiteTexture, glm::vec2(dockX + dockW - islandBorderT, dockY), glm::vec2(islandBorderT, dockH), 0.0f, islandBorder);
+
+    // Карточки башен внутри BuildPanel
+    for (size_t i = 0; i < towerCount; ++i) {
+        float cardX = dockX + (Buildpanel::DOCK_PADDING * s) + i * ((Buildpanel::CARD_WIDTH + Buildpanel::DOCK_GAP) * s);
+        float cardY = dockY + (Buildpanel::DOCK_PADDING * s);
+        float cardW = Buildpanel::CARD_WIDTH * s;
+        float cardH = Buildpanel::CARD_HEIGHT * s;
+
+        // Плашка карточки (RGBA 0.1, 0.12, 0.16, 0.85)
+        m_renderer->drawSpriteRGBA(m_whiteTexture,
+            glm::vec2(cardX, cardY),
+            glm::vec2(cardW, cardH),
+            0.0f,
+            glm::vec4(0.10f, 0.12f, 0.16f, 0.85f));
+
+        // Тонкая кайма карточки
+        float cardBorderT = 1.5f * s;
+        glm::vec4 cardBorder(0.24f, 0.32f, 0.44f, 0.85f);
+        m_renderer->drawSpriteRGBA(m_whiteTexture, glm::vec2(cardX, cardY), glm::vec2(cardW, cardBorderT), 0.0f, cardBorder);
+        m_renderer->drawSpriteRGBA(m_whiteTexture, glm::vec2(cardX, cardY + cardH - cardBorderT), glm::vec2(cardW, cardBorderT), 0.0f, cardBorder);
+        m_renderer->drawSpriteRGBA(m_whiteTexture, glm::vec2(cardX, cardY), glm::vec2(cardBorderT, cardH), 0.0f, cardBorder);
+        m_renderer->drawSpriteRGBA(m_whiteTexture, glm::vec2(cardX + cardW - cardBorderT, cardY), glm::vec2(cardBorderT, cardH), 0.0f, cardBorder);
+
+        // Хоткей карточки
+        m_renderer->drawSpriteRGBA(m_whiteTexture,
+            glm::vec2(cardX + 4.0f * s, cardY + 4.0f * s),
+            glm::vec2(14.0f * s, 8.0f * s),
+            0.0f,
+            glm::vec4(0.85f, 0.70f, 0.25f, 0.70f));
+
+        // Силуэт иконки башни
+        float iconSize = Buildpanel::UI_ICON_SIZE * s;
+        float iconX = cardX + (cardW - iconSize) * 0.5f;
+        float iconY = cardY + 18.0f * s;
+        m_renderer->drawSpriteRGBA(m_whiteTexture,
+            glm::vec2(iconX, iconY),
+            glm::vec2(iconSize, iconSize),
+            0.0f,
+            glm::vec4(0.18f, 0.22f, 0.30f, 0.85f));
+
+        // Силуэт ценника башни
+        m_renderer->drawSpriteRGBA(m_whiteTexture,
+            glm::vec2(cardX + 10.0f * s, cardY + cardH - 16.0f * s),
+            glm::vec2(cardW - 20.0f * s, 10.0f * s),
+            0.0f,
+            glm::vec4(0.25f, 0.75f, 0.35f, 0.85f));
+    }
+
+    // =========================================================================
+    // 4. КОНТУРЫ БЕЗОПАСНЫХ ЗОН (SAFE AREA): Желтый пунктир вокруг реальных блоков
+    // =========================================================================
+    drawDashedRect(glm::vec2(hudPanelX, hudPanelY), glm::vec2(hudPanelW, hudPanelH), warnColor);
+    drawDashedRect(glm::vec2(topLeftBtnX, topLeftBtnY), glm::vec2(topLeftBtnW, topLeftBtnH), warnColor);
+    drawDashedRect(glm::vec2(dockX, dockY), glm::vec2(dockW, dockH), warnColor);
 }
 
-bool MapEditorState::processExitModalInput(GLFWwindow* window, glm::vec2 mousePos, bool leftDown, float dt) {
-    if (!m_isExitModalOpen) return false;
+void MapEditorState::renderHudPreviewText() {
+    if (m_hudPreviewMode == HudPreviewMode::None || !m_textRenderer) return;
 
-    // 1. Подавление клика мыши, которым открыли модалку
-    if (m_suppressPlacementUntilRelease) {
-        if (!leftDown) {
-            m_suppressPlacementUntilRelease = false;
-        }
+    float previewScale = 1.0f;
+    std::string scaleText = "100%";
+    if (m_hudPreviewMode == HudPreviewMode::Scale100) {
+        previewScale = 1.0f;
+        scaleText = "100%";
+    } else if (m_hudPreviewMode == HudPreviewMode::Scale125) {
+        previewScale = 1.25f;
+        scaleText = "125%";
+    } else if (m_hudPreviewMode == HudPreviewMode::Scale150) {
+        previewScale = 1.50f;
+        scaleText = "150%";
     }
 
-    // 2. Горячая клавиша Escape:
-    // При открытии m_exitModalEscReleased = false.
-    // Когда пользователь отпустит Escape (если открыл окно по Escape), взводится m_exitModalEscReleased = true.
-    // При следующем нажатии Escape — подтверждаем выход без сохранения!
-    bool keyEsc = (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS);
-    if (!keyEsc) {
-        m_exitModalEscReleased = true;
-        m_keyEscPressedLastFrame = false;
-    } else if (m_exitModalEscReleased) {
-        std::cout << "[MapEditor] Exit Modal: ESC pressed -> exiting without saving" << std::endl;
-        returnToOrigin();
-        return true;
-    }
+    float camZoom = std::clamp(m_cameraSettings.zoom, 0.4f, 2.5f);
+    glm::vec2 camCenter = getWorldCamCenter();
+    glm::vec2 frameSize = getCameraViewportSize();
+    float frameW = frameSize.x;
+    float frameH = frameSize.y;
+    glm::vec2 framePos = camCenter - glm::vec2(frameW * 0.5f, frameH * 0.5f);
+    float s = previewScale / camZoom;
 
-    // 3. Горячая клавиша Enter — сохранить и выйти
-    bool keyEnter = (glfwGetKey(window, GLFW_KEY_ENTER) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_KP_ENTER) == GLFW_PRESS);
-    if (keyEnter) {
-        std::cout << "[MapEditor] Exit Modal: Enter pressed -> saving and exiting" << std::endl;
-        saveMap();
-        returnToOrigin();
-        return true;
-    }
+    // Мировые координаты элементов
+    float hudPanelW = TimeControlUI::PANEL_W * s;
+    float hudPanelH = TimeControlUI::PANEL_H * s;
+    float hudPanelX = framePos.x + frameW - hudPanelW - TimeControlUI::MARGIN_RIGHT * s;
+    float hudPanelY = framePos.y + TimeControlUI::TOP_Y * s;
 
-    ExitModalLayout l = getExitModalLayout();
+    float padX = TimeControlUI::PANEL_PAD_X * s;
+    float padY = TimeControlUI::PANEL_PAD_Y * s;
+    float statsH = TimeControlUI::STATS_ROW_H * s;
+    float btnY = hudPanelY + padY + statsH + TimeControlUI::ROW_GAP * s;
+    float timeBtnW = TimeControlUI::TIME_BTN_W * s;
+    float btnGap = TimeControlUI::BTN_GAP * s;
+    float waveBtnX = hudPanelX + padX + 4.0f * (timeBtnW + btnGap);
 
-    // 4. Клики мыши обрабатываются только после отпускания кнопки мыши после открытия
-    if (!m_suppressPlacementUntilRelease && leftDown && !m_isLeftMouseDown) {
-        // Кнопка [ Сохранить и выйти ]
-        if (isPointInRect(mousePos, l.btnSaveExitPos, l.btnSaveExitSize)) {
-            std::cout << "[MapEditor] Exit Modal: Clicked [Save and Exit] -> saving and exiting" << std::endl;
-            saveMap();
-            returnToOrigin();
-            return true;
-        }
+    float topLeftBtnX = framePos.x + 20.0f * s;
+    float topLeftBtnY = framePos.y + 20.0f * s;
 
-        // Кнопка [ Выйти без сохранения ]
-        if (isPointInRect(mousePos, l.btnDiscardPos, l.btnDiscardSize)) {
-            std::cout << "[MapEditor] Exit Modal: Clicked [Discard and Exit] -> exiting without saving" << std::endl;
-            returnToOrigin();
-            return true;
-        }
+    size_t towerCount = 3;
+    float basePanelW = (Buildpanel::DOCK_PADDING * 2.0f) + (towerCount * Buildpanel::CARD_WIDTH) + ((towerCount - 1) * Buildpanel::DOCK_GAP);
+    float dockW = basePanelW * s;
+    float dockH = Buildpanel::UI_PANEL_HEIGHT * s;
+    float dockX = framePos.x + (frameW - dockW) * 0.5f;
+    float bottomMargin = Buildpanel::DOCK_BOTTOM_MARGIN * s;
+    float dockY = framePos.y + frameH - dockH - bottomMargin;
 
-        // Кнопка [ Отмена ]
-        if (isPointInRect(mousePos, l.btnCancelPos, l.btnCancelSize)) {
-            std::cout << "[MapEditor] Exit Modal: Clicked [Cancel]" << std::endl;
-            closeExitModal();
-            return true;
-        }
+    // Перевод мировых координат в экранные с учетом зума редактора
+    glm::vec2 sTopLeft = worldToScreen(glm::vec2(topLeftBtnX, topLeftBtnY));
+    glm::vec2 sHudPanel = worldToScreen(glm::vec2(hudPanelX, hudPanelY));
+    glm::vec2 sWaveBtn = worldToScreen(glm::vec2(waveBtnX, btnY));
+    glm::vec2 sDock = worldToScreen(glm::vec2(dockX, dockY));
 
-        // Крестик [X]
-        if (isPointInRect(mousePos, l.btnCloseCrossPos, l.btnCloseCrossSize)) {
-            std::cout << "[MapEditor] Exit Modal: Clicked [X] close cross" << std::endl;
-            closeExitModal();
-            return true;
-        }
+    float fontScale = std::clamp(0.40f * previewScale * (m_zoom / camZoom), 0.22f, 0.70f);
 
-        // Клик вне модального окна -> закрываем (Отмена)
-        if (!isPointInRect(mousePos, l.modalPos, l.modalSize)) {
-            std::cout << "[MapEditor] Exit Modal: Clicked outside modal -> cancelling" << std::endl;
-            closeExitModal();
-            return true;
-        }
-    }
+    // Метка верхней левой кнопки
+    m_textRenderer->RenderText("[ В РЕДАКТОР ]", sTopLeft.x + 16.0f * s * m_zoom, sTopLeft.y + 12.0f * s * m_zoom, fontScale, glm::vec3(0.95f, 0.95f, 1.0f));
 
-    return true;
+    // Метка верхнего правого HUD
+    std::string topLabel = "БОЕВОЙ HUD (" + scaleText + ")";
+    float tlw = m_textRenderer->CalculateTextWidth(topLabel, fontScale);
+    float screenHudPanelW = hudPanelW * m_zoom;
+    m_textRenderer->RenderText(topLabel, sHudPanel.x + (screenHudPanelW - tlw) * 0.5f, sHudPanel.y + hudPanelH * m_zoom + 6.0f * s * m_zoom, fontScale, glm::vec3(1.0f, 0.82f, 0.20f));
+
+    // Метка кнопки старта волны
+    float miniFont = std::clamp(0.32f * previewScale * (m_zoom / camZoom), 0.18f, 0.55f);
+    m_textRenderer->RenderText("СТАРТ", sWaveBtn.x + 8.0f * s * m_zoom, sWaveBtn.y + 8.0f * s * m_zoom, miniFont, glm::vec3(0.95f, 1.0f, 0.95f));
+
+    // Метка нижнего центрального дока строительства
+    std::string dockLabel = "ДОК БАШЕН (" + scaleText + ")";
+    float dlw = m_textRenderer->CalculateTextWidth(dockLabel, fontScale);
+    float screenDockW = dockW * m_zoom;
+    m_textRenderer->RenderText(dockLabel, sDock.x + (screenDockW - dlw) * 0.5f, sDock.y - (fontScale * 26.0f) - 4.0f * s * m_zoom, fontScale, glm::vec3(1.0f, 0.82f, 0.20f));
 }
 
-void MapEditorState::renderExitModal() {
-    // Полупрозрачный фон-затемнение
-    m_renderer->drawSpriteRGBA(m_whiteTexture, glm::vec2(0.0f), glm::vec2(m_width, m_height), 0.0f, glm::vec4(0.04f, 0.05f, 0.07f, 0.78f));
+void MapEditorState::renderEmitters(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture) {
+    if (!renderer || !texture || !m_grid || m_emitters.empty()) return;
 
-    ExitModalLayout l = getExitModalLayout();
+    float cellSize = m_grid->getCellSize();
 
-    // Основная подложка и 2px обводка
-    m_renderer->drawSprite(m_whiteTexture, l.modalPos, l.modalSize, 0.0f, glm::vec3(0.12f, 0.13f, 0.18f));
-    m_renderer->drawSprite(m_whiteTexture, l.modalPos, glm::vec2(l.modalSize.x, 2.0f), 0.0f, glm::vec3(0.40f, 0.75f, 1.0f));
-    m_renderer->drawSprite(m_whiteTexture, l.modalPos + glm::vec2(0.0f, l.modalSize.y - 2.0f), glm::vec2(l.modalSize.x, 2.0f), 0.0f, glm::vec3(0.40f, 0.75f, 1.0f));
-    m_renderer->drawSprite(m_whiteTexture, l.modalPos, glm::vec2(2.0f, l.modalSize.y), 0.0f, glm::vec3(0.40f, 0.75f, 1.0f));
-    m_renderer->drawSprite(m_whiteTexture, l.modalPos + glm::vec2(l.modalSize.x - 2.0f, 0.0f), glm::vec2(2.0f, l.modalSize.y), 0.0f, glm::vec3(0.40f, 0.75f, 1.0f));
+    for (size_t i = 0; i < m_emitters.size(); ++i) {
+        const auto& em = m_emitters[i];
+        bool isSelected = (static_cast<int>(i) == m_selectedEmitterIndex);
+        glm::vec2 center = m_grid->getOffset() + em.tilePos * cellSize;
 
-    // Шапка
-    m_renderer->drawSprite(m_whiteTexture, l.modalPos, glm::vec2(l.modalSize.x, l.headerH), 0.0f, glm::vec3(0.16f, 0.18f, 0.25f));
-    m_renderer->drawSprite(m_whiteTexture, l.modalPos + glm::vec2(0.0f, l.headerH), glm::vec2(l.modalSize.x, 2.0f), 0.0f, glm::vec3(0.40f, 0.75f, 1.0f));
+        // Цветовая схема по пресету
+        glm::vec4 bgCol(0.18f, 0.40f, 0.60f, 0.85f);
+        glm::vec4 borderCol(0.65f, 0.90f, 1.0f, 1.0f);
+        glm::vec4 arrowCol(0.85f, 0.96f, 1.0f, 1.0f);
 
-    // Кнопка-крестик [X]
-    bool hovCross = isPointInRect(m_mousePos, l.btnCloseCrossPos, l.btnCloseCrossSize);
-    m_renderer->drawSprite(m_whiteTexture, l.btnCloseCrossPos, l.btnCloseCrossSize, 0.0f, hovCross ? glm::vec3(0.85f, 0.25f, 0.25f) : glm::vec3(0.35f, 0.38f, 0.45f));
-    m_renderer->drawSprite(m_whiteTexture, l.btnCloseCrossPos + glm::vec2(1.0f), l.btnCloseCrossSize - glm::vec2(2.0f), 0.0f, hovCross ? glm::vec3(0.35f, 0.12f, 0.12f) : glm::vec3(0.20f, 0.22f, 0.28f));
+        if (em.type == "water_drip") {
+            bgCol = glm::vec4(0.12f, 0.28f, 0.55f, 0.85f);
+            borderCol = glm::vec4(0.40f, 0.75f, 1.0f, 1.0f);
+            arrowCol = glm::vec4(0.60f, 0.88f, 1.0f, 1.0f);
+        } else if (em.type == "sparks") {
+            bgCol = glm::vec4(0.55f, 0.30f, 0.10f, 0.85f);
+            borderCol = glm::vec4(1.0f, 0.85f, 0.25f, 1.0f);
+            arrowCol = glm::vec4(1.0f, 0.95f, 0.50f, 1.0f);
+        } else if (em.type == "smoke") {
+            bgCol = glm::vec4(0.24f, 0.24f, 0.28f, 0.85f);
+            borderCol = glm::vec4(0.85f, 0.85f, 0.90f, 1.0f);
+            arrowCol = glm::vec4(0.95f, 0.95f, 1.0f, 1.0f);
+        } else if (em.type == "fog") {
+            bgCol = glm::vec4(0.20f, 0.28f, 0.25f, 0.85f);
+            borderCol = glm::vec4(0.65f, 0.85f, 0.75f, 1.0f);
+            arrowCol = glm::vec4(0.80f, 0.95f, 0.85f, 1.0f);
+        }
 
-    // Кнопки действий
-    // 1. [ Сохранить и выйти ]
-    bool hovSaveExit = isPointInRect(m_mousePos, l.btnSaveExitPos, l.btnSaveExitSize);
-    m_renderer->drawSprite(m_whiteTexture, l.btnSaveExitPos, l.btnSaveExitSize, 0.0f, hovSaveExit ? glm::vec3(0.35f, 0.95f, 0.50f) : glm::vec3(0.25f, 0.75f, 0.38f));
-    m_renderer->drawSprite(m_whiteTexture, l.btnSaveExitPos + glm::vec2(2.0f), l.btnSaveExitSize - glm::vec2(4.0f), 0.0f, hovSaveExit ? glm::vec3(0.18f, 0.42f, 0.24f) : glm::vec3(0.13f, 0.30f, 0.18f));
+        if (isSelected) {
+            borderCol = glm::vec4(1.0f, 0.92f, 0.25f, 1.0f);
+            arrowCol = glm::vec4(1.0f, 1.0f, 0.60f, 1.0f);
+        }
 
-    // 2. [ Выйти без сохранения ]
-    bool hovDiscard = isPointInRect(m_mousePos, l.btnDiscardPos, l.btnDiscardSize);
-    m_renderer->drawSprite(m_whiteTexture, l.btnDiscardPos, l.btnDiscardSize, 0.0f, hovDiscard ? glm::vec3(0.95f, 0.35f, 0.35f) : glm::vec3(0.75f, 0.25f, 0.25f));
-    m_renderer->drawSprite(m_whiteTexture, l.btnDiscardPos + glm::vec2(2.0f), l.btnDiscardSize - glm::vec2(4.0f), 0.0f, hovDiscard ? glm::vec3(0.40f, 0.16f, 0.16f) : glm::vec3(0.28f, 0.12f, 0.12f));
+        // Базовый круглый/квадратный значок в точке эмиттера
+        float badgeSize = std::max(18.0f, cellSize * 0.44f);
+        glm::vec2 badgeTopLeft = center - glm::vec2(badgeSize * 0.5f);
 
-    // 3. [ Отмена ]
-    bool hovCancel = isPointInRect(m_mousePos, l.btnCancelPos, l.btnCancelSize);
-    m_renderer->drawSprite(m_whiteTexture, l.btnCancelPos, l.btnCancelSize, 0.0f, hovCancel ? glm::vec3(0.60f, 0.65f, 0.75f) : glm::vec3(0.40f, 0.44f, 0.52f));
-    m_renderer->drawSprite(m_whiteTexture, l.btnCancelPos + glm::vec2(2.0f), l.btnCancelSize - glm::vec2(4.0f), 0.0f, hovCancel ? glm::vec3(0.25f, 0.28f, 0.34f) : glm::vec3(0.18f, 0.20f, 0.25f));
+        // Внешнее свечение при выделении
+        if (isSelected) {
+            float haloSize = badgeSize + 8.0f;
+            glm::vec2 haloTopLeft = center - glm::vec2(haloSize * 0.5f);
+            float haloT = 2.0f;
+            glm::vec4 haloCol(1.0f, 0.85f, 0.20f, 0.90f);
+            renderer->drawSpriteRGBA(texture, haloTopLeft, glm::vec2(haloSize, haloT), 0.0f, haloCol);
+            renderer->drawSpriteRGBA(texture, haloTopLeft + glm::vec2(0.0f, haloSize - haloT), glm::vec2(haloSize, haloT), 0.0f, haloCol);
+            renderer->drawSpriteRGBA(texture, haloTopLeft, glm::vec2(haloT, haloSize), 0.0f, haloCol);
+            renderer->drawSpriteRGBA(texture, haloTopLeft + glm::vec2(haloSize - haloT, 0.0f), glm::vec2(haloT, haloSize), 0.0f, haloCol);
+        }
 
-    m_renderer->flush();
+        // Тень значка
+        renderer->drawSpriteRGBA(texture, badgeTopLeft + glm::vec2(1.5f), glm::vec2(badgeSize), 0.0f, glm::vec4(0.0f, 0.0f, 0.0f, 0.45f));
+        // Тело значка
+        renderer->drawSpriteRGBA(texture, badgeTopLeft, glm::vec2(badgeSize), 0.0f, bgCol);
+        // Кайма
+        float borderT = isSelected ? 3.0f : 2.0f;
+        renderer->drawSpriteRGBA(texture, badgeTopLeft, glm::vec2(badgeSize, borderT), 0.0f, borderCol);
+        renderer->drawSpriteRGBA(texture, badgeTopLeft + glm::vec2(0.0f, badgeSize - borderT), glm::vec2(badgeSize, borderT), 0.0f, borderCol);
+        renderer->drawSpriteRGBA(texture, badgeTopLeft, glm::vec2(borderT, badgeSize), 0.0f, borderCol);
+        renderer->drawSpriteRGBA(texture, badgeTopLeft + glm::vec2(badgeSize - borderT, 0.0f), glm::vec2(borderT, badgeSize), 0.0f, borderCol);
 
-    // Тексты в модальном окне
-    if (m_textRenderer) {
-        // Заголовок в шапке
-        std::string titleStr = LOC("EDITOR_EXIT_TITLE");
-        float tW = m_textRenderer->CalculateTextWidth(titleStr, l.fTitle);
-        m_textRenderer->RenderText(titleStr, l.modalPos.x + (l.modalSize.x - tW) * 0.5f,
-                                  l.modalPos.y + (l.headerH - l.fTitle * 28.0f) * 0.5f + 2.0f,
-                                  l.fTitle, glm::vec3(1.0f, 0.85f, 0.25f));
+        // Стрелка направления струи angleDeg
+        float rad = glm::radians(em.angleDeg);
+        glm::vec2 dir(std::cos(rad), std::sin(rad));
+        glm::vec2 perp(-dir.y, dir.x);
 
-        // Крестик [X]
-        float crossW = m_textRenderer->CalculateTextWidth("x", l.fCross);
-        m_textRenderer->RenderText("x", l.btnCloseCrossPos.x + (l.btnCloseCrossSize.x - crossW) * 0.5f,
-                                  l.btnCloseCrossPos.y + (l.btnCloseCrossSize.y - l.fCross * 28.0f) * 0.5f + 2.0f,
-                                  l.fCross, glm::vec3(0.9f));
+        float arrowLen = badgeSize * 0.75f;
+        glm::vec2 tip = center + dir * arrowLen;
 
-        // Основной вопрос
-        std::string questionStr = LOC("EDITOR_EXIT_QUESTION");
-        float qW = m_textRenderer->CalculateTextWidth(questionStr, l.fQuestion);
-        m_textRenderer->RenderText(questionStr, l.modalPos.x + (l.modalSize.x - qW) * 0.5f, l.questionY, l.fQuestion, glm::vec3(1.0f, 1.0f, 1.0f));
-
-        // Поясняющий подтекст
-        std::string subStr = LOC("EDITOR_EXIT_SUB");
-        float sW = m_textRenderer->CalculateTextWidth(subStr, l.fSub);
-        m_textRenderer->RenderText(subStr, l.modalPos.x + (l.modalSize.x - sW) * 0.5f, l.subY, l.fSub, glm::vec3(0.85f, 0.65f, 0.65f));
-
-        // Текст кнопки 1: Сохранить и выйти
-        std::string saveExitStr = LOC("EDITOR_EXIT_SAVE_AND_EXIT");
-        float seW = m_textRenderer->CalculateTextWidth(saveExitStr, l.fBtn);
-        float seX = l.btnSaveExitPos.x + (l.btnSaveExitSize.x - seW) * 0.5f;
-        float seY = l.btnSaveExitPos.y + (l.btnSaveExitSize.y - l.fBtn * 28.0f) * 0.5f + 2.0f;
-        m_textRenderer->RenderText(saveExitStr, seX, seY, l.fBtn, glm::vec3(0.95f, 1.0f, 0.95f));
-
-        // Текст кнопки 2: Выйти без сохранения
-        std::string discardStr = LOC("EDITOR_EXIT_DISCARD");
-        float dW = m_textRenderer->CalculateTextWidth(discardStr, l.fBtn);
-        float dX = l.btnDiscardPos.x + (l.btnDiscardSize.x - dW) * 0.5f;
-        float dY = l.btnDiscardPos.y + (l.btnDiscardSize.y - l.fBtn * 28.0f) * 0.5f + 2.0f;
-        m_textRenderer->RenderText(discardStr, dX, dY, l.fBtn, glm::vec3(1.0f, 0.90f, 0.90f));
-
-        // Текст кнопки 3: Отмена
-        std::string cancelStr = LOC("EDITOR_EXIT_CANCEL");
-        float cW = m_textRenderer->CalculateTextWidth(cancelStr, l.fBtn);
-        float cX = l.btnCancelPos.x + (l.btnCancelSize.x - cW) * 0.5f;
-        float cY = l.btnCancelPos.y + (l.btnCancelSize.y - l.fBtn * 28.0f) * 0.5f + 2.0f;
-        m_textRenderer->RenderText(cancelStr, cX, cY, l.fBtn, glm::vec3(0.90f, 0.92f, 0.96f));
+        // Линия стрелки (сегментами)
+        for (float t = 0.2f; t <= 1.0f; t += 0.2f) {
+            glm::vec2 pt = center + dir * (arrowLen * t);
+            renderer->drawSpriteRGBA(texture, pt - glm::vec2(1.5f), glm::vec2(3.0f), 0.0f, arrowCol);
+        }
+        // Наконечник стрелки
+        renderer->drawSpriteRGBA(texture, tip - glm::vec2(2.5f), glm::vec2(5.0f), 0.0f, borderCol);
+        glm::vec2 wing1 = tip - dir * 5.0f + perp * 4.0f;
+        glm::vec2 wing2 = tip - dir * 5.0f - perp * 4.0f;
+        renderer->drawSpriteRGBA(texture, wing1 - glm::vec2(1.5f), glm::vec2(3.0f), 0.0f, borderCol);
+        renderer->drawSpriteRGBA(texture, wing2 - glm::vec2(1.5f), glm::vec2(3.0f), 0.0f, borderCol);
     }
 }
-

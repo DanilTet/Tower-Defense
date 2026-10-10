@@ -37,6 +37,13 @@ LevelMapData LevelManager::loadLevelMap(const std::string& filepath) {
         file >> j;
 
         data.name = j.value("name", "");
+        data.background = j.value("background", "default");
+        if (data.background.empty() && j.contains("map") && j["map"].contains("background")) {
+            data.background = j["map"].value("background", "default");
+        }
+        if (data.background.empty()) {
+            data.background = "default";
+        }
         std::string fname = fs::path(filepath).filename().string();
         bool defaultCampaign = (fname == "level_1.json" || fname == "level_2.json");
         data.isCampaign = j.value("isCampaign", defaultCampaign);
@@ -52,6 +59,90 @@ LevelMapData LevelManager::loadLevelMap(const std::string& filepath) {
             data.tags.push_back("Кампания");
         }
 
+        data.startingMoney = 50;
+        if (j.contains("startingMoney") && j["startingMoney"].is_number_integer()) {
+            data.startingMoney = j["startingMoney"].get<int>();
+        } else if (j.contains("map") && j["map"].contains("startingMoney") && j["map"]["startingMoney"].is_number_integer()) {
+            data.startingMoney = j["map"]["startingMoney"].get<int>();
+        }
+
+        data.startingHealth = 20;
+        if (j.contains("startingHealth") && j["startingHealth"].is_number_integer()) {
+            data.startingHealth = j["startingHealth"].get<int>();
+        } else if (j.contains("map") && j["map"].contains("startingHealth") && j["map"]["startingHealth"].is_number_integer()) {
+            data.startingHealth = j["map"]["startingHealth"].get<int>();
+        }
+
+        data.allowedTowers = { "Basic", "Mercury", "Piston" };
+        if (j.contains("allowedTowers") && j["allowedTowers"].is_array()) {
+            data.allowedTowers.clear();
+            for (const auto& item : j["allowedTowers"]) {
+                if (item.is_string()) {
+                    data.allowedTowers.push_back(item.get<std::string>());
+                }
+            }
+            if (data.allowedTowers.empty()) {
+                data.allowedTowers = { "Basic", "Mercury", "Piston" };
+            }
+        } else if (j.contains("map") && j["map"].contains("allowedTowers") && j["map"]["allowedTowers"].is_array()) {
+            data.allowedTowers.clear();
+            for (const auto& item : j["map"]["allowedTowers"]) {
+                if (item.is_string()) {
+                    data.allowedTowers.push_back(item.get<std::string>());
+                }
+            }
+            if (data.allowedTowers.empty()) {
+                data.allowedTowers = { "Basic", "Mercury", "Piston" };
+            }
+        }
+
+        data.maxUpgradeTier = 3;
+        if (j.contains("maxUpgradeTier") && j["maxUpgradeTier"].is_number_integer()) {
+            data.maxUpgradeTier = std::clamp(j["maxUpgradeTier"].get<int>(), 1, 3);
+        } else if (j.contains("map") && j["map"].contains("maxUpgradeTier") && j["map"]["maxUpgradeTier"].is_number_integer()) {
+            data.maxUpgradeTier = std::clamp(j["map"]["maxUpgradeTier"].get<int>(), 1, 3);
+        }
+
+        data.towerMaxTiers = { { "Basic", 3 }, { "Mercury", 3 }, { "Piston", 3 } };
+        if (j.contains("towerMaxTiers") && j["towerMaxTiers"].is_object()) {
+            for (auto& [tName, val] : j["towerMaxTiers"].items()) {
+                if (val.is_number_integer()) {
+                    data.towerMaxTiers[tName] = std::clamp(val.get<int>(), 1, 3);
+                }
+            }
+        } else if (j.contains("map") && j["map"].contains("towerMaxTiers") && j["map"]["towerMaxTiers"].is_object()) {
+            for (auto& [tName, val] : j["map"]["towerMaxTiers"].items()) {
+                if (val.is_number_integer()) {
+                    data.towerMaxTiers[tName] = std::clamp(val.get<int>(), 1, 3);
+                }
+            }
+        } else {
+            for (const auto& t : data.allowedTowers) {
+                data.towerMaxTiers[t] = std::clamp(data.maxUpgradeTier, 1, 3);
+            }
+        }
+
+        // Читаем настройки камеры (Camera Viewport)
+        auto parseCamera = [&data](const json& cam) {
+            float tx = -1.0f;
+            float ty = -1.0f;
+            if (cam.contains("tileX")) tx = cam["tileX"].get<float>();
+            else if (cam.contains("x")) tx = cam["x"].get<float>();
+
+            if (cam.contains("tileY")) ty = cam["tileY"].get<float>();
+            else if (cam.contains("y")) ty = cam["y"].get<float>();
+
+            data.camera.targetTile = glm::vec2(tx, ty);
+            data.camera.zoom = cam.value("zoom", 1.0f);
+            data.camera.isCustom = cam.value("isCustom", (tx >= 0.0f && ty >= 0.0f));
+        };
+
+        if (j.contains("camera") && j["camera"].is_object()) {
+            parseCamera(j["camera"]);
+        } else if (j.contains("map") && j["map"].contains("camera") && j["map"]["camera"].is_object()) {
+            parseCamera(j["map"]["camera"]);
+        }
+
         // если есть блок map в json то читаем его 
         if (j.contains("map")) {
             data.gridWidth = j["map"].value("width", 10);
@@ -65,6 +156,9 @@ LevelMapData LevelManager::loadLevelMap(const std::string& filepath) {
                 SpawnerData sd;
                 sd.pos = { spawner["x"], spawner["y"] };
                 sd.targetBaseIndex = spawner.value("targetBaseIndex", -1);
+                sd.groupId = spawner.value("groupId", spawner.value("group_id", sd.targetBaseIndex));
+                sd.visibleInGame = spawner.value("visibleInGame", false);
+                sd.enableFadeIn = spawner.value("enableFadeIn", true);
                 data.spawners.push_back(sd);
             }
 
@@ -74,6 +168,8 @@ LevelMapData LevelManager::loadLevelMap(const std::string& filepath) {
                 bd.x = base["x"];
                 bd.y = base["y"];
                 bd.id = base.value("id", 0);
+                bd.visibleInGame = base.value("visibleInGame", false);
+                bd.enableFadeOut = base.value("enableFadeOut", true);
                 data.bases.push_back(bd);
             }
             // парсинг сетки
@@ -137,6 +233,107 @@ LevelMapData LevelManager::loadLevelMap(const std::string& filepath) {
                     data.minecarts.push_back(cart);
                 }
             }
+
+            // Читаем эмиттеры частиц ("emitters")
+            const json* emittersJson = nullptr;
+            if (j["map"].contains("emitters") && j["map"]["emitters"].is_array()) {
+                emittersJson = &j["map"]["emitters"];
+            } else if (j.contains("emitters") && j["emitters"].is_array()) {
+                emittersJson = &j["emitters"];
+            }
+
+            if (emittersJson) {
+                for (const auto& emNode : *emittersJson) {
+                    ParticleEmitterConfig em;
+                    em.id = emNode.value("id", 0);
+                    em.type = emNode.value("type", "steam_jet");
+                    if (emNode.contains("tilePos")) {
+                        const auto& tp = emNode["tilePos"];
+                        if (tp.is_array() && tp.size() >= 2) {
+                            em.tilePos = glm::vec2(tp[0].get<float>(), tp[1].get<float>());
+                        } else if (tp.is_object()) {
+                            em.tilePos = glm::vec2(tp.value("x", 0.0f), tp.value("y", 0.0f));
+                        }
+                    } else {
+                        em.tilePos = glm::vec2(emNode.value("x", 0.0f), emNode.value("y", 0.0f));
+                    }
+                    em.angleDeg = emNode.value("angleDeg", 90.0f);
+                    em.speed = emNode.value("speed", 180.0f);
+                    em.particleScale = emNode.value("particleScale", 1.0f);
+                    em.periodMin = emNode.value("periodMin", 5.0f);
+                    em.periodMax = emNode.value("periodMax", 12.0f);
+                    em.burstDuration = emNode.value("burstDuration", 2.2f);
+                    em.loopContinuous = emNode.value("loop", emNode.value("loopContinuous", false));
+                    data.emitters.push_back(em);
+                }
+            }
+
+            // Читаем свободные декорации ("decorations")
+            const json* decorJson = nullptr;
+            if (j["map"].contains("decorations") && j["map"]["decorations"].is_array()) {
+                decorJson = &j["map"]["decorations"];
+            } else if (j.contains("decorations") && j["decorations"].is_array()) {
+                decorJson = &j["decorations"];
+            }
+
+            if (decorJson) {
+                float cs = (data.cellSize > 0.001f) ? data.cellSize : 64.0f;
+                for (const auto& decNode : *decorJson) {
+                    DecorationConfig dec;
+                    dec.id = decNode.value("id", 0);
+                    dec.type = decNode.value("type", "bush");
+                    if (decNode.contains("tilePos")) {
+                        const auto& tp = decNode["tilePos"];
+                        if (tp.is_array() && tp.size() >= 2) {
+                            dec.tilePos = glm::vec2(tp[0].get<float>(), tp[1].get<float>());
+                        } else if (tp.is_object()) {
+                            dec.tilePos = glm::vec2(tp.value("x", 0.0f), tp.value("y", 0.0f));
+                        }
+                    } else if (decNode.contains("tileX") || decNode.contains("tileY")) {
+                        dec.tilePos = glm::vec2(decNode.value("tileX", 0.0f), decNode.value("tileY", 0.0f));
+                    } else if (decNode.contains("worldPos")) {
+                        const auto& wp = decNode["worldPos"];
+                        glm::vec2 rawPos(0.0f);
+                        if (wp.is_array() && wp.size() >= 2) {
+                            rawPos = glm::vec2(wp[0].get<float>(), wp[1].get<float>());
+                        } else if (wp.is_object()) {
+                            rawPos = glm::vec2(wp.value("x", 0.0f), wp.value("y", 0.0f));
+                        }
+                        // Обратная совместимость: если сохранено в абсолютных мировых координатах, конвертируем в tilePos
+                        dec.tilePos = (rawPos - glm::vec2(data.offsetX, data.offsetY)) / cs;
+                    } else if (decNode.contains("pos")) {
+                        const auto& wp = decNode["pos"];
+                        glm::vec2 rawPos(0.0f);
+                        if (wp.is_array() && wp.size() >= 2) {
+                            rawPos = glm::vec2(wp[0].get<float>(), wp[1].get<float>());
+                        } else if (wp.is_object()) {
+                            rawPos = glm::vec2(wp.value("x", 0.0f), wp.value("y", 0.0f));
+                        }
+                        dec.tilePos = (rawPos - glm::vec2(data.offsetX, data.offsetY)) / cs;
+                    } else {
+                        glm::vec2 rawPos = glm::vec2(decNode.value("x", 0.0f), decNode.value("y", 0.0f));
+                        dec.tilePos = (rawPos - glm::vec2(data.offsetX, data.offsetY)) / cs;
+                    }
+                    dec.worldPos = glm::vec2(data.offsetX, data.offsetY) + dec.tilePos * cs;
+                    dec.scale = decNode.value("scale", 1.0f);
+                    dec.scaleX = decNode.value("scaleX", 1.0f);
+                    dec.scaleY = decNode.value("scaleY", 1.0f);
+                    dec.opacity = decNode.value("opacity", 0.5f);
+                    dec.rotation = decNode.value("rotation", 0.0f);
+                    dec.destructible = decNode.value("destructible", true);
+                    data.decorations.push_back(dec);
+                }
+            }
+
+            // Обратная совместимость для старых карт, где x/y были сохранены в пикселях (x > gridWidth || y > gridHeight)
+            if (data.camera.isCustom) {
+                if (data.camera.targetTile.x > static_cast<float>(data.gridWidth) ||
+                    data.camera.targetTile.y > static_cast<float>(data.gridHeight)) {
+                    float cs = (data.cellSize > 0.001f) ? data.cellSize : 64.0f;
+                    data.camera.targetTile.x = (data.camera.targetTile.x - data.offsetX) / cs;
+                    data.camera.targetTile.y = (data.camera.targetTile.y - data.offsetY) / cs;
+                }
+            }
         }
         else {
             std::cerr << "WARNING::LEVELMANAGER: No 'map' section found in " << filepath << std::endl;
@@ -157,6 +354,13 @@ LevelMapData LevelManager::loadLevelMap(const std::string& filepath) {
                             part.spawnInterwal = partJson["spawnInterwal"].get<float>();
                         }
                         part.delayAfter = partJson.value("delayAfter", 2.0f);
+                        if (partJson.contains("spawner_id")) {
+                            part.spawnerId = partJson.value("spawner_id", -1);
+                        } else if (partJson.contains("spawnerId")) {
+                            part.spawnerId = partJson.value("spawnerId", -1);
+                        } else {
+                            part.spawnerId = -1;
+                        }
                         wave.parts.push_back(part);
                     }
                 }
@@ -193,6 +397,20 @@ bool LevelManager::saveLevelMap(const std::string& filepath, const LevelMapData&
     }
     j["isCampaign"] = data.isCampaign;
     j["tags"] = data.tags;
+    j["background"] = data.background.empty() ? "default" : data.background;
+
+    if (data.camera.isCustom) {
+        j["camera"] = {
+            { "tileX", data.camera.targetTile.x },
+            { "tileY", data.camera.targetTile.y },
+            { "x", data.camera.targetTile.x },
+            { "y", data.camera.targetTile.y },
+            { "zoom", data.camera.zoom },
+            { "isCustom", true }
+        };
+    } else if (j.contains("camera")) {
+        j.erase("camera");
+    }
 
     j["map"]["width"] = data.gridWidth;
     j["map"]["height"] = data.gridHeight;
@@ -200,13 +418,26 @@ bool LevelManager::saveLevelMap(const std::string& filepath, const LevelMapData&
     j["map"]["offsetX"] = data.offsetX;
     j["map"]["offsetY"] = data.offsetY;
     j["map"]["layout"] = data.layout;
+    j["startingMoney"] = data.startingMoney;
+    j["startingHealth"] = data.startingHealth;
+    j["allowedTowers"] = data.allowedTowers;
+    j["maxUpgradeTier"] = data.maxUpgradeTier;
+    j["towerMaxTiers"] = data.towerMaxTiers;
+    j["map"]["startingMoney"] = data.startingMoney;
+    j["map"]["startingHealth"] = data.startingHealth;
+    j["map"]["allowedTowers"] = data.allowedTowers;
+    j["map"]["maxUpgradeTier"] = data.maxUpgradeTier;
+    j["map"]["towerMaxTiers"] = data.towerMaxTiers;
 
     json spawnersJson = json::array();
     for (const auto& spawner : data.spawners) {
         spawnersJson.push_back({
             { "x", spawner.pos.x },
             { "y", spawner.pos.y },
-            { "targetBaseIndex", spawner.targetBaseIndex }
+            { "targetBaseIndex", spawner.targetBaseIndex },
+            { "groupId", spawner.groupId >= 0 ? spawner.groupId : spawner.targetBaseIndex },
+            { "visibleInGame", spawner.visibleInGame },
+            { "enableFadeIn", spawner.enableFadeIn }
         });
     }
     j["map"]["spawners"] = spawnersJson;
@@ -216,7 +447,9 @@ bool LevelManager::saveLevelMap(const std::string& filepath, const LevelMapData&
         basesJson.push_back({
             { "x", base.x },
             { "y", base.y },
-            { "id", base.id }
+            { "id", base.id },
+            { "visibleInGame", base.visibleInGame },
+            { "enableFadeOut", base.enableFadeOut }
         });
     }
     j["map"]["bases"] = basesJson;
@@ -238,6 +471,52 @@ bool LevelManager::saveLevelMap(const std::string& filepath, const LevelMapData&
         j["map"].erase("minecarts");
     }
 
+    // Сохраняем эмиттеры частиц
+    if (!data.emitters.empty()) {
+        json emittersJson = json::array();
+        for (const auto& em : data.emitters) {
+            emittersJson.push_back({
+                { "id", em.id },
+                { "type", em.type },
+                { "tilePos", { { "x", em.tilePos.x }, { "y", em.tilePos.y } } },
+                { "angleDeg", em.angleDeg },
+                { "speed", em.speed },
+                { "particleScale", em.particleScale },
+                { "periodMin", em.periodMin },
+                { "periodMax", em.periodMax },
+                { "burstDuration", em.burstDuration },
+                { "loop", em.loopContinuous }
+            });
+        }
+        j["map"]["emitters"] = emittersJson;
+    } else if (j["map"].contains("emitters")) {
+        j["map"].erase("emitters");
+    }
+
+    // Сохраняем свободные декорации
+    if (!data.decorations.empty()) {
+        json decsJson = json::array();
+        for (const auto& dec : data.decorations) {
+            decsJson.push_back({
+                { "id", dec.id },
+                { "type", dec.type },
+                { "tilePos", { { "x", dec.tilePos.x }, { "y", dec.tilePos.y } } },
+                { "tileX", dec.tilePos.x },
+                { "tileY", dec.tilePos.y },
+                { "worldPos", { { "x", dec.worldPos.x }, { "y", dec.worldPos.y } } },
+                { "scale", dec.scale },
+                { "scaleX", dec.scaleX },
+                { "scaleY", dec.scaleY },
+                { "opacity", dec.opacity },
+                { "rotation", dec.rotation },
+                { "destructible", dec.destructible }
+            });
+        }
+        j["map"]["decorations"] = decsJson;
+    } else if (j["map"].contains("decorations")) {
+        j["map"].erase("decorations");
+    }
+
     // Сохраняем волны
     if (!data.waves.empty()) {
         json wavesJson = json::array();
@@ -248,7 +527,8 @@ bool LevelManager::saveLevelMap(const std::string& filepath, const LevelMapData&
                     { "type", part.type },
                     { "count", part.count },
                     { "interval", part.spawnInterwal },
-                    { "delayAfter", part.delayAfter }
+                    { "delayAfter", part.delayAfter },
+                    { "spawner_id", part.spawnerId }
                 });
             }
             wavesJson.push_back({
@@ -265,7 +545,8 @@ bool LevelManager::saveLevelMap(const std::string& filepath, const LevelMapData&
                         { "type", "Basic" },
                         { "count", 10 },
                         { "interval", 1.0f },
-                        { "delayAfter", 2.0f }
+                        { "delayAfter", 2.0f },
+                        { "spawner_id", -1 }
                     }
                 }) }
             }
@@ -348,42 +629,45 @@ void LevelManager::syncLevelsBetweenSourceAndBuild() {
     auto dirs = getLevelDirectories();
     if (dirs.size() < 2) return;
 
-    for (size_t i = 0; i < dirs.size(); ++i) {
-        for (size_t j = i + 1; j < dirs.size(); ++j) {
-            std::error_code ec;
-            if (!fs::exists(dirs[i], ec) || !fs::exists(dirs[j], ec)) continue;
+    const auto& primaryDir = dirs[0];
+    std::error_code ec;
+    if (!fs::exists(primaryDir, ec)) return;
 
-            // Синхронизируем из dirs[i] в dirs[j]
-            for (const auto& entry : fs::directory_iterator(dirs[i], ec)) {
-                if (entry.is_regular_file() && entry.path().extension() == ".json") {
-                    std::string fname = entry.path().filename().string();
-                    if (fname == "textures.json") continue;
+    for (size_t i = 1; i < dirs.size(); ++i) {
+        if (!fs::exists(dirs[i], ec)) continue;
 
-                    fs::path target = fs::path(dirs[j]) / fname;
-                    if (!fs::exists(target, ec)) {
+        // 1. Синхронизируем из primaryDir в secondary dir (копируем если отсутствует или обновляем если новее)
+        for (const auto& entry : fs::directory_iterator(primaryDir, ec)) {
+            if (entry.is_regular_file() && entry.path().extension() == ".json") {
+                std::string fname = entry.path().filename().string();
+                if (fname == "textures.json" || fname == "settings.json") continue;
+
+                fs::path target = fs::path(dirs[i]) / fname;
+                if (!fs::exists(target, ec)) {
+                    fs::copy_file(entry.path(), target, fs::copy_options::overwrite_existing, ec);
+                } else {
+                    auto t1 = fs::last_write_time(entry.path(), ec);
+                    auto t2 = fs::last_write_time(target, ec);
+                    if (t1 > t2) {
                         fs::copy_file(entry.path(), target, fs::copy_options::overwrite_existing, ec);
-                    } else {
-                        auto t1 = fs::last_write_time(entry.path(), ec);
-                        auto t2 = fs::last_write_time(target, ec);
-                        if (t1 > t2) {
-                            fs::copy_file(entry.path(), target, fs::copy_options::overwrite_existing, ec);
-                        } else if (t2 > t1) {
-                            fs::copy_file(target, entry.path(), fs::copy_options::overwrite_existing, ec);
-                        }
+                    } else if (t2 > t1) {
+                        fs::copy_file(target, entry.path(), fs::copy_options::overwrite_existing, ec);
                     }
                 }
             }
+        }
 
-            // Синхронизируем из dirs[j] в dirs[i]
-            for (const auto& entry : fs::directory_iterator(dirs[j], ec)) {
-                if (entry.is_regular_file() && entry.path().extension() == ".json") {
-                    std::string fname = entry.path().filename().string();
-                    if (fname == "textures.json") continue;
+        // 2. НЕ воскрешаем удаленные файлы из secondary dirs в primaryDir!
+        // Если файл уровня есть в secondary dir, но отсутствует в primaryDir — удаляем его из secondary dir,
+        // чтобы удаленные/устаревшие уровни не плодились обратно при каждом запуске.
+        for (const auto& entry : fs::directory_iterator(dirs[i], ec)) {
+            if (entry.is_regular_file() && entry.path().extension() == ".json") {
+                std::string fname = entry.path().filename().string();
+                if (fname == "textures.json" || fname == "settings.json" || fname == "campaign.json") continue;
 
-                    fs::path target = fs::path(dirs[i]) / fname;
-                    if (!fs::exists(target, ec)) {
-                        fs::copy_file(entry.path(), target, fs::copy_options::overwrite_existing, ec);
-                    }
+                fs::path primaryFile = fs::path(primaryDir) / fname;
+                if (!fs::exists(primaryFile, ec)) {
+                    fs::remove(entry.path(), ec);
                 }
             }
         }
@@ -618,6 +902,11 @@ std::string LevelManager::createNewLevel(const std::string& displayName, bool is
     newMap.offsetX = 20.0f;
     newMap.offsetY = 20.0f;
     newMap.layout.assign(12, std::vector<int>(20, 0));
+    newMap.startingMoney = 50;
+    newMap.startingHealth = 20;
+    newMap.allowedTowers = { "Basic", "Mercury", "Piston" };
+    newMap.maxUpgradeTier = 3;
+    newMap.towerMaxTiers = { { "Basic", 3 }, { "Mercury", 3 }, { "Piston", 3 } };
 
     newMap.bases.push_back(BaseData(17, 6, 0));
     newMap.layout[6][17] = 0;
@@ -625,6 +914,7 @@ std::string LevelManager::createNewLevel(const std::string& displayName, bool is
     SpawnerData sp;
     sp.pos = glm::ivec2(2, 6);
     sp.targetBaseIndex = 0;
+    sp.groupId = 0;
     newMap.spawners.push_back(sp);
     newMap.layout[6][2] = 0;
 

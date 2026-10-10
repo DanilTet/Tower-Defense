@@ -57,6 +57,7 @@ void Game::init() {
     }
     SettingsManager::init();
     LocalizationManager::init();
+    ResourceManager::loadTexture("particleTexture", "res/textures/particle.png");
 
     // Загружаем шрифт с размером 24 пикселя
     m_stateManager.setState(std::make_unique<MainMenuState>(m_stateManager, width, height, m_renderer, m_textRenderer.get()));

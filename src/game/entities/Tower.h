@@ -126,6 +126,7 @@ public:
 	int getGridX() const { return m_gridX; }
 	int getGridY() const { return m_gridY; }
 	int getLevel() const { return m_currentLevel; }	
+	int getMaxLevel() const { return m_maxLevel; }
 	const std::string& getType() const { return m_type; }
 
 	float getAngle() const { return m_angle; }

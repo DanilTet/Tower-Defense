@@ -79,14 +79,43 @@ void EditorToolbarUI::updateLayout(TextRenderer* textRenderer, const EditorConte
     float topFontScale = std::clamp(0.48f * scale, 0.38f, 0.62f);
     m_topFontScale = topFontScale;
 
-    // Слева: заголовок "MAP EDITOR" (динамически рассчитываем X с учетом ширины надписи)
-    float titleFontScale = std::clamp(0.80f * scale, 0.60f, 0.95f);
+    // Определяем режим сжатия хедера (если экран < 1360px)
+    float screenW = static_cast<float>(ctx.screenWidth);
+    bool isCompact = (screenW < 1360.0f);
+    bool isUltraCompact = (screenW < 1120.0f);
+
+    if (isCompact) {
+        topFontScale = std::clamp(topFontScale * 0.92f, 0.38f, 0.52f);
+        m_topFontScale = topFontScale;
+        topPadding = std::clamp(topPadding * 0.70f, 3.0f, 5.0f);
+    }
+    if (isUltraCompact) {
+        topFontScale = std::clamp(topFontScale * 0.88f, 0.35f, 0.46f);
+        m_topFontScale = topFontScale;
+        topPadding = 2.5f;
+    }
+
+    // Слева: заголовок "MAP EDITOR"
+    float titleFontScale = std::clamp(0.80f * scale, 0.58f, 0.95f);
+    if (isCompact) titleFontScale *= 0.90f;
     float titleW = getTextW("MAP EDITOR", titleFontScale);
-    float leftX = 15.0f + titleW + std::clamp(18.0f * scale, 14.0f, 26.0f);
+    float leftX = 12.0f + titleW + (isCompact ? 8.0f : 14.0f);
+
+    // btnHelp: [ ? ] - компактная кнопка справки и хоткеев
+    float helpW = std::max(std::clamp(28.0f * scale, 24.0f, 36.0f), getTextW("[ ? ]", topFontScale) + 8.0f);
+    EditorButton btnHelp;
+    btnHelp.pos = glm::vec2(leftX, topY);
+    btnHelp.size = glm::vec2(helpW, topH);
+    btnHelp.label = "[ ? ]";
+    btnHelp.isAction = true;
+    btnHelp.actionId = 22; // Toggle Help Modal
+    m_topButtons.push_back(btnHelp);
+    leftX += helpW + topPadding;
 
     // btnCurrentMap: Отображение текущего имени карты
     float nameW = getTextW(ctx.currentLevelDisplayName, topFontScale);
-    float mapBtnW = std::clamp(nameW + 20.0f, 100.0f, 200.0f);
+    float maxMapBtnW = isUltraCompact ? 90.0f : (isCompact ? 130.0f : 180.0f);
+    float mapBtnW = std::clamp(nameW + 16.0f, 65.0f, maxMapBtnW);
     EditorButton btnCurrentMap;
     btnCurrentMap.pos = glm::vec2(leftX, topY);
     btnCurrentMap.size = glm::vec2(mapBtnW, topH);
@@ -97,8 +126,8 @@ void EditorToolbarUI::updateLayout(TextRenderer* textRenderer, const EditorConte
     leftX += mapBtnW + topPadding;
 
     // btnRename
-    std::string renLabel = LOC("LEVEL_BTN_RENAME");
-    float renW = std::max(52.0f, getTextW(renLabel, topFontScale) + 16.0f);
+    std::string renLabel = isCompact ? "[ Имя ]" : LOC("LEVEL_BTN_RENAME");
+    float renW = std::max(isCompact ? 42.0f : 52.0f, getTextW(renLabel, topFontScale) + (isCompact ? 10.0f : 16.0f));
     EditorButton btnRename;
     btnRename.pos = glm::vec2(leftX, topY);
     btnRename.size = glm::vec2(renW, topH);
@@ -109,8 +138,9 @@ void EditorToolbarUI::updateLayout(TextRenderer* textRenderer, const EditorConte
     leftX += renW + topPadding;
 
     // btnType
-    std::string typeLabel = ctx.isCampaign ? LOC("EDITOR_TYPE_CAMPAIGN") : LOC("EDITOR_TYPE_TEST");
-    float typeW = std::max(80.0f, getTextW(typeLabel, topFontScale) + 18.0f);
+    std::string typeLabel = isCompact ? (ctx.isCampaign ? "[ Камп ]" : "[ Тест ]")
+                                      : (ctx.isCampaign ? LOC("EDITOR_TYPE_CAMPAIGN") : LOC("EDITOR_TYPE_TEST"));
+    float typeW = std::max(isCompact ? 56.0f : 76.0f, getTextW(typeLabel, topFontScale) + (isCompact ? 12.0f : 18.0f));
     EditorButton btnType;
     btnType.pos = glm::vec2(leftX, topY);
     btnType.size = glm::vec2(typeW, topH);
@@ -121,8 +151,8 @@ void EditorToolbarUI::updateLayout(TextRenderer* textRenderer, const EditorConte
     leftX += typeW + topPadding;
 
     // btnNewMap
-    std::string newLabel = LOC("EDITOR_NEW_MAP");
-    float newW = std::max(70.0f, getTextW(newLabel, topFontScale) + 18.0f);
+    std::string newLabel = isCompact ? "[ + ]" : LOC("EDITOR_NEW_MAP");
+    float newW = std::max(isCompact ? 30.0f : 66.0f, getTextW(newLabel, topFontScale) + (isCompact ? 10.0f : 18.0f));
     EditorButton btnNewMap;
     btnNewMap.pos = glm::vec2(leftX, topY);
     btnNewMap.size = glm::vec2(newW, topH);
@@ -133,8 +163,8 @@ void EditorToolbarUI::updateLayout(TextRenderer* textRenderer, const EditorConte
     leftX += newW + topPadding;
 
     // btnMaps
-    std::string mapsLabel = LOC("EDITOR_MAPS_LIST");
-    float mapsW = std::max(60.0f, getTextW(mapsLabel, topFontScale) + 18.0f);
+    std::string mapsLabel = isCompact ? "[ Карты ]" : LOC("EDITOR_MAPS_LIST");
+    float mapsW = std::max(isCompact ? 52.0f : 60.0f, getTextW(mapsLabel, topFontScale) + (isCompact ? 12.0f : 18.0f));
     EditorButton btnMaps;
     btnMaps.pos = glm::vec2(leftX, topY);
     btnMaps.size = glm::vec2(mapsW, topH);
@@ -144,13 +174,113 @@ void EditorToolbarUI::updateLayout(TextRenderer* textRenderer, const EditorConte
     m_topButtons.push_back(btnMaps);
     leftX += mapsW + topPadding;
 
+    // Кнопка модального окна свойств уровня (EditorLevelSettingsModal)
+    std::string settingsLabel = isCompact ? "Свойства" : "Свойства карты";
+    float settingsW = std::max(isCompact ? 80.0f : 110.0f, getTextW(settingsLabel, topFontScale) + (isCompact ? 14.0f : 20.0f));
+    EditorButton btnLevelSettings;
+    btnLevelSettings.pos = glm::vec2(leftX, topY);
+    btnLevelSettings.size = glm::vec2(settingsW, topH);
+    btnLevelSettings.label = settingsLabel;
+    btnLevelSettings.tooltip = "Свойства карты: Деньги, HP, Башни, Тир апгрейдов";
+    btnLevelSettings.isAction = true;
+    btnLevelSettings.actionId = 24; // Свойства карты
+    m_topButtons.push_back(btnLevelSettings);
+    leftX += settingsW + topPadding;
+
     m_topBarLeftEndX = leftX;
 
-    // Справа: Выбор размера карты (динамически рассчитываем от правого края с запасом 12px)
-    float presetW = std::clamp(80.0f * scale, 70.0f, 100.0f);
-    float decIncW = std::clamp(30.0f * scale, 26.0f, 38.0f);
-    float rightGroupW = presetW + topPadding + (decIncW + topPadding) * 4.0f;
-    float currentTopX = static_cast<float>(ctx.screenWidth) - rightGroupW - 12.0f;
+    // Справа: Выбор камеры, выбор фона и выбор размера карты
+    std::string camLabel;
+    if (isUltraCompact) {
+        camLabel = ctx.cameraConfigMode ? "[ Кам* ]" : (ctx.cameraIsCustom ? "[ Кам ]" : "[ Авто ]");
+    } else if (isCompact) {
+        camLabel = ctx.cameraConfigMode ? "[ Режим: Кам ]" : (ctx.cameraIsCustom ? "[ Кам: Руч ]" : "[ Кам: Авто ]");
+    } else {
+        camLabel = ctx.cameraConfigMode ? "[ Режим: Камера ]" : (ctx.cameraIsCustom ? "[ Камера: Ручная ]" : "[ Камера: Авто ]");
+    }
+    float camBtnW = getTextW(camLabel, topFontScale) + (isCompact ? 10.0f : 16.0f);
+
+    std::string lockLabel = isUltraCompact ? "[ Фикс ]" : (isCompact ? "[ Фикс. камеру ]" : "[ Зафиксировать камеру ]");
+    float lockBtnW = getTextW(lockLabel, topFontScale) + (isCompact ? 10.0f : 16.0f);
+
+    std::string resetLabel = isCompact ? "[ Сброс ]" : "[ Сброс в Авто ]";
+    float resetBtnW = getTextW(resetLabel, topFontScale) + (isCompact ? 10.0f : 14.0f);
+
+    std::string bgLabel;
+    if (isCompact) {
+        bgLabel = (ctx.background == "pipes_canal") ? "[ Канал ]" : "[ Фон ]";
+    } else {
+        bgLabel = (ctx.background == "pipes_canal") ? "[ Фон: Канал ]" : "[ Фон: Стандарт ]";
+    }
+    float bgBtnW = getTextW(bgLabel, topFontScale) + (isCompact ? 10.0f : 16.0f);
+
+    std::string hudLabel = "[ HUD: Выкл ]";
+    if (ctx.hudPreviewMode == HudPreviewMode::Scale100) hudLabel = "[ HUD: 100% ]";
+    else if (ctx.hudPreviewMode == HudPreviewMode::Scale125) hudLabel = "[ HUD: 125% ]";
+    else if (ctx.hudPreviewMode == HudPreviewMode::Scale150) hudLabel = "[ HUD: 150% ]";
+    float hudBtnW = getTextW(hudLabel, topFontScale) + (isCompact ? 10.0f : 16.0f);
+
+    float presetW = std::clamp(isCompact ? 68.0f * scale : 80.0f * scale, 56.0f, 96.0f);
+    float decIncW = std::clamp(isCompact ? 24.0f * scale : 30.0f * scale, 22.0f, 36.0f);
+
+    float rightGroupW = camBtnW + topPadding
+                      + (ctx.cameraConfigMode ? (lockBtnW + topPadding) : 0.0f)
+                      + (ctx.cameraIsCustom ? (resetBtnW + topPadding) : 0.0f)
+                      + hudBtnW + topPadding
+                      + bgBtnW + topPadding + presetW + topPadding + (decIncW + topPadding) * 4.0f;
+
+    // Гарантированный зазор между левым и правым блоком тулбара (наезды физически невозможны!)
+    float minCenterGap = std::clamp(16.0f * scale, 12.0f, 24.0f);
+    float currentTopX = std::max(leftX + minCenterGap, screenW - rightGroupW - 12.0f);
+
+    EditorButton btnCamera;
+    btnCamera.pos = glm::vec2(currentTopX, topY);
+    btnCamera.size = glm::vec2(camBtnW, topH);
+    btnCamera.label = camLabel;
+    btnCamera.isAction = true;
+    btnCamera.actionId = 19; // Toggle Camera mode
+    m_topButtons.push_back(btnCamera);
+    currentTopX += camBtnW + topPadding;
+
+    if (ctx.cameraConfigMode) {
+        EditorButton btnLock;
+        btnLock.pos = glm::vec2(currentTopX, topY);
+        btnLock.size = glm::vec2(lockBtnW, topH);
+        btnLock.label = lockLabel;
+        btnLock.isAction = true;
+        btnLock.actionId = 20; // Lock Camera
+        m_topButtons.push_back(btnLock);
+        currentTopX += lockBtnW + topPadding;
+    }
+
+    if (ctx.cameraIsCustom) {
+        EditorButton btnReset;
+        btnReset.pos = glm::vec2(currentTopX, topY);
+        btnReset.size = glm::vec2(resetBtnW, topH);
+        btnReset.label = resetLabel;
+        btnReset.isAction = true;
+        btnReset.actionId = 21; // Reset Camera to Auto
+        m_topButtons.push_back(btnReset);
+        currentTopX += resetBtnW + topPadding;
+    }
+
+    EditorButton btnHudPreview;
+    btnHudPreview.pos = glm::vec2(currentTopX, topY);
+    btnHudPreview.size = glm::vec2(hudBtnW, topH);
+    btnHudPreview.label = hudLabel;
+    btnHudPreview.isAction = true;
+    btnHudPreview.actionId = 23; // Toggle HUD preview
+    m_topButtons.push_back(btnHudPreview);
+    currentTopX += hudBtnW + topPadding;
+
+    EditorButton btnBackground;
+    btnBackground.pos = glm::vec2(currentTopX, topY);
+    btnBackground.size = glm::vec2(bgBtnW, topH);
+    btnBackground.label = bgLabel;
+    btnBackground.isAction = true;
+    btnBackground.actionId = 18; // Toggle background
+    m_topButtons.push_back(btnBackground);
+    currentTopX += bgBtnW + topPadding;
 
     EditorButton btnPreset;
     btnPreset.pos = glm::vec2(currentTopX, topY);
@@ -165,6 +295,7 @@ void EditorToolbarUI::updateLayout(TextRenderer* textRenderer, const EditorConte
     btnWDec.pos = glm::vec2(currentTopX, topY);
     btnWDec.size = glm::vec2(decIncW, topH);
     btnWDec.label = "W-";
+    btnWDec.tooltip = "W- (-1 справа, Alt: -1 слева)";
     btnWDec.isAction = true;
     btnWDec.actionId = 9; // W-
     m_topButtons.push_back(btnWDec);
@@ -174,6 +305,7 @@ void EditorToolbarUI::updateLayout(TextRenderer* textRenderer, const EditorConte
     btnWInc.pos = glm::vec2(currentTopX, topY);
     btnWInc.size = glm::vec2(decIncW, topH);
     btnWInc.label = "W+";
+    btnWInc.tooltip = "W+ (+1 справа, Alt: +1 слева)";
     btnWInc.isAction = true;
     btnWInc.actionId = 10; // W+
     m_topButtons.push_back(btnWInc);
@@ -183,6 +315,7 @@ void EditorToolbarUI::updateLayout(TextRenderer* textRenderer, const EditorConte
     btnHDec.pos = glm::vec2(currentTopX, topY);
     btnHDec.size = glm::vec2(decIncW, topH);
     btnHDec.label = "H-";
+    btnHDec.tooltip = "H- (-1 снизу, Alt: -1 сверху)";
     btnHDec.isAction = true;
     btnHDec.actionId = 11; // H-
     m_topButtons.push_back(btnHDec);
@@ -192,6 +325,7 @@ void EditorToolbarUI::updateLayout(TextRenderer* textRenderer, const EditorConte
     btnHInc.pos = glm::vec2(currentTopX, topY);
     btnHInc.size = glm::vec2(decIncW, topH);
     btnHInc.label = "H+";
+    btnHInc.tooltip = "H+ (+1 снизу, Alt: +1 сверху)";
     btnHInc.isAction = true;
     btnHInc.actionId = 12; // H+
     m_topButtons.push_back(btnHInc);
@@ -211,7 +345,9 @@ void EditorToolbarUI::updateLayout(TextRenderer* textRenderer, const EditorConte
     };
     std::vector<TabDef> tabDefs = {
         { PaletteCategory::Tiles, "[1] " + LOC("EDITOR_TAB_TILES"), 101 },
-        { PaletteCategory::SpecialObjects, "[2] " + LOC("EDITOR_TAB_OBJECTS"), 102 }
+        { PaletteCategory::SpecialObjects, "[2] " + LOC("EDITOR_TAB_OBJECTS"), 102 },
+        { PaletteCategory::Particles, "[3] Партиклы", 103 },
+        { PaletteCategory::Decorations, "[4] Декор", 104 }
     };
 
     for (const auto& td : tabDefs) {
@@ -245,21 +381,24 @@ void EditorToolbarUI::updateLayout(TextRenderer* textRenderer, const EditorConte
     size_t splitIndex2 = 0;
 
     if (m_currentCategory == PaletteCategory::Tiles) {
-        // Категория Tiles: Земля, Стена, Платформа, Дорога, Шурф, Ластик
-        items.push_back({ "1:" + LOC("EDITOR_GROUND"),     false, EditorBrush::Ground,    0, 0.0f });
+        // Категория Tiles: Земля/Асфальт, Стена, Платформа/Трава, Дорога, Шурф, Ластик
+        std::string groundLabel = (ctx.background == "pipes_canal") ? "1:Асфальт" : ("1:" + LOC("EDITOR_GROUND"));
+        std::string platformLabel = (ctx.background == "pipes_canal") ? "3:Трава/Обочина" : ("3:" + LOC("EDITOR_PLATFORM"));
+        items.push_back({ groundLabel,     false, EditorBrush::Ground,    0, 0.0f });
         items.push_back({ "2:" + LOC("EDITOR_WALL"),       false, EditorBrush::Wall,      0, 0.0f });
-        items.push_back({ "3:" + LOC("EDITOR_PLATFORM"),   false, EditorBrush::Platform,  0, 0.0f });
+        items.push_back({ platformLabel,   false, EditorBrush::Platform,  0, 0.0f });
         items.push_back({ "4:" + LOC("EDITOR_PATH"),       false, EditorBrush::Path,      0, 0.0f });
         items.push_back({ "5:" + LOC("EDITOR_CHASM"),      false, EditorBrush::Chasm,     0, 0.0f });
         items.push_back({ "0:" + LOC("EDITOR_ERASER"),     false, EditorBrush::Eraser,    0, 0.0f });
         splitIndex1 = items.size();
-    } else {
+    } else if (m_currentCategory == PaletteCategory::SpecialObjects) {
         // Категория SpecialObjects: Спавнер, База, Рельсы, Депо, Тупик, селектор ID [-] [ID:Auto] [+]
         items.push_back({ "1:" + LOC("EDITOR_SPAWNER"),    false, EditorBrush::Spawner,   0, 0.0f });
         items.push_back({ "2:" + LOC("EDITOR_BASE"),       false, EditorBrush::Base,      0, 0.0f });
         items.push_back({ "3:" + LOC("EDITOR_RAIL"),       false, EditorBrush::Rail,      0, 0.0f });
         items.push_back({ LOC("EDITOR_RAIL_START"),        false, EditorBrush::RailStart, 0, 0.0f });
         items.push_back({ LOC("EDITOR_RAIL_END"),          false, EditorBrush::RailEnd,   0, 0.0f });
+        items.push_back({ "0:" + LOC("EDITOR_ERASER"),     false, EditorBrush::Eraser,    0, 0.0f });
         splitIndex1 = items.size();
 
         // ID блок
@@ -268,6 +407,29 @@ void EditorToolbarUI::updateLayout(TextRenderer* textRenderer, const EditorConte
         items.push_back({ idText, true, EditorBrush::Wall, 6, 0.0f });
         items.push_back({ "[+]", true, EditorBrush::Wall, 7, 0.0f });
         splitIndex2 = items.size();
+    } else if (m_currentCategory == PaletteCategory::Particles) {
+        // Категория Particles: Пресеты эмиттеров частиц
+        items.push_back({ "1:Свищ пара",  false, EditorBrush::EmitterSteamJet,  0, 0.0f });
+        items.push_back({ "2:Капель",     false, EditorBrush::EmitterWaterDrip, 0, 0.0f });
+        items.push_back({ "3:Искры",      false, EditorBrush::EmitterSparks,    0, 0.0f });
+        items.push_back({ "4:Дым",        false, EditorBrush::EmitterSmoke,     0, 0.0f });
+        items.push_back({ "5:Туман",      false, EditorBrush::EmitterFog,       0, 0.0f });
+        items.push_back({ "0:" + LOC("EDITOR_ERASER"), false, EditorBrush::Eraser, 0, 0.0f });
+        splitIndex1 = items.size();
+    } else {
+        // Категория Decorations: Пресеты декораций
+        items.push_back({ "1:Куст",       false, EditorBrush::DecorBush,       0, 0.0f });
+        items.push_back({ "2:Пучок",      false, EditorBrush::DecorGrass,      0, 0.0f });
+        items.push_back({ "3:Поле",       false, EditorBrush::DecorGrassField, 0, 0.0f });
+        items.push_back({ "4:Цветы",      false, EditorBrush::DecorFlower,     0, 0.0f });
+        items.push_back({ "5:Камень",     false, EditorBrush::DecorStone,      0, 0.0f });
+        items.push_back({ "6:Каска",      false, EditorBrush::DecorHelmet,     0, 0.0f });
+        items.push_back({ "7:Кирка",      false, EditorBrush::DecorPickaxe,    0, 0.0f });
+        items.push_back({ "8:Лужа",       false, EditorBrush::DecorPuddle,     0, 0.0f });
+        items.push_back({ "9:Трещина",    false, EditorBrush::DecorCrack,      0, 0.0f });
+        items.push_back({ "F:Туман",      false, EditorBrush::DecorFog,        0, 0.0f });
+        items.push_back({ "0:" + LOC("EDITOR_ERASER"), false, EditorBrush::Eraser, 0, 0.0f });
+        splitIndex1 = items.size();
     }
 
     // Действия (всегда доступны на панели)
@@ -334,7 +496,7 @@ void EditorToolbarUI::updateLayout(TextRenderer* textRenderer, const EditorConte
     }
 }
 
-EditorAction EditorToolbarUI::handleInput(float mouseX, float mouseY, bool mousePressed, bool wasMousePressed, bool isShiftDown, const EditorContext& ctx) {
+EditorAction EditorToolbarUI::handleInput(float mouseX, float mouseY, bool mousePressed, bool wasMousePressed, bool isShiftDown, const EditorContext& ctx, bool isAltDown) {
     (void)ctx;
     EditorAction result;
     if (!mousePressed || wasMousePressed) {
@@ -353,18 +515,22 @@ EditorAction EditorToolbarUI::handleInput(float mouseX, float mouseY, bool mouse
                 result.type = EditorActionType::ResizeMap;
                 result.intParam = -step;
                 result.intParam2 = 0;
+                result.isAltDown = isAltDown;
             } else if (btn.actionId == 10) {
                 result.type = EditorActionType::ResizeMap;
                 result.intParam = +step;
                 result.intParam2 = 0;
+                result.isAltDown = isAltDown;
             } else if (btn.actionId == 11) {
                 result.type = EditorActionType::ResizeMap;
                 result.intParam = 0;
                 result.intParam2 = -step;
+                result.isAltDown = isAltDown;
             } else if (btn.actionId == 12) {
                 result.type = EditorActionType::ResizeMap;
                 result.intParam = 0;
                 result.intParam2 = +step;
+                result.isAltDown = isAltDown;
             } else if (btn.actionId == 14) {
                 result.type = EditorActionType::OpenRenameModal;
             } else if (btn.actionId == 15) {
@@ -373,6 +539,20 @@ EditorAction EditorToolbarUI::handleInput(float mouseX, float mouseY, bool mouse
                 result.type = EditorActionType::OpenMapsModal;
             } else if (btn.actionId == 17) {
                 result.type = EditorActionType::ToggleCampaign;
+            } else if (btn.actionId == 18) {
+                result.type = EditorActionType::ToggleBackground;
+            } else if (btn.actionId == 19) {
+                result.type = EditorActionType::ToggleCameraMode;
+            } else if (btn.actionId == 20) {
+                result.type = EditorActionType::LockCamera;
+            } else if (btn.actionId == 21) {
+                result.type = EditorActionType::ResetCamera;
+            } else if (btn.actionId == 22) {
+                result.type = EditorActionType::ToggleHelpModal;
+            } else if (btn.actionId == 23) {
+                result.type = EditorActionType::ToggleHudPreview;
+            } else if (btn.actionId == 24) { // Свойства карты
+                result.type = EditorActionType::OpenLevelSettingsModal;
             }
             return result;
         }
@@ -385,6 +565,10 @@ EditorAction EditorToolbarUI::handleInput(float mouseX, float mouseY, bool mouse
                 m_currentCategory = PaletteCategory::Tiles;
             } else if (btn.actionId == 102) {
                 m_currentCategory = PaletteCategory::SpecialObjects;
+            } else if (btn.actionId == 103) {
+                m_currentCategory = PaletteCategory::Particles;
+            } else if (btn.actionId == 104) {
+                m_currentCategory = PaletteCategory::Decorations;
             }
             result.type = EditorActionType::SwitchPaletteCategory;
             return result;
@@ -458,6 +642,50 @@ void EditorToolbarUI::render(SpriteRenderer* renderer, TextRenderer* textRendere
         } else if (btn.actionId == 16) { // Maps / MapName
             borderColor = glm::vec3(0.4f, 0.7f, 1.0f);
             btnBg = glm::vec3(0.14f, 0.20f, 0.28f);
+        } else if (btn.actionId == 18) { // Background toggle
+            borderColor = glm::vec3(0.35f, 0.85f, 0.45f);
+            btnBg = glm::vec3(0.12f, 0.22f, 0.15f);
+        } else if (btn.actionId == 19) { // Camera mode toggle
+            if (ctx.cameraConfigMode) {
+                borderColor = glm::vec3(0.35f, 0.85f, 1.0f);
+                btnBg = glm::vec3(0.12f, 0.26f, 0.36f);
+            } else if (ctx.cameraIsCustom) {
+                borderColor = glm::vec3(0.30f, 0.65f, 0.90f);
+                btnBg = glm::vec3(0.11f, 0.18f, 0.26f);
+            } else {
+                borderColor = glm::vec3(0.35f, 0.40f, 0.48f);
+                btnBg = glm::vec3(0.13f, 0.15f, 0.18f);
+            }
+        } else if (btn.actionId == 20) { // Lock Camera
+            borderColor = glm::vec3(0.40f, 0.95f, 0.55f);
+            btnBg = glm::vec3(0.12f, 0.28f, 0.16f);
+        } else if (btn.actionId == 21) { // Reset Camera
+            borderColor = glm::vec3(0.85f, 0.55f, 0.30f);
+            btnBg = glm::vec3(0.25f, 0.16f, 0.10f);
+        } else if (btn.actionId == 22) { // Help [ ? ]
+            if (ctx.isHelpModalOpen) {
+                borderColor = glm::vec3(0.40f, 0.85f, 1.0f);
+                btnBg = glm::vec3(0.18f, 0.32f, 0.45f);
+            } else {
+                borderColor = glm::vec3(0.85f, 0.75f, 0.30f);
+                btnBg = glm::vec3(0.22f, 0.18f, 0.12f);
+            }
+        } else if (btn.actionId == 23) { // HUD Preview
+            if (ctx.hudPreviewMode != HudPreviewMode::None) {
+                borderColor = glm::vec3(1.0f, 0.75f, 0.25f);
+                btnBg = glm::vec3(0.25f, 0.20f, 0.10f);
+            } else {
+                borderColor = glm::vec3(0.45f, 0.45f, 0.50f);
+                btnBg = glm::vec3(0.14f, 0.15f, 0.18f);
+            }
+        } else if (btn.actionId == 24) { // Свойства карты
+            if (ctx.isLevelSettingsModalOpen) {
+                borderColor = glm::vec3(1.0f, 0.85f, 0.35f);
+                btnBg = glm::vec3(0.24f, 0.32f, 0.44f);
+            } else {
+                borderColor = glm::vec3(0.40f, 0.70f, 0.95f);
+                btnBg = glm::vec3(0.14f, 0.20f, 0.28f);
+            }
         }
         renderer->drawSprite(whiteTexture, btn.pos, btn.size, 0.0f, borderColor);
         renderer->drawSprite(whiteTexture, btn.pos + glm::vec2(2.0f), btn.size - glm::vec2(4.0f), 0.0f, btnBg);
@@ -467,7 +695,9 @@ void EditorToolbarUI::render(SpriteRenderer* renderer, TextRenderer* textRendere
     for (size_t i = 0; i < m_tabButtons.size(); ++i) {
         const auto& btn = m_tabButtons[i];
         bool isSelected = ((i == 0 && m_currentCategory == PaletteCategory::Tiles) ||
-                           (i == 1 && m_currentCategory == PaletteCategory::SpecialObjects));
+                           (i == 1 && m_currentCategory == PaletteCategory::SpecialObjects) ||
+                           (i == 2 && m_currentCategory == PaletteCategory::Particles) ||
+                           (i == 3 && m_currentCategory == PaletteCategory::Decorations));
 
         glm::vec3 tabBg = isSelected ? glm::vec3(0.20f, 0.24f, 0.32f) : glm::vec3(0.11f, 0.12f, 0.16f);
         glm::vec3 tabBorder = isSelected ? glm::vec3(0.40f, 0.75f, 1.0f) : glm::vec3(0.25f, 0.27f, 0.32f);
@@ -504,6 +734,51 @@ void EditorToolbarUI::render(SpriteRenderer* renderer, TextRenderer* textRendere
             } else if (btn.brush == EditorBrush::RailEnd) {
                 btnBg = glm::vec3(0.40f, 0.15f, 0.15f);
                 borderColor = glm::vec3(1.0f, 0.40f, 0.40f);
+            } else if (btn.brush == EditorBrush::EmitterSteamJet) {
+                btnBg = glm::vec3(0.20f, 0.32f, 0.40f);
+                borderColor = glm::vec3(0.60f, 0.90f, 1.0f);
+            } else if (btn.brush == EditorBrush::EmitterWaterDrip) {
+                btnBg = glm::vec3(0.12f, 0.25f, 0.42f);
+                borderColor = glm::vec3(0.35f, 0.70f, 1.0f);
+            } else if (btn.brush == EditorBrush::EmitterSparks) {
+                btnBg = glm::vec3(0.38f, 0.30f, 0.12f);
+                borderColor = glm::vec3(1.0f, 0.85f, 0.25f);
+            } else if (btn.brush == EditorBrush::EmitterSmoke) {
+                btnBg = glm::vec3(0.25f, 0.25f, 0.28f);
+                borderColor = glm::vec3(0.85f, 0.85f, 0.90f);
+            } else if (btn.brush == EditorBrush::EmitterFog) {
+                btnBg = glm::vec3(0.22f, 0.28f, 0.26f);
+                borderColor = glm::vec3(0.65f, 0.85f, 0.75f);
+            } else if (btn.brush == EditorBrush::DecorBush) {
+                btnBg = glm::vec3(0.18f, 0.42f, 0.20f);
+                borderColor = glm::vec3(0.35f, 0.85f, 0.40f);
+            } else if (btn.brush == EditorBrush::DecorGrass) {
+                btnBg = glm::vec3(0.22f, 0.45f, 0.18f);
+                borderColor = glm::vec3(0.45f, 0.90f, 0.35f);
+            } else if (btn.brush == EditorBrush::DecorGrassField) {
+                btnBg = glm::vec3(0.20f, 0.48f, 0.22f);
+                borderColor = glm::vec3(0.40f, 0.95f, 0.40f);
+            } else if (btn.brush == EditorBrush::DecorFlower) {
+                btnBg = glm::vec3(0.45f, 0.20f, 0.28f);
+                borderColor = glm::vec3(0.95f, 0.45f, 0.65f);
+            } else if (btn.brush == EditorBrush::DecorStone) {
+                btnBg = glm::vec3(0.26f, 0.28f, 0.32f);
+                borderColor = glm::vec3(0.65f, 0.70f, 0.78f);
+            } else if (btn.brush == EditorBrush::DecorHelmet) {
+                btnBg = glm::vec3(0.45f, 0.36f, 0.10f);
+                borderColor = glm::vec3(1.0f, 0.85f, 0.20f);
+            } else if (btn.brush == EditorBrush::DecorPickaxe) {
+                btnBg = glm::vec3(0.32f, 0.26f, 0.20f);
+                borderColor = glm::vec3(0.85f, 0.68f, 0.45f);
+            } else if (btn.brush == EditorBrush::DecorPuddle) {
+                btnBg = glm::vec3(0.12f, 0.26f, 0.38f);
+                borderColor = glm::vec3(0.35f, 0.75f, 1.0f);
+            } else if (btn.brush == EditorBrush::DecorCrack) {
+                btnBg = glm::vec3(0.20f, 0.18f, 0.22f);
+                borderColor = glm::vec3(0.55f, 0.50f, 0.60f);
+            } else if (btn.brush == EditorBrush::DecorFog) {
+                btnBg = glm::vec3(0.24f, 0.28f, 0.28f);
+                borderColor = glm::vec3(0.70f, 0.82f, 0.80f);
             }
         } else if (!btn.isAction && btn.brush == EditorBrush::Eraser) {
             btnBg = glm::vec3(0.28f, 0.15f, 0.15f);
@@ -570,7 +845,14 @@ void EditorToolbarUI::render(SpriteRenderer* renderer, TextRenderer* textRendere
             glm::vec3 textColor = (btn.actionId == 8) ? glm::vec3(0.4f, 0.9f, 1.0f) :
                                   (btn.actionId == 14) ? glm::vec3(1.0f, 0.9f, 0.35f) :
                                   (btn.actionId == 15) ? glm::vec3(0.4f, 1.0f, 0.5f) :
-                                  (btn.actionId == 16) ? glm::vec3(0.7f, 0.9f, 1.0f) : glm::vec3(0.9f);
+                                  (btn.actionId == 16) ? glm::vec3(0.7f, 0.9f, 1.0f) :
+                                  (btn.actionId == 18) ? glm::vec3(0.45f, 0.95f, 0.55f) :
+                                  (btn.actionId == 19) ? (ctx.cameraConfigMode ? glm::vec3(0.45f, 0.95f, 1.0f) : (ctx.cameraIsCustom ? glm::vec3(0.60f, 0.88f, 1.0f) : glm::vec3(0.75f, 0.78f, 0.82f))) :
+                                  (btn.actionId == 20) ? glm::vec3(0.45f, 1.0f, 0.60f) :
+                                  (btn.actionId == 21) ? glm::vec3(1.0f, 0.75f, 0.45f) :
+                                  (btn.actionId == 22) ? (ctx.isHelpModalOpen ? glm::vec3(0.45f, 0.95f, 1.0f) : glm::vec3(1.0f, 0.90f, 0.40f)) :
+                                  (btn.actionId == 23) ? (ctx.hudPreviewMode != HudPreviewMode::None ? glm::vec3(1.0f, 0.85f, 0.35f) : glm::vec3(0.75f, 0.78f, 0.82f)) :
+                                  (btn.actionId == 24) ? (ctx.isLevelSettingsModalOpen ? glm::vec3(1.0f, 0.90f, 0.40f) : glm::vec3(0.85f, 0.92f, 1.0f)) : glm::vec3(0.9f);
             float tw = textRenderer->CalculateTextWidth(btn.label, m_topFontScale);
             float tx = btn.pos.x + (btn.size.x - tw) * 0.5f;
             float ty = btn.pos.y + (btn.size.y - m_topFontScale * 28.0f) * 0.5f + 2.0f;
@@ -620,7 +902,9 @@ void EditorToolbarUI::render(SpriteRenderer* renderer, TextRenderer* textRendere
         for (size_t i = 0; i < m_tabButtons.size(); ++i) {
             const auto& btn = m_tabButtons[i];
             bool isSelected = ((i == 0 && m_currentCategory == PaletteCategory::Tiles) ||
-                               (i == 1 && m_currentCategory == PaletteCategory::SpecialObjects));
+                               (i == 1 && m_currentCategory == PaletteCategory::SpecialObjects) ||
+                               (i == 2 && m_currentCategory == PaletteCategory::Particles) ||
+                               (i == 3 && m_currentCategory == PaletteCategory::Decorations));
 
             glm::vec3 textColor = isSelected ? glm::vec3(0.40f, 0.90f, 1.0f) : glm::vec3(0.65f, 0.70f, 0.78f);
             float tw = textRenderer->CalculateTextWidth(btn.label, m_bottomFontScale);
@@ -649,6 +933,47 @@ void EditorToolbarUI::render(SpriteRenderer* renderer, TextRenderer* textRendere
             float tx = btn.pos.x + (btn.size.x - tw) * 0.5f;
             float ty = btn.pos.y + (btn.size.y - m_bottomFontScale * 28.0f) * 0.5f + 2.0f;
             textRenderer->RenderText(btn.label, tx, ty, m_bottomFontScale, textColor);
+        }
+
+        // Всплывающая подсказка (Tooltip) при наведении курсора
+        std::string hoveredTooltip = "";
+        glm::vec2 tooltipPos = mousePos;
+        for (const auto& btn : m_topButtons) {
+            if (!btn.tooltip.empty() && isPointInRect(mousePos, btn.pos, btn.size)) {
+                hoveredTooltip = btn.tooltip;
+                tooltipPos = glm::vec2(btn.pos.x, btn.pos.y + btn.size.y + 6.0f);
+                break;
+            }
+        }
+        if (hoveredTooltip.empty()) {
+            for (const auto& btn : m_bottomButtons) {
+                if (!btn.tooltip.empty() && isPointInRect(mousePos, btn.pos, btn.size)) {
+                    hoveredTooltip = btn.tooltip;
+                    tooltipPos = glm::vec2(btn.pos.x, btn.pos.y - 28.0f);
+                    break;
+                }
+            }
+        }
+
+        if (!hoveredTooltip.empty() && renderer) {
+            float tScale = std::clamp(0.44f * scale, 0.35f, 0.52f);
+            float tTextW = textRenderer->CalculateTextWidth(hoveredTooltip, tScale);
+            float padX = 8.0f;
+            float padY = 4.0f;
+            float boxW = tTextW + padX * 2.0f;
+            float boxH = tScale * 28.0f + padY * 2.0f;
+
+            if (tooltipPos.x + boxW > screenW - 8.0f) {
+                tooltipPos.x = screenW - boxW - 8.0f;
+            }
+            if (tooltipPos.x < 8.0f) tooltipPos.x = 8.0f;
+
+            // Отрисовываем фон тултипа
+            renderer->drawSprite(whiteTexture, tooltipPos, glm::vec2(boxW, boxH), 0.0f, glm::vec3(0.35f, 0.65f, 0.95f));
+            renderer->drawSprite(whiteTexture, tooltipPos + glm::vec2(1.0f), glm::vec2(boxW - 2.0f, boxH - 2.0f), 0.0f, glm::vec3(0.10f, 0.12f, 0.16f));
+            renderer->flush();
+
+            textRenderer->RenderText(hoveredTooltip, tooltipPos.x + padX, tooltipPos.y + padY + 1.0f, tScale, glm::vec3(0.95f, 0.98f, 1.0f));
         }
     }
 }

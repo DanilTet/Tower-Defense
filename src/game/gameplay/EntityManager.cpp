@@ -3,6 +3,7 @@
 #include "renderer/SpriteRenderer.h"
 #include "textures/Texture2D.h"
 #include <algorithm>
+#include <cstdlib>
 #include "../core/EventBus.h"
 #include "../../particles/ParticleSystem.h"
 #include "../core/ConfigManager.h"
@@ -38,15 +39,41 @@ void EntityManager::update(float dt, Grid& gameGrid) {
         }
     }
 
+    std::vector<std::unique_ptr<Enemy>> spawnedChildren;
+
     // если враг убит добавляем игроку деняк иначе отминаем от базі хп
     for (const auto& enemy : m_enemies) {
         if (enemy->isDead()) {
             EventBus::publish({ EventType::EnemyDied, enemy->getReward(), 10, enemy->getCollider(gameGrid).center.x, enemy->getCollider(gameGrid).center.y, enemy->getDeathSound() });
 
-            ParticleEmitterProps bloodProps = ConfigManager::getParticleProps("BloodSplatter");
-            bloodProps.position = enemy->getCollider(gameGrid).center;
-            m_particleSystem->emit(bloodProps, bloodProps.spawnCount);
-            
+            std::string deathParticle = enemy->getDeathParticle();
+            if (deathParticle.empty()) deathParticle = "BloodSplatter";
+            ParticleEmitterProps deathProps = ConfigManager::getParticleProps(deathParticle);
+            deathProps.position = enemy->getCollider(gameGrid).center;
+            m_particleSystem->emit(deathProps, deathProps.spawnCount);
+
+            // Механика распада (разделения) при гибели врага
+            if (!enemy->isFalling() && enemy->getSplitCount() > 0 && !enemy->getSplitChildType().empty()) {
+                float scatterRadius = enemy->getSplitScatterRadius();
+                for (int i = 0; i < enemy->getSplitCount(); ++i) {
+                    float randX = (((float)rand() / (float)RAND_MAX) * 2.0f - 1.0f) * scatterRadius;
+                    float randY = (((float)rand() / (float)RAND_MAX) * 2.0f - 1.0f) * scatterRadius;
+                    glm::vec2 childPos = enemy->getPixelPos() + glm::vec2(randX, randY);
+
+                    auto child = std::make_unique<Enemy>(
+                        enemy->getPath(),
+                        gameGrid,
+                        enemy->getSplitChildType(),
+                        enemy->getTargetBaseIndex(),
+                        enemy->getCurrentWaypoint(),
+                        childPos,
+                        enemy->getEnableFadeIn(),
+                        enemy->getEnableFadeOut()
+                    );
+                    child->setDistanceTraveled(enemy->getDistanceTraveled());
+                    spawnedChildren.push_back(std::move(child));
+                }
+            }
         }
         if (enemy->isReachedEnd()) {
             EventBus::publish({ EventType::EnemyReachedBase, 1 });
@@ -55,14 +82,17 @@ void EntityManager::update(float dt, Grid& gameGrid) {
 
     m_particleSystem->update(dt);
 
-    
-
     // Удаляем врагов, которые достигли конца пути или умерли
     m_enemies.erase(
         std::remove_if(m_enemies.begin(), m_enemies.end(),
             [](const std::unique_ptr<Enemy>& enemy) { return enemy->isReachedEnd() || enemy->isDead(); }),
         m_enemies.end()
     );
+
+    // Добавляем созданных дочерних врагов в общий пул
+    for (auto& child : spawnedChildren) {
+        m_enemies.push_back(std::move(child));
+    }
 }
 
 void EntityManager::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> mainAtlas, std::shared_ptr<Texture2D> enemyAtlas, std::shared_ptr<Texture2D> radiusTex, std::shared_ptr<Texture2D> arrowTex, std::shared_ptr<Texture2D> particleTex, Grid& gameGrid, Tower* selectedTower) {

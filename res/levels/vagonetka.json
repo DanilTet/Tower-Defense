@@ -71,7 +71,7 @@
         2,
         5,
         0,
-        2,
+        0,
         2,
         2,
         2,
@@ -200,7 +200,7 @@
         2,
         2,
         2,
-        3,
+        2,
         3,
         3,
         3,
@@ -221,7 +221,7 @@
         0,
         2,
         2,
-        3,
+        2,
         3,
         3,
         3,
@@ -234,10 +234,10 @@
       [
         0,
         1,
-        1,
-        1,
-        1,
-        1,
+        4,
+        4,
+        4,
+        4,
         0,
         5,
         0,
@@ -256,10 +256,10 @@
       [
         0,
         1,
-        1,
-        1,
-        1,
-        1,
+        4,
+        4,
+        4,
+        4,
         0,
         5,
         2,
@@ -295,16 +295,19 @@
     "offsetY": 62.0,
     "spawners": [
       {
+        "groupId": -1,
         "targetBaseIndex": -1,
         "x": 0,
         "y": 9
       },
       {
+        "groupId": -1,
         "targetBaseIndex": -1,
         "x": 0,
         "y": 10
       },
       {
+        "groupId": -1,
         "targetBaseIndex": -1,
         "x": 0,
         "y": 11
@@ -320,21 +323,24 @@
     {
       "parts": [
         {
-          "count": 5,
+          "count": 20,
           "delayAfter": 3.0,
           "interval": 0.5,
-          "type": "Basic"
+          "spawner_id": -1,
+          "type": "Tank"
         },
         {
           "count": 5,
           "delayAfter": 3.0,
           "interval": 1.0,
+          "spawner_id": -1,
           "type": "Fast"
         },
         {
           "count": 3,
           "delayAfter": 2.0,
           "interval": 2.0,
+          "spawner_id": -1,
           "type": "Tank"
         }
       ]
@@ -345,24 +351,28 @@
           "count": 20,
           "delayAfter": 5.0,
           "interval": 1.0,
+          "spawner_id": -1,
           "type": "Basic"
         },
         {
           "count": 10,
           "delayAfter": 5.0,
           "interval": 0.800000011920929,
+          "spawner_id": -1,
           "type": "Fast"
         },
         {
           "count": 20,
           "delayAfter": 4.0,
           "interval": 0.800000011920929,
+          "spawner_id": -1,
           "type": "Basic"
         },
         {
           "count": 3,
           "delayAfter": 2.0,
           "interval": 0.5,
+          "spawner_id": -1,
           "type": "Tank"
         }
       ]
@@ -373,12 +383,14 @@
           "count": 2,
           "delayAfter": 3.0,
           "interval": 2.0,
+          "spawner_id": -1,
           "type": "Tank"
         },
         {
           "count": 15,
           "delayAfter": 0.0,
           "interval": 0.5,
+          "spawner_id": -1,
           "type": "Basic"
         }
       ]
@@ -389,18 +401,21 @@
           "count": 20,
           "delayAfter": 4.0,
           "interval": 0.15000000596046448,
+          "spawner_id": -1,
           "type": "Fast"
         },
         {
           "count": 4,
           "delayAfter": 1.0,
           "interval": 1.5,
+          "spawner_id": -1,
           "type": "Tank"
         },
         {
           "count": 10,
           "delayAfter": 0.0,
           "interval": 0.20000000298023224,
+          "spawner_id": -1,
           "type": "Fast"
         }
       ]
@@ -411,18 +426,21 @@
           "count": 8,
           "delayAfter": 2.0,
           "interval": 1.0,
+          "spawner_id": -1,
           "type": "Tank"
         },
         {
           "count": 30,
           "delayAfter": 2.0,
           "interval": 0.20000000298023224,
+          "spawner_id": -1,
           "type": "Basic"
         },
         {
           "count": 25,
           "delayAfter": 0.0,
           "interval": 0.10000000149011612,
+          "spawner_id": -1,
           "type": "Fast"
         }
       ]

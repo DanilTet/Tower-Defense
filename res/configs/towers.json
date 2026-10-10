@@ -5,9 +5,9 @@
     "levels": [
       {
         "range": 2.5,
-        "damage": 20,
-        "fireRate": 1.0,
-        "cost": 50,
+        "damage": 4,
+        "fireRate": 0.5,
+        "cost": 5,
         "splashRadius": 0.0,
         "rotationSpeed": 500.0,
         "buildSound": "res/sounds/build.wav",
@@ -16,14 +16,14 @@
         "trailParticle": "BulletTrail",
         "impactParticle": "SparkImpact",
         "bulletTextureId": "bulletBasic",
-        "bulletBaseSize": 30.0,
-        "bulletSpeed": 200.0
+        "bulletBaseSize": 22.0,
+        "bulletSpeed": 250.0
       },
       {
-        "range": 3.0,
-        "damage": 45,
-        "fireRate": 0.85,
-        "cost": 75,
+        "range": 2.8,
+        "damage": 8,
+        "fireRate": 0.45,
+        "cost": 15,
         "splashRadius": 0.0,
         "rotationSpeed": 550.0,
         "buildSound": "res/sounds/build.wav",
@@ -32,14 +32,14 @@
         "trailParticle": "BulletTrail",
         "impactParticle": "SparkImpact",
         "bulletTextureId": "bulletBasic",
-        "bulletBaseSize": 35.0,
-        "bulletSpeed": 225.0
+        "bulletBaseSize": 26.0,
+        "bulletSpeed": 275.0
       },
       {
-        "range": 3.5,
-        "damage": 90,
-        "fireRate": 0.7,
-        "cost": 120,
+        "range": 3.2,
+        "damage": 15,
+        "fireRate": 0.4,
+        "cost": 30,
         "splashRadius": 0.0,
         "rotationSpeed": 600.0,
         "buildSound": "res/sounds/build.wav",
@@ -48,8 +48,8 @@
         "trailParticle": "BulletTrail",
         "impactParticle": "SparkImpact",
         "bulletTextureId": "bulletBasic",
-        "bulletBaseSize": 40.0,
-        "bulletSpeed": 250.0
+        "bulletBaseSize": 30.0,
+        "bulletSpeed": 300.0
       }
     ]
   },
@@ -162,7 +162,7 @@
       },
       {
         "range": 1.2,
-        "damage": 0,
+        "damage": 35,
         "fireRate": 2.5,
         "cost": 160,
         "splashRadius": 0.0,
