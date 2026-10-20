@@ -72,6 +72,7 @@ bool GameWorld::loadLevel(const std::string& levelPath, int windowWidth, int win
     pathfinder = std::make_unique<Pathfinder>(levelData.gridWidth, levelData.gridHeight);
     waveManager = std::make_unique<WaveManager>();
     waveManager->loadLevel(currentLevelPath);
+    waveManager->setBountyRules(levelData.enemyBountyRules);
     entityManager = std::make_unique<EntityManager>();
 
     recalculateAllPaths();
@@ -120,7 +121,7 @@ void GameWorld::update(float dt) {
     if (waveManager) {
         auto requests = waveManager->update(dt, spawners);
         for (const auto& req : requests) {
-            spawnEnemy(req.type, req.spawnerIndex);
+            spawnEnemy(req.type, req.spawnerIndex, req.reward, req.rewardStep);
         }
     }
     entityManager->update(dt, *grid);
@@ -161,8 +162,14 @@ void GameWorld::resize(int windowWidth, int windowHeight) {
     }
 }
 
-void GameWorld::spawnEnemy(const std::string& type, int spawnerIndex) {
+void GameWorld::spawnEnemy(const std::string& type, int spawnerIndex, int reward, int rewardStep) {
     if (spawnerIndex >= paths.size() || paths[spawnerIndex].empty()) return;
+
+    // Награда ДОЛЖНА БРАТЬСЯ СТРОГО из enemyBountyRules текущей карты (LevelMapData) через getEnemyBountyForWave!
+    int currentWaveIndex = waveManager ? waveManager->getCurrentWaveIndex() : 0;
+    auto bounty = getEnemyBountyForWave(levelData.enemyBountyRules, type, currentWaveIndex);
+    int finalReward = bounty.first;
+    int finalRewardStep = bounty.second;
 
     int targetIdx = spawners[spawnerIndex].targetBaseIndex;
     bool fadeIn = spawners[spawnerIndex].enableFadeIn;
@@ -178,6 +185,9 @@ void GameWorld::spawnEnemy(const std::string& type, int spawnerIndex) {
     }
 
     auto newEnemy = std::make_unique<Enemy>(paths[spawnerIndex], *grid, type, targetIdx, fadeIn, fadeOut);
+    newEnemy->setWaveIndex(currentWaveIndex);
+    newEnemy->setReward(finalReward);
+    newEnemy->setRewardStep(finalRewardStep);
     entityManager->addEnemy(std::move(newEnemy));
 }
 

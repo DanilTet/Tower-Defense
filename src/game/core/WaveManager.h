@@ -9,6 +9,8 @@
 struct SpawnRequest {
 	std::string type;
 	int spawnerIndex;
+	int reward = 1;
+	int rewardStep = 1;
 };
 
 struct PlayerStats;
@@ -30,6 +32,18 @@ public:
 	void triggerEarlyWave(PlayerStats* player = nullptr);
 
 	// геттеры состояния
+	void setBountyRules(const std::map<std::string, std::vector<EnemyWaveBountyRule>>& rules) { m_bountyRules = rules; }
+	const std::map<std::string, std::vector<EnemyWaveBountyRule>>& getBountyRules() const { return m_bountyRules; }
+	void setGlobalBounties(const std::map<std::string, std::vector<EnemyWaveBountyRule>>& rules) { m_bountyRules = rules; }
+	void setGlobalBounties(const std::map<std::string, GlobalBountyConfig>& bounties) {
+		m_bountyRules.clear();
+		for (const auto& kv : bounties) {
+			m_bountyRules[kv.first] = { { 1, 99, kv.second.reward, kv.second.rewardStep } };
+		}
+	}
+	const std::map<std::string, std::vector<EnemyWaveBountyRule>>& getGlobalBounties() const { return m_bountyRules; }
+
+	int getCurrentWaveIndex() const { return m_currentWaveIndex; }
 	int getCurrentWaveNumber() const { return m_currentWaveIndex + 1; }
 	int getTotalWaves() const { return static_cast<int>(m_waves.size()); }
 	bool isWaveActive() const { return m_isWaveActive; }
@@ -57,7 +71,8 @@ public:
 	void setCurrentWaveIndex(int index);
 
 private:
-	std::vector<WaveConfig> m_waves; // Вектор со всеми волнами игры
+	std::vector<WaveConfig> m_waves;
+	std::map<std::string, std::vector<EnemyWaveBountyRule>> m_bountyRules;
 	bool m_isWaveActive; // флаг активна ли волна
 	int m_currentWaveIndex; // индекс текущей волны
 

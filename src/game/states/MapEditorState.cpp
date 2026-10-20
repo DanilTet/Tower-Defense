@@ -195,6 +195,8 @@ void MapEditorState::loadLevelByName(const std::string& fileName) {
         m_allowedTowers = data.allowedTowers;
         m_maxUpgradeTier = data.maxUpgradeTier;
         m_towerMaxTiers = data.towerMaxTiers;
+        m_enemyBountyRules = data.enemyBountyRules;
+        m_enemyGlobalBounties = data.enemyGlobalBounties;
         if (!data.name.empty()) {
             m_currentLevelDisplayName = data.name;
         }
@@ -232,6 +234,14 @@ void MapEditorState::loadLevelByName(const std::string& fileName) {
         m_allowedTowers = { "Basic", "Mercury", "Piston" };
         m_maxUpgradeTier = 3;
         m_towerMaxTiers = { { "Basic", 3 }, { "Mercury", 3 }, { "Piston", 3 } };
+        m_enemyBountyRules.clear();
+        m_enemyBountyRules["Coal"] = { { 1, 99, 1, 2 } };
+        m_enemyBountyRules["Spark"] = { { 1, 99, 1, 1 } };
+        m_enemyBountyRules["Mercury"] = { { 1, 99, 1, 1 } };
+        m_enemyGlobalBounties.clear();
+        m_enemyGlobalBounties["Coal"] = { 1, 2 };
+        m_enemyGlobalBounties["Spark"] = { 1, 1 };
+        m_enemyGlobalBounties["Mercury"] = { 1, 1 };
         m_currentLevelDisplayName = "MY MAP";
         std::cout << "[MapEditor] In-memory blank template 20x12 initialized (no disk write)" << std::endl;
     }
@@ -1212,6 +1222,8 @@ void MapEditorState::saveMap() {
     data.allowedTowers = m_allowedTowers;
     data.maxUpgradeTier = m_maxUpgradeTier;
     data.towerMaxTiers = m_towerMaxTiers;
+    data.enemyBountyRules = m_enemyBountyRules;
+    data.enemyGlobalBounties = m_enemyGlobalBounties;
 
     bool ok = LevelManager::saveLevel(m_currentLevelFileName, data);
     std::cout << "[MapEditor] saveMap: file=" << m_currentLevelFileName << ", name=" << m_currentLevelDisplayName << ", size=" << m_gridWidth << "x" << m_gridHeight << ", money=" << m_startingMoney << ", hp=" << m_startingHealth << ", result=" << (ok ? "SUCCESS" : "FAIL") << std::endl;
@@ -1240,6 +1252,14 @@ void MapEditorState::clearMap() {
     m_allowedTowers = { "Basic", "Mercury", "Piston" };
     m_maxUpgradeTier = 3;
     m_towerMaxTiers = { { "Basic", 3 }, { "Mercury", 3 }, { "Piston", 3 } };
+    m_enemyBountyRules.clear();
+    m_enemyBountyRules["Coal"] = { { 1, 99, 1, 2 } };
+    m_enemyBountyRules["Spark"] = { { 1, 99, 1, 1 } };
+    m_enemyBountyRules["Mercury"] = { { 1, 99, 1, 1 } };
+    m_enemyGlobalBounties.clear();
+    m_enemyGlobalBounties["Coal"] = { 1, 2 };
+    m_enemyGlobalBounties["Spark"] = { 1, 1 };
+    m_enemyGlobalBounties["Mercury"] = { 1, 1 };
     m_selectedDecorationIndex = -1;
     m_isDraggingDecoration = false;
     m_selectedEntityIndex = -1;
@@ -1661,7 +1681,7 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
                                                        m_width, m_height,
                                                        m_startingMoney, m_startingHealth,
                                                        m_allowedTowers, m_towerMaxTiers,
-                                                       m_maxUpgradeTier, m_isDirty);
+                                                       m_maxUpgradeTier, m_enemyBountyRules, m_isDirty);
         if (keyEscCheck && !m_keyEscPressedLastFrame) {
             m_keyEscPressedLastFrame = keyEscCheck;
         }
@@ -2676,7 +2696,7 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
                 cycleHudPreviewMode();
                 break;
             case EditorActionType::OpenLevelSettingsModal:
-                m_levelSettingsModal.open(m_startingMoney, m_startingHealth, m_allowedTowers, m_towerMaxTiers);
+                m_levelSettingsModal.open(m_startingMoney, m_startingHealth, m_allowedTowers, m_towerMaxTiers, m_enemyBountyRules, static_cast<int>(m_waves.size()));
                 m_suppressClickUntilRelease = true;
                 break;
             case EditorActionType::ModifyStartingMoney:

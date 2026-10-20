@@ -122,6 +122,98 @@ LevelMapData LevelManager::loadLevelMap(const std::string& filepath) {
             }
         }
 
+        // Экономика врагов (Правила наград по волнам)
+        bool isKanal = (data.name == "Канал" || filepath.find("kanal") != std::string::npos);
+        if (isKanal) {
+            data.enemyBountyRules = {
+                { "Coal", {
+                    { 1, 3, 1, 1 },
+                    { 4, 11, 1, 2 },
+                    { 12, 15, 1, 1 }
+                }},
+                { "Spark", {
+                    { 1, 99, 1, 1 }
+                }},
+                { "Mercury", {
+                    { 1, 99, 1, 1 }
+                }}
+            };
+        } else {
+            data.enemyBountyRules = {
+                { "Coal",    { { 1, 99, 1, 1 } } },
+                { "Spark",   { { 1, 99, 1, 1 } } },
+                { "Mercury", { { 1, 99, 1, 1 } } }
+            };
+        }
+
+        auto parseBounties = [&data](const json& bj) {
+            for (auto& [eType, bVal] : bj.items()) {
+                if (bVal.is_array()) {
+                    std::vector<EnemyWaveBountyRule> rules;
+                    for (const auto& item : bVal) {
+                        if (!item.is_object()) continue;
+                        EnemyWaveBountyRule r;
+                        if (item.contains("fromWave")) r.fromWave = item["fromWave"].get<int>();
+                        else if (item.contains("from_wave")) r.fromWave = item["from_wave"].get<int>();
+                        else if (item.contains("from")) r.fromWave = item["from"].get<int>();
+                        else r.fromWave = 1;
+
+                        if (item.contains("toWave")) r.toWave = item["toWave"].get<int>();
+                        else if (item.contains("to_wave")) r.toWave = item["to_wave"].get<int>();
+                        else if (item.contains("to")) r.toWave = item["to"].get<int>();
+                        else r.toWave = 99;
+
+                        r.reward = item.value("reward", 1);
+                        if (item.contains("reward_step")) r.rewardStep = item.value("reward_step", 1);
+                        else if (item.contains("rewardStep")) r.rewardStep = item.value("rewardStep", 1);
+                        else if (item.contains("step")) r.rewardStep = item.value("step", 1);
+                        else r.rewardStep = 1;
+
+                        if (r.fromWave < 1) r.fromWave = 1;
+                        if (r.toWave < r.fromWave) r.toWave = r.fromWave;
+                        if (r.reward < 0) r.reward = 0;
+                        if (r.rewardStep < 1) r.rewardStep = 1;
+
+                        rules.push_back(r);
+                    }
+                    if (!rules.empty()) {
+                        data.enemyBountyRules[eType] = rules;
+                    }
+                } else if (bVal.is_object()) {
+                    EnemyWaveBountyRule r;
+                    r.fromWave = 1;
+                    r.toWave = 99;
+                    r.reward = bVal.value("reward", 1);
+                    if (bVal.contains("reward_step")) r.rewardStep = bVal.value("reward_step", 1);
+                    else if (bVal.contains("rewardStep")) r.rewardStep = bVal.value("rewardStep", 1);
+                    else if (bVal.contains("step")) r.rewardStep = bVal.value("step", 1);
+                    else r.rewardStep = 1;
+                    if (r.reward < 0) r.reward = 0;
+                    if (r.rewardStep < 1) r.rewardStep = 1;
+
+                    data.enemyBountyRules[eType] = { r };
+                }
+            }
+        };
+
+        if (j.contains("enemyBountyRules") && j["enemyBountyRules"].is_object()) {
+            parseBounties(j["enemyBountyRules"]);
+        } else if (j.contains("map") && j["map"].contains("enemyBountyRules") && j["map"]["enemyBountyRules"].is_object()) {
+            parseBounties(j["map"]["enemyBountyRules"]);
+        } else if (j.contains("enemyGlobalBounties") && j["enemyGlobalBounties"].is_object()) {
+            parseBounties(j["enemyGlobalBounties"]);
+        } else if (j.contains("map") && j["map"].contains("enemyGlobalBounties") && j["map"]["enemyGlobalBounties"].is_object()) {
+            parseBounties(j["map"]["enemyGlobalBounties"]);
+        }
+
+        // Для обратной совместимости
+        data.enemyGlobalBounties.clear();
+        for (const auto& [eType, rules] : data.enemyBountyRules) {
+            if (!rules.empty()) {
+                data.enemyGlobalBounties[eType] = { rules.front().reward, rules.front().rewardStep };
+            }
+        }
+
         // Читаем настройки камеры (Camera Viewport)
         auto parseCamera = [&data](const json& cam) {
             float tx = -1.0f;
@@ -389,6 +481,14 @@ LevelMapData LevelManager::loadLevelMap(const std::string& filepath) {
                         } else {
                             part.spawnerId = -1;
                         }
+                        part.reward = partJson.value("reward", -1);
+                        if (partJson.contains("reward_step")) {
+                            part.rewardStep = partJson.value("reward_step", -1);
+                        } else if (partJson.contains("rewardStep")) {
+                            part.rewardStep = partJson.value("rewardStep", -1);
+                        } else {
+                            part.rewardStep = -1;
+                        }
                         wave.parts.push_back(part);
                     }
                 }
@@ -469,6 +569,24 @@ bool LevelManager::saveLevelMap(const std::string& filepath, const LevelMapData&
     j["map"]["allowedTowers"] = data.allowedTowers;
     j["map"]["maxUpgradeTier"] = data.maxUpgradeTier;
     j["map"]["towerMaxTiers"] = data.towerMaxTiers;
+
+    json bountiesJson = json::object();
+    for (const auto& [eType, rules] : data.enemyBountyRules) {
+        json arr = json::array();
+        for (const auto& r : rules) {
+            arr.push_back({
+                { "fromWave", r.fromWave },
+                { "toWave", r.toWave },
+                { "reward", r.reward },
+                { "rewardStep", r.rewardStep }
+            });
+        }
+        bountiesJson[eType] = arr;
+    }
+    j["enemyBountyRules"] = bountiesJson;
+    j["map"]["enemyBountyRules"] = bountiesJson;
+    j["enemyGlobalBounties"] = bountiesJson;
+    j["map"]["enemyGlobalBounties"] = bountiesJson;
 
     json spawnersJson = json::array();
     for (const auto& spawner : data.spawners) {
@@ -571,7 +689,9 @@ bool LevelManager::saveLevelMap(const std::string& filepath, const LevelMapData&
                     { "count", part.count },
                     { "interval", part.spawnInterwal },
                     { "delayAfter", part.delayAfter },
-                    { "spawner_id", part.spawnerId }
+                    { "spawner_id", part.spawnerId },
+                    { "reward", part.reward },
+                    { "reward_step", part.rewardStep }
                 });
             }
             wavesJson.push_back({
@@ -589,7 +709,9 @@ bool LevelManager::saveLevelMap(const std::string& filepath, const LevelMapData&
                         { "count", 10 },
                         { "interval", 1.0f },
                         { "delayAfter", 2.0f },
-                        { "spawner_id", -1 }
+                        { "spawner_id", -1 },
+                        { "reward", 1 },
+                        { "reward_step", 1 }
                     }
                 }) }
             }
@@ -951,6 +1073,16 @@ std::string LevelManager::createNewLevel(const std::string& displayName, bool is
     newMap.allowedTowers = { "Basic", "Mercury", "Piston" };
     newMap.maxUpgradeTier = 3;
     newMap.towerMaxTiers = { { "Basic", 3 }, { "Mercury", 3 }, { "Piston", 3 } };
+    newMap.enemyBountyRules = {
+        { "Coal",    { { 1, 99, 1, 1 } } },
+        { "Spark",   { { 1, 99, 1, 1 } } },
+        { "Mercury", { { 1, 99, 1, 1 } } }
+    };
+    newMap.enemyGlobalBounties = {
+        { "Coal", { 1, 1 } },
+        { "Spark", { 1, 1 } },
+        { "Mercury", { 1, 1 } }
+    };
 
     newMap.bases.push_back(BaseData(17, 6, 0));
     newMap.layout[6][17] = 0;

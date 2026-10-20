@@ -57,7 +57,9 @@ private:
 	std::string m_type; // тип характеристик врага
 	int m_health; // здоровье врага
 	float m_speed; // скорость врага
-	int m_reward; // награда за убийство врага
+	int m_reward = 1; // награда за убийство врага
+	int m_rewardStep = 1; // шаг выплаты награды
+	int m_waveIndex = 0; // индекс волны спавна (0-based)
 	glm::vec3 m_color;
 	std::string m_deathSound; // звук смерти
 	std::string m_deathParticle; // кеш для звука смерти
@@ -149,6 +151,11 @@ public:
 	}
 
 	int getReward() const { return m_reward; } // геттер который возгращает награду за убийство врага
+	void setReward(int reward) { m_reward = std::max(0, reward); }
+	int getRewardStep() const { return m_rewardStep; }
+	void setRewardStep(int step) { m_rewardStep = std::max(1, step); }
+	int getWaveIndex() const { return m_waveIndex; }
+	void setWaveIndex(int wave) { m_waveIndex = wave; }
 	std::string getDeathSound() const { return m_deathSound; }
 	CircleCollider getCollider(const Grid& grid) const; // генераттор хитбокса
 	std::string getDeathParticle() const { return m_deathParticle; } // геттер партиклов

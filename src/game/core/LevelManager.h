@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <map>
 #include <algorithm>
 #include <glm/glm.hpp>
 #include "WaveData.h"
@@ -89,6 +90,79 @@ struct DecorationConfig {
     int zIndex = 0;         // Слой отрисовки (-10 .. 10)
 };
 
+struct EnemyWaveBountyRule {
+    int fromWave = 1;   // с какой волны (включительно, нумерация с 1)
+    int toWave = 99;    // по какую волну (включительно)
+    int reward = 1;     // награда в $
+    int rewardStep = 1; // каждый N-й убитый (1 = каждый, 2 = каждый 2-й, 3 = каждый 3-й и т.д.)
+};
+
+// Для обратной совместимости
+struct GlobalBountyConfig {
+    int reward = 1;     // сколько $ давать
+    int rewardStep = 1; // каждый N-й моб (1 = каждый, 2 = каждый 2-й, 3 = каждый 3-й)
+};
+
+inline std::string normalizeEnemyType(const std::string& type) {
+    if (type == "enemy_coal" || type == "coal" || type == "Coal") {
+        return "Coal";
+    }
+    if (type == "enemy_spark" || type == "spark" || type == "Spark") {
+        return "Spark";
+    }
+    if (type == "mercury" || type == "Mercury") {
+        return "Mercury";
+    }
+    return type;
+}
+
+inline std::pair<int, int> getEnemyBountyForWave(const std::map<std::string, std::vector<EnemyWaveBountyRule>>& rulesMap,
+                                                const std::string& enemyType, int currentWaveIndex)
+{
+    // Если currentWave в коде начинается с 0 (первая волна = 0), перед поиском правила делаем int displayWave = currentWaveIndex + 1;
+    int displayWave = (currentWaveIndex >= 0) ? (currentWaveIndex + 1) : 1;
+
+    std::string normType = normalizeEnemyType(enemyType);
+
+    auto findRule = [&](const std::string& key) -> const EnemyWaveBountyRule* {
+        // Прямой поиск по ключу
+        auto it = rulesMap.find(key);
+        if (it != rulesMap.end()) {
+            for (const auto& r : it->second) {
+                if (displayWave >= r.fromWave && displayWave <= r.toWave) {
+                    return &r;
+                }
+            }
+        }
+        // Поиск по нормализованным ключам карты
+        for (const auto& [k, rules] : rulesMap) {
+            if (normalizeEnemyType(k) == key) {
+                for (const auto& r : rules) {
+                    if (displayWave >= r.fromWave && displayWave <= r.toWave) {
+                        return &r;
+                    }
+                }
+            }
+        }
+        return nullptr;
+    };
+
+    // 1. Поиск правила по точному / нормализованному типу
+    const EnemyWaveBountyRule* rule = findRule(normType);
+
+    // 2. Для Mercury проверяем как точные имена ("Mercury_Large", "Mercury_Medium", "Mercury_Small"), так и префикс "Mercury"
+    if (!rule) {
+        if (normType == "Mercury_Large" || normType == "Mercury_Medium" || normType == "Mercury_Small" || normType.rfind("Mercury", 0) == 0) {
+            rule = findRule("Mercury");
+        }
+    }
+
+    if (rule) {
+        return { rule->reward, rule->rewardStep };
+    }
+    return { 1, 1 };
+}
+
 // четенькая структура где храниться структура левела
 struct LevelMapData {
     std::string name = "";          // Отображаемое имя (UTF-8, RU/UA/EN)
@@ -121,6 +195,16 @@ struct LevelMapData {
     std::vector<std::string> allowedTowers = { "Basic", "Mercury", "Piston" }; // Доступные типы башен
     std::unordered_map<std::string, int> towerMaxTiers = { { "Basic", 3 }, { "Mercury", 3 }, { "Piston", 3 } }; // Максимальный тир прокачки для каждой башни
     int maxUpgradeTier = 3; // Максимальный тир апгрейда (1, 2 или 3) для совместимости
+    std::map<std::string, std::vector<EnemyWaveBountyRule>> enemyBountyRules = {
+        { "Coal",    { { 1, 99, 1, 1 } } },
+        { "Spark",   { { 1, 99, 1, 1 } } },
+        { "Mercury", { { 1, 99, 1, 1 } } }
+    };
+    std::map<std::string, GlobalBountyConfig> enemyGlobalBounties = {
+        { "Coal", { 1, 1 } },
+        { "Spark", { 1, 1 } },
+        { "Mercury", { 1, 1 } }
+    };
 
     int getMaxTierForTower(const std::string& towerType) const {
         auto it = towerMaxTiers.find(towerType);

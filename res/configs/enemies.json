@@ -1,7 +1,7 @@
 {
   "Coal": {
     "speed": 0.5,
-    "Maxhealth": 14,
+    "Maxhealth": 18,
     "sizeScale": 0.55,
     "reward": 1,
     "textureId": "enemy_coal",

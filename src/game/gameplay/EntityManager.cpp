@@ -44,7 +44,7 @@ void EntityManager::update(float dt, Grid& gameGrid) {
     // если враг убит добавляем игроку деняк иначе отминаем от базі хп
     for (const auto& enemy : m_enemies) {
         if (enemy->isDead()) {
-            EventBus::publish({ EventType::EnemyDied, enemy->getReward(), 10, enemy->getCollider(gameGrid).center.x, enemy->getCollider(gameGrid).center.y, enemy->getDeathSound() });
+            EventBus::publish({ EventType::EnemyDied, enemy->getReward(), 10, enemy->getCollider(gameGrid).center.x, enemy->getCollider(gameGrid).center.y, enemy->getDeathSound(), enemy->getType(), enemy->getRewardStep(), enemy->getWaveIndex() });
 
             std::string deathParticle = enemy->getDeathParticle();
             if (deathParticle.empty()) deathParticle = "BloodSplatter";
@@ -71,6 +71,9 @@ void EntityManager::update(float dt, Grid& gameGrid) {
                         enemy->getEnableFadeOut()
                     );
                     child->setDistanceTraveled(enemy->getDistanceTraveled());
+                    child->setWaveIndex(enemy->getWaveIndex());
+                    child->setReward(enemy->getReward());
+                    child->setRewardStep(enemy->getRewardStep());
                     spawnedChildren.push_back(std::move(child));
                 }
             }

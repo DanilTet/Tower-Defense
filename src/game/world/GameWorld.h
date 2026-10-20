@@ -51,7 +51,7 @@ struct GameWorld {
     void update(float dt);
     void render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> whiteTexture);
     void resize(int windowWidth, int windowHeight);
-    void spawnEnemy(const std::string& type, int spawnerIndex = 0);
+    void spawnEnemy(const std::string& type, int spawnerIndex = 0, int reward = 1, int rewardStep = 1);
     void demolishDecorationsInCell(int gridX, int gridY);
 
     // Ранний вызов волны (Фаза 4.2)

@@ -18,8 +18,8 @@ enum class TargetMode {
 
 //конфиг характеристик башни
 struct TowerStats {
-	float range; // радиус атаки
-	float fireRate; // скорость атаки
+	float range = 2.0f; // радиус атаки
+	float fireRate = 0.8f; // скорость атаки
 	int damage; // урон
 	int cost; // цена башни
 	float splashRadius; // сплеш урон

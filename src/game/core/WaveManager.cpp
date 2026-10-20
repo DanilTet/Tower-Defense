@@ -46,17 +46,26 @@ bool WaveManager::loadLevel(const std::string& filepath) {
 			// проходим по всем пачкам в волне
 			for (const auto& partJson : waveJson["parts"]) {
 				WavePart part;
-				part.count = partJson["count"]; // присваевем количество врагов из текущей пачки
-				part.spawnInterwal = partJson["interval"]; // интервал между спавном
-				part.delayAfter = partJson["delayAfter"]; // интервал между пачками
+				part.count = partJson.value("count", 10); // присваевем количество врагов из текущей пачки
+				part.spawnInterwal = partJson.contains("interval") ? partJson["interval"].get<float>() : (partJson.contains("spawnInterwal") ? partJson["spawnInterwal"].get<float>() : 0.8f); // интервал между спавном
+				part.delayAfter = partJson.value("delayAfter", 2.0f); // интервал между пачками
 
-				part.type = partJson["type"].get<std::string>();
+				part.type = partJson.value("type", "Basic");
 				if (partJson.contains("spawner_id")) {
 					part.spawnerId = partJson["spawner_id"].get<int>();
 				} else if (partJson.contains("spawnerId")) {
 					part.spawnerId = partJson["spawnerId"].get<int>();
 				} else {
 					part.spawnerId = -1;
+				}
+
+				part.reward = partJson.value("reward", -1);
+				if (partJson.contains("reward_step")) {
+					part.rewardStep = partJson.value("reward_step", -1);
+				} else if (partJson.contains("rewardStep")) {
+					part.rewardStep = partJson.value("rewardStep", -1);
+				} else {
+					part.rewardStep = -1;
 				}
 
 				wave.parts.push_back(part); // добаляем пачку в вектор
@@ -192,7 +201,12 @@ std::vector<SpawnRequest> WaveManager::update(float dt, const std::vector<Spawne
 			m_currentSpawnerIndex = (m_currentSpawnerIndex + 1) % spawners.size();
 		}
 
-		spawnRequests.push_back({currentPart.type, targetSpawnerIdx});
+		// Награда ДОЛЖНА БРАТЬСЯ СТРОГО из enemyBountyRules текущей карты через getEnemyBountyForWave!
+		auto bounty = getEnemyBountyForWave(m_bountyRules, currentPart.type, m_currentWaveIndex);
+		int finalReward = bounty.first;
+		int finalRewardStep = bounty.second;
+
+		spawnRequests.push_back({currentPart.type, targetSpawnerIdx, finalReward, finalRewardStep});
 		m_enemiesSpawnedInCurrentPart++;
 
 		// закончилась ли текущая пачка???

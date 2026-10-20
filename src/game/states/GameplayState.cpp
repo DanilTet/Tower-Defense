@@ -57,9 +57,34 @@ void GameplayState::setupEventListeners() {
 
     AudioEventSystem::init();
 
+    enemyKillCounts.clear();
+
     EventBus::subscribe(EventType::EnemyDied, [this](const Event& e) {
-        this->m_world->playerStats.money += e.value1;
+        std::string type = normalizeEnemyType(e.enemyType.empty() ? "Basic" : e.enemyType);
+        this->enemyKillCounts[type]++;
+
+        int displayWave = (e.waveIndex >= 0) ? (e.waveIndex + 1) : 1;
+        EnemyWaveBountyRule rule;
+        if (this->m_world) {
+            auto bounty = getEnemyBountyForWave(this->m_world->levelData.enemyBountyRules, type, e.waveIndex);
+            rule.reward = bounty.first;
+            rule.rewardStep = bounty.second;
+        } else {
+            rule.reward = (e.value1 > 0) ? e.value1 : 1;
+            rule.rewardStep = (e.rewardStep > 0) ? e.rewardStep : 1;
+        }
+
+        if (this->enemyKillCounts[type] % rule.rewardStep == 0) {
+            this->m_world->playerStats.addMoney(rule.reward);
+        }
         this->m_world->playerStats.score += e.value2;
+
+        std::cout << "[BOUNTY] Wave: " << displayWave 
+                  << " | Enemy: " << type 
+                  << " | KillCount: " << this->enemyKillCounts[type] 
+                  << " | Step: " << rule.rewardStep 
+                  << " | Added: $" << (this->enemyKillCounts[type] % rule.rewardStep == 0 ? rule.reward : 0) 
+                  << std::endl;
     });
 
     EventBus::subscribe(EventType::EnemyReachedBase, [this](const Event& e) {
@@ -306,6 +331,7 @@ void GameplayState::togglePause() {
 
 
 void GameplayState::restartGame() {
+    enemyKillCounts.clear();
     m_world = std::make_unique<GameWorld>();
     m_world->loadLevel(m_currentLevelPath, this->width, this->height);
     m_selectedTowerType = "";
