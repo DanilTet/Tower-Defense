@@ -78,6 +78,8 @@ private:
 	int m_id; // личный номер врага
 
 	float m_distanceTraveled;// пройденная дистанция врага
+	float m_aliveTime = 0.0f; // время жизни инстанса для процедурной анимации и пульсации
+	float m_sparkTrailTimer = 0.0f; // таймер интервала спавна шлейфа искр
 	float m_visibilityAlpha = 1.0f; // коэффициент видимости тумана (0.0f - 1.0f)
 	bool m_enableFadeIn = true;
 	bool m_enableFadeOut = true;
@@ -126,7 +128,7 @@ public:
 
 	Enemy(const std::vector<glm::ivec2>& gridPath, const Grid& grid, const std::string& type, int targetBaseIndex, bool enableFadeIn = true, bool enableFadeOut = true);
 	Enemy(const std::vector<glm::ivec2>& gridPath, const Grid& grid, const std::string& type, int targetBaseIndex, size_t currentWaypoint, glm::vec2 spawnPixelPos, bool enableFadeIn = true, bool enableFadeOut = true);
-	void update(float dt, const Grid& grid);
+	void update(float dt, const Grid& grid, ParticleSystem* particleSystem = nullptr);
 
 	void render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture, std::shared_ptr<Texture2D> radiusTex, glm::vec2 offset, const Grid& grid);
 	glm::vec2 getPixelPos() const { return m_pixelPos; }

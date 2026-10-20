@@ -4,47 +4,28 @@
     "Maxhealth": 14,
     "sizeScale": 0.55,
     "reward": 1,
-    "textureId": "enemyAtlas",
-    "color": [ 0.28, 0.28, 0.30 ],
+    "textureId": "enemy_coal",
+    "color": [
+      1.0,
+      1.0,
+      1.0
+    ],
     "deathSound": "res/sounds/enemy_death.wav",
-    "deathParticle": "BloodSplatter",
-    "atlasWidth": 256,
-    "atlasHeight": 256,
-    "animations": {
-      "Walk": {
-        "loop": true,
-        "frames": [
-          {
-            "x": 0,
-            "y": 0,
-            "w": 64,
-            "h": 64,
-            "duration": 0.15
-          },
-          {
-            "x": 64,
-            "y": 0,
-            "w": 64,
-            "h": 64,
-            "duration": 0.15
-          },
-          {
-            "x": 128,
-            "y": 0,
-            "w": 64,
-            "h": 64,
-            "duration": 0.15
-          },
-          {
-            "x": 192,
-            "y": 0,
-            "w": 64,
-            "h": 64,
-            "duration": 0.15
-          }
-        ]
-      }
-    }
+    "deathParticle": "BloodSplatter"
+  },
+  "Spark": {
+    "speed": 1.25,
+    "Maxhealth": 6,
+    "sizeScale": 0.34375,
+    "reward": 1,
+    "textureId": "enemy_spark",
+    "color": [
+      1.0,
+      1.0,
+      1.0
+    ],
+    "deathSound": "res/sounds/enemy_death.wav",
+    "deathParticle": "SparkImpact"
   },
   "Basic": {
     "speed": 0.5,
@@ -52,7 +33,11 @@
     "sizeScale": 0.6,
     "reward": 10,
     "textureId": "enemyAtlas",
-    "color": [ 1.0, 1.0, 1.0 ],
+    "color": [
+      1.0,
+      1.0,
+      1.0
+    ],
     "deathSound": "res/sounds/enemy_death.wav",
     "deathParticle": "BloodSplatter",
     "atlasWidth": 256,
@@ -99,7 +84,11 @@
     "sizeScale": 0.5,
     "reward": 15,
     "textureId": "enemyAtlas",
-    "color": [ 1.0, 1.0, 1.0 ],
+    "color": [
+      1.0,
+      1.0,
+      1.0
+    ],
     "deathSound": "res/sounds/enemy_death.wav",
     "deathParticle": "BloodSplatter",
     "atlasWidth": 256,
@@ -146,7 +135,11 @@
     "sizeScale": 0.7,
     "reward": 30,
     "textureId": "enemyAtlas",
-    "color": [ 1.0, 1.0, 1.0 ],
+    "color": [
+      1.0,
+      1.0,
+      1.0
+    ],
     "deathSound": "res/sounds/enemy_death.wav",
     "deathParticle": "BloodSplatter",
     "atlasWidth": 256,
@@ -212,7 +205,11 @@
     "sizeScale": 0.85,
     "reward": 20,
     "textureId": "mercury_slime_large",
-    "color": [ 1.0, 1.0, 1.0 ],
+    "color": [
+      1.0,
+      1.0,
+      1.0
+    ],
     "deathSound": "res/sounds/enemy_death.wav",
     "deathParticle": "BloodSplatter",
     "splitChildType": "Mercury_Medium",
@@ -222,10 +219,14 @@
   "Mercury_Medium": {
     "speed": 0.5,
     "Maxhealth": 120,
-    "sizeScale": 0.60,
+    "sizeScale": 0.6,
     "reward": 10,
     "textureId": "mercury_slime_medium",
-    "color": [ 1.0, 1.0, 1.0 ],
+    "color": [
+      1.0,
+      1.0,
+      1.0
+    ],
     "deathSound": "res/sounds/enemy_death.wav",
     "deathParticle": "BloodSplatter",
     "splitChildType": "Mercury_Small",
@@ -238,7 +239,11 @@
     "sizeScale": 0.38,
     "reward": 5,
     "textureId": "mercury_slime_small",
-    "color": [ 1.0, 1.0, 1.0 ],
+    "color": [
+      1.0,
+      1.0,
+      1.0
+    ],
     "deathSound": "res/sounds/enemy_death.wav",
     "deathParticle": "BloodSplatter",
     "splitChildType": "",

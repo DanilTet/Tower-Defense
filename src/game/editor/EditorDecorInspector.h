@@ -26,6 +26,14 @@ struct DecorInspectorLayout {
     glm::vec2 btnTypeNextPos{0.0f};
     glm::vec2 btnTypeNextSize{0.0f};
 
+    // Слой (zIndex): [Слой -1] [ СЛОЙ: N ] [Слой +1]
+    glm::vec2 btnLayerDecPos{0.0f};
+    glm::vec2 btnLayerDecSize{0.0f};
+    glm::vec2 layerValuePos{0.0f};
+    glm::vec2 layerValueSize{0.0f};
+    glm::vec2 btnLayerIncPos{0.0f};
+    glm::vec2 btnLayerIncSize{0.0f};
+
     // Общий размер: [-] [ 1.0x ] [+]
     glm::vec2 btnScaleDecPos{0.0f};
     glm::vec2 btnScaleDecSize{0.0f};
@@ -33,8 +41,7 @@ struct DecorInspectorLayout {
     glm::vec2 btnScaleIncPos{0.0f};
     glm::vec2 btnScaleIncSize{0.0f};
 
-    // Опции для лужи (puddle):
-    bool isPuddle = false;
+    // Масштаб по осям X / Y (доступен для любого декора):
     glm::vec2 btnScaleXDecPos{0.0f};
     glm::vec2 btnScaleXDecSize{0.0f};
     glm::vec2 scaleXValuePos{0.0f};
@@ -47,6 +54,8 @@ struct DecorInspectorLayout {
     glm::vec2 btnScaleYIncPos{0.0f};
     glm::vec2 btnScaleYIncSize{0.0f};
 
+    // Опции прозрачности (puddle / fog):
+    bool isPuddle = false;
     glm::vec2 btnOpacityDecPos{0.0f};
     glm::vec2 btnOpacityDecSize{0.0f};
     glm::vec2 opacityValuePos{0.0f};

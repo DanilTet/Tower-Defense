@@ -35,7 +35,8 @@ enum class EditorBrush {
     DecorPickaxe = 22,     // Декор: Кирка
     DecorPuddle = 23,      // Декор: Лужа
     DecorCrack = 24,       // Декор: Трещина
-    DecorFog = 25          // Декор: Туман
+    DecorFog = 25,
+    NoBuild = 26          // No-Build Zone overlay          // Декор: Туман
 };
 
 enum class PaletteCategory {
@@ -77,7 +78,8 @@ enum class EditorActionType {
     ToggleHudPreview,
     OpenLevelSettingsModal,
     ModifyStartingMoney,
-    ModifyStartingHealth
+    ModifyStartingHealth,
+    ToggleDecorGridSnap
 };
 
 struct EditorAction {
@@ -126,6 +128,7 @@ struct EditorContext {
     bool isLevelSettingsModalOpen = false;
     PaletteCategory currentCategory = PaletteCategory::Tiles;
     HudPreviewMode hudPreviewMode = HudPreviewMode::None;
+    bool decorGridSnap = false;
     int startingMoney = 50;
     int startingHealth = 20;
 };

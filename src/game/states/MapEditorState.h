@@ -2,6 +2,7 @@
 #include "IGameState.h"
 #include <memory>
 #include <vector>
+#include <deque>
 #include <string>
 #include <unordered_map>
 #include <glm/glm.hpp>
@@ -20,13 +21,39 @@
 #include "../editor/EditorDecorInspector.h"
 #include "../editor/EditorEntityInspector.h"
 #include "../../particles/EnvironmentParticleManager.h"
+#include "../../renderer/DecorationRenderer.h"
 
 class SpriteRenderer;
 class TextRenderer;
 class Texture2D;
 class GameStateManager;
+struct GLFWcursor;
 
 class MapEditorState : public IGameState {
+public:
+    using TileType = int;
+
+    struct CellChange {
+        int x = 0;
+        int y = 0;
+        TileType oldTile = 0;
+        TileType newTile = 0;
+        bool oldNoBuild = false;
+        bool newNoBuild = false;
+        std::vector<SpawnerData> oldSpawners;
+        std::vector<SpawnerData> newSpawners;
+        std::vector<BaseData> oldBases;
+        std::vector<BaseData> newBases;
+        bool hadOldMinecartStart = false;
+        bool hadNewMinecartStart = false;
+        bool hadOldMinecartEnd = false;
+        bool hadNewMinecartEnd = false;
+    };
+
+    struct EditorAction {
+        std::vector<CellChange> changes;
+    };
+
 private:
     GameStateManager& m_stateManager;
     int m_width;
@@ -49,6 +76,7 @@ private:
     std::vector<SpawnerData> m_spawners;
     std::vector<BaseData> m_bases;
     std::vector<std::vector<int>> m_rawLayout; // 0: Ground, 1: Path, 2: Platform, 3: Scenery, 4: Chasm, 5: Rail
+    std::vector<std::vector<bool>> m_noBuildMask; // [y][x], true = no-build zone
     std::vector<MinecartData> m_minecarts;
     std::vector<glm::ivec2> m_railPath;        // BFS-маршрут від start до end по рейках
     bool m_isRailPathValid = false;            // true якщо шлях знайдено
@@ -68,6 +96,7 @@ private:
 
     bool m_isLeftMouseDown = false;
     bool m_isRightMouseDown = false;
+    bool m_isShiftPressed = false;
     bool m_keySPressedLastFrame = false;
     bool m_keyTPressedLastFrame = false;
     bool m_keyCPressedLastFrame = false;
@@ -81,6 +110,14 @@ private:
     bool m_keyF1PressedLastFrame = false;
     bool m_keyUPressedLastFrame = false;
     bool m_keyRPressedLastFrame = false;
+    bool m_keyZPressedLastFrame = false;
+    bool m_keyYPressedLastFrame = false;
+
+    // История действий (Undo / Redo)
+    std::deque<EditorAction> m_undoStack;
+    std::deque<EditorAction> m_redoStack;
+    EditorAction m_currentStrokeAction;
+    bool m_isApplyingUndoRedo = false;
     float m_defaultEmitterAngle = 90.0f; // Угол струи по умолчанию (90 deg = вниз)
 
     // Предпросмотр боевого интерфейса (Combat HUD Preview)
@@ -132,6 +169,23 @@ private:
     bool m_isDraggingDecoration = false;
     glm::vec2 m_decorationDragOffset = glm::vec2(0.0f);
     float m_defaultDecorationRotation = 0.0f;
+    bool m_decorGridSnap = false;
+    bool m_keyGPressedLastFrame = false;
+
+    // Gizmo handles для интерактивного масштабирования декораций мышью
+    bool m_isResizingDecoration = false;
+    GizmoHandleType m_activeGizmoHandle = GizmoHandleType::None;
+    GizmoHandleType m_hoverGizmoHandle = GizmoHandleType::None;
+    glm::vec2 m_resizeStartLocalMouse = glm::vec2(0.0f);
+    glm::vec2 m_resizeStartWorldMouse = glm::vec2(0.0f);
+    float m_resizeStartScaleX = 1.0f;
+    float m_resizeStartScaleY = 1.0f;
+    float m_resizeStartScale = 1.0f;
+
+    // Стандартные курсоры GLFW для масштабирования
+    GLFWcursor* m_cursorResizeNWSE = nullptr;
+    GLFWcursor* m_cursorResizeEW = nullptr;
+    GLFWcursor* m_cursorResizeNS = nullptr;
 
     bool m_suppressPlacementUntilRelease = true;
     bool m_suppressClickUntilRelease = true;
@@ -168,6 +222,7 @@ private:
     void recalculateRailPath(); // BFS-валідація маршруту рейок від start до end
     void applyBrush(int gridX, int gridY, EditorBrush brush);
     void eraseCell(int gridX, int gridY);
+    void removeNoBuildAt(int gridX, int gridY);
     int findNearestEmitterIndex(glm::vec2 worldPos, float maxDist = 24.0f) const;
     void eraseEmitterNear(glm::vec2 worldPos, float maxDist = 24.0f);
     int findNearestDecorationIndex(glm::vec2 worldPos, float maxDist = 24.0f) const;
@@ -178,6 +233,11 @@ private:
     void updateCurrentLevelDisplayName();
     void testMap();
     void clearMap();
+    void undo();
+    void redo();
+    int recordCellBefore(int x, int y);
+    void recordCellAfter(int x, int y, int changeIndex);
+    void commitStroke();
     void cycleSelectedId(int step);
     glm::vec2 getDefaultWorldCenter() const;
     glm::vec2 getWorldCamCenter() const;
@@ -211,6 +271,8 @@ private:
         float repeatTimer = 0.0f;
     };
     std::unordered_map<int, KeyRepeatState> m_keyStates;
+    bool m_keyLayerUpLastFrame = false;
+    bool m_keyLayerDownLastFrame = false;
 
     glm::vec2 m_mousePos = glm::vec2(0.0f);
     float m_cursorBlinkTimer = 0.0f;

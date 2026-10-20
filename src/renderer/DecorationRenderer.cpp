@@ -6,6 +6,7 @@
 #include <GLFW/glfw3.h>
 #include <cmath>
 #include <algorithm>
+#include <numeric>
 
 namespace {
 
@@ -378,7 +379,15 @@ void drawSelection(SpriteRenderer* renderer, const std::shared_ptr<Texture2D>& t
     float halfH = boxH * 0.5f;
     glm::vec2 s1(1.0f, 1.0f);
 
-    // 4 уголка
+    // Тонкая контурная рамка выделения
+    float b = 1.0f;
+    glm::vec4 frameLineCol(0.35f, 0.85f, 1.0f, 0.40f);
+    drawPart(renderer, tex, d.worldPos, d.rotation, s1, { 0.0f, -halfH + b * 0.5f }, { boxW, b }, 0.0f, frameLineCol);
+    drawPart(renderer, tex, d.worldPos, d.rotation, s1, { 0.0f, halfH - b * 0.5f }, { boxW, b }, 0.0f, frameLineCol);
+    drawPart(renderer, tex, d.worldPos, d.rotation, s1, { -halfW + b * 0.5f, 0.0f }, { b, boxH }, 0.0f, frameLineCol);
+    drawPart(renderer, tex, d.worldPos, d.rotation, s1, { halfW - b * 0.5f, 0.0f }, { b, boxH }, 0.0f, frameLineCol);
+
+    // 4 угловых маркера (яркие уголки)
     // Top-Left
     drawPart(renderer, tex, d.worldPos, d.rotation, s1, { -halfW + cornerLen * 0.5f, -halfH + cornerThick * 0.5f }, { cornerLen, cornerThick }, 0.0f, frameCol);
     drawPart(renderer, tex, d.worldPos, d.rotation, s1, { -halfW + cornerThick * 0.5f, -halfH + cornerLen * 0.5f }, { cornerThick, cornerLen }, 0.0f, frameCol);
@@ -392,11 +401,96 @@ void drawSelection(SpriteRenderer* renderer, const std::shared_ptr<Texture2D>& t
     drawPart(renderer, tex, d.worldPos, d.rotation, s1, { halfW - cornerLen * 0.5f, halfH - cornerThick * 0.5f }, { cornerLen, cornerThick }, 0.0f, frameCol);
     drawPart(renderer, tex, d.worldPos, d.rotation, s1, { halfW - cornerThick * 0.5f, halfH - cornerLen * 0.5f }, { cornerThick, cornerLen }, 0.0f, frameCol);
 
-    // Точка в центре
-    drawPart(renderer, tex, d.worldPos, 0.0f, s1, { 0.0f, 0.0f }, { 4.0f, 4.0f }, 0.0f, dotCol);
+    // Точка в центре (якорь)
+    drawPart(renderer, tex, d.worldPos, 0.0f, s1, { 0.0f, 0.0f }, { 5.0f, 5.0f }, 0.0f, dotCol);
+
+    // 5. ИНТЕРАКТИВНЫЕ РУЧКИ ТРАНСФОРМАЦИИ (GIZMO HANDLES)
+    // 5.1. Правая стрелочка (X-Handle: масштаб ширины scaleX)
+    glm::vec4 xLineCol(1.0f, 0.35f, 0.35f, 0.85f);
+    glm::vec4 xHeadCol(1.0f, 0.32f, 0.32f, 1.0f);
+    glm::vec4 xHeadCore(1.0f, 0.85f, 0.85f, 1.0f);
+    glm::vec4 gizmoBgCol(0.10f, 0.12f, 0.18f, 0.95f);
+    drawPart(renderer, tex, d.worldPos, d.rotation, s1, { halfW + 6.0f, 0.0f }, { 12.0f, 2.0f }, 0.0f, xLineCol);
+    drawPart(renderer, tex, d.worldPos, d.rotation, s1, { halfW + 12.0f, 0.0f }, { 11.0f, 11.0f }, 45.0f, gizmoBgCol);
+    drawPart(renderer, tex, d.worldPos, d.rotation, s1, { halfW + 12.0f, 0.0f }, { 8.0f, 8.0f }, 45.0f, xHeadCol);
+    drawPart(renderer, tex, d.worldPos, d.rotation, s1, { halfW + 12.0f, 0.0f }, { 3.0f, 3.0f }, 45.0f, xHeadCore);
+
+    // 5.2. Верхняя стрелочка (Y-Handle: масштаб высоты scaleY)
+    glm::vec4 yLineCol(0.35f, 0.95f, 0.45f, 0.85f);
+    glm::vec4 yHeadCol(0.30f, 0.90f, 0.40f, 1.0f);
+    glm::vec4 yHeadCore(0.85f, 1.0f, 0.85f, 1.0f);
+    drawPart(renderer, tex, d.worldPos, d.rotation, s1, { 0.0f, -halfH - 6.0f }, { 2.0f, 12.0f }, 0.0f, yLineCol);
+    drawPart(renderer, tex, d.worldPos, d.rotation, s1, { 0.0f, -halfH - 12.0f }, { 11.0f, 11.0f }, 45.0f, gizmoBgCol);
+    drawPart(renderer, tex, d.worldPos, d.rotation, s1, { 0.0f, -halfH - 12.0f }, { 8.0f, 8.0f }, 45.0f, yHeadCol);
+    drawPart(renderer, tex, d.worldPos, d.rotation, s1, { 0.0f, -halfH - 12.0f }, { 3.0f, 3.0f }, 45.0f, yHeadCore);
+
+    // 5.3. Угловой кружок / шарик в правом нижнем углу (Corner Scale Handle: пропорциональный масштаб)
+    glm::vec4 cornerBallCol(1.0f, 0.85f, 0.20f, 1.0f);
+    glm::vec4 cornerBallCore(1.0f, 1.0f, 1.0f, 1.0f);
+    drawPart(renderer, tex, d.worldPos, d.rotation, s1, { halfW, halfH }, { 13.0f, 13.0f }, 45.0f, gizmoBgCol);
+    drawPart(renderer, tex, d.worldPos, d.rotation, s1, { halfW, halfH }, { 9.0f, 9.0f }, 45.0f, cornerBallCol);
+    drawPart(renderer, tex, d.worldPos, d.rotation, s1, { halfW - 1.0f, halfH - 1.0f }, { 3.0f, 3.0f }, 0.0f, cornerBallCore);
 }
 
 } // namespace
+
+GizmoInfo DecorationRenderer::getGizmoInfo(const DecorationConfig& d, float cellSize) {
+    const float kTileRef = 64.0f;
+    float cellScaleFactor = (cellSize > 0.001f) ? (cellSize / kTileRef) : 1.0f;
+    DecorationConfig dec = d;
+    dec.scale *= cellScaleFactor;
+
+    float sx = std::max(0.2f, dec.scale * dec.scaleX);
+    float sy = std::max(0.2f, dec.scale * dec.scaleY);
+    float baseDim = (dec.type == "fog") ? 130.0f : ((dec.type == "grass_field") ? 64.0f : ((dec.type == "bush") ? 56.0f : (dec.type == "puddle" ? 52.0f : 42.0f)));
+    float boxW = baseDim * sx;
+    float boxH = baseDim * sy;
+    float halfW = boxW * 0.5f;
+    float halfH = boxH * 0.5f;
+
+    GizmoInfo info;
+    info.boxW = boxW;
+    info.boxH = boxH;
+    info.cornerLocal = glm::vec2(halfW, halfH);
+    info.xHandleLocal = glm::vec2(halfW + 12.0f, 0.0f);
+    info.yHandleLocal = glm::vec2(0.0f, -halfH - 12.0f);
+
+    float rad = glm::radians(dec.rotation);
+    float cosR = std::cos(rad);
+    float sinR = std::sin(rad);
+
+    auto toWorld = [&](glm::vec2 local) -> glm::vec2 {
+        return dec.worldPos + glm::vec2(
+            local.x * cosR - local.y * sinR,
+            local.x * sinR + local.y * cosR
+        );
+    };
+
+    info.cornerWorld = toWorld(info.cornerLocal);
+    info.xHandleWorld = toWorld(info.xHandleLocal);
+    info.yHandleWorld = toWorld(info.yHandleLocal);
+    return info;
+}
+
+GizmoHandleType DecorationRenderer::hitTestGizmo(
+    const DecorationConfig& d,
+    glm::vec2 testWorldPos,
+    float hitRadius,
+    float cellSize
+) {
+    GizmoInfo info = getGizmoInfo(d, cellSize);
+
+    if (glm::distance(testWorldPos, info.cornerWorld) <= hitRadius) {
+        return GizmoHandleType::Corner;
+    }
+    if (glm::distance(testWorldPos, info.xHandleWorld) <= hitRadius) {
+        return GizmoHandleType::ScaleX;
+    }
+    if (glm::distance(testWorldPos, info.yHandleWorld) <= hitRadius) {
+        return GizmoHandleType::ScaleY;
+    }
+    return GizmoHandleType::None;
+}
 
 void DecorationRenderer::renderDecoration(
     SpriteRenderer* renderer,
@@ -466,9 +560,15 @@ void DecorationRenderer::renderDecorations(
     float cellSize,
     bool onlyFog
 ) {
-    if (!renderer || !whiteTexture) return;
+    if (!renderer || !whiteTexture || decorations.empty()) return;
 
-    for (size_t i = 0; i < decorations.size(); ++i) {
+    std::vector<size_t> order(decorations.size());
+    std::iota(order.begin(), order.end(), 0);
+    std::stable_sort(order.begin(), order.end(), [&decorations](size_t a, size_t b) {
+        return decorations[a].zIndex < decorations[b].zIndex;
+    });
+
+    for (size_t i : order) {
         bool isFog = (decorations[i].type == "fog" || decorations[i].type == "darkness");
         if (onlyFog != isFog) continue;
         bool isSel = (static_cast<int>(i) == selectedIndex);
@@ -485,9 +585,15 @@ void DecorationRenderer::renderDecorations(
     int selectedIndex,
     bool onlyFog
 ) {
-    if (!renderer || !whiteTexture) return;
+    if (!renderer || !whiteTexture || decorations.empty()) return;
 
-    for (size_t i = 0; i < decorations.size(); ++i) {
+    std::vector<size_t> order(decorations.size());
+    std::iota(order.begin(), order.end(), 0);
+    std::stable_sort(order.begin(), order.end(), [&decorations](size_t a, size_t b) {
+        return decorations[a].zIndex < decorations[b].zIndex;
+    });
+
+    for (size_t i : order) {
         bool isFog = (decorations[i].type == "fog" || decorations[i].type == "darkness");
         if (onlyFog != isFog) continue;
         bool isSel = (static_cast<int>(i) == selectedIndex);

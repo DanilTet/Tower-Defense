@@ -44,6 +44,9 @@ void GameplayRenderer::loadTextures() {
     ResourceManager::loadTexture("mercury_slime_large", "res/textures/enemies/mercury_slime_large.png");
     ResourceManager::loadTexture("mercury_slime_medium", "res/textures/enemies/mercury_slime_medium.png");
     ResourceManager::loadTexture("mercury_slime_small", "res/textures/enemies/mercury_slime_small.png");
+    ResourceManager::loadTexture("enemy_coal", "res/textures/enemies/coal.png");
+    ResourceManager::loadTexture("enemy_coal_glow", "res/textures/enemies/coal_glow.png");
+    ResourceManager::loadTexture("enemy_spark", "res/textures/enemies/spark.png");
 
     auto wrapNoDelete = [](const std::string& name) {
         Texture2D* tex = ResourceManager::getTexture(name);
@@ -138,6 +141,11 @@ void GameplayRenderer::renderFrame(
                 );
             }
         }
+    }
+
+    // 3.0. Фоновые эффекты частиц с отрицательным zIndex (ПОД башнями/трубами)
+    if (world.grid && m_whiteTexture) {
+        world.envParticleManager.render(m_renderer.get(), m_whiteTexture, *world.grid, -100, -1);
     }
 
     // 3.1. Декорации земли и объектов (ПОД мобами и снарядами, но ПОВЕРХ тайлов)

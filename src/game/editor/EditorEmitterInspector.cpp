@@ -1,5 +1,6 @@
 #include "EditorEmitterInspector.h"
 #include "../ui/UICommon.h"
+#include "../core/InputManager.h"
 #include "../../renderer/SpriteRenderer.h"
 #include "../../renderer/TextRenderer.h"
 #include "../../textures/Texture2D.h"
@@ -21,7 +22,7 @@ EmitterInspectorLayout EditorEmitterInspector::getLayout(const ParticleEmitterCo
 
     float s = GetUIScale(static_cast<int>(screenW), static_cast<int>(screenH));
     float w = 286.0f * s;
-    float h = 324.0f * s;
+    float h = 356.0f * s;
     l.panelSize = glm::vec2(w, h);
     l.headerH = 32.0f * s;
     l.fontScale = std::clamp(0.40f * s, 0.32f, 0.60f);
@@ -89,8 +90,18 @@ EmitterInspectorLayout EditorEmitterInspector::getLayout(const ParticleEmitterCo
     l.btnTypeNextPos = glm::vec2(px + padX + rowW - prevNextW, y1);
     l.btnTypeNextSize = glm::vec2(prevNextW, rowH);
 
+    // Ряд 1.5: СЛОЙ (zIndex) [-1] [ СЛОЙ: N ] [+1]
+    float yLayer = y1 + rowH + rowGap;
+    float btnLayerW = 28.0f * s;
+    l.btnLayerDecPos = glm::vec2(px + padX, yLayer);
+    l.btnLayerDecSize = glm::vec2(btnLayerW, rowH);
+    l.layerValuePos = glm::vec2(px + padX + btnLayerW + 4.0f * s, yLayer);
+    l.layerValueSize = glm::vec2(rowW - (btnLayerW + 4.0f * s) * 2.0f, rowH);
+    l.btnLayerIncPos = glm::vec2(px + padX + rowW - btnLayerW, yLayer);
+    l.btnLayerIncSize = glm::vec2(btnLayerW, rowH);
+
     // Ряд 2: УГОЛ
-    float y2 = y1 + rowH + rowGap;
+    float y2 = yLayer + rowH + rowGap;
     float btnAngleDecW = 36.0f * s;
     l.btnAngleDecPos = glm::vec2(px + padX, y2);
     l.btnAngleDecSize = glm::vec2(btnAngleDecW, rowH);
@@ -177,6 +188,26 @@ bool EditorEmitterInspector::handleInput(glm::vec2 mousePos, bool leftDown, bool
         return false;
     }
 
+    float scrollY = InputManager::getScrollY();
+    if (std::abs(scrollY) > 0.01f) {
+        if (isPointInRect(mousePos, l.btnLayerDecPos, l.btnLayerDecSize) ||
+            isPointInRect(mousePos, l.layerValuePos, l.layerValueSize) ||
+            isPointInRect(mousePos, l.btnLayerIncPos, l.btnLayerIncSize)) {
+            int delta = (scrollY > 0.0f) ? 1 : -1;
+            config.zIndex = std::clamp(config.zIndex + delta, -10, 10);
+            if (onChanged) onChanged();
+            if (showToast) showToast("Слой эмиттера (zIndex): " + std::to_string(config.zIndex), glm::vec4(0.4f, 0.85f, 1.0f, 1.0f));
+            return true;
+        } else if (isPointInRect(mousePos, l.btnAngleDecPos, l.btnAngleDecSize) ||
+                   isPointInRect(mousePos, l.btnAnglePos, l.btnAngleSize) ||
+                   isPointInRect(mousePos, l.btnAngleIncPos, l.btnAngleIncSize)) {
+            float delta = (scrollY > 0.0f) ? 15.0f : -15.0f;
+            config.angleDeg = std::fmod(config.angleDeg + delta + 360.0f, 360.0f);
+            if (onChanged) onChanged();
+            return true;
+        }
+    }
+
     // Если курсор над панелью, но клика не было - поглощаем курсор
     if (!leftDown || wasLeftDown) {
         return true;
@@ -238,6 +269,26 @@ bool EditorEmitterInspector::handleInput(glm::vec2 mousePos, bool leftDown, bool
     }
     if (isPointInRect(mousePos, l.btnTypeNextPos, l.btnTypeNextSize) || isPointInRect(mousePos, l.btnTypePos, l.btnTypeSize)) {
         cycleType(1);
+        return true;
+    }
+
+    // 5.5. Слой (zIndex): [-1] [ СЛОЙ: N ] [+1]
+    if (isPointInRect(mousePos, l.btnLayerDecPos, l.btnLayerDecSize)) {
+        config.zIndex = std::clamp(config.zIndex - 1, -10, 10);
+        if (onChanged) onChanged();
+        if (showToast) showToast("Слой эмиттера (zIndex): " + std::to_string(config.zIndex), glm::vec4(0.4f, 0.85f, 1.0f, 1.0f));
+        return true;
+    }
+    if (isPointInRect(mousePos, l.btnLayerIncPos, l.btnLayerIncSize)) {
+        config.zIndex = std::clamp(config.zIndex + 1, -10, 10);
+        if (onChanged) onChanged();
+        if (showToast) showToast("Слой эмиттера (zIndex): " + std::to_string(config.zIndex), glm::vec4(0.4f, 0.85f, 1.0f, 1.0f));
+        return true;
+    }
+    if (isPointInRect(mousePos, l.layerValuePos, l.layerValueSize)) {
+        config.zIndex = (config.zIndex != 0) ? 0 : 1;
+        if (onChanged) onChanged();
+        if (showToast) showToast("Слой эмиттера (zIndex): " + std::to_string(config.zIndex), glm::vec4(0.4f, 0.85f, 1.0f, 1.0f));
         return true;
     }
 
@@ -379,6 +430,12 @@ void EditorEmitterInspector::render(SpriteRenderer* renderer, TextRenderer* text
     drawBtn(l.btnTypePos, l.btnTypeSize, btnBaseBg, btnHoverBg, btnBorder);
     drawBtn(l.btnTypeNextPos, l.btnTypeNextSize, btnBaseBg, btnHoverBg, btnBorder);
 
+    // Ряд 1.5: Слой (zIndex)
+    drawBtn(l.btnLayerDecPos, l.btnLayerDecSize, btnBaseBg, btnHoverBg, btnBorder);
+    drawBtn(l.layerValuePos, l.layerValueSize,
+            glm::vec4(0.10f, 0.14f, 0.20f, 0.85f), glm::vec4(0.14f, 0.20f, 0.28f, 0.95f), glm::vec4(0.30f, 0.45f, 0.60f, 0.85f));
+    drawBtn(l.btnLayerIncPos, l.btnLayerIncSize, btnBaseBg, btnHoverBg, btnBorder);
+
     // Ряд 2: Угол
     drawBtn(l.btnAngleDecPos, l.btnAngleDecSize, btnBaseBg, btnHoverBg, btnBorder);
     drawBtn(l.btnAnglePos, l.btnAngleSize, btnBaseBg, btnHoverBg, btnBorder);
@@ -459,6 +516,12 @@ void EditorEmitterInspector::render(SpriteRenderer* renderer, TextRenderer* text
     renderCentered("<", l.btnTypePrevPos, l.btnTypePrevSize, l.fontScale, glm::vec3(0.7f, 0.85f, 1.0f));
     renderCentered("ТИП: " + typeName, l.btnTypePos, l.btnTypeSize, l.fontScale, typeCol);
     renderCentered(">", l.btnTypeNextPos, l.btnTypeNextSize, l.fontScale, glm::vec3(0.7f, 0.85f, 1.0f));
+
+    // Текст ряда 1.5: Слой (zIndex)
+    std::string layerText = std::string("СЛОЙ: ") + (config.zIndex > 0 ? "+" : "") + std::to_string(config.zIndex);
+    renderCentered("-1", l.btnLayerDecPos, l.btnLayerDecSize, l.fontScale, glm::vec3(1.0f, 0.8f, 0.8f));
+    renderCentered(layerText, l.layerValuePos, l.layerValueSize, l.fontScale, glm::vec3(0.60f, 0.90f, 1.0f));
+    renderCentered("+1", l.btnLayerIncPos, l.btnLayerIncSize, l.fontScale, glm::vec3(0.8f, 1.0f, 0.8f));
 
     // Текст ряда 2: Угол
     renderCentered("-45", l.btnAngleDecPos, l.btnAngleDecSize, l.fontScale * 0.9f, glm::vec3(0.8f, 0.9f, 1.0f));

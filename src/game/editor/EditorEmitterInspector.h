@@ -29,6 +29,14 @@ struct EmitterInspectorLayout {
     glm::vec2 btnTypeNextPos{0.0f};
     glm::vec2 btnTypeNextSize{0.0f};
 
+    // Слой (Z-Index): [Слой -1] [ СЛОЙ: N ] [Слой +1]
+    glm::vec2 btnLayerDecPos{0.0f};
+    glm::vec2 btnLayerDecSize{0.0f};
+    glm::vec2 layerValuePos{0.0f};
+    glm::vec2 layerValueSize{0.0f};
+    glm::vec2 btnLayerIncPos{0.0f};
+    glm::vec2 btnLayerIncSize{0.0f};
+
     glm::vec2 btnAngleDecPos{0.0f};
     glm::vec2 btnAngleDecSize{0.0f};
     glm::vec2 btnAnglePos{0.0f};

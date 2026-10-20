@@ -204,6 +204,7 @@ void EnvironmentParticleManager::update(float dt, const Grid& grid) {
                         float speed = (cfgSpeed * randRange(0.80f, 1.25f)) * scaleFactor;
 
                         EnvParticle p;
+                        p.zIndex = em.config.zIndex;
                         p.pos = emitterPos + dir * randRange(2.0f, 8.0f) * scaleFactor;
                         p.vel = dir * speed;
                         p.startColor = glm::vec4(0.96f, 0.98f, 1.0f, randRange(0.65f, 0.85f));
@@ -225,6 +226,7 @@ void EnvironmentParticleManager::update(float dt, const Grid& grid) {
                         float speed = (cfgSpeed * randRange(0.45f, 0.85f)) * scaleFactor;
 
                         EnvParticle p;
+                        p.zIndex = em.config.zIndex;
                         p.pos = emitterPos + dir * 6.0f * scaleFactor;
                         p.vel = dir * speed;
                         p.startColor = glm::vec4(0.35f, 0.72f, 1.0f, 0.85f);
@@ -246,6 +248,7 @@ void EnvironmentParticleManager::update(float dt, const Grid& grid) {
                     glm::vec2 dir = glm::vec2(std::cos(rad), std::sin(rad));
 
                     EnvParticle p;
+                    p.zIndex = em.config.zIndex;
                     p.pos = emitterPos + dir * 5.0f * scaleFactor;
                     p.vel = dir * (cfgSpeed * randRange(0.20f, 0.40f)) * scaleFactor;
                     p.startColor = glm::vec4(0.30f, 0.75f, 1.0f, 0.9f);
@@ -268,6 +271,7 @@ void EnvironmentParticleManager::update(float dt, const Grid& grid) {
                         float speed = (cfgSpeed * randRange(0.90f, 1.55f)) * scaleFactor;
 
                         EnvParticle p;
+                        p.zIndex = em.config.zIndex;
                         p.pos = emitterPos;
                         p.vel = dir * speed;
                         p.startColor = glm::vec4(1.0f, 0.95f, 0.40f, 1.0f);
@@ -289,6 +293,7 @@ void EnvironmentParticleManager::update(float dt, const Grid& grid) {
                     glm::vec2 dir = glm::vec2(std::cos(rad), std::sin(rad));
 
                     EnvParticle p;
+                    p.zIndex = em.config.zIndex;
                     p.pos = emitterPos + dir * 6.0f * scaleFactor;
                     p.vel = dir * (cfgSpeed * randRange(0.25f, 0.55f)) * scaleFactor;
                     p.startColor = glm::vec4(0.40f, 0.40f, 0.45f, 0.55f);
@@ -313,6 +318,7 @@ void EnvironmentParticleManager::update(float dt, const Grid& grid) {
                     glm::vec2 scatterOffset = glm::vec2(std::cos(scatterRad), std::sin(scatterRad)) * randRange(2.0f, 20.0f) * scaleFactor;
 
                     EnvParticle p;
+                    p.zIndex = em.config.zIndex;
                     p.pos = emitterPos + scatterOffset;
                     p.vel = dir * (cfgSpeed * randRange(0.08f, 0.22f)) * scaleFactor;
 
@@ -367,11 +373,12 @@ void EnvironmentParticleManager::update(float dt, const Grid& grid) {
     }
 }
 
-void EnvironmentParticleManager::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture, const Grid& /*grid*/) {
+void EnvironmentParticleManager::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture, const Grid& /*grid*/, int minZ, int maxZ) {
     if (!renderer || !texture) return;
 
     for (const auto& p : m_pool) {
         if (!p.active) continue;
+        if (p.zIndex < minZ || p.zIndex > maxZ) continue;
 
         float lifeFactor = 1.0f - (p.lifeRemaining / p.lifeTime);
         lifeFactor = std::clamp(lifeFactor, 0.0f, 1.0f);

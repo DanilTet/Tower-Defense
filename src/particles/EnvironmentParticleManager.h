@@ -24,6 +24,7 @@ struct EnvParticle {
     float rotation = 0.0f;
     float angularVel = 0.0f;
     bool active = false;
+    int zIndex = 0;
 };
 
 struct RuntimeEmitterState {
@@ -48,7 +49,7 @@ public:
     ParticleEmitterConfig* findEmitterAt(int gridX, int gridY);
 
     void update(float dt, const Grid& grid);
-    void render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture, const Grid& grid);
+    void render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture, const Grid& grid, int minZ = -100, int maxZ = 100);
 
     void clear();
     void clearParticles();

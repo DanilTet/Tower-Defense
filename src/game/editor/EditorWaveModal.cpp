@@ -23,12 +23,30 @@ struct EnemyTypeChoice {
     glm::vec3 border;
 };
 
-static const std::vector<EnemyTypeChoice>& getEnemyTypeChoices() {
-    static const std::vector<EnemyTypeChoice> choices = {
+// Полный реестр для корректного отображения уже созданных пачек на существующих картах
+static const std::vector<EnemyTypeChoice>& getAllEnemyTypeInfo() {
+    static const std::vector<EnemyTypeChoice> all = {
         { "Coal",           "Уголёк",           glm::vec3(0.85f, 0.60f, 0.35f), glm::vec3(0.22f, 0.20f, 0.18f), glm::vec3(0.60f, 0.40f, 0.25f) },
+        { "Spark",          "Искра",            glm::vec3(1.00f, 0.80f, 0.25f), glm::vec3(0.28f, 0.16f, 0.08f), glm::vec3(0.92f, 0.55f, 0.12f) },
         { "Basic",          "Basic",            glm::vec3(0.40f, 0.90f, 1.00f), glm::vec3(0.15f, 0.28f, 0.45f), glm::vec3(0.30f, 0.60f, 0.95f) },
         { "Fast",           "Fast",             glm::vec3(1.00f, 0.90f, 0.30f), glm::vec3(0.38f, 0.32f, 0.12f), glm::vec3(0.95f, 0.80f, 0.20f) },
         { "Tank",           "Tank",             glm::vec3(1.00f, 0.45f, 0.45f), glm::vec3(0.42f, 0.16f, 0.16f), glm::vec3(0.95f, 0.32f, 0.32f) },
+        { "Mercury_Large",  "Ртуть (Большая)",  glm::vec3(0.85f, 0.90f, 0.98f), glm::vec3(0.24f, 0.28f, 0.36f), glm::vec3(0.70f, 0.78f, 0.90f) },
+        { "Mercury_Medium", "Ртуть (Средняя)",  glm::vec3(0.75f, 0.82f, 0.92f), glm::vec3(0.20f, 0.24f, 0.32f), glm::vec3(0.60f, 0.70f, 0.82f) },
+        { "Mercury_Small",  "Ртуть (Малая)",    glm::vec3(0.65f, 0.75f, 0.85f), glm::vec3(0.18f, 0.22f, 0.28f), glm::vec3(0.50f, 0.60f, 0.75f) }
+    };
+    return all;
+}
+
+// Список доступных для выбора типов врагов в редакторе (Coal, Spark, Mercury)
+static const std::vector<EnemyTypeChoice>& getEnemyTypeChoices() {
+    static const std::vector<EnemyTypeChoice> choices = {
+        { "Coal",           "Уголёк",           glm::vec3(0.85f, 0.60f, 0.35f), glm::vec3(0.22f, 0.20f, 0.18f), glm::vec3(0.60f, 0.40f, 0.25f) },
+        { "Spark",          "Искра",            glm::vec3(1.00f, 0.80f, 0.25f), glm::vec3(0.28f, 0.16f, 0.08f), glm::vec3(0.92f, 0.55f, 0.12f) },
+        // Временно скрыты устаревшие прототипы врагов:
+        // { "Basic",          "Basic",            glm::vec3(0.40f, 0.90f, 1.00f), glm::vec3(0.15f, 0.28f, 0.45f), glm::vec3(0.30f, 0.60f, 0.95f) },
+        // { "Fast",           "Fast",             glm::vec3(1.00f, 0.90f, 0.30f), glm::vec3(0.38f, 0.32f, 0.12f), glm::vec3(0.95f, 0.80f, 0.20f) },
+        // { "Tank",           "Tank",             glm::vec3(1.00f, 0.45f, 0.45f), glm::vec3(0.42f, 0.16f, 0.16f), glm::vec3(0.95f, 0.32f, 0.32f) },
         { "Mercury_Large",  "Ртуть (Большая)",  glm::vec3(0.85f, 0.90f, 0.98f), glm::vec3(0.24f, 0.28f, 0.36f), glm::vec3(0.70f, 0.78f, 0.90f) },
         { "Mercury_Medium", "Ртуть (Средняя)",  glm::vec3(0.75f, 0.82f, 0.92f), glm::vec3(0.20f, 0.24f, 0.32f), glm::vec3(0.60f, 0.70f, 0.82f) },
         { "Mercury_Small",  "Ртуть (Малая)",    glm::vec3(0.65f, 0.75f, 0.85f), glm::vec3(0.18f, 0.22f, 0.28f), glm::vec3(0.50f, 0.60f, 0.75f) }
@@ -565,7 +583,7 @@ bool EditorWaveModal::handleInput(GLFWwindow* window, glm::vec2 mousePos, bool l
             commitFocusedInput(waves);
             WaveConfig newWave;
             WavePart p;
-            p.type = "Basic";
+            p.type = "Coal";
             p.count = 10;
             p.spawnInterwal = 0.8f;
             p.delayAfter = 2.0f;
@@ -663,7 +681,7 @@ bool EditorWaveModal::handleInput(GLFWwindow* window, glm::vec2 mousePos, bool l
                 waves.erase(waves.begin() + wIdx);
                 if (waves.empty()) {
                     WaveConfig defW;
-                    defW.parts.push_back({ "Basic", 10, 0.8f, 2.0f, -1 });
+                    defW.parts.push_back({ "Coal", 10, 0.8f, 2.0f, -1 });
                     waves.push_back(defW);
                 }
                 m_selectedWaveIdx = std::clamp(m_selectedWaveIdx, 0, static_cast<int>(waves.size()) - 1);
@@ -683,7 +701,7 @@ bool EditorWaveModal::handleInput(GLFWwindow* window, glm::vec2 mousePos, bool l
             if (isPointInRect(mousePos, l.btnAddPartPos, l.btnAddPartSize)) {
                 commitFocusedInput(waves);
                 WavePart p;
-                p.type = "Basic";
+                p.type = "Coal";
                 p.count = 10;
                 p.spawnInterwal = 0.8f;
                 p.delayAfter = 2.0f;
@@ -1004,7 +1022,7 @@ void EditorWaveModal::render(SpriteRenderer* renderer, TextRenderer* textRendere
 
                 glm::vec3 typeBg(0.15f, 0.28f, 0.45f);
                 glm::vec3 typeBorder(0.30f, 0.60f, 0.95f);
-                for (const auto& ch : getEnemyTypeChoices()) {
+                for (const auto& ch : getAllEnemyTypeInfo()) {
                     if (part.type == ch.id) {
                         typeBorder = isDropOpen ? glm::min(ch.border * 1.15f, glm::vec3(1.0f)) : ch.border;
                         typeBg = isDropOpen ? (ch.baseBg * 1.35f) : (typeHov ? (ch.baseBg * 1.20f) : ch.baseBg);
@@ -1239,7 +1257,7 @@ void EditorWaveModal::render(SpriteRenderer* renderer, TextRenderer* textRendere
                     glm::vec2 typeBtnSize(130.0f * scale, 26.0f * scale);
                     std::string displayType = part.type;
                     glm::vec3 typeTxtCol(0.4f, 0.9f, 1.0f);
-                    for (const auto& ch : getEnemyTypeChoices()) {
+                    for (const auto& ch : getAllEnemyTypeInfo()) {
                         if (part.type == ch.id) {
                             displayType = ch.label;
                             typeTxtCol = ch.color;

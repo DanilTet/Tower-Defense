@@ -72,6 +72,7 @@ struct ParticleEmitterConfig {
     float periodMax = 12.0f;    // Макс. интервал между выбросами
     float burstDuration = 2.2f; // Длительность залпа
     bool loopContinuous = false; // если true, эмиттер работает непрерывно без пауз
+    int zIndex = 0;             // Слой отрисовки (-10 .. 10)
 };
 
 struct DecorationConfig {
@@ -85,6 +86,7 @@ struct DecorationConfig {
     float opacity = 0.5f;   // прозрачность / глубина (0.1f .. 1.0f)
     float rotation = 0.0f;  // угол поворота (градусы)
     bool destructible = true; // сносится ли при постройке башни
+    int zIndex = 0;         // Слой отрисовки (-10 .. 10)
 };
 
 // четенькая структура где храниться структура левела
@@ -109,6 +111,7 @@ struct LevelMapData {
     std::vector<SpawnerData> spawners;
     std::vector<BaseData> bases;
     std::vector<std::vector<int>> layout;
+    std::vector<std::vector<bool>> noBuildMask; // [y][x], true = no-build zone
     std::vector<MinecartData> minecarts;
     std::vector<ParticleEmitterConfig> emitters;
     std::vector<DecorationConfig> decorations;

@@ -43,7 +43,12 @@ public:
 	// Реестр поддерживаемых типов врагов
 	static const std::vector<std::string>& getRegisteredEnemyTypes() {
 		static const std::vector<std::string> s_types = {
-			"Coal", "Basic", "Fast", "Tank", "Mercury_Large", "Mercury_Medium", "Mercury_Small"
+			"Coal",
+			"Spark",
+			"Mercury_Large",
+			"Mercury_Medium",
+			"Mercury_Small"
+			// , "Basic", "Fast", "Tank"
 		};
 		return s_types;
 	}

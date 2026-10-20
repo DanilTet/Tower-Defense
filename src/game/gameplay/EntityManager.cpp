@@ -24,7 +24,7 @@ void EntityManager::update(float dt, Grid& gameGrid) {
     // Пробегаемся по всему вектору активных врагов на карте
     for (const auto& enemy : m_enemies) {
         if (enemy) { // Если указатель на врага живой
-            enemy->update(dt, gameGrid); // враг пересчитывает свою позицию с учетом deltaTime
+            enemy->update(dt, gameGrid, m_particleSystem.get()); // враг пересчитывает свою позицию и спавнит эффекты
         }
     }
 

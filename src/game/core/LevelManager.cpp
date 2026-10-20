@@ -209,6 +209,26 @@ LevelMapData LevelManager::loadLevelMap(const std::string& filepath) {
                 minecartsJson = &j["minecarts"];
             }
 
+            // no-build mask (backward compat if missing: all false)
+            if (j["map"].contains("noBuildMask")) {
+                for (const auto& row : j["map"]["noBuildMask"]) {
+                    std::vector<bool> rowData;
+                    for (const auto& cell : row) {
+                        bool val = false;
+                        if (cell.is_boolean()) val = cell.get<bool>();
+                        else if (cell.is_number()) val = (cell.get<int>() != 0);
+                        rowData.push_back(val);
+                    }
+                    data.noBuildMask.push_back(rowData);
+                }
+            }
+            data.noBuildMask.resize(
+                static_cast<size_t>(data.gridHeight),
+                std::vector<bool>(static_cast<size_t>(data.gridWidth), false));
+            for (auto& row : data.noBuildMask) {
+                row.resize(static_cast<size_t>(data.gridWidth), false);
+            }
+
             if (minecartsJson) {
                 auto parsePoint = [](const json& p) -> glm::ivec2 {
                     if (p.is_array() && p.size() >= 2) {
@@ -264,8 +284,12 @@ LevelMapData LevelManager::loadLevelMap(const std::string& filepath) {
                     em.periodMax = emNode.value("periodMax", 12.0f);
                     em.burstDuration = emNode.value("burstDuration", 2.2f);
                     em.loopContinuous = emNode.value("loop", emNode.value("loopContinuous", false));
+                    em.zIndex = emNode.value("zIndex", 0);
                     data.emitters.push_back(em);
                 }
+                std::stable_sort(data.emitters.begin(), data.emitters.end(), [](const ParticleEmitterConfig& a, const ParticleEmitterConfig& b) {
+                    return a.zIndex < b.zIndex;
+                });
             }
 
             // Читаем свободные декорации ("decorations")
@@ -321,8 +345,12 @@ LevelMapData LevelManager::loadLevelMap(const std::string& filepath) {
                     dec.opacity = decNode.value("opacity", 0.5f);
                     dec.rotation = decNode.value("rotation", 0.0f);
                     dec.destructible = decNode.value("destructible", true);
+                    dec.zIndex = decNode.value("zIndex", 0);
                     data.decorations.push_back(dec);
                 }
+                std::stable_sort(data.decorations.begin(), data.decorations.end(), [](const DecorationConfig& a, const DecorationConfig& b) {
+                    return a.zIndex < b.zIndex;
+                });
             }
 
             // Обратная совместимость для старых карт, где x/y были сохранены в пикселях (x > gridWidth || y > gridHeight)
@@ -418,6 +446,19 @@ bool LevelManager::saveLevelMap(const std::string& filepath, const LevelMapData&
     j["map"]["offsetX"] = data.offsetX;
     j["map"]["offsetY"] = data.offsetY;
     j["map"]["layout"] = data.layout;
+    // сохраняем маску запрета постройки как 2D массив 0/1
+    {
+        json nbm = json::array();
+        for (int y = 0; y < data.gridHeight; ++y) {
+            json jrow = json::array();
+            for (int x = 0; x < data.gridWidth; ++x) {
+                bool val = (y < (int)data.noBuildMask.size() && x < (int)data.noBuildMask[y].size()) ? data.noBuildMask[y][x] : false;
+                jrow.push_back(val ? 1 : 0);
+            }
+            nbm.push_back(jrow);
+        }
+        j["map"]["noBuildMask"] = nbm;
+    }
     j["startingMoney"] = data.startingMoney;
     j["startingHealth"] = data.startingHealth;
     j["allowedTowers"] = data.allowedTowers;
@@ -485,7 +526,8 @@ bool LevelManager::saveLevelMap(const std::string& filepath, const LevelMapData&
                 { "periodMin", em.periodMin },
                 { "periodMax", em.periodMax },
                 { "burstDuration", em.burstDuration },
-                { "loop", em.loopContinuous }
+                { "loop", em.loopContinuous },
+                { "zIndex", em.zIndex }
             });
         }
         j["map"]["emitters"] = emittersJson;
@@ -509,7 +551,8 @@ bool LevelManager::saveLevelMap(const std::string& filepath, const LevelMapData&
                 { "scaleY", dec.scaleY },
                 { "opacity", dec.opacity },
                 { "rotation", dec.rotation },
-                { "destructible", dec.destructible }
+                { "destructible", dec.destructible },
+                { "zIndex", dec.zIndex }
             });
         }
         j["map"]["decorations"] = decsJson;
@@ -902,6 +945,7 @@ std::string LevelManager::createNewLevel(const std::string& displayName, bool is
     newMap.offsetX = 20.0f;
     newMap.offsetY = 20.0f;
     newMap.layout.assign(12, std::vector<int>(20, 0));
+    newMap.noBuildMask.assign(12, std::vector<bool>(20, false));
     newMap.startingMoney = 50;
     newMap.startingHealth = 20;
     newMap.allowedTowers = { "Basic", "Mercury", "Piston" };

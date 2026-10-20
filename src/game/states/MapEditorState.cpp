@@ -1,4 +1,14 @@
 #include "MapEditorState.h"
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#undef APIENTRY
+#include <windows.h>
+#endif
 #include "GameStateManager.h"
 #include "MainMenuState.h"
 #include "LevelSelectState.h"
@@ -17,6 +27,7 @@
 #include <iostream>
 #include <fstream>
 #include <algorithm>
+#include <numeric>
 #include <queue>
 #include <cmath>
 #include <cstdio>
@@ -101,11 +112,19 @@ void MapEditorState::init() {
     m_arrowTexture = wrapNoDelete("arrowTexture");
     m_whiteTexture = std::shared_ptr<Texture2D>(ResourceManager::getWhiteTexture(), [](Texture2D*) {});
 
+    m_cursorResizeNWSE = glfwCreateStandardCursor(GLFW_RESIZE_NWSE_CURSOR);
+    m_cursorResizeEW = glfwCreateStandardCursor(GLFW_RESIZE_EW_CURSOR);
+    m_cursorResizeNS = glfwCreateStandardCursor(GLFW_RESIZE_NS_CURSOR);
+
     loadInitialMap();
     updateButtonLayout();
 }
 
 void MapEditorState::cleanup() {
+    if (m_cursorResizeNWSE) { glfwDestroyCursor(m_cursorResizeNWSE); m_cursorResizeNWSE = nullptr; }
+    if (m_cursorResizeEW) { glfwDestroyCursor(m_cursorResizeEW); m_cursorResizeEW = nullptr; }
+    if (m_cursorResizeNS) { glfwDestroyCursor(m_cursorResizeNS); m_cursorResizeNS = nullptr; }
+
     glm::mat4 P_screen = glm::ortho(0.0f, static_cast<float>(m_width), static_cast<float>(m_height), 0.0f, -1.0f, 1.0f);
     if (m_renderer) m_renderer->setProjection(P_screen);
     if (m_textRenderer) m_textRenderer->updateProjection(P_screen);
@@ -168,6 +187,9 @@ void MapEditorState::loadLevelByName(const std::string& fileName) {
         m_cameraSettings = data.camera;
         m_isCameraConfigMode = false;
         m_tags = data.tags;
+        m_undoStack.clear();
+        m_redoStack.clear();
+        m_currentStrokeAction.changes.clear();
         m_startingMoney = data.startingMoney;
         m_startingHealth = data.startingHealth;
         m_allowedTowers = data.allowedTowers;
@@ -614,6 +636,7 @@ EditorContext MapEditorState::buildEditorContext() const {
     ctx.isLevelSettingsModalOpen = m_levelSettingsModal.isOpen();
     ctx.currentCategory = m_toolbarUI.getCategory();
     ctx.hudPreviewMode = m_hudPreviewMode;
+    ctx.decorGridSnap = m_decorGridSnap;
     ctx.startingMoney = m_startingMoney;
     ctx.startingHealth = m_startingHealth;
     return ctx;
@@ -885,6 +908,8 @@ void MapEditorState::applyBrush(int gridX, int gridY, EditorBrush brush) {
         }
     }
 
+    int changeIdx = recordCellBefore(gridX, gridY);
+
     // Иначе удаляем старый спавнер или базу в этой точке
     m_spawners.erase(
         std::remove_if(m_spawners.begin(), m_spawners.end(),
@@ -983,6 +1008,8 @@ void MapEditorState::applyBrush(int gridX, int gridY, EditorBrush brush) {
             break;
     }
 
+    recordCellAfter(gridX, gridY, changeIdx);
+
     m_grid->saveOriginalGrid();
     recalculatePaths();
     m_isDirty = true;
@@ -990,6 +1017,8 @@ void MapEditorState::applyBrush(int gridX, int gridY, EditorBrush brush) {
 
 void MapEditorState::eraseCell(int gridX, int gridY) {
     if (gridX < 0 || gridX >= m_gridWidth || gridY < 0 || gridY >= m_gridHeight) return;
+
+    int changeIdx = recordCellBefore(gridX, gridY);
 
     if (m_selectedEntityIndex >= 0) {
         if (m_selectedEntityType == EditorEntityType::Spawner && m_selectedEntityIndex < static_cast<int>(m_spawners.size())) {
@@ -1035,10 +1064,32 @@ void MapEditorState::eraseCell(int gridX, int gridY) {
     m_envParticleManager.removeEmitterAt(gridX, gridY);
 
     m_rawLayout[gridY][gridX] = 0;
+    if (gridY < (int)m_noBuildMask.size() && gridX < (int)m_noBuildMask[gridY].size()) {
+        m_noBuildMask[gridY][gridX] = false;
+        m_grid->setNoBuildAt(gridX, gridY, false);
+    }
     m_grid->setCellType(gridX, gridY, CellType::Ground);
+
+    recordCellAfter(gridX, gridY, changeIdx);
+
     m_grid->saveOriginalGrid();
     recalculatePaths();
     m_isDirty = true;
+}
+
+void MapEditorState::removeNoBuildAt(int gridX, int gridY) {
+    if (gridX < 0 || gridX >= m_gridWidth || gridY < 0 || gridY >= m_gridHeight) return;
+
+    if (gridY < (int)m_noBuildMask.size() && gridX < (int)m_noBuildMask[gridY].size()) {
+        if (m_noBuildMask[gridY][gridX]) {
+            int changeIdx = recordCellBefore(gridX, gridY);
+            m_noBuildMask[gridY][gridX] = false;
+            m_grid->setNoBuildAt(gridX, gridY, false);
+            recordCellAfter(gridX, gridY, changeIdx);
+            m_isDirty = true;
+            showToast("Зона запрета стройки удалена", glm::vec4(0.3f, 0.85f, 0.4f, 1.0f));
+        }
+    }
 }
 
 int MapEditorState::findNearestEmitterIndex(glm::vec2 worldPos, float maxDist) const {
@@ -1077,16 +1128,33 @@ void MapEditorState::eraseEmitterNear(glm::vec2 worldPos, float maxDist) {
 
 int MapEditorState::findNearestDecorationIndex(glm::vec2 worldPos, float maxDist) const {
     if (m_decorations.empty()) return -1;
+
+    // Сначала проверяем уже выделенный декор (приоритет прямого захвата для свободного перемещения)
+    if (m_selectedDecorationIndex >= 0 && m_selectedDecorationIndex < static_cast<int>(m_decorations.size())) {
+        const auto& selDec = m_decorations[m_selectedDecorationIndex];
+        glm::vec2 selWorld = m_grid ? (m_grid->getOffset() + selDec.tilePos * m_grid->getCellSize()) : selDec.worldPos;
+        float baseDim = (selDec.type == "fog") ? 65.0f : ((selDec.type == "grass_field") ? 32.0f : ((selDec.type == "bush") ? 28.0f : (selDec.type == "puddle" ? 26.0f : 21.0f)));
+        float selRadius = std::max(maxDist, baseDim * selDec.scale * std::max(selDec.scaleX, selDec.scaleY));
+        if (glm::distance(worldPos, selWorld) <= selRadius) {
+            return m_selectedDecorationIndex;
+        }
+    }
+
     int bestIdx = -1;
-    float bestDistSq = maxDist * maxDist;
+    float bestScore = 1e9f;
 
     for (size_t i = 0; i < m_decorations.size(); ++i) {
-        glm::vec2 decWorld = m_grid ? (m_grid->getOffset() + m_decorations[i].tilePos * m_grid->getCellSize()) : m_decorations[i].worldPos;
-        glm::vec2 diff = worldPos - decWorld;
-        float dSq = glm::dot(diff, diff);
-        if (dSq < bestDistSq) {
-            bestDistSq = dSq;
-            bestIdx = static_cast<int>(i);
+        const auto& d = m_decorations[i];
+        glm::vec2 decWorld = m_grid ? (m_grid->getOffset() + d.tilePos * m_grid->getCellSize()) : d.worldPos;
+        float dist = glm::distance(worldPos, decWorld);
+        float baseDim = (d.type == "fog") ? 65.0f : ((d.type == "grass_field") ? 32.0f : ((d.type == "bush") ? 28.0f : (d.type == "puddle" ? 26.0f : 21.0f)));
+        float effectiveRadius = std::max(maxDist, baseDim * d.scale * std::max(d.scaleX, d.scaleY));
+        if (dist <= effectiveRadius) {
+            float score = dist / effectiveRadius;
+            if (score < bestScore) {
+                bestScore = score;
+                bestIdx = static_cast<int>(i);
+            }
         }
     }
     return bestIdx;
@@ -1186,10 +1254,265 @@ void MapEditorState::clearMap() {
     }
     m_grid->saveOriginalGrid();
     recalculatePaths();
+    m_undoStack.clear();
+    m_redoStack.clear();
+    m_currentStrokeAction.changes.clear();
     m_statusMessage = "Map cleared to Ground.";
     m_statusColor = glm::vec3(0.9f, 0.9f, 0.3f);
     m_statusTimer = 2.0f;
     showToast("Карта очищена", glm::vec4(0.9f, 0.9f, 0.3f, 1.0f));
+}
+
+int MapEditorState::recordCellBefore(int x, int y) {
+    if (m_isApplyingUndoRedo) return -1;
+    if (x < 0 || x >= m_gridWidth || y < 0 || y >= m_gridHeight) return -1;
+
+    for (size_t i = 0; i < m_currentStrokeAction.changes.size(); ++i) {
+        if (m_currentStrokeAction.changes[i].x == x && m_currentStrokeAction.changes[i].y == y) {
+            return static_cast<int>(i);
+        }
+    }
+
+    CellChange change;
+    change.x = x;
+    change.y = y;
+    change.oldTile = (y < (int)m_rawLayout.size() && x < (int)m_rawLayout[y].size()) ? m_rawLayout[y][x] : 0;
+    change.oldNoBuild = (y < (int)m_noBuildMask.size() && x < (int)m_noBuildMask[y].size()) ? m_noBuildMask[y][x] : false;
+
+    for (const auto& sp : m_spawners) {
+        if (sp.pos.x == x && sp.pos.y == y) change.oldSpawners.push_back(sp);
+    }
+    for (const auto& b : m_bases) {
+        if (b.x == x && b.y == y) change.oldBases.push_back(b);
+    }
+    if (!m_minecarts.empty()) {
+        change.hadOldMinecartStart = (m_minecarts[0].start == glm::ivec2(x, y));
+        change.hadOldMinecartEnd = (m_minecarts[0].end == glm::ivec2(x, y));
+    }
+
+    m_currentStrokeAction.changes.push_back(change);
+    return static_cast<int>(m_currentStrokeAction.changes.size()) - 1;
+}
+
+void MapEditorState::recordCellAfter(int x, int y, int changeIndex) {
+    if (m_isApplyingUndoRedo) return;
+    if (changeIndex < 0 || changeIndex >= static_cast<int>(m_currentStrokeAction.changes.size())) return;
+
+    CellChange& change = m_currentStrokeAction.changes[changeIndex];
+    change.newTile = (y < (int)m_rawLayout.size() && x < (int)m_rawLayout[y].size()) ? m_rawLayout[y][x] : 0;
+    change.newNoBuild = (y < (int)m_noBuildMask.size() && x < (int)m_noBuildMask[y].size()) ? m_noBuildMask[y][x] : false;
+
+    change.newSpawners.clear();
+    for (const auto& sp : m_spawners) {
+        if (sp.pos.x == x && sp.pos.y == y) change.newSpawners.push_back(sp);
+    }
+    change.newBases.clear();
+    for (const auto& b : m_bases) {
+        if (b.x == x && b.y == y) change.newBases.push_back(b);
+    }
+    if (!m_minecarts.empty()) {
+        change.hadNewMinecartStart = (m_minecarts[0].start == glm::ivec2(x, y));
+        change.hadNewMinecartEnd = (m_minecarts[0].end == glm::ivec2(x, y));
+    } else {
+        change.hadNewMinecartStart = false;
+        change.hadNewMinecartEnd = false;
+    }
+}
+
+void MapEditorState::commitStroke() {
+    if (m_isApplyingUndoRedo) return;
+
+    // Filter out no-op changes
+    m_currentStrokeAction.changes.erase(
+        std::remove_if(m_currentStrokeAction.changes.begin(), m_currentStrokeAction.changes.end(),
+            [](const CellChange& c) {
+                return c.oldTile == c.newTile &&
+                       c.oldNoBuild == c.newNoBuild &&
+                       c.oldSpawners.empty() && c.newSpawners.empty() &&
+                       c.oldBases.empty() && c.newBases.empty() &&
+                       c.hadOldMinecartStart == c.hadNewMinecartStart &&
+                       c.hadOldMinecartEnd == c.hadNewMinecartEnd;
+            }),
+        m_currentStrokeAction.changes.end()
+    );
+
+    if (!m_currentStrokeAction.changes.empty()) {
+        m_undoStack.push_back(std::move(m_currentStrokeAction));
+        m_currentStrokeAction.changes.clear();
+        m_redoStack.clear();
+        while (m_undoStack.size() > 100) {
+            m_undoStack.pop_front();
+        }
+    }
+}
+
+void MapEditorState::undo() {
+    if (m_undoStack.empty()) return;
+
+    EditorAction action = std::move(m_undoStack.back());
+    m_undoStack.pop_back();
+
+    m_isApplyingUndoRedo = true;
+    for (auto it = action.changes.rbegin(); it != action.changes.rend(); ++it) {
+        const auto& c = *it;
+        if (c.x < 0 || c.x >= m_gridWidth || c.y < 0 || c.y >= m_gridHeight) continue;
+
+        m_rawLayout[c.y][c.x] = c.oldTile;
+
+        if (c.y < (int)m_noBuildMask.size() && c.x < (int)m_noBuildMask[c.y].size()) {
+            m_noBuildMask[c.y][c.x] = c.oldNoBuild;
+            m_grid->setNoBuildAt(c.x, c.y, c.oldNoBuild);
+        }
+
+        m_spawners.erase(
+            std::remove_if(m_spawners.begin(), m_spawners.end(),
+                           [&c](const SpawnerData& s) { return s.pos.x == c.x && s.pos.y == c.y; }),
+            m_spawners.end()
+        );
+        for (const auto& sp : c.oldSpawners) {
+            m_spawners.push_back(sp);
+        }
+
+        m_bases.erase(
+            std::remove_if(m_bases.begin(), m_bases.end(),
+                           [&c](const BaseData& b) { return b.x == c.x && b.y == c.y; }),
+            m_bases.end()
+        );
+        for (const auto& b : c.oldBases) {
+            m_bases.push_back(b);
+        }
+
+        if (!m_minecarts.empty()) {
+            if (c.hadOldMinecartStart) {
+                m_minecarts[0].start = glm::ivec2(c.x, c.y);
+            } else if (m_minecarts[0].start == glm::ivec2(c.x, c.y)) {
+                m_minecarts[0].start = glm::ivec2(-1, -1);
+            }
+
+            if (c.hadOldMinecartEnd) {
+                m_minecarts[0].end = glm::ivec2(c.x, c.y);
+            } else if (m_minecarts[0].end == glm::ivec2(c.x, c.y)) {
+                m_minecarts[0].end = glm::ivec2(-1, -1);
+            }
+        }
+
+        bool hasSpawner = false;
+        for (const auto& sp : m_spawners) {
+            if (sp.pos.x == c.x && sp.pos.y == c.y) { hasSpawner = true; break; }
+        }
+        bool hasBase = false;
+        for (const auto& b : m_bases) {
+            if (b.x == c.x && b.y == c.y) { hasBase = true; break; }
+        }
+
+        if (hasSpawner) {
+            m_grid->setCellType(c.x, c.y, CellType::Spawner);
+        } else if (hasBase) {
+            m_grid->setCellType(c.x, c.y, CellType::Base);
+        } else {
+            switch (c.oldTile) {
+                case 1:  m_grid->setCellType(c.x, c.y, CellType::Path); break;
+                case 2:  m_grid->setCellType(c.x, c.y, CellType::Platform); break;
+                case 3:  m_grid->setCellType(c.x, c.y, CellType::Scenery); break;
+                case 4:  m_grid->setCellType(c.x, c.y, CellType::Chasm); break;
+                case 5:  m_grid->setCellType(c.x, c.y, CellType::Rail); break;
+                default: m_grid->setCellType(c.x, c.y, CellType::Ground); break;
+            }
+        }
+    }
+    m_isApplyingUndoRedo = false;
+
+    m_grid->saveOriginalGrid();
+    recalculatePaths();
+    recalculateRailPath();
+    m_isDirty = true;
+
+    showToast("Отмена (Undo): " + std::to_string(action.changes.size()) + " яч.", glm::vec4(0.85f, 0.85f, 0.35f, 1.0f));
+    m_redoStack.push_back(std::move(action));
+}
+
+void MapEditorState::redo() {
+    if (m_redoStack.empty()) return;
+
+    EditorAction action = std::move(m_redoStack.back());
+    m_redoStack.pop_back();
+
+    m_isApplyingUndoRedo = true;
+    for (const auto& c : action.changes) {
+        if (c.x < 0 || c.x >= m_gridWidth || c.y < 0 || c.y >= m_gridHeight) continue;
+
+        m_rawLayout[c.y][c.x] = c.newTile;
+
+        if (c.y < (int)m_noBuildMask.size() && c.x < (int)m_noBuildMask[c.y].size()) {
+            m_noBuildMask[c.y][c.x] = c.newNoBuild;
+            m_grid->setNoBuildAt(c.x, c.y, c.newNoBuild);
+        }
+
+        m_spawners.erase(
+            std::remove_if(m_spawners.begin(), m_spawners.end(),
+                           [&c](const SpawnerData& s) { return s.pos.x == c.x && s.pos.y == c.y; }),
+            m_spawners.end()
+        );
+        for (const auto& sp : c.newSpawners) {
+            m_spawners.push_back(sp);
+        }
+
+        m_bases.erase(
+            std::remove_if(m_bases.begin(), m_bases.end(),
+                           [&c](const BaseData& b) { return b.x == c.x && b.y == c.y; }),
+            m_bases.end()
+        );
+        for (const auto& b : c.newBases) {
+            m_bases.push_back(b);
+        }
+
+        if (!m_minecarts.empty()) {
+            if (c.hadNewMinecartStart) {
+                m_minecarts[0].start = glm::ivec2(c.x, c.y);
+            } else if (m_minecarts[0].start == glm::ivec2(c.x, c.y)) {
+                m_minecarts[0].start = glm::ivec2(-1, -1);
+            }
+
+            if (c.hadNewMinecartEnd) {
+                m_minecarts[0].end = glm::ivec2(c.x, c.y);
+            } else if (m_minecarts[0].end == glm::ivec2(c.x, c.y)) {
+                m_minecarts[0].end = glm::ivec2(-1, -1);
+            }
+        }
+
+        bool hasSpawner = false;
+        for (const auto& sp : m_spawners) {
+            if (sp.pos.x == c.x && sp.pos.y == c.y) { hasSpawner = true; break; }
+        }
+        bool hasBase = false;
+        for (const auto& b : m_bases) {
+            if (b.x == c.x && b.y == c.y) { hasBase = true; break; }
+        }
+
+        if (hasSpawner) {
+            m_grid->setCellType(c.x, c.y, CellType::Spawner);
+        } else if (hasBase) {
+            m_grid->setCellType(c.x, c.y, CellType::Base);
+        } else {
+            switch (c.newTile) {
+                case 1:  m_grid->setCellType(c.x, c.y, CellType::Path); break;
+                case 2:  m_grid->setCellType(c.x, c.y, CellType::Platform); break;
+                case 3:  m_grid->setCellType(c.x, c.y, CellType::Scenery); break;
+                case 4:  m_grid->setCellType(c.x, c.y, CellType::Chasm); break;
+                case 5:  m_grid->setCellType(c.x, c.y, CellType::Rail); break;
+                default: m_grid->setCellType(c.x, c.y, CellType::Ground); break;
+            }
+        }
+    }
+    m_isApplyingUndoRedo = false;
+
+    m_grid->saveOriginalGrid();
+    recalculatePaths();
+    recalculateRailPath();
+    m_isDirty = true;
+
+    showToast("Повтор (Redo): " + std::to_string(action.changes.size()) + " яч.", glm::vec4(0.35f, 0.85f, 0.45f, 1.0f));
+    m_undoStack.push_back(std::move(action));
 }
 
 void MapEditorState::testMap() {
@@ -1625,6 +1948,53 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
     }
     m_keyTPressedLastFrame = keyT;
 
+    // Горячая клавиша привязки декораций к сетке (G)
+    bool keyG = (glfwGetKey(window, GLFW_KEY_G) == GLFW_PRESS);
+    if (keyG && !m_keyGPressedLastFrame && !isCtrl && !isAlt) {
+        m_decorGridSnap = !m_decorGridSnap;
+        updateButtonLayout();
+        showToast(m_decorGridSnap ? "Привязка к сетке: ВКЛ [G]" : "Привязка к сетке: ВЫКЛ [G]", glm::vec4(0.4f, 0.9f, 0.5f, 1.0f));
+    }
+    m_keyGPressedLastFrame = keyG;
+
+    // Горячие клавиши отмены и повтора (Ctrl+Z, Ctrl+Y, Ctrl+Shift+Z)
+    int mods = 0;
+    if (isCtrl) mods |= GLFW_MOD_CONTROL;
+    if (isShift) mods |= GLFW_MOD_SHIFT;
+
+    static const int scancodeZ = glfwGetKeyScancode(GLFW_KEY_Z);
+    static const int scancodeY = glfwGetKeyScancode(GLFW_KEY_Y);
+    (void)scancodeZ;
+    (void)scancodeY;
+
+    bool keyZ = (glfwGetKey(window, GLFW_KEY_Z) == GLFW_PRESS);
+#ifdef _WIN32
+    if (!keyZ) {
+        keyZ = (GetAsyncKeyState('Z') & 0x8000) != 0;
+    }
+#endif
+
+    bool keyY = (glfwGetKey(window, GLFW_KEY_Y) == GLFW_PRESS);
+#ifdef _WIN32
+    if (!keyY) {
+        keyY = (GetAsyncKeyState('Y') & 0x8000) != 0;
+    }
+#endif
+
+    if (mods & GLFW_MOD_CONTROL) {
+        if (keyZ && !m_keyZPressedLastFrame) {
+            if (mods & GLFW_MOD_SHIFT) {
+                redo();
+            } else {
+                undo();
+            }
+        } else if (keyY && !m_keyYPressedLastFrame) {
+            redo();
+        }
+    }
+    m_keyZPressedLastFrame = keyZ;
+    m_keyYPressedLastFrame = keyY;
+
     // Горячая клавиша Камеры (C)
     bool keyC = (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS);
     if (keyC && !m_keyCPressedLastFrame) {
@@ -1747,6 +2117,20 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
             m_isDirty = true;
         }
 
+        // Хоткеи изменения слоя декора: PageUp / ']' (Layer +1), PageDown / '[' (Layer -1)
+        bool keyLayerUp = (glfwGetKey(window, GLFW_KEY_PAGE_UP) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_RIGHT_BRACKET) == GLFW_PRESS);
+        bool keyLayerDown = (glfwGetKey(window, GLFW_KEY_PAGE_DOWN) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_LEFT_BRACKET) == GLFW_PRESS);
+        if (keyLayerUp && !m_keyLayerUpLastFrame) {
+            m_decorations[m_selectedDecorationIndex].zIndex = std::clamp(m_decorations[m_selectedDecorationIndex].zIndex + 1, -10, 10);
+            m_isDirty = true;
+            showToast("Слой декора (zIndex): " + std::to_string(m_decorations[m_selectedDecorationIndex].zIndex), glm::vec4(0.4f, 0.85f, 1.0f, 1.0f));
+        }
+        if (keyLayerDown && !m_keyLayerDownLastFrame) {
+            m_decorations[m_selectedDecorationIndex].zIndex = std::clamp(m_decorations[m_selectedDecorationIndex].zIndex - 1, -10, 10);
+            m_isDirty = true;
+            showToast("Слой декора (zIndex): " + std::to_string(m_decorations[m_selectedDecorationIndex].zIndex), glm::vec4(0.4f, 0.85f, 1.0f, 1.0f));
+        }
+
         // Клавиша Delete / Backspace для удаления выделенного декора
         bool keyDel = (glfwGetKey(window, GLFW_KEY_DELETE) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_BACKSPACE) == GLFW_PRESS);
         if (keyDel) {
@@ -1806,6 +2190,22 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
         if (arrowMoved) {
             m_envParticleManager.setEmitters(m_emitters);
             m_isDirty = true;
+        }
+
+        // Хоткеи изменения слоя эмиттера: PageUp / ']' (Layer +1), PageDown / '[' (Layer -1)
+        bool keyLayerUp = (glfwGetKey(window, GLFW_KEY_PAGE_UP) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_RIGHT_BRACKET) == GLFW_PRESS);
+        bool keyLayerDown = (glfwGetKey(window, GLFW_KEY_PAGE_DOWN) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_LEFT_BRACKET) == GLFW_PRESS);
+        if (keyLayerUp && !m_keyLayerUpLastFrame) {
+            m_emitters[m_selectedEmitterIndex].zIndex = std::clamp(m_emitters[m_selectedEmitterIndex].zIndex + 1, -10, 10);
+            m_envParticleManager.setEmitters(m_emitters);
+            m_isDirty = true;
+            showToast("Слой эмиттера (zIndex): " + std::to_string(m_emitters[m_selectedEmitterIndex].zIndex), glm::vec4(0.4f, 0.85f, 1.0f, 1.0f));
+        }
+        if (keyLayerDown && !m_keyLayerDownLastFrame) {
+            m_emitters[m_selectedEmitterIndex].zIndex = std::clamp(m_emitters[m_selectedEmitterIndex].zIndex - 1, -10, 10);
+            m_envParticleManager.setEmitters(m_emitters);
+            m_isDirty = true;
+            showToast("Слой эмиттера (zIndex): " + std::to_string(m_emitters[m_selectedEmitterIndex].zIndex), glm::vec4(0.4f, 0.85f, 1.0f, 1.0f));
         }
 
         // Клавиша Delete / Backspace для удаления выделенного эмиттера
@@ -2124,7 +2524,7 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
     }
 
     // 1. Проверка клика по кнопкам тулбара и палитры через EditorToolbarUI
-    EditorAction action = m_toolbarUI.handleInput(mousePos.x, mousePos.y, leftDown, m_isLeftMouseDown, isShift, buildEditorContext(), isAlt);
+    ::EditorAction action = m_toolbarUI.handleInput(mousePos.x, mousePos.y, leftDown, m_isLeftMouseDown, isShift, buildEditorContext(), isAlt);
     if (action.type != EditorActionType::None) {
         clickedUI = true;
         m_suppressPlacementUntilRelease = true;
@@ -2282,13 +2682,43 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
             case EditorActionType::ModifyStartingMoney:
             case EditorActionType::ModifyStartingHealth:
                 break;
+            case EditorActionType::ToggleDecorGridSnap:
+                m_decorGridSnap = !m_decorGridSnap;
+                updateButtonLayout();
+                showToast(m_decorGridSnap ? "Привязка к сетке: ВКЛ [G]" : "Привязка к сетке: ВЫКЛ [G]", glm::vec4(0.4f, 0.9f, 0.5f, 1.0f));
+                break;
             default:
                 break;
         }
     }
 
+    // 1.9. Обновление курсора мыши при наведении на интерактивные ручки трансформации (Gizmo)
+    m_hoverGizmoHandle = GizmoHandleType::None;
+    if (m_toolbarUI.getCategory() == PaletteCategory::Decorations &&
+        m_selectedDecorationIndex >= 0 && m_selectedDecorationIndex < static_cast<int>(m_decorations.size()) &&
+        !m_toolbarUI.isHovered(mousePos.x, mousePos.y)) {
+        glm::vec2 worldPosForHover = screenToWorld(mousePos);
+        float cellSize = m_grid ? m_grid->getCellSize() : 64.0f;
+        m_hoverGizmoHandle = DecorationRenderer::hitTestGizmo(m_decorations[m_selectedDecorationIndex], worldPosForHover, 16.0f, cellSize);
+    }
+
+    GizmoHandleType curHandle = m_isResizingDecoration ? m_activeGizmoHandle : m_hoverGizmoHandle;
+    if (curHandle == GizmoHandleType::Corner && m_cursorResizeNWSE) {
+        glfwSetCursor(window, m_cursorResizeNWSE);
+    } else if (curHandle == GizmoHandleType::ScaleX && m_cursorResizeEW) {
+        glfwSetCursor(window, m_cursorResizeEW);
+    } else if (curHandle == GizmoHandleType::ScaleY && m_cursorResizeNS) {
+        glfwSetCursor(window, m_cursorResizeNS);
+    } else {
+        glfwSetCursor(window, nullptr);
+    }
+
     // 2. Если кликаем по рабочей области сетки
     if (!clickedUI && !panActive && !m_isCameraConfigMode && !m_toolbarUI.isHovered(mousePos.x, mousePos.y) && m_grid) {
+        if (!m_isLeftMouseDown && !m_isRightMouseDown && (leftDown || rightDown)) {
+            m_currentStrokeAction.changes.clear();
+        }
+
         glm::vec2 worldMouse = screenToWorld(mousePos);
         glm::ivec2 gridPos = m_grid->pixelToGrid(worldMouse);
         bool inBounds = (gridPos.x >= 0 && gridPos.x < m_gridWidth && gridPos.y >= 0 && gridPos.y < m_gridHeight);
@@ -2496,10 +2926,69 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
         else if (m_toolbarUI.getCategory() == PaletteCategory::Decorations && !m_suppressPlacementUntilRelease) {
             float clickRadius = std::max(22.0f, m_grid->getCellSize() * 0.45f);
 
-            // А. Перетаскивание (Drag & Drop) выделенного декора зажатой мышью
-            if (leftDown && m_isDraggingDecoration && m_selectedDecorationIndex >= 0 &&
+            auto applyDecorSnap = [&](glm::vec2 targetWorld, bool isGrassField) -> glm::vec2 {
+                if (!m_grid || m_grid->getCellSize() <= 0.001f) return targetWorld;
+                bool shouldSnap = m_decorGridSnap || isCtrl || isShift || (isGrassField && !isAlt);
+                if (!shouldSnap) return targetWorld;
+                glm::vec2 rawTile = (targetWorld - m_grid->getOffset()) / m_grid->getCellSize();
+                glm::vec2 snappedTile = isShift ? (glm::round(rawTile * 2.0f) * 0.5f) : (glm::floor(rawTile) + glm::vec2(0.5f));
+                return m_grid->getOffset() + snappedTile * m_grid->getCellSize();
+            };
+
+            // А. Растягивание интерактивными ручками (Gizmo Handles) выделенного декора
+            if (leftDown && m_isResizingDecoration && m_selectedDecorationIndex >= 0 &&
+                m_selectedDecorationIndex < static_cast<int>(m_decorations.size())) {
+                auto& d = m_decorations[m_selectedDecorationIndex];
+                float rad = glm::radians(d.rotation);
+                float cosR = std::cos(rad);
+                float sinR = std::sin(rad);
+                glm::vec2 deltaCur = worldMouse - d.worldPos;
+                glm::vec2 curLocal(
+                    deltaCur.x * cosR + deltaCur.y * sinR,
+                    -deltaCur.x * sinR + deltaCur.y * cosR
+                );
+
+                float cellSize = m_grid ? m_grid->getCellSize() : 64.0f;
+                float baseDim = (d.type == "fog") ? 130.0f : ((d.type == "grass_field") ? 64.0f : ((d.type == "bush") ? 56.0f : (d.type == "puddle" ? 52.0f : 42.0f)));
+                float cellScaleFactor = (cellSize > 0.001f) ? (cellSize / 64.0f) : 1.0f;
+                float baseHalfW = 0.5f * baseDim * (d.scale * cellScaleFactor) * m_resizeStartScaleX;
+                float baseHalfH = 0.5f * baseDim * (d.scale * cellScaleFactor) * m_resizeStartScaleY;
+
+                if (m_activeGizmoHandle == GizmoHandleType::ScaleX) {
+                    float dx = curLocal.x - m_resizeStartLocalMouse.x;
+                    if (baseHalfW > 1.0f) {
+                        float ratio = (baseHalfW + dx) / baseHalfW;
+                        float newScaleX = std::clamp(m_resizeStartScaleX * ratio, 0.2f, 4.0f);
+                        d.scaleX = std::round(newScaleX * 100.0f) / 100.0f;
+                        m_isDirty = true;
+                    }
+                } else if (m_activeGizmoHandle == GizmoHandleType::ScaleY) {
+                    float dy = -(curLocal.y - m_resizeStartLocalMouse.y); // вверх = -Y
+                    if (baseHalfH > 1.0f) {
+                        float ratio = (baseHalfH + dy) / baseHalfH;
+                        float newScaleY = std::clamp(m_resizeStartScaleY * ratio, 0.2f, 4.0f);
+                        d.scaleY = std::round(newScaleY * 100.0f) / 100.0f;
+                        m_isDirty = true;
+                    }
+                } else if (m_activeGizmoHandle == GizmoHandleType::Corner) {
+                    float dx = curLocal.x - m_resizeStartLocalMouse.x;
+                    float dy = curLocal.y - m_resizeStartLocalMouse.y;
+                    float ratioX = (baseHalfW > 1.0f) ? ((baseHalfW + dx) / baseHalfW) : 1.0f;
+                    float ratioY = (baseHalfH > 1.0f) ? ((baseHalfH + dy) / baseHalfH) : 1.0f;
+                    float ratio = (ratioX + ratioY) * 0.5f;
+                    float newScaleX = std::clamp(m_resizeStartScaleX * ratio, 0.2f, 4.0f);
+                    float newScaleY = std::clamp(m_resizeStartScaleY * ratio, 0.2f, 4.0f);
+                    d.scaleX = std::round(newScaleX * 100.0f) / 100.0f;
+                    d.scaleY = std::round(newScaleY * 100.0f) / 100.0f;
+                    m_isDirty = true;
+                }
+            }
+            // Б. Перетаскивание (Drag & Drop) выделенного декора зажатой мышью
+            else if (leftDown && m_isDraggingDecoration && m_selectedDecorationIndex >= 0 &&
                 m_selectedDecorationIndex < static_cast<int>(m_decorations.size())) {
                 glm::vec2 targetWorld = worldMouse + m_decorationDragOffset;
+                bool isGrass = (m_decorations[m_selectedDecorationIndex].type == "grass_field");
+                targetWorld = applyDecorSnap(targetWorld, isGrass);
                 if (m_grid && m_grid->getCellSize() > 0.001f) {
                     m_decorations[m_selectedDecorationIndex].tilePos = (targetWorld - m_grid->getOffset()) / m_grid->getCellSize();
                     m_decorations[m_selectedDecorationIndex].worldPos = targetWorld;
@@ -2508,82 +2997,106 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
                 }
                 m_isDirty = true;
             }
-            // Б. Одиночный клик ЛКМ
+            // В. Одиночный клик ЛКМ
             else if (leftDown && !m_isLeftMouseDown) {
                 // Слоёный ластик декора: удаляет ТОЛЬКО декор под курсором, не трогая тайлы сетки!
                 if (m_currentBrush == EditorBrush::Eraser) {
                     eraseDecorationNear(worldMouse, clickRadius);
                 } else {
-                    // Проверяем, кликнули ли по существующему декору для выделения / драга
-                    int nearestIdx = findNearestDecorationIndex(worldMouse, clickRadius);
-                    if (nearestIdx >= 0) {
-                        m_selectedDecorationIndex = nearestIdx;
-                        m_isDraggingDecoration = true;
-                        glm::vec2 decActualWorld = m_grid ? (m_grid->getOffset() + m_decorations[nearestIdx].tilePos * m_grid->getCellSize()) : m_decorations[nearestIdx].worldPos;
-                        m_decorationDragOffset = decActualWorld - worldMouse;
-                        showToast("Выделен декор #" + std::to_string(m_decorations[nearestIdx].id) + " [" + m_decorations[nearestIdx].type + "]", glm::vec4(0.4f, 0.85f, 1.0f, 1.0f));
-                    } else if (m_currentBrush != EditorBrush::None) {
-                        // Свободное размещение нового декора ровно в мировой точке курсора worldMouse
-                        std::string dType = "bush";
-                        std::string dName = "Куст";
-                        bool isDestructible = true;
-
-                        if (m_currentBrush == EditorBrush::DecorGrass) {
-                            dType = "grass_tuft"; dName = "Пучок травы";
-                        } else if (m_currentBrush == EditorBrush::DecorGrassField) {
-                            dType = "grass_field"; dName = "Поле травы";
-                        } else if (m_currentBrush == EditorBrush::DecorFlower) {
-                            dType = "flower"; dName = "Цветы";
-                        } else if (m_currentBrush == EditorBrush::DecorStone) {
-                            dType = "stone"; dName = "Камень";
-                        } else if (m_currentBrush == EditorBrush::DecorHelmet) {
-                            dType = "helmet"; dName = "Каска";
-                        } else if (m_currentBrush == EditorBrush::DecorPickaxe) {
-                            dType = "pickaxe"; dName = "Кирка";
-                        } else if (m_currentBrush == EditorBrush::DecorPuddle) {
-                            dType = "puddle"; dName = "Лужа";
-                        } else if (m_currentBrush == EditorBrush::DecorCrack) {
-                            dType = "crack"; dName = "Трещина";
-                        } else if (m_currentBrush == EditorBrush::DecorFog) {
-                            dType = "fog"; dName = "Туман"; isDestructible = false;
+                    // Сначала проверяем клик по интерактивным ручкам (Gizmo Handles) уже выделенного декора
+                    bool hitGizmo = false;
+                    if (m_selectedDecorationIndex >= 0 && m_selectedDecorationIndex < static_cast<int>(m_decorations.size())) {
+                        float cellSize = m_grid ? m_grid->getCellSize() : 64.0f;
+                        auto handleType = DecorationRenderer::hitTestGizmo(m_decorations[m_selectedDecorationIndex], worldMouse, 16.0f, cellSize);
+                        if (handleType != GizmoHandleType::None) {
+                            hitGizmo = true;
+                            m_isResizingDecoration = true;
+                            m_activeGizmoHandle = handleType;
+                            auto& d = m_decorations[m_selectedDecorationIndex];
+                            m_resizeStartScaleX = d.scaleX;
+                            m_resizeStartScaleY = d.scaleY;
+                            m_resizeStartScale = d.scale;
+                            m_resizeStartWorldMouse = worldMouse;
+                            float rad = glm::radians(d.rotation);
+                            float cosR = std::cos(rad);
+                            float sinR = std::sin(rad);
+                            glm::vec2 deltaStart = worldMouse - d.worldPos;
+                            m_resizeStartLocalMouse = glm::vec2(
+                                deltaStart.x * cosR + deltaStart.y * sinR,
+                                -deltaStart.x * sinR + deltaStart.y * cosR
+                            );
                         }
+                    }
 
-                        DecorationConfig cfg;
-                        cfg.id = static_cast<int>(m_decorations.size()) + 1;
-                        cfg.type = dType;
-                        if (dType == "fog") {
-                            cfg.scale = 1.4f;
-                            cfg.opacity = 0.45f;
-                            cfg.destructible = false;
-                        }
-                        if (m_grid && m_grid->getCellSize() > 0.001f) {
-                            if (m_currentBrush == EditorBrush::DecorGrassField) {
-                                glm::vec2 hoverTile = (worldMouse - m_grid->getOffset()) / m_grid->getCellSize();
-                                cfg.tilePos = glm::floor(hoverTile) + glm::vec2(0.5f);
-                                cfg.worldPos = m_grid->getOffset() + cfg.tilePos * m_grid->getCellSize();
-                            } else {
-                                cfg.tilePos = (worldMouse - m_grid->getOffset()) / m_grid->getCellSize();
-                                cfg.worldPos = worldMouse;
+                    if (!hitGizmo) {
+                        // Проверяем, кликнули ли по существующему декору для выделения / драга
+                        int nearestIdx = findNearestDecorationIndex(worldMouse, clickRadius);
+                        if (nearestIdx >= 0) {
+                            m_selectedDecorationIndex = nearestIdx;
+                            m_isDraggingDecoration = true;
+                            glm::vec2 decActualWorld = m_grid ? (m_grid->getOffset() + m_decorations[nearestIdx].tilePos * m_grid->getCellSize()) : m_decorations[nearestIdx].worldPos;
+                            m_decorationDragOffset = decActualWorld - worldMouse;
+                            showToast("Выделен декор #" + std::to_string(m_decorations[nearestIdx].id) + " [" + m_decorations[nearestIdx].type + "]", glm::vec4(0.4f, 0.85f, 1.0f, 1.0f));
+                        } else if (m_currentBrush != EditorBrush::None) {
+                            // Размещение нового декора (с привязкой к сетке если активна)
+                            std::string dType = "bush";
+                            std::string dName = "Куст";
+                            bool isDestructible = true;
+
+                            if (m_currentBrush == EditorBrush::DecorGrass) {
+                                dType = "grass_tuft"; dName = "Пучок травы";
+                            } else if (m_currentBrush == EditorBrush::DecorGrassField) {
+                                dType = "grass_field"; dName = "Поле травы";
+                            } else if (m_currentBrush == EditorBrush::DecorFlower) {
+                                dType = "flower"; dName = "Цветы";
+                            } else if (m_currentBrush == EditorBrush::DecorStone) {
+                                dType = "stone"; dName = "Камень";
+                            } else if (m_currentBrush == EditorBrush::DecorHelmet) {
+                                dType = "helmet"; dName = "Каска";
+                            } else if (m_currentBrush == EditorBrush::DecorPickaxe) {
+                                dType = "pickaxe"; dName = "Кирка";
+                            } else if (m_currentBrush == EditorBrush::DecorPuddle) {
+                                dType = "puddle"; dName = "Лужа";
+                            } else if (m_currentBrush == EditorBrush::DecorCrack) {
+                                dType = "crack"; dName = "Трещина";
+                            } else if (m_currentBrush == EditorBrush::DecorFog) {
+                                dType = "fog"; dName = "Туман"; isDestructible = false;
                             }
-                        } else {
-                            cfg.tilePos = glm::vec2(0.0f);
-                            cfg.worldPos = worldMouse;
-                        }
-                        cfg.scale = 1.0f;
-                        cfg.scaleX = 1.0f;
-                        cfg.scaleY = 1.0f;
-                        cfg.rotation = m_defaultDecorationRotation;
-                        cfg.destructible = isDestructible;
 
-                        m_decorations.push_back(cfg);
-                        m_selectedDecorationIndex = static_cast<int>(m_decorations.size()) - 1;
-                        m_isDraggingDecoration = false;
-                        m_decorationDragOffset = glm::vec2(0.0f);
-                        m_isDirty = true;
-                        showToast("Установлен декор: " + dName, glm::vec4(0.4f, 0.85f, 1.0f, 1.0f));
-                    } else {
-                        // Клик в пустоту нейтральным курсором снимает выделение
-                        m_selectedDecorationIndex = -1;
+                            DecorationConfig cfg;
+                            cfg.id = static_cast<int>(m_decorations.size()) + 1;
+                            cfg.type = dType;
+                            if (dType == "fog") {
+                                cfg.scale = 1.4f;
+                                cfg.opacity = 0.45f;
+                                cfg.destructible = false;
+                            }
+                            bool isGrassField = (dType == "grass_field");
+                            glm::vec2 placedWorld = applyDecorSnap(worldMouse, isGrassField);
+                            if (m_grid && m_grid->getCellSize() > 0.001f) {
+                                cfg.tilePos = (placedWorld - m_grid->getOffset()) / m_grid->getCellSize();
+                                cfg.worldPos = placedWorld;
+                            } else {
+                                cfg.tilePos = glm::vec2(0.0f);
+                                cfg.worldPos = placedWorld;
+                            }
+                            cfg.scale = 1.0f;
+                            cfg.scaleX = 1.0f;
+                            cfg.scaleY = 1.0f;
+                            cfg.rotation = m_defaultDecorationRotation;
+                            cfg.destructible = isDestructible;
+                            cfg.zIndex = (dType == "puddle" || dType == "crack") ? -1 : 0;
+
+                            m_decorations.push_back(cfg);
+                            m_selectedDecorationIndex = static_cast<int>(m_decorations.size()) - 1;
+                            m_isDraggingDecoration = false;
+                            m_decorationDragOffset = glm::vec2(0.0f);
+                            m_isDirty = true;
+                            showToast("Установлен декор: " + dName, glm::vec4(0.4f, 0.85f, 1.0f, 1.0f));
+                        } else {
+                            // Клик в пустоту нейтральным курсором снимает выделение
+                            m_selectedDecorationIndex = -1;
+                        }
                     }
                 }
             }
@@ -2703,14 +3216,22 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
     if (!leftDown) {
         m_isDraggingEmitter = false;
         m_isDraggingDecoration = false;
+        m_isResizingDecoration = false;
+        m_activeGizmoHandle = GizmoHandleType::None;
     }
 
     if (!leftDown && !rightDown) {
         m_suppressPlacementUntilRelease = false;
     }
 
+    if (!leftDown && !rightDown && (m_isLeftMouseDown || m_isRightMouseDown)) {
+        commitStroke();
+    }
+
     m_isLeftMouseDown = leftDown;
     m_isRightMouseDown = rightDown;
+    m_keyLayerUpLastFrame = (glfwGetKey(window, GLFW_KEY_PAGE_UP) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_RIGHT_BRACKET) == GLFW_PRESS);
+    m_keyLayerDownLastFrame = (glfwGetKey(window, GLFW_KEY_PAGE_DOWN) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_LEFT_BRACKET) == GLFW_PRESS);
 }
 
 void MapEditorState::update(float dt) {
@@ -2961,6 +3482,11 @@ void MapEditorState::render() {
     // 4.4. ПРЕДПРОСМОТР БОЕВОГО ИНТЕРФЕЙСА (HUD Preview Overlay в мировых координатах видоискателя)
     renderHudPreview();
 
+    // 4.44. ФОНОВЫЕ ЧАСТИЦЫ ЭМИТТЕРОВ (zIndex < 0, под декорациями и объектами)
+    if (m_grid) {
+        m_envParticleManager.render(m_renderer.get(), m_whiteTexture, *m_grid, -100, -1);
+    }
+
     // 4.45. ДЕКОРАТИВНЫЕ ПРОП-ОБЪЕКТЫ (ПОД ЭМИТТЕРАМИ/ПАРТИКЛАМИ, ПОВЕРХ ТАЙЛОВ)
     if (m_grid) {
         DecorationRenderer::renderDecorations(m_renderer.get(), m_whiteTexture, m_decorations, *m_grid, m_selectedDecorationIndex, false);
@@ -2969,7 +3495,7 @@ void MapEditorState::render() {
     }
 
     // Предпросмотр установки декора под курсором на вкладке [4] Декор (для обычных декораций)
-    if (m_toolbarUI.getCategory() == PaletteCategory::Decorations && !m_isDraggingDecoration &&
+    if (m_toolbarUI.getCategory() == PaletteCategory::Decorations && !m_isDraggingDecoration && !m_isResizingDecoration &&
         m_currentBrush != EditorBrush::Eraser && m_currentBrush != EditorBrush::None && m_currentBrush != EditorBrush::DecorFog) {
         std::string previewType = "bush";
         if (m_currentBrush == EditorBrush::DecorGrass) previewType = "grass_tuft";
@@ -2982,19 +3508,23 @@ void MapEditorState::render() {
         else if (m_currentBrush == EditorBrush::DecorCrack) previewType = "crack";
 
         glm::vec2 worldMouse = screenToWorld(m_mousePos);
-        if (m_currentBrush == EditorBrush::DecorGrassField && m_grid && m_grid->getCellSize() > 0.001f) {
-            glm::vec2 hoverTile = (worldMouse - m_grid->getOffset()) / m_grid->getCellSize();
-            worldMouse = m_grid->getOffset() + (glm::floor(hoverTile) + glm::vec2(0.5f)) * m_grid->getCellSize();
-        }
         float previewCellSize = m_grid ? m_grid->getCellSize() : 64.0f;
+        if (m_grid && previewCellSize > 0.001f) {
+            bool isGrassField = (m_currentBrush == EditorBrush::DecorGrassField);
+            if (m_decorGridSnap || isGrassField) {
+                glm::vec2 rawTile = (worldMouse - m_grid->getOffset()) / previewCellSize;
+                glm::vec2 snappedTile = glm::floor(rawTile) + glm::vec2(0.5f);
+                worldMouse = m_grid->getOffset() + snappedTile * previewCellSize;
+            }
+        }
         DecorationRenderer::renderPreview(m_renderer.get(), m_whiteTexture, previewType, worldMouse, m_defaultDecorationRotation, 1.0f, 1.0f, 1.0f, 0.5f, previewCellSize);
     }
 
     // 4.5. РЕНДЕРИНГ МАРКЕРОВ ЭМИТТЕРОВ ЧАСТИЦ
     renderEmitters(m_renderer.get(), m_whiteTexture);
 
-    // 4.6. ЖИВЫЕ ЧАСТИЦЫ ЭМИТТЕРОВ ОКРУЖЕНИЯ
-    m_envParticleManager.render(m_renderer.get(), m_whiteTexture, *m_grid);
+    // 4.6. ЖИВЫЕ ЧАСТИЦЫ ЭМИТТЕРОВ ОКРУЖЕНИЯ (zIndex >= 0, поверх объектов)
+    m_envParticleManager.render(m_renderer.get(), m_whiteTexture, *m_grid, 0, 100);
 
     // 4.7. ДЕКОРАЦИИ ВЕРХНЕГО СЛОЯ (ТУМАН / ТЬМА) — поверх частиц, эмиттеров, предпросмотра
     if (m_grid) {
@@ -3004,10 +3534,15 @@ void MapEditorState::render() {
     }
 
     // Предпросмотр установки тумана под курсором на вкладке [4] Декор (поверх частиц)
-    if (m_toolbarUI.getCategory() == PaletteCategory::Decorations && !m_isDraggingDecoration &&
+    if (m_toolbarUI.getCategory() == PaletteCategory::Decorations && !m_isDraggingDecoration && !m_isResizingDecoration &&
         m_currentBrush == EditorBrush::DecorFog) {
         glm::vec2 worldMouse = screenToWorld(m_mousePos);
         float previewCellSize = m_grid ? m_grid->getCellSize() : 64.0f;
+        if (m_grid && previewCellSize > 0.001f && m_decorGridSnap) {
+            glm::vec2 rawTile = (worldMouse - m_grid->getOffset()) / previewCellSize;
+            glm::vec2 snappedTile = glm::floor(rawTile) + glm::vec2(0.5f);
+            worldMouse = m_grid->getOffset() + snappedTile * previewCellSize;
+        }
         DecorationRenderer::renderPreview(m_renderer.get(), m_whiteTexture, "fog", worldMouse, m_defaultDecorationRotation, 1.0f, 1.0f, 1.0f, 0.5f, previewCellSize);
     }
 
@@ -3766,7 +4301,13 @@ void MapEditorState::renderEmitters(SpriteRenderer* renderer, std::shared_ptr<Te
 
     float cellSize = m_grid->getCellSize();
 
-    for (size_t i = 0; i < m_emitters.size(); ++i) {
+    std::vector<size_t> order(m_emitters.size());
+    std::iota(order.begin(), order.end(), 0);
+    std::stable_sort(order.begin(), order.end(), [this](size_t a, size_t b) {
+        return m_emitters[a].zIndex < m_emitters[b].zIndex;
+    });
+
+    for (size_t i : order) {
         const auto& em = m_emitters[i];
         bool isSelected = (static_cast<int>(i) == m_selectedEmitterIndex);
         glm::vec2 center = m_grid->getOffset() + em.tilePos * cellSize;

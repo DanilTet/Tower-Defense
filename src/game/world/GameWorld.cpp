@@ -66,6 +66,9 @@ bool GameWorld::loadLevel(const std::string& levelPath, int windowWidth, int win
 
     grid->saveOriginalGrid();
 
+    // apply no-build mask for canBuildAt checks in gameplay
+    grid->setNoBuildMask(levelData.noBuildMask);
+
     pathfinder = std::make_unique<Pathfinder>(levelData.gridWidth, levelData.gridHeight);
     waveManager = std::make_unique<WaveManager>();
     waveManager->loadLevel(currentLevelPath);
@@ -74,8 +77,14 @@ bool GameWorld::loadLevel(const std::string& levelPath, int windowWidth, int win
     recalculateAllPaths();
     minecartManager.init(levelData, grid->getCellSize(), grid->getOffset());
     emitters = levelData.emitters;
+    std::stable_sort(emitters.begin(), emitters.end(), [](const ParticleEmitterConfig& a, const ParticleEmitterConfig& b) {
+        return a.zIndex < b.zIndex;
+    });
     envParticleManager.setEmitters(emitters);
     decorations = levelData.decorations;
+    std::stable_sort(decorations.begin(), decorations.end(), [](const DecorationConfig& a, const DecorationConfig& b) {
+        return a.zIndex < b.zIndex;
+    });
     if (grid) {
         for (auto& dec : decorations) {
             dec.worldPos = grid->getOffset() + dec.tilePos * grid->getCellSize();
@@ -124,7 +133,7 @@ void GameWorld::update(float dt) {
 void GameWorld::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> whiteTexture) {
     minecartManager.render(renderer, whiteTexture);
     if (grid) {
-        envParticleManager.render(renderer, whiteTexture, *grid);
+        envParticleManager.render(renderer, whiteTexture, *grid, 0, 100);
     }
 }
 

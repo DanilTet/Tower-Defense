@@ -10,8 +10,29 @@ class SpriteRenderer;
 class Texture2D;
 class Grid;
 
+enum class GizmoHandleType {
+    None = 0,
+    Corner,  // Proportional scale (bottom-right circle/ball)
+    ScaleX,  // Width scale (right arrow)
+    ScaleY   // Height scale (top arrow)
+};
+
+struct GizmoInfo {
+    float boxW = 0.0f;
+    float boxH = 0.0f;
+    glm::vec2 cornerLocal = glm::vec2(0.0f);
+    glm::vec2 xHandleLocal = glm::vec2(0.0f);
+    glm::vec2 yHandleLocal = glm::vec2(0.0f);
+    glm::vec2 cornerWorld = glm::vec2(0.0f);
+    glm::vec2 xHandleWorld = glm::vec2(0.0f);
+    glm::vec2 yHandleWorld = glm::vec2(0.0f);
+};
+
 class DecorationRenderer {
 public:
+    static GizmoInfo getGizmoInfo(const DecorationConfig& d, float cellSize = 64.0f);
+    static GizmoHandleType hitTestGizmo(const DecorationConfig& d, glm::vec2 testWorldPos, float hitRadius = 16.0f, float cellSize = 64.0f);
+
     static void renderDecoration(
         SpriteRenderer* renderer,
         std::shared_ptr<Texture2D> whiteTexture,

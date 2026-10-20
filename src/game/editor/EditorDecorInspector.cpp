@@ -1,5 +1,6 @@
 #include "EditorDecorInspector.h"
 #include "../ui/UICommon.h"
+#include "../core/InputManager.h"
 #include "../../renderer/SpriteRenderer.h"
 #include "../../renderer/TextRenderer.h"
 #include "../../textures/Texture2D.h"
@@ -24,7 +25,7 @@ DecorInspectorLayout EditorDecorInspector::getLayout(const DecorationConfig& con
 
     float s = GetUIScale(static_cast<int>(screenW), static_cast<int>(screenH));
     float w = 286.0f * s;
-    float h = (isPuddle ? 385.0f : 270.0f) * s;
+    float h = (isPuddle ? 368.0f : 336.0f) * s;
     l.panelSize = glm::vec2(w, h);
     l.headerH = 32.0f * s;
     l.fontScale = std::clamp(0.40f * s, 0.32f, 0.60f);
@@ -75,36 +76,45 @@ DecorInspectorLayout EditorDecorInspector::getLayout(const DecorationConfig& con
     l.btnTypeNextPos = glm::vec2(px + padX + arrowW + typeCenterW + 8.0f * s, y1);
     l.btnTypeNextSize = glm::vec2(arrowW, rowH);
 
-    // Ряд 2: Масштаб [-] [ 1.0x ] [+]
-    float y2 = y1 + rowH + rowGap;
+    // Ряд 2: Слой (zIndex) [-1] [ СЛОЙ: N ] [+1]
+    float yLayer = y1 + rowH + rowGap;
     float btnStepW = 32.0f * s;
     float valW = rowW - btnStepW * 2.0f - 8.0f * s;
+    l.btnLayerDecPos = glm::vec2(px + padX, yLayer);
+    l.btnLayerDecSize = glm::vec2(btnStepW, rowH);
+    l.layerValuePos = glm::vec2(px + padX + btnStepW + 4.0f * s, yLayer);
+    l.layerValueSize = glm::vec2(valW, rowH);
+    l.btnLayerIncPos = glm::vec2(px + padX + btnStepW + valW + 8.0f * s, yLayer);
+    l.btnLayerIncSize = glm::vec2(btnStepW, rowH);
+
+    // Ряд 3: Общий масштаб [-] [ 1.0x ] [+]
+    float y2 = yLayer + rowH + rowGap;
     l.btnScaleDecPos = glm::vec2(px + padX, y2);
     l.btnScaleDecSize = glm::vec2(btnStepW, rowH);
     l.scaleValuePos = glm::vec2(px + padX + btnStepW + 4.0f * s, y2);
     l.btnScaleIncPos = glm::vec2(px + padX + btnStepW + valW + 8.0f * s, y2);
     l.btnScaleIncSize = glm::vec2(btnStepW, rowH);
 
-    float curY = y2;
+    // Ряд 4: Масштаб по ширине X [-] [ ШИРИНА X: 1.0x ] [+]
+    float y3 = y2 + rowH + rowGap;
+    l.btnScaleXDecPos = glm::vec2(px + padX, y3);
+    l.btnScaleXDecSize = glm::vec2(btnStepW, rowH);
+    l.scaleXValuePos = glm::vec2(px + padX + btnStepW + 4.0f * s, y3);
+    l.btnScaleXIncPos = glm::vec2(px + padX + btnStepW + valW + 8.0f * s, y3);
+    l.btnScaleXIncSize = glm::vec2(btnStepW, rowH);
+
+    // Ряд 5: Масштаб по высоте Y [-] [ ВЫСОТА Y: 1.0x ] [+]
+    float y4 = y3 + rowH + rowGap;
+    l.btnScaleYDecPos = glm::vec2(px + padX, y4);
+    l.btnScaleYDecSize = glm::vec2(btnStepW, rowH);
+    l.scaleYValuePos = glm::vec2(px + padX + btnStepW + 4.0f * s, y4);
+    l.btnScaleYIncPos = glm::vec2(px + padX + btnStepW + valW + 8.0f * s, y4);
+    l.btnScaleYIncSize = glm::vec2(btnStepW, rowH);
+
+    float curY = y4;
 
     if (isPuddle) {
-        // Ряд 2.1: Ширина X
-        curY += rowH + rowGap;
-        l.btnScaleXDecPos = glm::vec2(px + padX, curY);
-        l.btnScaleXDecSize = glm::vec2(btnStepW, rowH);
-        l.scaleXValuePos = glm::vec2(px + padX + btnStepW + 4.0f * s, curY);
-        l.btnScaleXIncPos = glm::vec2(px + padX + btnStepW + valW + 8.0f * s, curY);
-        l.btnScaleXIncSize = glm::vec2(btnStepW, rowH);
-
-        // Ряд 2.2: Высота Y
-        curY += rowH + rowGap;
-        l.btnScaleYDecPos = glm::vec2(px + padX, curY);
-        l.btnScaleYDecSize = glm::vec2(btnStepW, rowH);
-        l.scaleYValuePos = glm::vec2(px + padX + btnStepW + 4.0f * s, curY);
-        l.btnScaleYIncPos = glm::vec2(px + padX + btnStepW + valW + 8.0f * s, curY);
-        l.btnScaleYIncSize = glm::vec2(btnStepW, rowH);
-
-        // Ряд 2.3: Темнота (Opacity)
+        // Ряд 5.5: Темнота / Opacity
         curY += rowH + rowGap;
         l.btnOpacityDecPos = glm::vec2(px + padX, curY);
         l.btnOpacityDecSize = glm::vec2(btnStepW, rowH);
@@ -113,7 +123,7 @@ DecorInspectorLayout EditorDecorInspector::getLayout(const DecorationConfig& con
         l.btnOpacityIncSize = glm::vec2(btnStepW, rowH);
     }
 
-    // Ряд 3: Угол [-45°] [ 0° ] [+45°]
+    // Ряд 6: Угол поворота [-45°] [ 0° ] [+45°]
     curY += rowH + rowGap;
     float btnAngleStepW = 38.0f * s;
     float angleCenterW = rowW - btnAngleStepW * 2.0f - 8.0f * s;
@@ -124,12 +134,12 @@ DecorInspectorLayout EditorDecorInspector::getLayout(const DecorationConfig& con
     l.btnAngleIncPos = glm::vec2(px + padX + btnAngleStepW + angleCenterW + 8.0f * s, curY);
     l.btnAngleIncSize = glm::vec2(btnAngleStepW, rowH);
 
-    // Ряд 4: Сносится башней
+    // Ряд 7: Сносится башней
     curY += rowH + rowGap;
     l.btnDestructiblePos = glm::vec2(px + padX, curY);
     l.btnDestructibleSize = glm::vec2(rowW, rowH);
 
-    // Ряд 5: Кнопки Удалить / Закрыть
+    // Ряд 8: Кнопки Удалить / Закрыть
     curY += rowH + 10.0f * s;
     float botBtnW = (rowW - 6.0f * s) * 0.5f;
     l.btnDeletePos = glm::vec2(px + padX, curY);
@@ -168,6 +178,47 @@ bool EditorDecorInspector::handleInput(glm::vec2 mousePos, bool leftDown, bool w
 
     if (!isPointInRect(mousePos, l.panelPos, l.panelSize)) {
         return false;
+    }
+
+    float scrollY = InputManager::getScrollY();
+    if (std::abs(scrollY) > 0.01f) {
+        if (isPointInRect(mousePos, l.btnLayerDecPos, l.btnLayerDecSize) ||
+            isPointInRect(mousePos, l.layerValuePos, l.layerValueSize) ||
+            isPointInRect(mousePos, l.btnLayerIncPos, l.btnLayerIncSize)) {
+            int delta = (scrollY > 0.0f) ? 1 : -1;
+            config.zIndex = std::clamp(config.zIndex + delta, -10, 10);
+            if (onChanged) onChanged();
+            if (showToast) showToast("Слой декора (zIndex): " + std::to_string(config.zIndex), glm::vec4(0.4f, 0.85f, 1.0f, 1.0f));
+            return true;
+        } else if (isPointInRect(mousePos, l.btnScaleDecPos, l.btnScaleDecSize) ||
+                   isPointInRect(mousePos, l.scaleValuePos, l.btnScaleIncPos - l.scaleValuePos + l.btnScaleIncSize) ||
+                   isPointInRect(mousePos, l.btnScaleIncPos, l.btnScaleIncSize)) {
+            float delta = (scrollY > 0.0f) ? 0.1f : -0.1f;
+            config.scale = std::clamp(std::round((config.scale + delta) * 10.0f) / 10.0f, 0.3f, 3.0f);
+            if (onChanged) onChanged();
+            return true;
+        } else if (isPointInRect(mousePos, l.btnScaleXDecPos, l.btnScaleXDecSize) ||
+                   isPointInRect(mousePos, l.scaleXValuePos, l.btnScaleXIncPos - l.scaleXValuePos + l.btnScaleXIncSize) ||
+                   isPointInRect(mousePos, l.btnScaleXIncPos, l.btnScaleXIncSize)) {
+            float delta = (scrollY > 0.0f) ? 0.1f : -0.1f;
+            config.scaleX = std::clamp(std::round((config.scaleX + delta) * 10.0f) / 10.0f, 0.3f, 3.0f);
+            if (onChanged) onChanged();
+            return true;
+        } else if (isPointInRect(mousePos, l.btnScaleYDecPos, l.btnScaleYDecSize) ||
+                   isPointInRect(mousePos, l.scaleYValuePos, l.btnScaleYIncPos - l.scaleYValuePos + l.btnScaleYIncSize) ||
+                   isPointInRect(mousePos, l.btnScaleYIncPos, l.btnScaleYIncSize)) {
+            float delta = (scrollY > 0.0f) ? 0.1f : -0.1f;
+            config.scaleY = std::clamp(std::round((config.scaleY + delta) * 10.0f) / 10.0f, 0.3f, 3.0f);
+            if (onChanged) onChanged();
+            return true;
+        } else if (isPointInRect(mousePos, l.btnAngleDecPos, l.btnAngleDecSize) ||
+                   isPointInRect(mousePos, l.btnAnglePos, l.btnAngleSize) ||
+                   isPointInRect(mousePos, l.btnAngleIncPos, l.btnAngleIncSize)) {
+            float delta = (scrollY > 0.0f) ? 15.0f : -15.0f;
+            config.rotation = std::fmod(config.rotation + delta + 360.0f, 360.0f);
+            if (onChanged) onChanged();
+            return true;
+        }
     }
 
     if (!leftDown || wasLeftDown) {
@@ -222,7 +273,27 @@ bool EditorDecorInspector::handleInput(glm::vec2 mousePos, bool leftDown, bool w
         return true;
     }
 
-    // Масштаб
+    // Слой (zIndex)
+    if (isPointInRect(mousePos, l.btnLayerDecPos, l.btnLayerDecSize)) {
+        config.zIndex = std::clamp(config.zIndex - 1, -10, 10);
+        if (onChanged) onChanged();
+        if (showToast) showToast("Слой декора (zIndex): " + std::to_string(config.zIndex), glm::vec4(0.4f, 0.85f, 1.0f, 1.0f));
+        return true;
+    }
+    if (isPointInRect(mousePos, l.btnLayerIncPos, l.btnLayerIncSize)) {
+        config.zIndex = std::clamp(config.zIndex + 1, -10, 10);
+        if (onChanged) onChanged();
+        if (showToast) showToast("Слой декора (zIndex): " + std::to_string(config.zIndex), glm::vec4(0.4f, 0.85f, 1.0f, 1.0f));
+        return true;
+    }
+    if (isPointInRect(mousePos, l.layerValuePos, l.layerValueSize)) {
+        config.zIndex = (config.zIndex != 0) ? 0 : 1;
+        if (onChanged) onChanged();
+        if (showToast) showToast("Слой декора (zIndex): " + std::to_string(config.zIndex), glm::vec4(0.4f, 0.85f, 1.0f, 1.0f));
+        return true;
+    }
+
+    // Общий масштаб
     if (isPointInRect(mousePos, l.btnScaleDecPos, l.btnScaleDecSize)) {
         config.scale = std::max(0.3f, std::round((config.scale - 0.1f) * 10.0f) / 10.0f);
         if (onChanged) onChanged();
@@ -233,32 +304,47 @@ bool EditorDecorInspector::handleInput(glm::vec2 mousePos, bool leftDown, bool w
         if (onChanged) onChanged();
         return true;
     }
+    if (isPointInRect(mousePos, l.scaleValuePos, l.btnScaleIncPos - l.scaleValuePos + l.btnScaleIncSize)) {
+        config.scale = 1.0f;
+        if (onChanged) onChanged();
+        return true;
+    }
+
+    // Ширина X
+    if (isPointInRect(mousePos, l.btnScaleXDecPos, l.btnScaleXDecSize)) {
+        config.scaleX = std::max(0.3f, std::round((config.scaleX - 0.1f) * 10.0f) / 10.0f);
+        if (onChanged) onChanged();
+        return true;
+    }
+    if (isPointInRect(mousePos, l.btnScaleXIncPos, l.btnScaleXIncSize)) {
+        config.scaleX = std::min(3.0f, std::round((config.scaleX + 0.1f) * 10.0f) / 10.0f);
+        if (onChanged) onChanged();
+        return true;
+    }
+    if (isPointInRect(mousePos, l.scaleXValuePos, l.btnScaleXIncPos - l.scaleXValuePos + l.btnScaleXIncSize)) {
+        config.scaleX = 1.0f;
+        if (onChanged) onChanged();
+        return true;
+    }
+
+    // Высота Y
+    if (isPointInRect(mousePos, l.btnScaleYDecPos, l.btnScaleYDecSize)) {
+        config.scaleY = std::max(0.3f, std::round((config.scaleY - 0.1f) * 10.0f) / 10.0f);
+        if (onChanged) onChanged();
+        return true;
+    }
+    if (isPointInRect(mousePos, l.btnScaleYIncPos, l.btnScaleYIncSize)) {
+        config.scaleY = std::min(3.0f, std::round((config.scaleY + 0.1f) * 10.0f) / 10.0f);
+        if (onChanged) onChanged();
+        return true;
+    }
+    if (isPointInRect(mousePos, l.scaleYValuePos, l.btnScaleYIncPos - l.scaleYValuePos + l.btnScaleYIncSize)) {
+        config.scaleY = 1.0f;
+        if (onChanged) onChanged();
+        return true;
+    }
 
     if (l.isPuddle) {
-        // Ширина X
-        if (isPointInRect(mousePos, l.btnScaleXDecPos, l.btnScaleXDecSize)) {
-            config.scaleX = std::max(0.3f, std::round((config.scaleX - 0.1f) * 10.0f) / 10.0f);
-            if (onChanged) onChanged();
-            return true;
-        }
-        if (isPointInRect(mousePos, l.btnScaleXIncPos, l.btnScaleXIncSize)) {
-            config.scaleX = std::min(3.0f, std::round((config.scaleX + 0.1f) * 10.0f) / 10.0f);
-            if (onChanged) onChanged();
-            return true;
-        }
-
-        // Высота Y
-        if (isPointInRect(mousePos, l.btnScaleYDecPos, l.btnScaleYDecSize)) {
-            config.scaleY = std::max(0.3f, std::round((config.scaleY - 0.1f) * 10.0f) / 10.0f);
-            if (onChanged) onChanged();
-            return true;
-        }
-        if (isPointInRect(mousePos, l.btnScaleYIncPos, l.btnScaleYIncSize)) {
-            config.scaleY = std::min(3.0f, std::round((config.scaleY + 0.1f) * 10.0f) / 10.0f);
-            if (onChanged) onChanged();
-            return true;
-        }
-
         // Темнота
         if (isPointInRect(mousePos, l.btnOpacityDecPos, l.btnOpacityDecSize)) {
             config.opacity = std::max(0.10f, std::round((config.opacity - 0.05f) * 100.0f) / 100.0f);
@@ -278,7 +364,12 @@ bool EditorDecorInspector::handleInput(glm::vec2 mousePos, bool leftDown, bool w
         if (onChanged) onChanged();
         return true;
     }
-    if (isPointInRect(mousePos, l.btnAngleIncPos, l.btnAngleIncSize) || isPointInRect(mousePos, l.btnAnglePos, l.btnAngleSize)) {
+    if (isPointInRect(mousePos, l.btnAngleIncPos, l.btnAngleIncSize)) {
+        config.rotation = std::fmod(config.rotation + 45.0f, 360.0f);
+        if (onChanged) onChanged();
+        return true;
+    }
+    if (isPointInRect(mousePos, l.btnAnglePos, l.btnAngleSize)) {
         config.rotation = std::fmod(config.rotation + 45.0f, 360.0f);
         if (onChanged) onChanged();
         return true;
@@ -361,45 +452,50 @@ void EditorDecorInspector::render(SpriteRenderer* renderer, TextRenderer* textRe
     drawBtn(l.btnTypePos, l.btnTypeSize, glm::vec4(0.11f, 0.15f, 0.22f, 0.9f), glm::vec4(0.18f, 0.24f, 0.34f, 1.0f), btnBorder);
     drawBtn(l.btnTypeNextPos, l.btnTypeNextSize, btnBaseBg, btnHovBg, btnBorder);
 
-    // Ряд 2: Масштаб
+    // Ряд 2: Слой (zIndex)
     float rowW = l.panelSize.x - 20.0f * s;
     float btnStepW = 32.0f * s;
     float valW = rowW - btnStepW * 2.0f - 8.0f * s;
     glm::vec2 valSz(valW, 24.0f * s);
 
+    drawBtn(l.btnLayerDecPos, l.btnLayerDecSize, btnBaseBg, btnHovBg, btnBorder);
+    drawBtn(l.layerValuePos, valSz, glm::vec4(0.10f, 0.14f, 0.20f, 0.9f), glm::vec4(0.14f, 0.20f, 0.28f, 1.0f), btnBorder);
+    drawBtn(l.btnLayerIncPos, l.btnLayerIncSize, btnBaseBg, btnHovBg, btnBorder);
+
+    // Ряд 3: Общий масштаб
     drawBtn(l.btnScaleDecPos, l.btnScaleDecSize, btnBaseBg, btnHovBg, btnBorder);
-    drawBtn(l.scaleValuePos, valSz, glm::vec4(0.10f, 0.13f, 0.18f, 0.9f), glm::vec4(0.10f, 0.13f, 0.18f, 0.9f), btnBorder);
+    drawBtn(l.scaleValuePos, valSz, glm::vec4(0.10f, 0.13f, 0.18f, 0.9f), glm::vec4(0.14f, 0.18f, 0.24f, 1.0f), btnBorder);
     drawBtn(l.btnScaleIncPos, l.btnScaleIncSize, btnBaseBg, btnHovBg, btnBorder);
 
+    // Ряд 4: Масштаб по ширине X
+    drawBtn(l.btnScaleXDecPos, l.btnScaleXDecSize, btnBaseBg, btnHovBg, btnBorder);
+    drawBtn(l.scaleXValuePos, valSz, glm::vec4(0.10f, 0.13f, 0.18f, 0.9f), glm::vec4(0.14f, 0.18f, 0.24f, 1.0f), btnBorder);
+    drawBtn(l.btnScaleXIncPos, l.btnScaleXIncSize, btnBaseBg, btnHovBg, btnBorder);
+
+    // Ряд 5: Масштаб по высоте Y
+    drawBtn(l.btnScaleYDecPos, l.btnScaleYDecSize, btnBaseBg, btnHovBg, btnBorder);
+    drawBtn(l.scaleYValuePos, valSz, glm::vec4(0.10f, 0.13f, 0.18f, 0.9f), glm::vec4(0.14f, 0.18f, 0.24f, 1.0f), btnBorder);
+    drawBtn(l.btnScaleYIncPos, l.btnScaleYIncSize, btnBaseBg, btnHovBg, btnBorder);
+
     if (l.isPuddle) {
-        // Ряд 2.1: Ширина X
-        drawBtn(l.btnScaleXDecPos, l.btnScaleXDecSize, btnBaseBg, btnHovBg, btnBorder);
-        drawBtn(l.scaleXValuePos, valSz, glm::vec4(0.10f, 0.13f, 0.18f, 0.9f), glm::vec4(0.10f, 0.13f, 0.18f, 0.9f), btnBorder);
-        drawBtn(l.btnScaleXIncPos, l.btnScaleXIncSize, btnBaseBg, btnHovBg, btnBorder);
-
-        // Ряд 2.2: Высота Y
-        drawBtn(l.btnScaleYDecPos, l.btnScaleYDecSize, btnBaseBg, btnHovBg, btnBorder);
-        drawBtn(l.scaleYValuePos, valSz, glm::vec4(0.10f, 0.13f, 0.18f, 0.9f), glm::vec4(0.10f, 0.13f, 0.18f, 0.9f), btnBorder);
-        drawBtn(l.btnScaleYIncPos, l.btnScaleYIncSize, btnBaseBg, btnHovBg, btnBorder);
-
-        // Ряд 2.3: Темнота
+        // Ряд 5.5: Темнота / Opacity
         drawBtn(l.btnOpacityDecPos, l.btnOpacityDecSize, btnBaseBg, btnHovBg, btnBorder);
-        drawBtn(l.opacityValuePos, valSz, glm::vec4(0.10f, 0.13f, 0.18f, 0.9f), glm::vec4(0.10f, 0.13f, 0.18f, 0.9f), btnBorder);
+        drawBtn(l.opacityValuePos, valSz, glm::vec4(0.10f, 0.13f, 0.18f, 0.9f), glm::vec4(0.14f, 0.18f, 0.24f, 1.0f), btnBorder);
         drawBtn(l.btnOpacityIncPos, l.btnOpacityIncSize, btnBaseBg, btnHovBg, btnBorder);
     }
 
-    // Ряд 3: Угол
+    // Ряд 6: Угол
     drawBtn(l.btnAngleDecPos, l.btnAngleDecSize, btnBaseBg, btnHovBg, btnBorder);
     drawBtn(l.btnAnglePos, l.btnAngleSize, glm::vec4(0.12f, 0.16f, 0.22f, 0.9f), glm::vec4(0.18f, 0.24f, 0.32f, 1.0f), btnBorder);
     drawBtn(l.btnAngleIncPos, l.btnAngleIncSize, btnBaseBg, btnHovBg, btnBorder);
 
-    // Ряд 4: Сносится башней
+    // Ряд 7: Сносится башней
     glm::vec4 destrBg = config.destructible ? glm::vec4(0.14f, 0.28f, 0.18f, 0.9f) : glm::vec4(0.28f, 0.16f, 0.14f, 0.9f);
     glm::vec4 destrHov = config.destructible ? glm::vec4(0.20f, 0.40f, 0.25f, 1.0f) : glm::vec4(0.40f, 0.22f, 0.20f, 1.0f);
     glm::vec4 destrBdr = config.destructible ? glm::vec4(0.35f, 0.65f, 0.40f, 0.9f) : glm::vec4(0.65f, 0.35f, 0.30f, 0.9f);
     drawBtn(l.btnDestructiblePos, l.btnDestructibleSize, destrBg, destrHov, destrBdr);
 
-    // Ряд 5: Удалить / Закрыть
+    // Ряд 8: Удалить / Закрыть
     drawBtn(l.btnDeletePos, l.btnDeleteSize,
         glm::vec4(0.35f, 0.12f, 0.12f, 0.9f),
         glm::vec4(0.55f, 0.16f, 0.16f, 1.0f),
@@ -443,29 +539,35 @@ void EditorDecorInspector::render(SpriteRenderer* renderer, TextRenderer* textRe
     renderCentered("ТИП: " + friendlyName, l.btnTypePos, l.btnTypeSize, l.fontScale, glm::vec3(0.6f, 0.9f, 1.0f));
     renderCentered(">", l.btnTypeNextPos, l.btnTypeNextSize, l.fontScale * 1.1f, glm::vec3(0.8f, 0.9f, 1.0f));
 
-    // Текст ряда 2: Масштаб
+    // Текст ряда 2: Слой (zIndex)
+    std::string layerText = std::string("СЛОЙ: ") + (config.zIndex > 0 ? "+" : "") + std::to_string(config.zIndex);
+    renderCentered("-1", l.btnLayerDecPos, l.btnLayerDecSize, l.fontScale * 1.1f, glm::vec3(1.0f, 0.8f, 0.8f));
+    renderCentered(layerText, l.layerValuePos, valSz, l.fontScale, glm::vec3(0.60f, 0.90f, 1.0f));
+    renderCentered("+1", l.btnLayerIncPos, l.btnLayerIncSize, l.fontScale * 1.1f, glm::vec3(0.8f, 1.0f, 0.8f));
+
+    // Текст ряда 3: Общий масштаб
     char scaleBuf[32];
     std::snprintf(scaleBuf, sizeof(scaleBuf), "РАЗМЕР: %.1fx", config.scale);
     renderCentered("-", l.btnScaleDecPos, l.btnScaleDecSize, l.fontScale * 1.1f, glm::vec3(1.0f, 0.8f, 0.8f));
     renderCentered(scaleBuf, l.scaleValuePos, valSz, l.fontScale, glm::vec3(1.0f, 0.95f, 0.75f));
     renderCentered("+", l.btnScaleIncPos, l.btnScaleIncSize, l.fontScale * 1.1f, glm::vec3(0.8f, 1.0f, 0.8f));
 
+    // Текст ряда 4: Ширина X
+    char sxBuf[32];
+    std::snprintf(sxBuf, sizeof(sxBuf), "ШИРИНА X: %.1fx", config.scaleX);
+    renderCentered("-", l.btnScaleXDecPos, l.btnScaleXDecSize, l.fontScale * 1.1f, glm::vec3(1.0f, 0.8f, 0.8f));
+    renderCentered(sxBuf, l.scaleXValuePos, valSz, l.fontScale, glm::vec3(0.75f, 0.95f, 1.0f));
+    renderCentered("+", l.btnScaleXIncPos, l.btnScaleXIncSize, l.fontScale * 1.1f, glm::vec3(0.8f, 1.0f, 0.8f));
+
+    // Текст ряда 5: Высота Y
+    char syBuf[32];
+    std::snprintf(syBuf, sizeof(syBuf), "ВЫСОТА Y: %.1fx", config.scaleY);
+    renderCentered("-", l.btnScaleYDecPos, l.btnScaleYDecSize, l.fontScale * 1.1f, glm::vec3(1.0f, 0.8f, 0.8f));
+    renderCentered(syBuf, l.scaleYValuePos, valSz, l.fontScale, glm::vec3(0.75f, 0.95f, 1.0f));
+    renderCentered("+", l.btnScaleYIncPos, l.btnScaleYIncSize, l.fontScale * 1.1f, glm::vec3(0.8f, 1.0f, 0.8f));
+
     if (l.isPuddle) {
-        // Текст ряда 2.1: Ширина X
-        char sxBuf[32];
-        std::snprintf(sxBuf, sizeof(sxBuf), "ШИРИНА X: %.1fx", config.scaleX);
-        renderCentered("-", l.btnScaleXDecPos, l.btnScaleXDecSize, l.fontScale * 1.1f, glm::vec3(1.0f, 0.8f, 0.8f));
-        renderCentered(sxBuf, l.scaleXValuePos, valSz, l.fontScale, glm::vec3(0.75f, 0.95f, 1.0f));
-        renderCentered("+", l.btnScaleXIncPos, l.btnScaleXIncSize, l.fontScale * 1.1f, glm::vec3(0.8f, 1.0f, 0.8f));
-
-        // Текст ряда 2.2: Высота Y
-        char syBuf[32];
-        std::snprintf(syBuf, sizeof(syBuf), "ВЫСОТА Y: %.1fx", config.scaleY);
-        renderCentered("-", l.btnScaleYDecPos, l.btnScaleYDecSize, l.fontScale * 1.1f, glm::vec3(1.0f, 0.8f, 0.8f));
-        renderCentered(syBuf, l.scaleYValuePos, valSz, l.fontScale, glm::vec3(0.75f, 0.95f, 1.0f));
-        renderCentered("+", l.btnScaleYIncPos, l.btnScaleYIncSize, l.fontScale * 1.1f, glm::vec3(0.8f, 1.0f, 0.8f));
-
-        // Текст ряда 2.3: Темнота (Opacity)
+        // Текст ряда 5.5: Темнота (Opacity)
         char opBuf[32];
         std::snprintf(opBuf, sizeof(opBuf), "ТЕМНОТА: %d%%", static_cast<int>(std::round(config.opacity * 100.0f)));
         renderCentered("-", l.btnOpacityDecPos, l.btnOpacityDecSize, l.fontScale * 1.1f, glm::vec3(1.0f, 0.8f, 0.8f));
@@ -473,17 +575,17 @@ void EditorDecorInspector::render(SpriteRenderer* renderer, TextRenderer* textRe
         renderCentered("+", l.btnOpacityIncPos, l.btnOpacityIncSize, l.fontScale * 1.1f, glm::vec3(0.8f, 1.0f, 0.8f));
     }
 
-    // Текст ряда 3: Угол
+    // Текст ряда 6: Угол
     renderCentered("-45", l.btnAngleDecPos, l.btnAngleDecSize, l.fontScale * 0.9f, glm::vec3(0.8f, 0.9f, 1.0f));
     renderCentered("УГОЛ: " + std::to_string(static_cast<int>(std::round(config.rotation))) + "°", l.btnAnglePos, l.btnAngleSize, l.fontScale, glm::vec3(0.95f, 0.95f, 0.7f));
     renderCentered("+45", l.btnAngleIncPos, l.btnAngleIncSize, l.fontScale * 0.9f, glm::vec3(0.8f, 0.9f, 1.0f));
 
-    // Текст ряда 4: Сносится башней
+    // Текст ряда 7: Сносится башней
     std::string destrText = config.destructible ? "СНОСИТСЯ БАШНЕЙ: ДА" : "СНОСИТСЯ БАШНЕЙ: НЕТ";
     glm::vec3 destrCol = config.destructible ? glm::vec3(0.6f, 1.0f, 0.65f) : glm::vec3(1.0f, 0.65f, 0.6f);
     renderCentered(destrText, l.btnDestructiblePos, l.btnDestructibleSize, l.fontScale, destrCol);
 
-    // Текст ряда 5: Удалить / Закрыть
+    // Текст ряда 8: Удалить / Закрыть
     renderCentered("УДАЛИТЬ", l.btnDeletePos, l.btnDeleteSize, l.fontScale * 0.95f, glm::vec3(1.0f, 0.5f, 0.5f));
     renderCentered("ЗАКРЫТЬ", l.btnClosePos, l.btnCloseSize, l.fontScale * 0.95f, glm::vec3(0.9f, 0.9f, 1.0f));
 }

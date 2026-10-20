@@ -389,6 +389,7 @@ void EditorToolbarUI::updateLayout(TextRenderer* textRenderer, const EditorConte
         items.push_back({ platformLabel,   false, EditorBrush::Platform,  0, 0.0f });
         items.push_back({ "4:" + LOC("EDITOR_PATH"),       false, EditorBrush::Path,      0, 0.0f });
         items.push_back({ "5:" + LOC("EDITOR_CHASM"),      false, EditorBrush::Chasm,     0, 0.0f });
+        items.push_back({ "6:Запрет",                       false, EditorBrush::NoBuild,   0, 0.0f });
         items.push_back({ "0:" + LOC("EDITOR_ERASER"),     false, EditorBrush::Eraser,    0, 0.0f });
         splitIndex1 = items.size();
     } else if (m_currentCategory == PaletteCategory::SpecialObjects) {
@@ -429,6 +430,7 @@ void EditorToolbarUI::updateLayout(TextRenderer* textRenderer, const EditorConte
         items.push_back({ "9:Трещина",    false, EditorBrush::DecorCrack,      0, 0.0f });
         items.push_back({ "F:Туман",      false, EditorBrush::DecorFog,        0, 0.0f });
         items.push_back({ "0:" + LOC("EDITOR_ERASER"), false, EditorBrush::Eraser, 0, 0.0f });
+        items.push_back({ std::string("G:") + (ctx.decorGridSnap ? "Сетка ВКЛ" : "Сетка ВЫКЛ"), true, EditorBrush::Wall, 25, 0.0f });
         splitIndex1 = items.size();
     }
 
@@ -491,6 +493,13 @@ void EditorToolbarUI::updateLayout(TextRenderer* textRenderer, const EditorConte
         btn.isAction = it.isAction;
         btn.brush = it.brush;
         btn.actionId = it.actionId;
+        if (!btn.isAction && btn.brush == EditorBrush::NoBuild) {
+            btn.tooltip = "Запрет стройки (ЛКМ - ставить, ПКМ - снять)";
+        } else if (!btn.isAction && btn.brush == EditorBrush::Eraser) {
+            btn.tooltip = "Ластик (Shift: снять только запрет стройки)";
+        } else if (btn.actionId == 25) {
+            btn.tooltip = "Привязка к сетке [G]: примагничивает декор к тайлам карты";
+        }
         m_bottomButtons.push_back(btn);
         currentX += it.width + padding;
     }
@@ -600,6 +609,8 @@ EditorAction EditorToolbarUI::handleInput(float mouseX, float mouseY, bool mouse
                     result.type = EditorActionType::ToggleWavesModal;
                 } else if (btn.actionId == 18) {
                     result.type = EditorActionType::ToggleMinecartModal;
+                } else if (btn.actionId == 25) {
+                    result.type = EditorActionType::ToggleDecorGridSnap;
                 }
             }
             return result;
@@ -722,6 +733,9 @@ void EditorToolbarUI::render(SpriteRenderer* renderer, TextRenderer* textRendere
             if (btn.brush == EditorBrush::Eraser) {
                 btnBg = glm::vec3(0.45f, 0.18f, 0.18f);
                 borderColor = glm::vec3(1.0f, 0.35f, 0.35f);
+            } else if (btn.brush == EditorBrush::NoBuild) {
+                btnBg = glm::vec3(0.50f, 0.15f, 0.15f);
+                borderColor = glm::vec3(1.0f, 0.35f, 0.35f);
             } else if (btn.brush == EditorBrush::Chasm) {
                 btnBg = glm::vec3(0.12f, 0.12f, 0.18f);
                 borderColor = glm::vec3(0.70f, 0.45f, 0.95f);
@@ -783,6 +797,9 @@ void EditorToolbarUI::render(SpriteRenderer* renderer, TextRenderer* textRendere
         } else if (!btn.isAction && btn.brush == EditorBrush::Eraser) {
             btnBg = glm::vec3(0.28f, 0.15f, 0.15f);
             borderColor = glm::vec3(0.6f, 0.25f, 0.25f);
+        } else if (!btn.isAction && btn.brush == EditorBrush::NoBuild) {
+            btnBg = glm::vec3(0.30f, 0.12f, 0.12f);
+            borderColor = glm::vec3(0.65f, 0.25f, 0.25f);
         } else if (!btn.isAction && btn.brush == EditorBrush::Chasm) {
             btnBg = glm::vec3(0.10f, 0.10f, 0.14f);
             borderColor = glm::vec3(0.35f, 0.30f, 0.45f);
@@ -823,6 +840,14 @@ void EditorToolbarUI::render(SpriteRenderer* renderer, TextRenderer* textRendere
                 } else {
                     btnBg = glm::vec3(0.26f, 0.20f, 0.09f);
                     borderColor = glm::vec3(0.70f, 0.55f, 0.20f);
+                }
+            } else if (btn.actionId == 25) { // Grid Snap
+                if (ctx.decorGridSnap) {
+                    btnBg = glm::vec3(0.15f, 0.38f, 0.22f);
+                    borderColor = glm::vec3(0.35f, 0.95f, 0.45f);
+                } else {
+                    btnBg = glm::vec3(0.20f, 0.22f, 0.26f);
+                    borderColor = glm::vec3(0.40f, 0.45f, 0.50f);
                 }
             }
         }
@@ -922,12 +947,16 @@ void EditorToolbarUI::render(SpriteRenderer* renderer, TextRenderer* textRendere
                 textColor = glm::vec3(0.95f, 0.80f, 0.45f);
             } else if (!btn.isAction && btn.brush == EditorBrush::RailEnd) {
                 textColor = glm::vec3(0.95f, 0.55f, 0.55f);
+            } else if (!btn.isAction && btn.brush == EditorBrush::NoBuild) {
+                textColor = glm::vec3(1.0f, 0.70f, 0.70f);
             } else if (btn.actionId == 6) {
                 textColor = getIdColor(ctx.selectedId);
             } else if (btn.actionId == 13) {
                 textColor = ctx.isWaveModalOpen ? glm::vec3(0.4f, 1.0f, 1.0f) : glm::vec3(0.6f, 0.85f, 1.0f);
             } else if (btn.actionId == 18) {
                 textColor = ctx.isMinecartModalOpen ? glm::vec3(1.0f, 0.90f, 0.25f) : glm::vec3(0.90f, 0.72f, 0.30f);
+            } else if (btn.actionId == 25) {
+                textColor = ctx.decorGridSnap ? glm::vec3(0.4f, 1.0f, 0.5f) : glm::vec3(0.7f, 0.75f, 0.8f);
             }
             float tw = textRenderer->CalculateTextWidth(btn.label, m_bottomFontScale);
             float tx = btn.pos.x + (btn.size.x - tw) * 0.5f;

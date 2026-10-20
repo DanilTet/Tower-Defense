@@ -24,6 +24,7 @@ Enemy::Enemy(const std::vector<glm::ivec2>& gridPath, const Grid& grid, const st
     m_reachedEnd(false), // изначально враг не достиг конца маршрута
     m_type(type), // сохраняем тип врага
     m_distanceTraveled(0.0f),// инициализация одометра
+    m_aliveTime(0.0f),
     m_targetBaseIndex(targetBaseIndex), // СОХРАНЯЕМ ИНДЕКС БАЗЫ
     m_enableFadeIn(enableFadeIn),
     m_enableFadeOut(enableFadeOut)
@@ -62,6 +63,7 @@ Enemy::Enemy(const std::vector<glm::ivec2>& gridPath, const Grid& grid, const st
     m_reachedEnd(false),
     m_type(type),
     m_distanceTraveled(0.0f),
+    m_aliveTime(0.0f),
     m_targetBaseIndex(targetBaseIndex),
     m_pixelPos(spawnPixelPos),
     m_enableFadeIn(enableFadeIn),
@@ -133,8 +135,9 @@ void Enemy::updateVisibilityAlpha(const Grid& grid) {
 }
 
 // Обновление логики и расчет движения
-void Enemy::update(float dt, const Grid& grid) {
+void Enemy::update(float dt, const Grid& grid, ParticleSystem* particleSystem) {
     if (m_reachedEnd) return;
+    m_aliveTime += dt;
     updateVisibilityAlpha(grid);
 
     // 0. Состояние падения в шурф / обрыв (CellType::Chasm)
@@ -345,6 +348,35 @@ void Enemy::update(float dt, const Grid& grid) {
         m_distanceTraveled += moveDistance; // плюсуем пройденое расстояние за кадр
     }
 
+
+    // Эффект движения (Шлейф искр) для типа "Spark"
+    if (m_type == "Spark" && particleSystem && !m_reachedEnd && !m_isFalling && m_health > 0 && distance > 0.001f && m_speedModifier > 0.01f) {
+        m_sparkTrailTimer += dt;
+        const float SPAWN_INTERVAL = 0.022f; // Высокая частота спавна для динамичного огненного хвоста
+        glm::vec2 moveDir = toTarget / distance;
+        glm::vec2 enemyCenter = m_pixelPos + glm::vec2(grid.getCellSize() * 0.5f);
+
+        if (m_sparkTrailTimer > 0.1f) m_sparkTrailTimer = 0.1f;
+        while (m_sparkTrailTimer >= SPAWN_INTERVAL) {
+            m_sparkTrailTimer -= SPAWN_INTERVAL;
+
+            ParticleEmitterProps props = ConfigManager::getParticleProps("SparkTrail");
+            if (props.lifeTime <= 0.0f) {
+                props.velocityVariation = 40.0f;
+                props.startColor = glm::vec3(1.0f, 0.90f, 0.35f);
+                props.endColor = glm::vec3(0.95f, 0.25f, 0.02f);
+                props.startSize = 7.0f;
+                props.endSize = 1.0f;
+                props.lifeTime = 0.35f;
+                props.spawnCount = 1;
+            }
+
+            props.position = enemyCenter;
+            // Искры с небольшим разбросом вылетают против вектора движения и быстро затухают
+            props.velocityDir = -moveDir * 65.0f;
+            particleSystem->emit(props, props.spawnCount);
+        }
+    }
     updateVisibilityAlpha(grid);
 }
 
@@ -415,7 +447,64 @@ void Enemy::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture,
     }
 
     if (currentEnemyDim > 0.5f) {
-        renderer->drawSpriteRGBA(enemyTexPtr, drawPos, size, drawAngle, glm::vec4(renderColor, m_visibilityAlpha), currentFrameUV);
+        if (m_type == "Spark") {
+            // Быстрая высокочастотная пульсация свечения (вибрация пламени)
+            float phase = static_cast<float>(m_id) * 2.391f;
+            float vib1 = std::sin(m_aliveTime * 22.0f + phase);
+            float vib2 = std::sin(m_aliveTime * 37.0f + phase * 1.618f);
+            float vib3 = std::cos(m_aliveTime * 53.0f + phase * 2.718f);
+            float flamePulse = 0.5f + 0.30f * vib1 + 0.12f * vib2 + 0.08f * vib3; // быстрая вибрация пламени 0..1
+
+            // 1. Внешний огненно-оранжевый контур / ореол пламени с вибрацией размера и яркости
+            float haloScale = 1.30f + 0.22f * flamePulse;
+            glm::vec2 haloSize = size * haloScale;
+            glm::vec2 haloPos = cellCenter - haloSize * 0.5f + m_wallImpactOffset;
+            glm::vec3 flameOrange = glm::vec3(1.0f, 0.40f, 0.05f) * renderColor;
+            float haloAlpha = std::clamp((0.50f + 0.45f * flamePulse) * m_visibilityAlpha, 0.0f, 1.0f);
+            renderer->drawSpriteRGBA(enemyTexPtr, haloPos, haloSize, drawAngle, glm::vec4(flameOrange, haloAlpha), currentFrameUV);
+
+            // 2. Основное тело искры (базовый спрайт)
+            renderer->drawSpriteRGBA(enemyTexPtr, drawPos, size, drawAngle, glm::vec4(renderColor, m_visibilityAlpha), currentFrameUV);
+
+            // 3. Яркое раскаленное ядро (бело-желтый вибрирующий центр высокой яркости)
+            float coreScale = 0.70f + 0.12f * vib1;
+            glm::vec2 coreSize = size * coreScale;
+            glm::vec2 corePos = cellCenter - coreSize * 0.5f + m_wallImpactOffset;
+            glm::vec3 coreGlow = glm::mix(glm::vec3(1.0f, 0.90f, 0.40f), glm::vec3(1.22f, 1.18f, 0.96f), flamePulse) * renderColor;
+            float coreAlpha = std::clamp((0.80f + 0.20f * flamePulse) * m_visibilityAlpha, 0.0f, 1.0f);
+            renderer->drawSpriteRGBA(enemyTexPtr, corePos, coreSize, drawAngle, glm::vec4(coreGlow, coreAlpha), currentFrameUV);
+        }
+        else {
+            renderer->drawSpriteRGBA(enemyTexPtr, drawPos, size, drawAngle, glm::vec4(renderColor, m_visibilityAlpha), currentFrameUV);
+
+            // Процедурный визуал для врага "Coal" (Уголёк):
+            // Пульсация раскаленных красно-оранжевых прожилок/трещин и пары огненных глаз
+            if (m_type == "Coal") {
+                Texture2D* glowTex = ResourceManager::getTexture("enemy_coal_glow");
+                if (glowTex) {
+                    std::shared_ptr<Texture2D> glowTexPtr(glowTex, [](Texture2D*) {});
+
+                    // Индивидуальный сдвиг фазы на основе m_id, чтобы пачка из 30 угольков не мигала синхронно
+                    float phase = static_cast<float>(m_id) * 1.731f;
+                    float p1 = 0.5f + 0.5f * std::sin(m_aliveTime * 3.4f + phase);
+                    float p2 = 0.5f + 0.5f * std::sin(m_aliveTime * 5.8f + phase * 1.37f);
+                    float pulse = p1 * 0.75f + p2 * 0.25f; // органическое двухфазное "дыхание" пламени
+
+                    // Раскаленный красно-оранжевый цвет с переходом к ярко-желтому в пике пульсации
+                    glm::vec3 coreGlow = glm::mix(glm::vec3(1.0f, 0.45f, 0.12f), glm::vec3(1.18f, 0.92f, 0.38f), pulse);
+                    glm::vec3 finalGlowColor = renderColor * coreGlow;
+
+                    // Оверлей трещин строго в габаритах самого камня (1:1 со спрайтом, без ореола расширения)
+                    glm::vec2 coreSize = size;
+                    glm::vec2 corePos = drawPos;
+
+                    // Обязательно учитываем m_visibilityAlpha, чтобы Уголёк плавно проявлялся и исчезал в тумане
+                    float glowAlpha = std::clamp((0.45f + 0.55f * pulse) * m_visibilityAlpha, 0.0f, 1.0f);
+
+                    renderer->drawSpriteRGBA(glowTexPtr, corePos, coreSize, drawAngle, glm::vec4(finalGlowColor, glowAlpha), currentFrameUV);
+                }
+            }
+        }
     }
 
     // Если враг падает в бездну, скрываем звездочки стана, полоску здоровья и хитбокс
@@ -446,10 +535,13 @@ void Enemy::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture,
         }
 
         // --- ОТРИСОВКА ХИТБОКСА (ДЕБАГ) ---
-        CircleCollider collider = getCollider(grid);
-        glm::vec2 hitboxSize(collider.radius * 2.0f, collider.radius * 2.0f);
-        glm::vec2 hitboxPos = (collider.center + m_wallImpactOffset) - glm::vec2(collider.radius, collider.radius);
-        renderer->drawSpriteRGBA(radiusTex, hitboxPos, hitboxSize, 0.0f, glm::vec4(1.0f, 0.0f, 0.0f, m_visibilityAlpha));
+        // Для врага "Coal" внешний круг хитбокса/ауры полностью исключен
+        if (m_type != "Coal" && m_type != "Spark") {
+            CircleCollider collider = getCollider(grid);
+            glm::vec2 hitboxSize(collider.radius * 2.0f, collider.radius * 2.0f);
+            glm::vec2 hitboxPos = (collider.center + m_wallImpactOffset) - glm::vec2(collider.radius, collider.radius);
+            renderer->drawSpriteRGBA(radiusTex, hitboxPos, hitboxSize, 0.0f, glm::vec4(1.0f, 0.0f, 0.0f, m_visibilityAlpha));
+        }
     }
 }
 

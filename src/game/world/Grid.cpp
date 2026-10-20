@@ -14,6 +14,7 @@ Grid::Grid(int width, int height, float cellSize, glm::vec2 offset){
 	// Двумерный вектор для хранения типа каждой клетки, изначально все клетки пустые
 	m_grid.resize(m_height, std::vector<CellType>(m_width, CellType::Ground));
 	m_originalGrid.resize(m_height, std::vector<CellType>(m_width, CellType::Ground));
+	m_noBuildMask.assign(m_height, std::vector<bool>(m_width, false));
 }
 
 void Grid::saveOriginalGrid() {
@@ -60,6 +61,9 @@ bool Grid::canBuildAt(int gridX, int gridY) const {
 	if (type == CellType::Chasm || type == CellType::Rail) {
 		return false;
 	}
+
+	// строить запрещено по маске no-build
+	if (isNoBuild(gridX, gridY)) return false;
 
 	// строить можно
 	return (type == CellType::Ground || type == CellType::Platform);
@@ -314,4 +318,23 @@ CellType Grid::getCellType(int gridX, int gridY) const {
 
 	// Если алгоритм спрашивает про клетку за экраном - говорим, что там стена
 	return CellType::Scenery;
+}
+
+void Grid::setNoBuildMask(const std::vector<std::vector<bool>>& mask) {
+	m_noBuildMask.assign(m_height, std::vector<bool>(m_width, false));
+	for (int y = 0; y < (int)mask.size() && y < m_height; ++y) {
+		for (int x = 0; x < (int)mask[y].size() && x < m_width; ++x) {
+			m_noBuildMask[y][x] = mask[y][x];
+		}
+	}
+}
+
+bool Grid::isNoBuild(int gridX, int gridY) const {
+	if (gridX < 0 || gridX >= m_width || gridY < 0 || gridY >= m_height) return false;
+	return m_noBuildMask[gridY][gridX];
+}
+
+void Grid::setNoBuildAt(int gridX, int gridY, bool value) {
+	if (gridX >= 0 && gridX < m_width && gridY >= 0 && gridY < m_height)
+		m_noBuildMask[gridY][gridX] = value;
 }

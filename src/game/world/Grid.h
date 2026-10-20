@@ -31,6 +31,7 @@ private:
 
 	std::vector<std::vector<CellType>> m_grid; // 2D вектор для хранения типа каждой клетки
 	std::vector<std::vector<CellType>> m_originalGrid; // Хранилище исходных типов клеток (до постройки башен)
+	std::vector<std::vector<bool>> m_noBuildMask; // [y][x], true = no-build zone
 
 public:
 	Grid(int width, int height, float cellSize, glm::vec2 offset = glm::vec2(0.0f, 0.0f));
@@ -57,4 +58,7 @@ public:
 	int getWidth() const { return m_width; }
 	int getHeight() const { return m_height; }
 	CellType getCellType(int gridX, int gridY) const;
+	void setNoBuildMask(const std::vector<std::vector<bool>>& mask);
+	bool isNoBuild(int gridX, int gridY) const;
+	void setNoBuildAt(int gridX, int gridY, bool value);
 };
