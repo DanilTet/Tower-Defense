@@ -302,14 +302,31 @@ LevelMapData LevelManager::loadLevelMap(const std::string& filepath) {
             }
 
             // no-build mask (backward compat if missing: all false)
+            const json* nbmJson = nullptr;
             if (j["map"].contains("noBuildMask")) {
-                for (const auto& row : j["map"]["noBuildMask"]) {
+                nbmJson = &j["map"]["noBuildMask"];
+            } else if (j.contains("noBuildMask")) {
+                nbmJson = &j["noBuildMask"];
+            } else if (j["map"].contains("blockedTiles")) {
+                nbmJson = &j["map"]["blockedTiles"];
+            } else if (j.contains("blockedTiles")) {
+                nbmJson = &j["blockedTiles"];
+            } else if (j["map"].contains("forbiddenCells")) {
+                nbmJson = &j["map"]["forbiddenCells"];
+            } else if (j.contains("forbiddenCells")) {
+                nbmJson = &j["forbiddenCells"];
+            }
+
+            if (nbmJson && nbmJson->is_array()) {
+                for (const auto& row : *nbmJson) {
                     std::vector<bool> rowData;
-                    for (const auto& cell : row) {
-                        bool val = false;
-                        if (cell.is_boolean()) val = cell.get<bool>();
-                        else if (cell.is_number()) val = (cell.get<int>() != 0);
-                        rowData.push_back(val);
+                    if (row.is_array()) {
+                        for (const auto& cell : row) {
+                            bool val = false;
+                            if (cell.is_boolean()) val = cell.get<bool>();
+                            else if (cell.is_number()) val = (cell.get<int>() != 0);
+                            rowData.push_back(val);
+                        }
                     }
                     data.noBuildMask.push_back(rowData);
                 }

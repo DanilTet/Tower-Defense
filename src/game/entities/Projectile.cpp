@@ -24,6 +24,7 @@ void Projectile::init(glm::vec2 startPos, float startAngle, float speed, int dam
     m_lifeTime = 3.0f;
     m_targetId = targetId;
     m_splashRadius = splashRadius;
+    m_trailTimer = 0.0f;
     m_turnSpeed = 540.0f;
     m_originPoint = startPos;
     m_searchRadius = searchRadius;
@@ -100,9 +101,13 @@ void Projectile::update(float dt, const std::vector<std::unique_ptr<Enemy>>& ene
 
     // добавляем треил
     if (!m_trailParticle.empty()) {
-        ParticleEmitterProps trail = ConfigManager::getParticleProps(m_trailParticle);
-        trail.position = m_pos;
-        particleSystem.emit(trail, trail.spawnCount);
+        m_trailTimer += dt;
+        if (m_trailTimer >= 0.035f) {
+            m_trailTimer = 0.0f;
+            ParticleEmitterProps trail = ConfigManager::getParticleProps(m_trailParticle);
+            trail.position = m_pos;
+            particleSystem.emit(trail, trail.spawnCount);
+        }
     }
 
     glm::vec2 travelVec = m_pos - prevPos;
@@ -177,7 +182,7 @@ void Projectile::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> mai
     float scaleFactor = grid.getCellSize() / 64.0f;
     m_radius = (m_baseSize * scaleFactor) / 2.0f;
 
-    float paddingCompensation = 3.5f;
+    float paddingCompensation = 1.0f;
     float visualSize = m_baseSize * scaleFactor * paddingCompensation;
 
     // центрируем увеличенный визуальный квад относительно физической точки m_pos

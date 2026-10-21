@@ -81,6 +81,7 @@ private:
 	// ефекты
 	std::string m_trailParticle;
 	std::string m_impactParticle;
+	float m_trailTimer = 0.0f;
 	//пуля
 	std::string m_textureId;
 	float m_baseSize;

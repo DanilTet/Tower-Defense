@@ -21,7 +21,7 @@ struct TowerStats {
 	float range = 2.0f; // радиус атаки
 	float fireRate = 0.8f; // скорость атаки
 	int damage; // урон
-	int cost; // цена башни
+	int cost = 5; // цена башни
 	float splashRadius; // сплеш урон
 	float rotationSpeed; // скорость поворота башни
 

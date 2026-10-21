@@ -173,6 +173,15 @@ void MapEditorState::loadLevelByName(const std::string& fileName) {
         m_spawners = data.spawners;
         m_bases = data.bases;
         m_rawLayout = data.layout;
+        m_noBuildMask = data.noBuildMask;
+        if (m_noBuildMask.empty() || (int)m_noBuildMask.size() != m_gridHeight) {
+            m_noBuildMask.assign(m_gridHeight, std::vector<bool>(m_gridWidth, false));
+        }
+        for (auto& row : m_noBuildMask) {
+            if ((int)row.size() != m_gridWidth) {
+                row.resize(m_gridWidth, false);
+            }
+        }
         m_minecarts = data.minecarts;
         m_waves = data.waves;
         m_emitters = data.emitters;
@@ -215,6 +224,7 @@ void MapEditorState::loadLevelByName(const std::string& fileName) {
         sp.groupId = 0;
         m_spawners.push_back(sp);
         m_rawLayout.assign(12, std::vector<int>(20, 0));
+        m_noBuildMask.assign(12, std::vector<bool>(20, false));
         m_minecarts.clear();
         m_waves.clear();
         m_emitters.clear();
@@ -261,6 +271,7 @@ void MapEditorState::loadLevelByName(const std::string& fileName) {
     }
 
     m_grid = std::make_unique<Grid>(m_gridWidth, m_gridHeight, m_cellSize);
+    m_grid->setNoBuildMask(m_noBuildMask);
     updateGridDimensions();
 
     for (int y = 0; y < m_gridHeight; ++y) {
@@ -294,6 +305,7 @@ void MapEditorState::loadLevelByName(const std::string& fileName) {
         }
     }
 
+    m_grid->setNoBuildMask(m_noBuildMask);
     m_grid->saveOriginalGrid();
     m_pathfinder = std::make_unique<Pathfinder>(m_gridWidth, m_gridHeight);
     recalculatePaths();
@@ -339,6 +351,21 @@ void MapEditorState::resizeMap(int newW, int newH, bool expandFromStart) {
         }
     }
     m_rawLayout = newLayout;
+
+    std::vector<std::vector<bool>> newNoBuild(newH, std::vector<bool>(newW, false));
+    for (int y = 0; y < oldH; ++y) {
+        int ny = y + offsetY;
+        if (ny < 0 || ny >= newH) continue;
+        for (int x = 0; x < oldW; ++x) {
+            int nx = x + offsetX;
+            if (nx < 0 || nx >= newW) continue;
+            if (y < (int)m_noBuildMask.size() && x < (int)m_noBuildMask[y].size()) {
+                newNoBuild[ny][nx] = m_noBuildMask[y][x];
+            }
+        }
+    }
+    m_noBuildMask = newNoBuild;
+
     m_gridWidth = newW;
     m_gridHeight = newH;
 
@@ -1014,6 +1041,15 @@ void MapEditorState::applyBrush(int gridX, int gridY, EditorBrush brush) {
                 m_statusTimer = 2.0f;
             }
             break;
+        case EditorBrush::NoBuild:
+            if (gridY < (int)m_noBuildMask.size() && gridX < (int)m_noBuildMask[gridY].size()) {
+                m_noBuildMask[gridY][gridX] = true;
+                m_grid->setNoBuildAt(gridX, gridY, true);
+                m_statusMessage = "No-Build zone set at (" + std::to_string(gridX) + ", " + std::to_string(gridY) + ")";
+                m_statusColor = glm::vec3(1.0f, 0.35f, 0.35f);
+                m_statusTimer = 1.5f;
+            }
+            break;
         default:
             break;
     }
@@ -1201,6 +1237,7 @@ void MapEditorState::saveMap() {
     data.spawners = m_spawners;
     data.bases = m_bases;
     data.layout = m_rawLayout;
+    data.noBuildMask = m_noBuildMask;
 
     std::vector<MinecartData> activeCarts;
     for (const auto& mc : m_minecarts) {
@@ -3145,6 +3182,8 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
         }
         // 2.5. СТАНДАРТНАЯ РАБОТА С СЕТКОЙ (ТАЙЛЫ И СПЕЦ-ОБЪЕКТЫ)
         else if (!m_suppressPlacementUntilRelease) {
+            m_isDraggingDecoration = false;
+            m_isResizingDecoration = false;
             if (inBounds) {
                 // Если мы в категории спец-объектов или нейтральном курсоре - проверяем выбор существующего спавнера/базы
                 if (leftDown && !m_isLeftMouseDown) {
@@ -3187,7 +3226,17 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
 
                 bool isSinglePointBrush = (m_currentBrush == EditorBrush::Spawner || m_currentBrush == EditorBrush::Base ||
                                            m_currentBrush == EditorBrush::RailStart || m_currentBrush == EditorBrush::RailEnd);
-                if (leftDown) {
+                if (m_currentBrush == EditorBrush::NoBuild) {
+                    if (leftDown) {
+                        applyBrush(gridPos.x, gridPos.y, EditorBrush::NoBuild);
+                    } else if (rightDown) {
+                        removeNoBuildAt(gridPos.x, gridPos.y);
+                    }
+                } else if (m_currentBrush == EditorBrush::Eraser && isShift) {
+                    if (leftDown || rightDown) {
+                        removeNoBuildAt(gridPos.x, gridPos.y);
+                    }
+                } else if (leftDown) {
                     if (m_currentBrush != EditorBrush::None && (!isSinglePointBrush || !m_isLeftMouseDown)) {
                         applyBrush(gridPos.x, gridPos.y, m_currentBrush);
                     }
@@ -3413,6 +3462,51 @@ void MapEditorState::render() {
                 m_renderer->drawSprite(m_whiteTexture,
                     pPos + glm::vec2(dotOff),
                     glm::vec2(dotSize), 0.0f, pathCol);
+            }
+        }
+
+        // 4.15. Отрисовка зон запрета строительства (No-Build / Blocked Cells)
+        float borderW = std::max(1.5f, cellSize * 0.04f);
+        glm::vec4 borderCol(0.95f, 0.22f, 0.22f, 0.85f);
+        glm::vec4 bgCol(0.85f, 0.15f, 0.15f, 0.32f);
+        glm::vec4 crossCol(1.0f, 0.25f, 0.25f, 0.75f);
+        float barLen = cellSize * 0.68f;
+        float barThick = std::max(2.0f, cellSize * 0.05f);
+
+        for (int gy = 0; gy < m_gridHeight; ++gy) {
+            for (int gx = 0; gx < m_gridWidth; ++gx) {
+                bool blocked = (gy < (int)m_noBuildMask.size() && gx < (int)m_noBuildMask[gy].size()) ? m_noBuildMask[gy][gx] : false;
+                if (!blocked) continue;
+
+                glm::vec2 pPos = m_grid->gridToPixel(gx, gy);
+                // Полупрозрачный красный фон
+                m_renderer->drawSpriteRGBA(m_whiteTexture, pPos + glm::vec2(1.0f), glm::vec2(cellSize - 2.0f), 0.0f, bgCol);
+                // Контурная рамка
+                m_renderer->drawSpriteRGBA(m_whiteTexture, pPos, glm::vec2(cellSize, borderW), 0.0f, borderCol);
+                m_renderer->drawSpriteRGBA(m_whiteTexture, pPos + glm::vec2(0.0f, cellSize - borderW), glm::vec2(cellSize, borderW), 0.0f, borderCol);
+                m_renderer->drawSpriteRGBA(m_whiteTexture, pPos, glm::vec2(borderW, cellSize), 0.0f, borderCol);
+                m_renderer->drawSpriteRGBA(m_whiteTexture, pPos + glm::vec2(cellSize - borderW, 0.0f), glm::vec2(borderW, cellSize), 0.0f, borderCol);
+                // Диагональный крест запрета
+                glm::vec2 center = pPos + glm::vec2(cellSize * 0.5f);
+                m_renderer->drawSpriteRGBA(m_whiteTexture, center - glm::vec2(barLen * 0.5f, barThick * 0.5f), glm::vec2(barLen, barThick), 45.0f, crossCol);
+                m_renderer->drawSpriteRGBA(m_whiteTexture, center - glm::vec2(barLen * 0.5f, barThick * 0.5f), glm::vec2(barLen, barThick), -45.0f, crossCol);
+            }
+        }
+
+        // Подсветка курсора при выбранном инструменте "Клетка запрета"
+        if (m_currentBrush == EditorBrush::NoBuild && !m_toolbarUI.isHovered(m_mousePos.x, m_mousePos.y)) {
+            glm::vec2 worldM = screenToWorld(m_mousePos);
+            glm::ivec2 curTile = m_grid->pixelToGrid(worldM);
+            if (curTile.x >= 0 && curTile.x < m_gridWidth && curTile.y >= 0 && curTile.y < m_gridHeight) {
+                glm::vec2 pPos = m_grid->gridToPixel(curTile.x, curTile.y);
+                float hBorder = std::max(2.5f, cellSize * 0.06f);
+                glm::vec4 hBorderCol(1.0f, 0.45f, 0.45f, 0.95f);
+                glm::vec4 hFillCol(1.0f, 0.20f, 0.20f, 0.40f);
+                m_renderer->drawSpriteRGBA(m_whiteTexture, pPos + glm::vec2(1.0f), glm::vec2(cellSize - 2.0f), 0.0f, hFillCol);
+                m_renderer->drawSpriteRGBA(m_whiteTexture, pPos, glm::vec2(cellSize, hBorder), 0.0f, hBorderCol);
+                m_renderer->drawSpriteRGBA(m_whiteTexture, pPos + glm::vec2(0.0f, cellSize - hBorder), glm::vec2(cellSize, hBorder), 0.0f, hBorderCol);
+                m_renderer->drawSpriteRGBA(m_whiteTexture, pPos, glm::vec2(hBorder, cellSize), 0.0f, hBorderCol);
+                m_renderer->drawSpriteRGBA(m_whiteTexture, pPos + glm::vec2(cellSize - hBorder, 0.0f), glm::vec2(hBorder, cellSize), 0.0f, hBorderCol);
             }
         }
     }

@@ -16,13 +16,19 @@
       {
         "fromWave": 1,
         "reward": 1,
-        "rewardStep": 5,
-        "toWave": 5
+        "rewardStep": 3,
+        "toWave": 3
       },
       {
-        "fromWave": 6,
+        "fromWave": 4,
         "reward": 1,
-        "rewardStep": 1,
+        "rewardStep": 4,
+        "toWave": 6
+      },
+      {
+        "fromWave": 7,
+        "reward": 1,
+        "rewardStep": 5,
         "toWave": 15
       }
     ],
@@ -48,13 +54,19 @@
       {
         "fromWave": 1,
         "reward": 1,
-        "rewardStep": 5,
-        "toWave": 5
+        "rewardStep": 3,
+        "toWave": 3
       },
       {
-        "fromWave": 6,
+        "fromWave": 4,
         "reward": 1,
-        "rewardStep": 1,
+        "rewardStep": 4,
+        "toWave": 6
+      },
+      {
+        "fromWave": 7,
+        "reward": 1,
+        "rewardStep": 5,
         "toWave": 15
       }
     ],
@@ -80,29 +92,7 @@
     "allowedTowers": [
       "Basic"
     ],
-    "bases": [
-      {
-        "enableFadeOut": true,
-        "id": 0,
-        "visibleInGame": false,
-        "x": 28,
-        "y": 2
-      },
-      {
-        "enableFadeOut": true,
-        "id": 0,
-        "visibleInGame": false,
-        "x": 28,
-        "y": 3
-      },
-      {
-        "enableFadeOut": true,
-        "id": 0,
-        "visibleInGame": false,
-        "x": 28,
-        "y": 4
-      }
-    ],
+    "bases": [],
     "cellSize": 77.57575988769531,
     "decorations": [
       {
@@ -1285,13 +1275,19 @@
         {
           "fromWave": 1,
           "reward": 1,
-          "rewardStep": 5,
-          "toWave": 5
+          "rewardStep": 3,
+          "toWave": 3
         },
         {
-          "fromWave": 6,
+          "fromWave": 4,
           "reward": 1,
-          "rewardStep": 1,
+          "rewardStep": 4,
+          "toWave": 6
+        },
+        {
+          "fromWave": 7,
+          "reward": 1,
+          "rewardStep": 5,
           "toWave": 15
         }
       ],
@@ -1317,13 +1313,19 @@
         {
           "fromWave": 1,
           "reward": 1,
-          "rewardStep": 5,
-          "toWave": 5
+          "rewardStep": 3,
+          "toWave": 3
         },
         {
-          "fromWave": 6,
+          "fromWave": 4,
           "reward": 1,
-          "rewardStep": 1,
+          "rewardStep": 4,
+          "toWave": 6
+        },
+        {
+          "fromWave": 7,
+          "reward": 1,
+          "rewardStep": 5,
           "toWave": 15
         }
       ],
@@ -1595,6 +1597,14 @@
     "maxUpgradeTier": 1,
     "noBuildMask": [
       [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
         0,
         0,
         0,
@@ -1613,23 +1623,23 @@
         0,
         0,
         0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
       ],
       [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
         0,
         0,
         0,
@@ -1648,23 +1658,23 @@
         0,
         0,
         0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
       ],
       [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
         0,
         0,
         0,
@@ -1683,23 +1693,23 @@
         0,
         0,
         0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
       ],
       [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
         0,
         0,
         0,
@@ -1718,23 +1728,23 @@
         0,
         0,
         0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
       ],
       [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
         0,
         0,
         0,
@@ -1753,23 +1763,23 @@
         0,
         0,
         0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
       ],
       [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
         0,
         0,
         0,
@@ -1788,23 +1798,23 @@
         0,
         0,
         0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
       ],
       [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
         0,
         0,
         0,
@@ -1823,53 +1833,20 @@
         0,
         0,
         0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
       ]
     ],
     "offsetX": 0.0,
     "offsetY": 386.9848327636719,
-    "spawners": [
-      {
-        "enableFadeIn": true,
-        "groupId": -1,
-        "targetBaseIndex": -1,
-        "visibleInGame": false,
-        "x": 4,
-        "y": 2
-      },
-      {
-        "enableFadeIn": true,
-        "groupId": -1,
-        "targetBaseIndex": -1,
-        "visibleInGame": false,
-        "x": 4,
-        "y": 3
-      },
-      {
-        "enableFadeIn": true,
-        "groupId": -1,
-        "targetBaseIndex": -1,
-        "visibleInGame": false,
-        "x": 4,
-        "y": 4
-      }
-    ],
+    "spawners": [],
     "startingHealth": 20,
-    "startingMoney": 20,
+    "startingMoney": 32,
     "towerMaxTiers": {
       "Basic": 1,
       "Mercury": 1,
@@ -1880,7 +1857,7 @@
   "maxUpgradeTier": 1,
   "name": "Канал",
   "startingHealth": 20,
-  "startingMoney": 20,
+  "startingMoney": 32,
   "tags": [
     "Тест"
   ],
