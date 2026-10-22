@@ -18,11 +18,11 @@
       {
         "fromWave": 1,
         "reward": 1,
-        "rewardStep": 3,
-        "toWave": 3
+        "rewardStep": 2,
+        "toWave": 2
       },
       {
-        "fromWave": 4,
+        "fromWave": 5,
         "reward": 1,
         "rewardStep": 4,
         "toWave": 6
@@ -32,6 +32,12 @@
         "reward": 1,
         "rewardStep": 5,
         "toWave": 15
+      },
+      {
+        "fromWave": 3,
+        "reward": 1,
+        "rewardStep": 3,
+        "toWave": 4
       }
     ],
     "Mercury": [
@@ -56,11 +62,11 @@
       {
         "fromWave": 1,
         "reward": 1,
-        "rewardStep": 3,
-        "toWave": 3
+        "rewardStep": 2,
+        "toWave": 2
       },
       {
-        "fromWave": 4,
+        "fromWave": 5,
         "reward": 1,
         "rewardStep": 4,
         "toWave": 6
@@ -70,6 +76,12 @@
         "reward": 1,
         "rewardStep": 5,
         "toWave": 15
+      },
+      {
+        "fromWave": 3,
+        "reward": 1,
+        "rewardStep": 3,
+        "toWave": 4
       }
     ],
     "Mercury": [
@@ -1300,11 +1312,11 @@
         {
           "fromWave": 1,
           "reward": 1,
-          "rewardStep": 3,
-          "toWave": 3
+          "rewardStep": 2,
+          "toWave": 2
         },
         {
-          "fromWave": 4,
+          "fromWave": 5,
           "reward": 1,
           "rewardStep": 4,
           "toWave": 6
@@ -1314,6 +1326,12 @@
           "reward": 1,
           "rewardStep": 5,
           "toWave": 15
+        },
+        {
+          "fromWave": 3,
+          "reward": 1,
+          "rewardStep": 3,
+          "toWave": 4
         }
       ],
       "Mercury": [
@@ -1338,11 +1356,11 @@
         {
           "fromWave": 1,
           "reward": 1,
-          "rewardStep": 3,
-          "toWave": 3
+          "rewardStep": 2,
+          "toWave": 2
         },
         {
-          "fromWave": 4,
+          "fromWave": 5,
           "reward": 1,
           "rewardStep": 4,
           "toWave": 6
@@ -1352,6 +1370,12 @@
           "reward": 1,
           "rewardStep": 5,
           "toWave": 15
+        },
+        {
+          "fromWave": 3,
+          "reward": 1,
+          "rewardStep": 3,
+          "toWave": 4
         }
       ],
       "Mercury": [
@@ -1869,7 +1893,206 @@
     ],
     "offsetX": 0.0,
     "offsetY": 386.9848327636719,
-    "outerCells": [],
+    "outerCells": [
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": -3,
+        "y": -7
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": -3,
+        "y": -6
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": -3,
+        "y": -5
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": -2,
+        "y": -7
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": -2,
+        "y": -6
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": -2,
+        "y": -5
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": -1,
+        "y": -11
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": -1,
+        "y": -10
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": -1,
+        "y": -9
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": -1,
+        "y": -8
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": -1,
+        "y": -7
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": -1,
+        "y": -6
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": -1,
+        "y": -5
+      },
+      {
+        "noBuild": false,
+        "type": 0,
+        "x": 0,
+        "y": -11
+      },
+      {
+        "noBuild": false,
+        "type": 0,
+        "x": 0,
+        "y": -10
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": 0,
+        "y": -9
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": 0,
+        "y": -8
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": 0,
+        "y": -7
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": 0,
+        "y": -6
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": 0,
+        "y": -5
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": 1,
+        "y": -11
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": 1,
+        "y": -10
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": 1,
+        "y": -9
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": 1,
+        "y": -8
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": 1,
+        "y": -7
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": 1,
+        "y": -6
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": 1,
+        "y": -5
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": 2,
+        "y": -7
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": 2,
+        "y": -6
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": 2,
+        "y": -5
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": 3,
+        "y": -7
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": 3,
+        "y": -6
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": 3,
+        "y": -5
+      }
+    ],
     "spawners": [
       {
         "enableFadeIn": true,

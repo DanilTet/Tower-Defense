@@ -110,6 +110,7 @@ private:
     bool m_keyF1PressedLastFrame = false;
     bool m_keyUPressedLastFrame = false;
     bool m_keyRPressedLastFrame = false;
+    bool m_keyPPressedLastFrame = false;
     bool m_keyZPressedLastFrame = false;
     bool m_keyYPressedLastFrame = false;
 
@@ -251,6 +252,8 @@ private:
     void resizeMap(int newW, int newH, bool expandFromStart = false);
     void shiftMap(int dx, int dy);
     void cycleMapSizePreset();
+    void executePipette(int gx, int gy, glm::vec2 worldMouse);
+    void renderTileInfoBox();
 
     // Модальне вікно налаштувань вагонетки
     EditorMinecartModal m_minecartModal;

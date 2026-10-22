@@ -382,7 +382,7 @@ void Grid::drawEditorGridLines(SpriteRenderer* renderer,
 	// При включенных свободных границах рисуем мягкую полупрозрачную сетку вокруг матрицы поверх фона
 	if (m_hasSidePockets) {
 		float gBorder = std::max(1.0f, std::round(m_cellSize * 0.02f));
-		glm::vec4 gBorderCol(1.0f, 1.0f, 1.0f, 0.09f);
+		glm::vec4 gBorderCol(1.0f, 1.0f, 1.0f, 0.22f);
 		int padX = 14;
 		int padY = 8;
 		for (int y = -padY; y < m_height + padY; ++y) {

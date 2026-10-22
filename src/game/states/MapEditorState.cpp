@@ -295,14 +295,34 @@ void MapEditorState::loadLevelByName(const std::string& fileName) {
         }
     }
 
+    for (const auto& oc : data.outerCells) {
+        CellType ct = CellType::Ground;
+        if (oc.type == 1) ct = CellType::Path;
+        else if (oc.type == 2) ct = CellType::Platform;
+        else if (oc.type == 3) ct = CellType::Scenery;
+        else if (oc.type == 4) ct = CellType::Chasm;
+        else if (oc.type == 5) ct = CellType::Rail;
+        else if (oc.type == 6) ct = CellType::Spawner;
+        else if (oc.type == 7) ct = CellType::Base;
+        else ct = CellType::Ground;
+        m_grid->setCellType(oc.x, oc.y, ct);
+        if (oc.noBuild) {
+            m_grid->setNoBuildAt(oc.x, oc.y, true);
+        }
+    }
+
     for (const auto& sp : m_spawners) {
         if (sp.pos.x >= 0 && sp.pos.x < m_gridWidth && sp.pos.y >= 0 && sp.pos.y < m_gridHeight) {
+            m_grid->setCellType(sp.pos.x, sp.pos.y, CellType::Spawner);
+        } else if (m_grid->hasSidePockets()) {
             m_grid->setCellType(sp.pos.x, sp.pos.y, CellType::Spawner);
         }
     }
 
     for (const auto& b : m_bases) {
         if (b.x >= 0 && b.x < m_gridWidth && b.y >= 0 && b.y < m_gridHeight) {
+            m_grid->setCellType(b.x, b.y, CellType::Base);
+        } else if (m_grid->hasSidePockets()) {
             m_grid->setCellType(b.x, b.y, CellType::Base);
         }
     }
@@ -838,7 +858,10 @@ void MapEditorState::recalculateRailPath() {
 }
 
 void MapEditorState::applyBrush(int gridX, int gridY, EditorBrush brush) {
-    if (gridX < 0 || gridX >= m_gridWidth || gridY < 0 || gridY >= m_gridHeight) return;
+    bool inBounds = (gridX >= 0 && gridX < m_gridWidth && gridY >= 0 && gridY < m_gridHeight);
+    bool allowOuter = (m_hasSidePockets || (m_grid && m_grid->hasSidePockets()));
+    if (!inBounds && !allowOuter) return;
+    if (!inBounds && (gridX < -50 || gridX > m_gridWidth + 50 || gridY < -50 || gridY > m_gridHeight + 50)) return;
 
     // Режим ластика:
     if (brush == EditorBrush::Eraser) {
@@ -947,7 +970,7 @@ void MapEditorState::applyBrush(int gridX, int gridY, EditorBrush brush) {
         }
     }
 
-    int changeIdx = recordCellBefore(gridX, gridY);
+    int changeIdx = inBounds ? recordCellBefore(gridX, gridY) : -1;
 
     if (brush != EditorBrush::NoBuild) {
     // Иначе удаляем старый спавнер или базу в этой точке
@@ -972,36 +995,47 @@ void MapEditorState::applyBrush(int gridX, int gridY, EditorBrush brush) {
     }
     }
 
+    CellType cellTypeToSet = CellType::Ground;
+    int rawVal = 0;
+    bool isCellTypeBrush = false;
+
     switch (brush) {
         case EditorBrush::Ground:
-            m_rawLayout[gridY][gridX] = 0;
-            m_grid->setCellType(gridX, gridY, CellType::Ground);
+            rawVal = 0;
+            cellTypeToSet = CellType::Ground;
+            isCellTypeBrush = true;
             break;
         case EditorBrush::Wall:
-            m_rawLayout[gridY][gridX] = 3;
-            m_grid->setCellType(gridX, gridY, CellType::Scenery);
+            rawVal = 3;
+            cellTypeToSet = CellType::Scenery;
+            isCellTypeBrush = true;
             break;
         case EditorBrush::Platform:
-            m_rawLayout[gridY][gridX] = 2;
-            m_grid->setCellType(gridX, gridY, CellType::Platform);
+            rawVal = 2;
+            cellTypeToSet = CellType::Platform;
+            isCellTypeBrush = true;
             break;
         case EditorBrush::Path:
-            m_rawLayout[gridY][gridX] = 1;
-            m_grid->setCellType(gridX, gridY, CellType::Path);
+            rawVal = 1;
+            cellTypeToSet = CellType::Path;
+            isCellTypeBrush = true;
             break;
         case EditorBrush::Chasm:
-            m_rawLayout[gridY][gridX] = 4;
-            m_grid->setCellType(gridX, gridY, CellType::Chasm);
+            rawVal = 4;
+            cellTypeToSet = CellType::Chasm;
+            isCellTypeBrush = true;
             break;
         case EditorBrush::Rail:
-            m_rawLayout[gridY][gridX] = 5;
-            m_grid->setCellType(gridX, gridY, CellType::Rail);
+            rawVal = 5;
+            cellTypeToSet = CellType::Rail;
+            isCellTypeBrush = true;
             break;
         case EditorBrush::RailStart:
             if (m_minecarts.empty()) m_minecarts.push_back(MinecartData{});
             m_minecarts[0].start = glm::ivec2(gridX, gridY);
-            m_rawLayout[gridY][gridX] = 5;
-            m_grid->setCellType(gridX, gridY, CellType::Rail);
+            rawVal = 5;
+            cellTypeToSet = CellType::Rail;
+            isCellTypeBrush = true;
             m_statusMessage = "Minecart Depot [Start] set at (" + std::to_string(gridX) + ", " + std::to_string(gridY) + ")";
             m_statusColor = glm::vec3(1.0f, 0.75f, 0.2f);
             m_statusTimer = 2.0f;
@@ -1009,15 +1043,17 @@ void MapEditorState::applyBrush(int gridX, int gridY, EditorBrush brush) {
         case EditorBrush::RailEnd:
             if (m_minecarts.empty()) m_minecarts.push_back(MinecartData{});
             m_minecarts[0].end = glm::ivec2(gridX, gridY);
-            m_rawLayout[gridY][gridX] = 5;
-            m_grid->setCellType(gridX, gridY, CellType::Rail);
+            rawVal = 5;
+            cellTypeToSet = CellType::Rail;
+            isCellTypeBrush = true;
             m_statusMessage = "Minecart Buffer [End] set at (" + std::to_string(gridX) + ", " + std::to_string(gridY) + ")";
             m_statusColor = glm::vec3(1.0f, 0.35f, 0.35f);
             m_statusTimer = 2.0f;
             break;
         case EditorBrush::Spawner:
-            m_rawLayout[gridY][gridX] = 0;
-            m_grid->setCellType(gridX, gridY, CellType::Spawner);
+            rawVal = 0;
+            cellTypeToSet = CellType::Spawner;
+            isCellTypeBrush = true;
             m_spawners.push_back(SpawnerData(glm::ivec2(gridX, gridY), m_selectedId, m_selectedId, false, true));
             m_selectedEntityType = EditorEntityType::Spawner;
             m_selectedEntityIndex = static_cast<int>(m_spawners.size()) - 1;
@@ -1033,8 +1069,9 @@ void MapEditorState::applyBrush(int gridX, int gridY, EditorBrush brush) {
         case EditorBrush::Base:
             {
                 int baseId = (m_selectedId < 0) ? 0 : m_selectedId;
-                m_rawLayout[gridY][gridX] = 0;
-                m_grid->setCellType(gridX, gridY, CellType::Base);
+                rawVal = 0;
+                cellTypeToSet = CellType::Base;
+                isCellTypeBrush = true;
                 m_bases.push_back(BaseData(gridX, gridY, baseId, false, true));
                 m_selectedEntityType = EditorEntityType::Base;
                 m_selectedEntityIndex = static_cast<int>(m_bases.size()) - 1;
@@ -1046,19 +1083,30 @@ void MapEditorState::applyBrush(int gridX, int gridY, EditorBrush brush) {
             }
             break;
         case EditorBrush::NoBuild:
-            if (gridY < (int)m_noBuildMask.size() && gridX < (int)m_noBuildMask[gridY].size()) {
-                m_noBuildMask[gridY][gridX] = true;
-                m_grid->setNoBuildAt(gridX, gridY, true);
-                m_statusMessage = "No-Build zone set at (" + std::to_string(gridX) + ", " + std::to_string(gridY) + ")";
-                m_statusColor = glm::vec3(1.0f, 0.35f, 0.35f);
-                m_statusTimer = 1.5f;
+            if (inBounds) {
+                if (gridY < (int)m_noBuildMask.size() && gridX < (int)m_noBuildMask[gridY].size()) {
+                    m_noBuildMask[gridY][gridX] = true;
+                }
             }
+            m_grid->setNoBuildAt(gridX, gridY, true);
+            m_statusMessage = "No-Build zone set at (" + std::to_string(gridX) + ", " + std::to_string(gridY) + ")";
+            m_statusColor = glm::vec3(1.0f, 0.35f, 0.35f);
+            m_statusTimer = 1.5f;
             break;
         default:
             break;
     }
 
-    recordCellAfter(gridX, gridY, changeIdx);
+    if (isCellTypeBrush) {
+        if (inBounds) {
+            m_rawLayout[gridY][gridX] = rawVal;
+        }
+        m_grid->setCellType(gridX, gridY, cellTypeToSet);
+    }
+
+    if (inBounds) {
+        recordCellAfter(gridX, gridY, changeIdx);
+    }
 
     m_grid->saveOriginalGrid();
     recalculatePaths();
@@ -1066,9 +1114,12 @@ void MapEditorState::applyBrush(int gridX, int gridY, EditorBrush brush) {
 }
 
 void MapEditorState::eraseCell(int gridX, int gridY) {
-    if (gridX < 0 || gridX >= m_gridWidth || gridY < 0 || gridY >= m_gridHeight) return;
+    bool inBounds = (gridX >= 0 && gridX < m_gridWidth && gridY >= 0 && gridY < m_gridHeight);
+    bool allowOuter = (m_hasSidePockets || (m_grid && m_grid->hasSidePockets()));
+    if (!inBounds && !allowOuter) return;
+    if (!inBounds && (gridX < -50 || gridX > m_gridWidth + 50 || gridY < -50 || gridY > m_gridHeight + 50)) return;
 
-    int changeIdx = recordCellBefore(gridX, gridY);
+    int changeIdx = inBounds ? recordCellBefore(gridX, gridY) : -1;
 
     if (m_selectedEntityIndex >= 0) {
         if (m_selectedEntityType == EditorEntityType::Spawner && m_selectedEntityIndex < static_cast<int>(m_spawners.size())) {
@@ -1113,14 +1164,21 @@ void MapEditorState::eraseCell(int gridX, int gridY) {
     );
     m_envParticleManager.removeEmitterAt(gridX, gridY);
 
-    m_rawLayout[gridY][gridX] = 0;
-    if (gridY < (int)m_noBuildMask.size() && gridX < (int)m_noBuildMask[gridY].size()) {
-        m_noBuildMask[gridY][gridX] = false;
+    if (inBounds) {
+        m_rawLayout[gridY][gridX] = 0;
+        if (gridY < (int)m_noBuildMask.size() && gridX < (int)m_noBuildMask[gridY].size()) {
+            m_noBuildMask[gridY][gridX] = false;
+            m_grid->setNoBuildAt(gridX, gridY, false);
+        }
+        m_grid->setCellType(gridX, gridY, CellType::Ground);
+    } else {
         m_grid->setNoBuildAt(gridX, gridY, false);
+        m_grid->setCellType(gridX, gridY, CellType::Empty);
     }
-    m_grid->setCellType(gridX, gridY, CellType::Ground);
 
-    recordCellAfter(gridX, gridY, changeIdx);
+    if (inBounds) {
+        recordCellAfter(gridX, gridY, changeIdx);
+    }
 
     m_grid->saveOriginalGrid();
     recalculatePaths();
@@ -1128,14 +1186,25 @@ void MapEditorState::eraseCell(int gridX, int gridY) {
 }
 
 void MapEditorState::removeNoBuildAt(int gridX, int gridY) {
-    if (gridX < 0 || gridX >= m_gridWidth || gridY < 0 || gridY >= m_gridHeight) return;
+    bool inBounds = (gridX >= 0 && gridX < m_gridWidth && gridY >= 0 && gridY < m_gridHeight);
+    bool allowOuter = (m_hasSidePockets || (m_grid && m_grid->hasSidePockets()));
+    if (!inBounds && !allowOuter) return;
+    if (!inBounds && (gridX < -50 || gridX > m_gridWidth + 50 || gridY < -50 || gridY > m_gridHeight + 50)) return;
 
-    if (gridY < (int)m_noBuildMask.size() && gridX < (int)m_noBuildMask[gridY].size()) {
-        if (m_noBuildMask[gridY][gridX]) {
-            int changeIdx = recordCellBefore(gridX, gridY);
-            m_noBuildMask[gridY][gridX] = false;
+    if (inBounds) {
+        if (gridY < (int)m_noBuildMask.size() && gridX < (int)m_noBuildMask[gridY].size()) {
+            if (m_noBuildMask[gridY][gridX]) {
+                int changeIdx = recordCellBefore(gridX, gridY);
+                m_noBuildMask[gridY][gridX] = false;
+                m_grid->setNoBuildAt(gridX, gridY, false);
+                recordCellAfter(gridX, gridY, changeIdx);
+                m_isDirty = true;
+                showToast("Зона запрета стройки удалена", glm::vec4(0.3f, 0.85f, 0.4f, 1.0f));
+            }
+        }
+    } else {
+        if (m_grid && m_grid->isNoBuild(gridX, gridY)) {
             m_grid->setNoBuildAt(gridX, gridY, false);
-            recordCellAfter(gridX, gridY, changeIdx);
             m_isDirty = true;
             showToast("Зона запрета стройки удалена", glm::vec4(0.3f, 0.85f, 0.4f, 1.0f));
         }
@@ -1247,6 +1316,33 @@ void MapEditorState::saveMap() {
     data.bases = m_bases;
     data.layout = m_rawLayout;
     data.noBuildMask = m_noBuildMask;
+
+    if (m_grid) {
+        const auto& outerCells = m_grid->getOuterCells();
+        const auto& outerNoBuild = m_grid->getOuterNoBuild();
+        std::set<std::pair<int, int>> allOuterCoords;
+        for (const auto& [pos, _] : outerCells) allOuterCoords.insert(pos);
+        for (const auto& pos : outerNoBuild) allOuterCoords.insert(pos);
+
+        for (const auto& pos : allOuterCoords) {
+            LevelMapData::OuterCellData oc;
+            oc.x = pos.first;
+            oc.y = pos.second;
+            auto itC = outerCells.find(pos);
+            CellType ct = (itC != outerCells.end()) ? itC->second : CellType::Ground;
+            int typeVal = 0;
+            if (ct == CellType::Path) typeVal = 1;
+            else if (ct == CellType::Platform) typeVal = 2;
+            else if (ct == CellType::Scenery) typeVal = 3;
+            else if (ct == CellType::Chasm) typeVal = 4;
+            else if (ct == CellType::Rail) typeVal = 5;
+            else if (ct == CellType::Spawner) typeVal = 6;
+            else if (ct == CellType::Base) typeVal = 7;
+            oc.type = typeVal;
+            oc.noBuild = (outerNoBuild.find(pos) != outerNoBuild.end());
+            data.outerCells.push_back(oc);
+        }
+    }
 
     std::vector<MinecartData> activeCarts;
     for (const auto& mc : m_minecarts) {
@@ -2805,100 +2901,13 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
         glm::ivec2 gridPos = m_grid->pixelToGrid(worldMouse);
         bool inBounds = (gridPos.x >= 0 && gridPos.x < m_gridWidth && gridPos.y >= 0 && gridPos.y < m_gridHeight);
 
-        // 2.1. ПИПЕТКА: Alt + клик ЛКМ по ячейке
-        if (isAlt && leftDown && !m_isLeftMouseDown) {
-            if (inBounds) {
-                int gx = gridPos.x;
-                int gy = gridPos.y;
-                EditorBrush pickedBrush = EditorBrush::Ground;
-                std::string tileName = "Земля";
+        bool keyPPressed = (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS);
+        bool keyPTriggered = keyPPressed && !m_keyPPressedLastFrame;
+        m_keyPPressedLastFrame = keyPPressed;
 
-                // Спавнеры
-                bool foundObj = false;
-                for (const auto& sp : m_spawners) {
-                    if (sp.pos.x == gx && sp.pos.y == gy) {
-                        pickedBrush = EditorBrush::Spawner;
-                        tileName = "Спавнер";
-                        m_selectedId = sp.targetBaseIndex;
-                        foundObj = true;
-                        break;
-                    }
-                }
-                // Базы
-                if (!foundObj) {
-                    for (const auto& b : m_bases) {
-                        if (b.x == gx && b.y == gy) {
-                            pickedBrush = EditorBrush::Base;
-                            tileName = "База";
-                            m_selectedId = b.id;
-                            foundObj = true;
-                            break;
-                        }
-                    }
-                }
-                // Маркеры вагонетки
-                if (!foundObj && !m_minecarts.empty()) {
-                    const auto& mc = m_minecarts[0];
-                    if (mc.hasStart() && mc.start.x == gx && mc.start.y == gy) {
-                        pickedBrush = EditorBrush::RailStart;
-                        tileName = "Депо";
-                        foundObj = true;
-                    } else if (mc.hasEnd() && mc.end.x == gx && mc.end.y == gy) {
-                        pickedBrush = EditorBrush::RailEnd;
-                        tileName = "Тупик";
-                        foundObj = true;
-                    }
-                }
-                // Типы тайлов из сырой сетки
-                if (!foundObj) {
-                    int raw = m_rawLayout[gy][gx];
-                    switch (raw) {
-                        case 0: pickedBrush = EditorBrush::Ground;   tileName = (m_background == "pipes_canal") ? "Асфальт" : "Земля"; break;
-                        case 1: pickedBrush = EditorBrush::Path;     tileName = "Дорога"; break;
-                        case 2: pickedBrush = EditorBrush::Platform; tileName = (m_background == "pipes_canal") ? "Трава/Обочина" : "Платформа"; break;
-                        case 3: pickedBrush = EditorBrush::Wall;     tileName = "Стена"; break;
-                        case 4: pickedBrush = EditorBrush::Chasm;    tileName = "Шурф"; break;
-                        case 5: pickedBrush = EditorBrush::Rail;     tileName = "Рельсы"; break;
-                        default: pickedBrush = EditorBrush::Ground;  tileName = (m_background == "pipes_canal") ? "Асфальт" : "Земля"; break;
-                    }
-                }
-
-                // Декорации (если кликнули вблизи декора)
-                int nearDec = findNearestDecorationIndex(worldMouse, 28.0f);
-                if (nearDec >= 0 && nearDec < static_cast<int>(m_decorations.size())) {
-                    const std::string& dt = m_decorations[nearDec].type;
-                    if (dt == "bush") { pickedBrush = EditorBrush::DecorBush; tileName = "Куст"; }
-                    else if (dt == "grass_tuft") { pickedBrush = EditorBrush::DecorGrass; tileName = "Пучок травы"; }
-                    else if (dt == "grass_field") { pickedBrush = EditorBrush::DecorGrassField; tileName = "Поле травы"; }
-                    else if (dt == "flower") { pickedBrush = EditorBrush::DecorFlower; tileName = "Цветы"; }
-                    else if (dt == "stone") { pickedBrush = EditorBrush::DecorStone; tileName = "Камень"; }
-                    else if (dt == "helmet") { pickedBrush = EditorBrush::DecorHelmet; tileName = "Каска"; }
-                    else if (dt == "pickaxe") { pickedBrush = EditorBrush::DecorPickaxe; tileName = "Кирка"; }
-                    else if (dt == "puddle") { pickedBrush = EditorBrush::DecorPuddle; tileName = "Лужа"; }
-                    else if (dt == "crack") { pickedBrush = EditorBrush::DecorCrack; tileName = "Трещина"; }
-                    else if (dt == "fog") { pickedBrush = EditorBrush::DecorFog; tileName = "Туман"; }
-                    foundObj = true;
-                }
-
-                m_currentBrush = pickedBrush;
-                if (pickedBrush == EditorBrush::Spawner || pickedBrush == EditorBrush::Base ||
-                    pickedBrush == EditorBrush::Rail || pickedBrush == EditorBrush::RailStart ||
-                    pickedBrush == EditorBrush::RailEnd) {
-                    m_toolbarUI.setCategory(PaletteCategory::SpecialObjects);
-                } else if (pickedBrush == EditorBrush::EmitterSteamJet || pickedBrush == EditorBrush::EmitterWaterDrip ||
-                           pickedBrush == EditorBrush::EmitterSparks || pickedBrush == EditorBrush::EmitterSmoke ||
-                           pickedBrush == EditorBrush::EmitterFog) {
-                    m_toolbarUI.setCategory(PaletteCategory::Particles);
-                } else if (pickedBrush >= EditorBrush::DecorBush && pickedBrush <= EditorBrush::DecorFog) {
-                    m_toolbarUI.setCategory(PaletteCategory::Decorations);
-                } else {
-                    m_toolbarUI.setCategory(PaletteCategory::Tiles);
-                }
-                updateButtonLayout();
-
-                showToast("Выбран тайл: " + tileName, glm::vec4(0.3f, 0.8f, 1.0f, 1.0f));
-                m_suppressPlacementUntilRelease = true;
-            }
+        // 2.1. ПИПЕТКА: Alt + клик ЛКМ по ячейке или клавиша P
+        if ((isAlt && leftDown && !m_isLeftMouseDown) || keyPTriggered) {
+            executePipette(gridPos.x, gridPos.y, worldMouse);
         }
         // 2.2. ПРЯМОУГОЛЬНАЯ ЗАЛИВКА: Shift + зажатый ЛКМ (только для тайлов и спец-объектов)
         else if (isShift && !isAlt && m_toolbarUI.getCategory() != PaletteCategory::Particles && m_toolbarUI.getCategory() != PaletteCategory::Decorations) {
@@ -3209,7 +3218,8 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
         else if (!m_suppressPlacementUntilRelease) {
             m_isDraggingDecoration = false;
             m_isResizingDecoration = false;
-            if (inBounds) {
+            bool canInteractTile = inBounds || m_hasSidePockets || (m_grid && m_grid->hasSidePockets());
+            if (canInteractTile) {
                 // Если мы в категории спец-объектов или нейтральном курсоре - проверяем выбор существующего спавнера/базы
                 if (leftDown && !m_isLeftMouseDown) {
                     bool isSpecialCategory = (m_toolbarUI.getCategory() == PaletteCategory::SpecialObjects);
@@ -3251,9 +3261,18 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
 
                 bool isSinglePointBrush = (m_currentBrush == EditorBrush::Spawner || m_currentBrush == EditorBrush::Base ||
                                            m_currentBrush == EditorBrush::RailStart || m_currentBrush == EditorBrush::RailEnd);
+                bool isNoBuildHere = false;
+                if (inBounds) {
+                    if (gridPos.y < (int)m_noBuildMask.size() && gridPos.x < (int)m_noBuildMask[gridPos.y].size()) {
+                        isNoBuildHere = m_noBuildMask[gridPos.y][gridPos.x];
+                    }
+                } else if (m_grid) {
+                    isNoBuildHere = m_grid->isNoBuild(gridPos.x, gridPos.y);
+                }
+
                 if (m_currentBrush == EditorBrush::NoBuild) {
                     if (leftDown) {
-                        if (!m_isLeftMouseDown && gridPos.y < (int)m_noBuildMask.size() && gridPos.x < (int)m_noBuildMask[gridPos.y].size() && m_noBuildMask[gridPos.y][gridPos.x]) {
+                        if (!m_isLeftMouseDown && isNoBuildHere) {
                             // Повторный клик ЛКМ по заблокированной клетке — снимает запрет
                             removeNoBuildAt(gridPos.x, gridPos.y);
                         } else {
@@ -3271,7 +3290,14 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
                         applyBrush(gridPos.x, gridPos.y, m_currentBrush);
                     }
                 } else if (rightDown) {
-                    if (m_rawLayout[gridPos.y][gridPos.x] == 0 && m_currentBrush != EditorBrush::None) {
+                    bool isCellEmptyOrGround = false;
+                    if (inBounds) {
+                        isCellEmptyOrGround = (m_rawLayout[gridPos.y][gridPos.x] == 0);
+                    } else if (m_grid) {
+                        auto ct = m_grid->getCellType(gridPos.x, gridPos.y);
+                        isCellEmptyOrGround = (ct == CellType::Empty || ct == CellType::Ground);
+                    }
+                    if (isCellEmptyOrGround && m_currentBrush != EditorBrush::None) {
                         // Клик ПКМ по пустой земле с активной кистью: сброс кисти в нейтральный курсор
                         if (!m_isRightMouseDown) {
                             m_currentBrush = EditorBrush::None;
@@ -3527,7 +3553,9 @@ void MapEditorState::render() {
         if (m_currentBrush == EditorBrush::NoBuild && !m_toolbarUI.isHovered(m_mousePos.x, m_mousePos.y)) {
             glm::vec2 worldM = screenToWorld(m_mousePos);
             glm::ivec2 curTile = m_grid->pixelToGrid(worldM);
-            if (curTile.x >= 0 && curTile.x < m_gridWidth && curTile.y >= 0 && curTile.y < m_gridHeight) {
+            bool inBoundsHover = (curTile.x >= 0 && curTile.x < m_gridWidth && curTile.y >= 0 && curTile.y < m_gridHeight);
+            bool allowOuterHover = (m_hasSidePockets || (m_grid && m_grid->hasSidePockets()));
+            if (inBoundsHover || allowOuterHover) {
                 glm::vec2 pPos = m_grid->gridToPixel(curTile.x, curTile.y);
                 float hBorder = std::max(2.5f, cellSize * 0.06f);
                 glm::vec4 hBorderCol(1.0f, 0.45f, 0.45f, 0.95f);
@@ -4008,6 +4036,9 @@ void MapEditorState::render() {
             m_renderer->endBatch();
         }
     }
+
+    // 12.5. Инфо-плашка тайла под курсором
+    renderTileInfoBox();
 
     // 13. Всплывающее тост-уведомление (Toast Feedback)
     if (m_toastTimer > 0.0f && !m_toastMessage.empty()) {
@@ -4564,4 +4595,263 @@ void MapEditorState::renderEmitters(SpriteRenderer* renderer, std::shared_ptr<Te
         renderer->drawSpriteRGBA(texture, wing1 - glm::vec2(1.5f), glm::vec2(3.0f), 0.0f, borderCol);
         renderer->drawSpriteRGBA(texture, wing2 - glm::vec2(1.5f), glm::vec2(3.0f), 0.0f, borderCol);
     }
+}
+
+
+void MapEditorState::executePipette(int gx, int gy, glm::vec2 worldMouse) {
+    if (!m_grid) return;
+    bool inBounds = (gx >= 0 && gx < m_gridWidth && gy >= 0 && gy < m_gridHeight);
+    bool canInteract = inBounds || m_hasSidePockets || m_grid->hasSidePockets();
+    if (!canInteract) return;
+
+    EditorBrush pickedBrush = EditorBrush::Ground;
+    std::string tileName = (m_background == "pipes_canal" || m_background == "channel") ? "Асфальт" : "Грунт";
+    bool foundObj = false;
+
+    // 1. Спавнеры
+    for (const auto& sp : m_spawners) {
+        if (sp.pos.x == gx && sp.pos.y == gy) {
+            pickedBrush = EditorBrush::Spawner;
+            tileName = (sp.targetBaseIndex == -1) ? "Спавнер :Auto" : ("Спавнер #" + std::to_string(sp.targetBaseIndex));
+            m_selectedId = sp.targetBaseIndex;
+            foundObj = true;
+            break;
+        }
+    }
+
+    // 2. Базы
+    if (!foundObj) {
+        for (const auto& b : m_bases) {
+            if (b.x == gx && b.y == gy) {
+                pickedBrush = EditorBrush::Base;
+                tileName = "База #" + std::to_string(b.id);
+                m_selectedId = b.id;
+                foundObj = true;
+                break;
+            }
+        }
+    }
+
+    // 3. Маркеры вагонетки
+    if (!foundObj && !m_minecarts.empty()) {
+        const auto& mc = m_minecarts[0];
+        if (mc.hasStart() && mc.start.x == gx && mc.start.y == gy) {
+            pickedBrush = EditorBrush::RailStart;
+            tileName = "Депо";
+            foundObj = true;
+        } else if (mc.hasEnd() && mc.end.x == gx && mc.end.y == gy) {
+            pickedBrush = EditorBrush::RailEnd;
+            tileName = "Тупик";
+            foundObj = true;
+        }
+    }
+
+    // 4. Тип тайла клетки (даже под настилом и за пределами базовой матрицы)
+    if (!foundObj) {
+        CellType ct = m_grid->getCellType(gx, gy);
+        switch (ct) {
+            case CellType::Ground:
+                pickedBrush = EditorBrush::Ground;
+                tileName = (m_background == "pipes_canal" || m_background == "channel") ? "Асфальт" : "Грунт";
+                break;
+            case CellType::Path:
+                pickedBrush = EditorBrush::Path;
+                tileName = "Дорога";
+                break;
+            case CellType::Platform:
+                pickedBrush = EditorBrush::Platform;
+                tileName = (m_background == "pipes_canal" || m_background == "channel") ? "Трава/Обочина" : ((m_background == "mine_entrance" || m_background == "mine") ? "Сланец" : "Платформа");
+                break;
+            case CellType::Scenery:
+                pickedBrush = EditorBrush::Wall;
+                tileName = (m_background == "mine_entrance" || m_background == "mine") ? "Ящики" : "Стена";
+                break;
+            case CellType::Chasm:
+                pickedBrush = EditorBrush::Chasm;
+                tileName = "Шурф";
+                break;
+            case CellType::Rail:
+                pickedBrush = EditorBrush::Rail;
+                tileName = "Рельсы";
+                break;
+            case CellType::Empty:
+                pickedBrush = EditorBrush::Eraser;
+                tileName = "Пусто (Ластик)";
+                break;
+            default:
+                pickedBrush = EditorBrush::Ground;
+                tileName = (m_background == "pipes_canal" || m_background == "channel") ? "Асфальт" : "Грунт";
+                break;
+        }
+    }
+
+    // 5. Декорации (если кликнули вблизи декора)
+    int nearDec = findNearestDecorationIndex(worldMouse, 28.0f);
+    if (nearDec >= 0 && nearDec < static_cast<int>(m_decorations.size())) {
+        const std::string& dt = m_decorations[nearDec].type;
+        if (dt == "bush") { pickedBrush = EditorBrush::DecorBush; tileName = "Куст"; }
+        else if (dt == "grass_tuft") { pickedBrush = EditorBrush::DecorGrass; tileName = "Пучок травы"; }
+        else if (dt == "grass_field") { pickedBrush = EditorBrush::DecorGrassField; tileName = "Поле травы"; }
+        else if (dt == "flower") { pickedBrush = EditorBrush::DecorFlower; tileName = "Цветы"; }
+        else if (dt == "stone") { pickedBrush = EditorBrush::DecorStone; tileName = "Камень"; }
+        else if (dt == "helmet") { pickedBrush = EditorBrush::DecorHelmet; tileName = "Каска"; }
+        else if (dt == "pickaxe") { pickedBrush = EditorBrush::DecorPickaxe; tileName = "Кирка"; }
+        else if (dt == "puddle") { pickedBrush = EditorBrush::DecorPuddle; tileName = "Лужа"; }
+        else if (dt == "crack") { pickedBrush = EditorBrush::DecorCrack; tileName = "Трещина"; }
+        else if (dt == "fog") { pickedBrush = EditorBrush::DecorFog; tileName = "Туман"; }
+        foundObj = true;
+    }
+
+    m_currentBrush = pickedBrush;
+    if (pickedBrush == EditorBrush::Spawner || pickedBrush == EditorBrush::Base ||
+        pickedBrush == EditorBrush::Rail || pickedBrush == EditorBrush::RailStart ||
+        pickedBrush == EditorBrush::RailEnd) {
+        m_toolbarUI.setCategory(PaletteCategory::SpecialObjects);
+    } else if (pickedBrush == EditorBrush::EmitterSteamJet || pickedBrush == EditorBrush::EmitterWaterDrip ||
+               pickedBrush == EditorBrush::EmitterSparks || pickedBrush == EditorBrush::EmitterSmoke ||
+               pickedBrush == EditorBrush::EmitterFog) {
+        m_toolbarUI.setCategory(PaletteCategory::Particles);
+    } else if (pickedBrush >= EditorBrush::DecorBush && pickedBrush <= EditorBrush::DecorFog) {
+        m_toolbarUI.setCategory(PaletteCategory::Decorations);
+    } else {
+        m_toolbarUI.setCategory(PaletteCategory::Tiles);
+    }
+    updateButtonLayout();
+
+    showToast("Выбран тайл: " + tileName, glm::vec4(0.3f, 0.8f, 1.0f, 1.0f));
+    m_suppressPlacementUntilRelease = true;
+}
+
+void MapEditorState::renderTileInfoBox() {
+    if (!m_grid || !m_whiteTexture || !m_textRenderer) return;
+
+    // Скрываем плашку при открытых модальных окнах или наведении на тулбар
+    if (m_toolbarUI.isHovered(m_mousePos.x, m_mousePos.y)) return;
+    if (m_waveModal.isOpen() || m_mapsBrowserModal.isOpen() || m_exitModal.isOpen() ||
+        m_helpModal.isOpen() || m_levelSettingsModal.isOpen() || m_minecartModal.isOpen()) {
+        return;
+    }
+
+    glm::vec2 worldM = screenToWorld(m_mousePos);
+    glm::ivec2 curTile = m_grid->pixelToGrid(worldM);
+
+    bool inBounds = (curTile.x >= 0 && curTile.x < m_gridWidth && curTile.y >= 0 && curTile.y < m_gridHeight);
+    bool allowOuter = (m_hasSidePockets || m_grid->hasSidePockets());
+    bool inSidePockets = allowOuter && (curTile.x >= -30 && curTile.x < m_gridWidth + 30 && curTile.y >= -20 && curTile.y < m_gridHeight + 20);
+    if (!inBounds && !inSidePockets) return;
+
+    // 1. Координаты клетки: [X: ..., Y: ...]
+    std::string coordStr = "[X: " + std::to_string(curTile.x) + ", Y: " + std::to_string(curTile.y) + "]";
+
+    // 2. Текущий тип тайла: Тип: Грунт / Ящики / Дорога / Пусто и т.д.
+    CellType ct = m_grid->getCellType(curTile.x, curTile.y);
+    std::string typeName;
+    switch (ct) {
+        case CellType::Ground:
+            typeName = (m_background == "pipes_canal" || m_background == "channel") ? "Асфальт" : "Грунт";
+            break;
+        case CellType::Path:
+            typeName = "Дорога";
+            break;
+        case CellType::Platform:
+            typeName = (m_background == "pipes_canal" || m_background == "channel") ? "Трава/Обочина" : ((m_background == "mine_entrance" || m_background == "mine") ? "Сланец" : "Платформа");
+            break;
+        case CellType::Scenery:
+            typeName = (m_background == "mine_entrance" || m_background == "mine") ? "Ящики" : "Стена";
+            break;
+        case CellType::Chasm:
+            typeName = "Шурф";
+            break;
+        case CellType::Rail:
+            typeName = "Рельсы";
+            break;
+        case CellType::Spawner:
+            typeName = "Спавнер";
+            break;
+        case CellType::Base:
+            typeName = "База";
+            break;
+        case CellType::Empty:
+            typeName = "Пусто";
+            break;
+        default:
+            typeName = "Грунт";
+            break;
+    }
+    std::string typeStr = "Тип: " + typeName;
+
+    // 3. Статус запрета стройки: Запрет: Да / Нет
+    bool isBlocked = m_grid->isNoBuild(curTile.x, curTile.y);
+    std::string forbidStr = std::string("Запрет: ") + (isBlocked ? "Да" : "Нет");
+
+    // 4. Наличие объекта: Объект: Спавнер #0 / База #0 / Нет
+    std::string objName = "Нет";
+    for (const auto& sp : m_spawners) {
+        if (sp.pos.x == curTile.x && sp.pos.y == curTile.y) {
+            objName = (sp.targetBaseIndex == -1) ? "Спавнер :Auto" : ("Спавнер #" + std::to_string(sp.targetBaseIndex));
+            break;
+        }
+    }
+    if (objName == "Нет") {
+        for (const auto& b : m_bases) {
+            if (b.x == curTile.x && b.y == curTile.y) {
+                objName = "База #" + std::to_string(b.id);
+                break;
+            }
+        }
+    }
+    if (objName == "Нет" && !m_minecarts.empty()) {
+        const auto& mc = m_minecarts[0];
+        if (mc.hasStart() && mc.start.x == curTile.x && mc.start.y == curTile.y) {
+            objName = "Вагонетка (Депо)";
+        } else if (mc.hasEnd() && mc.end.x == curTile.x && mc.end.y == curTile.y) {
+            objName = "Вагонетка (Тупик)";
+        }
+    }
+    std::string objStr = "Объект: " + objName;
+
+    // Компактная плашка в углу экрана (слева снизу над нижним доком)
+    float scale = GetUIScale(m_width, m_height);
+    float boxW = 215.0f * scale;
+    float boxH = 92.0f * scale;
+    float pad = 12.0f * scale;
+    float boxX = 14.0f * scale;
+    float boxY = static_cast<float>(m_height) - getBottomDockHeight() - boxH - 12.0f * scale;
+
+    m_renderer->beginBatch();
+
+    // Тень под плашкой
+    m_renderer->drawSpriteRGBA(m_whiteTexture, glm::vec2(boxX + 2.0f, boxY + 3.0f), glm::vec2(boxW, boxH), 0.0f, glm::vec4(0.0f, 0.0f, 0.0f, 0.45f));
+    // Темное стекло подложки
+    m_renderer->drawSpriteRGBA(m_whiteTexture, glm::vec2(boxX, boxY), glm::vec2(boxW, boxH), 0.0f, glm::vec4(0.08f, 0.10f, 0.14f, 0.90f));
+
+    // Тонкая окантовка плашки
+    float borderThick = 1.0f;
+    glm::vec4 borderCol(0.24f, 0.30f, 0.40f, 0.70f);
+    m_renderer->drawSpriteRGBA(m_whiteTexture, glm::vec2(boxX, boxY), glm::vec2(boxW, borderThick), 0.0f, borderCol);
+    m_renderer->drawSpriteRGBA(m_whiteTexture, glm::vec2(boxX, boxY + boxH - borderThick), glm::vec2(boxW, borderThick), 0.0f, borderCol);
+    m_renderer->drawSpriteRGBA(m_whiteTexture, glm::vec2(boxX, boxY), glm::vec2(borderThick, boxH), 0.0f, borderCol);
+    m_renderer->drawSpriteRGBA(m_whiteTexture, glm::vec2(boxX + boxW - borderThick, boxY), glm::vec2(borderThick, boxH), 0.0f, borderCol);
+
+    // Цветная акцентная полоска слева
+    m_renderer->drawSpriteRGBA(m_whiteTexture, glm::vec2(boxX + 1.0f, boxY + 1.0f), glm::vec2(3.5f * scale, boxH - 2.0f), 0.0f, glm::vec4(0.25f, 0.75f, 1.0f, 0.90f));
+
+    m_renderer->endBatch();
+
+    // Текстовые строки инфо-плашки
+    float fontScale = std::clamp(0.40f * scale, 0.28f, 0.52f);
+    float lineHeight = 19.5f * scale;
+    float tx = boxX + pad + 3.0f * scale;
+    float ty = boxY + 8.0f * scale;
+
+    // 1. Координаты
+    m_textRenderer->RenderText(coordStr, tx, ty, fontScale * 1.06f, glm::vec3(0.35f, 0.85f, 1.0f));
+    // 2. Тип
+    m_textRenderer->RenderText(typeStr, tx, ty + lineHeight, fontScale, glm::vec3(0.92f, 0.92f, 0.95f));
+    // 3. Запрет стройки
+    glm::vec3 forbidColor = isBlocked ? glm::vec3(1.0f, 0.35f, 0.35f) : glm::vec3(0.45f, 0.85f, 0.45f);
+    m_textRenderer->RenderText(forbidStr, tx, ty + lineHeight * 2.0f, fontScale, forbidColor);
+    // 4. Объект
+    glm::vec3 objColor = (objName != "Нет") ? glm::vec3(1.0f, 0.85f, 0.30f) : glm::vec3(0.65f, 0.68f, 0.72f);
+    m_textRenderer->RenderText(objStr, tx, ty + lineHeight * 3.0f, fontScale, objColor);
 }
