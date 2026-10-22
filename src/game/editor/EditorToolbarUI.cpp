@@ -192,11 +192,11 @@ void EditorToolbarUI::updateLayout(TextRenderer* textRenderer, const EditorConte
     // Справа: Выбор камеры, выбор фона и выбор размера карты
     std::string camLabel;
     if (isUltraCompact) {
-        camLabel = ctx.cameraConfigMode ? "[ Кам* ]" : (ctx.cameraIsCustom ? "[ Кам ]" : "[ Авто ]");
+        camLabel = ctx.cameraConfigMode ? "[ Кам: Руч* ]" : (ctx.cameraIsCustom ? "[ Кам: Руч ]" : "[ Кам: Авто ]");
     } else if (isCompact) {
-        camLabel = ctx.cameraConfigMode ? "[ Режим: Кам ]" : (ctx.cameraIsCustom ? "[ Кам: Руч ]" : "[ Кам: Авто ]");
+        camLabel = ctx.cameraConfigMode ? "[ Кам: Руч* ]" : (ctx.cameraIsCustom ? "[ Кам: Руч ]" : "[ Кам: Авто ]");
     } else {
-        camLabel = ctx.cameraConfigMode ? "[ Режим: Камера ]" : (ctx.cameraIsCustom ? "[ Камера: Ручная ]" : "[ Камера: Авто ]");
+        camLabel = ctx.cameraConfigMode ? "[ Камера: Ручная* ]" : (ctx.cameraIsCustom ? "[ Камера: Ручная ]" : "[ Камера: Авто ]");
     }
     float camBtnW = getTextW(camLabel, topFontScale) + (isCompact ? 10.0f : 16.0f);
 

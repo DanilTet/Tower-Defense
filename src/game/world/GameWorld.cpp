@@ -23,9 +23,12 @@ bool GameWorld::loadLevel(const std::string& levelPath, int windowWidth, int win
         levelData.cellSize,
         glm::vec2(levelData.offsetX, levelData.offsetY)
     );
-    float bottomBarHeight = Buildpanel::getBottomBarHeight(windowWidth, windowHeight);
-    float topMargin = TimeControlUI::getTopMargin(windowWidth, windowHeight);
-    grid->updateCellSize(windowWidth, windowHeight, bottomBarHeight, topMargin);
+    // Авто-камера (fitToScreen) должна рассчитываться ТОЛЬКО если isCustom == false
+    if (!cameraSettings.isCustom || levelData.cellSize <= 0.001f) {
+        float bottomBarHeight = Buildpanel::getBottomBarHeight(windowWidth, windowHeight);
+        float topMargin = TimeControlUI::getTopMargin(windowWidth, windowHeight);
+        grid->updateCellSize(windowWidth, windowHeight, bottomBarHeight, topMargin);
+    }
     grid->setHasSidePockets(levelData.hasSidePockets || currentBackground == "mine_entrance");
 
     if (!levelData.layout.empty()) {
@@ -62,6 +65,19 @@ bool GameWorld::loadLevel(const std::string& levelPath, int windowWidth, int win
     for (const auto& base : bases) {
         if (base.visibleInGame) {
             grid->setCellType(base.x, base.y, CellType::Base);
+        }
+    }
+
+    for (const auto& oc : levelData.outerCells) {
+        CellType ct = CellType::Ground;
+        if (oc.type == 1) ct = CellType::Path;
+        else if (oc.type == 2) ct = CellType::Platform;
+        else if (oc.type == 3) ct = CellType::Scenery;
+        else if (oc.type == 4) ct = CellType::Chasm;
+        else if (oc.type == 5) ct = CellType::Rail;
+        grid->setCellType(oc.x, oc.y, ct);
+        if (oc.noBuild) {
+            grid->setNoBuildAt(oc.x, oc.y, true);
         }
     }
 
@@ -142,10 +158,12 @@ void GameWorld::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> whit
 void GameWorld::resize(int windowWidth, int windowHeight) {
     if (grid) {
         Grid oldGrid = *grid;
-        float bottomBarHeight = Buildpanel::getBottomBarHeight(windowWidth, windowHeight);
-        float topMargin = TimeControlUI::getTopMargin(windowWidth, windowHeight);
-        grid->updateCellSize(windowWidth, windowHeight, bottomBarHeight, topMargin);
-    grid->setHasSidePockets(levelData.hasSidePockets || currentBackground == "mine_entrance");
+        if (!cameraSettings.isCustom) {
+            float bottomBarHeight = Buildpanel::getBottomBarHeight(windowWidth, windowHeight);
+            float topMargin = TimeControlUI::getTopMargin(windowWidth, windowHeight);
+            grid->updateCellSize(windowWidth, windowHeight, bottomBarHeight, topMargin);
+        }
+        grid->setHasSidePockets(levelData.hasSidePockets || currentBackground == "mine_entrance");
         minecartManager.updateCellSize(grid->getCellSize(), grid->getOffset());
 
         for (const auto& enemy : entityManager->getEnemies()) {
@@ -210,25 +228,42 @@ void GameWorld::triggerEarlyWave() {
 glm::vec2 GameWorld::getWorldCamCenter() const {
     if (!grid) return glm::vec2(0.0f);
     glm::vec2 targetTile = cameraSettings.targetTile;
-    if (targetTile.x < 0.0f || targetTile.y < 0.0f) {
+    if (targetTile.x < -100.0f || targetTile.y < -100.0f) {
         targetTile = glm::vec2(static_cast<float>(grid->getWidth()) * 0.5f,
                                static_cast<float>(grid->getHeight()) * 0.5f);
     }
     return grid->getOffset() + targetTile * grid->getCellSize();
 }
 
+float GameWorld::getEffectiveZoom(int windowWidth, int windowHeight) const {
+    if (!cameraSettings.isCustom || !grid) return 1.0f;
+    float cs = grid->getCellSize();
+    if (cs <= 0.001f) return 1.0f;
+
+    float viewW = (cameraSettings.viewTilesW > 0.1f) ? (cameraSettings.viewTilesW * cs) : 0.0f;
+    float viewH = (cameraSettings.viewTilesH > 0.1f) ? (cameraSettings.viewTilesH * cs) : 0.0f;
+
+    if (viewW > 1.0f && viewH > 1.0f) {
+        float scaleX = static_cast<float>(windowWidth) / viewW;
+        float scaleY = static_cast<float>(windowHeight) / viewH;
+        return std::min(scaleX, scaleY);
+    }
+    return (cameraSettings.zoom > 0.001f) ? cameraSettings.zoom : 1.0f;
+}
+
 glm::vec2 GameWorld::getCombatCameraPan(int windowWidth, int windowHeight) const {
     if (!cameraSettings.isCustom) return glm::vec2(0.0f);
     glm::vec2 screenCenter(static_cast<float>(windowWidth) * 0.5f, static_cast<float>(windowHeight) * 0.5f);
     glm::vec2 worldCamCenter = getWorldCamCenter();
-    return screenCenter - worldCamCenter * cameraSettings.zoom;
+    float z = getEffectiveZoom(windowWidth, windowHeight);
+    return screenCenter - worldCamCenter * z;
 }
 
 glm::mat4 GameWorld::getViewMatrix(int windowWidth, int windowHeight) const {
     if (!cameraSettings.isCustom) return glm::mat4(1.0f);
     glm::vec2 screenCenter(static_cast<float>(windowWidth) * 0.5f, static_cast<float>(windowHeight) * 0.5f);
     glm::vec2 worldCamCenter = getWorldCamCenter();
-    float z = cameraSettings.zoom;
+    float z = getEffectiveZoom(windowWidth, windowHeight);
 
     // view = translate(screenCenter) * scale(zoom) * translate(-worldCamCenter)
     return glm::translate(glm::mat4(1.0f), glm::vec3(screenCenter, 0.0f))
@@ -240,7 +275,7 @@ glm::vec2 GameWorld::screenToWorld(glm::vec2 screenPos, int windowWidth, int win
     if (!cameraSettings.isCustom) return screenPos;
     glm::vec2 screenCenter(static_cast<float>(windowWidth) * 0.5f, static_cast<float>(windowHeight) * 0.5f);
     glm::vec2 worldCamCenter = getWorldCamCenter();
-    float z = (cameraSettings.zoom > 0.001f) ? cameraSettings.zoom : 1.0f;
+    float z = getEffectiveZoom(windowWidth, windowHeight);
     return (screenPos - screenCenter) / z + worldCamCenter;
 }
 

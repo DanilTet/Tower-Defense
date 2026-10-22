@@ -1085,7 +1085,7 @@ void EditorLevelSettingsModal::render(SpriteRenderer* renderer, TextRenderer* te
     renderRowLabels("Базовая пушка (Basic)", rowBasicY);
     renderRowLabels("Ртутная вышка (Mercury)", rowMercuryY);
     renderRowLabels("Поршень-толкатель (Piston)", rowPistonY);
-    textRenderer->RenderText("Боковые карманы (вход и настил внутри сетки для Шахты)", contentLeft + 26.0f * scale, rowPocketsY + 4.0f * scale, 0.40f * scale, m_hasSidePockets ? glm::vec3(0.4f, 0.9f, 0.5f) : glm::vec3(0.85f, 0.90f, 0.98f));
+    textRenderer->RenderText("Свободные границы (постройка за пределами матрицы)", contentLeft + 26.0f * scale, rowPocketsY + 4.0f * scale, 0.40f * scale, m_hasSidePockets ? glm::vec3(0.4f, 0.9f, 0.5f) : glm::vec3(0.85f, 0.90f, 0.98f));
 
     auto renderRowTierTexts = [&](const std::string& type, float rowY) {
         float startX = contentLeft + contentW - totalTierGroupW;

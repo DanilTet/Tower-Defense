@@ -9,6 +9,27 @@ class Grid;
 
 class BackgroundRenderer {
 public:
+    // СЛОЙ 1: Базовая подложка под фон (заливка земли/травы и горизонтальные пласты породы/склона)
+    static void renderSubstrate(
+        SpriteRenderer* renderer,
+        const std::shared_ptr<Texture2D>& whiteTexture,
+        const std::string& backgroundType,
+        const Grid* grid,
+        float screenWidth,
+        float screenHeight
+    );
+
+    // СЛОЙ 2: Фоновое окружение (деревянный настил, здание копра, рельсы, забор, трубы)
+    static void renderEnvironment(
+        SpriteRenderer* renderer,
+        const std::shared_ptr<Texture2D>& whiteTexture,
+        const std::string& backgroundType,
+        const Grid* grid,
+        float screenWidth,
+        float screenHeight
+    );
+
+    // Полная отрисовка обоих слоев (обратная совместимость)
     static void render(
         SpriteRenderer* renderer,
         const std::shared_ptr<Texture2D>& whiteTexture,
@@ -19,7 +40,7 @@ public:
     );
 
 private:
-    static void renderPipesCanal(
+    static void renderPipesCanalSubstrate(
         SpriteRenderer* renderer,
         const std::shared_ptr<Texture2D>& whiteTexture,
         const Grid* grid,
@@ -27,7 +48,23 @@ private:
         float screenHeight
     );
 
-    static void renderMineEntrance(
+    static void renderPipesCanalEnvironment(
+        SpriteRenderer* renderer,
+        const std::shared_ptr<Texture2D>& whiteTexture,
+        const Grid* grid,
+        float screenWidth,
+        float screenHeight
+    );
+
+    static void renderMineEntranceSubstrate(
+        SpriteRenderer* renderer,
+        const std::shared_ptr<Texture2D>& whiteTexture,
+        const Grid* grid,
+        float screenWidth,
+        float screenHeight
+    );
+
+    static void renderMineEntranceEnvironment(
         SpriteRenderer* renderer,
         const std::shared_ptr<Texture2D>& whiteTexture,
         const Grid* grid,

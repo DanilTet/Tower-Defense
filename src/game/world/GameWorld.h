@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <memory>
 #include <vector>
 #include <string>
@@ -38,6 +38,7 @@ struct GameWorld {
     LevelMapData levelData;
 
     glm::vec2 getWorldCamCenter() const;
+    float getEffectiveZoom(int windowWidth, int windowHeight) const;
     glm::vec2 getCombatCameraPan(int windowWidth, int windowHeight) const;
     glm::mat4 getViewMatrix(int windowWidth, int windowHeight) const;
     glm::vec2 screenToWorld(glm::vec2 screenPos, int windowWidth, int windowHeight) const;

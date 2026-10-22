@@ -173,8 +173,10 @@ struct LevelMapData {
 
     struct CameraSettings {
         glm::vec2 targetTile = glm::vec2(-1.0f, -1.0f);   // центр обзора в координатах сетки (в клетках/тайлах)
-        float zoom = 1.0f;                                // зум камеры
+        float zoom = 1.0f;                                // базовый зум камеры
         bool isCustom = false;
+        float viewTilesW = 0.0f;                          // ширина кадра в количестве клеток/тайлов сетки
+        float viewTilesH = 0.0f;                          // высота кадра в количестве клеток/тайлов сетки
     };
     CameraSettings camera;
 
@@ -187,6 +189,14 @@ struct LevelMapData {
     std::vector<BaseData> bases;
     std::vector<std::vector<int>> layout;
     std::vector<std::vector<bool>> noBuildMask; // [y][x], true = no-build zone
+
+    struct OuterCellData {
+        int x = 0;
+        int y = 0;
+        int type = 0;
+        bool noBuild = false;
+    };
+    std::vector<OuterCellData> outerCells;
     std::vector<MinecartData> minecarts;
     std::vector<ParticleEmitterConfig> emitters;
     std::vector<DecorationConfig> decorations;

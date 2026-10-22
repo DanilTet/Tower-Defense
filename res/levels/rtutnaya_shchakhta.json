@@ -65,30 +65,8 @@
       "Mercury",
       "Piston"
     ],
-    "bases": [
-      {
-        "enableFadeOut": true,
-        "id": 0,
-        "visibleInGame": false,
-        "x": 22,
-        "y": 4
-      },
-      {
-        "enableFadeOut": true,
-        "id": 0,
-        "visibleInGame": false,
-        "x": 22,
-        "y": 5
-      },
-      {
-        "enableFadeOut": true,
-        "id": 0,
-        "visibleInGame": false,
-        "x": 22,
-        "y": 6
-      }
-    ],
-    "cellSize": 49.45454406738281,
+    "bases": [],
+    "cellSize": 108.45454406738281,
     "enemyBountyRules": {
       "Coal": [
         {
@@ -249,8 +227,8 @@
         0,
         0,
         0,
-        0,
-        0,
+        2,
+        3,
         0,
         0,
         0,
@@ -274,8 +252,8 @@
         0,
         0,
         0,
-        0,
-        0,
+        3,
+        3,
         0,
         0,
         0,
@@ -697,34 +675,10 @@
         0
       ]
     ],
-    "offsetX": 71.27276611328125,
+    "offsetX": 32.772705078125,
     "offsetY": 62.0,
-    "spawners": [
-      {
-        "enableFadeIn": true,
-        "groupId": -1,
-        "targetBaseIndex": -1,
-        "visibleInGame": false,
-        "x": 0,
-        "y": 6
-      },
-      {
-        "enableFadeIn": true,
-        "groupId": -1,
-        "targetBaseIndex": -1,
-        "visibleInGame": false,
-        "x": 0,
-        "y": 5
-      },
-      {
-        "enableFadeIn": true,
-        "groupId": -1,
-        "targetBaseIndex": -1,
-        "visibleInGame": false,
-        "x": 0,
-        "y": 4
-      }
-    ],
+    "outerCells": [],
+    "spawners": [],
     "startingHealth": 20,
     "startingMoney": 50,
     "towerMaxTiers": {

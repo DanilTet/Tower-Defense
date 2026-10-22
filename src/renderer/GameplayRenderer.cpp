@@ -91,9 +91,24 @@ void GameplayRenderer::renderFrame(
     if (m_textRenderer) m_textRenderer->updateProjection(worldProj);
     m_renderer->beginBatch();
 
-    // 1.1. Фоновая подложка (default или pipes_canal в мировых координатах)
+    // СЛОЙ 1: Подложка под фон (базовая земля / трава) и базовые клетки матрицы / outerCells
     if (m_whiteTexture) {
-        BackgroundRenderer::render(
+        BackgroundRenderer::renderSubstrate(
+            m_renderer.get(),
+            m_whiteTexture,
+            world.currentBackground,
+            world.grid.get(),
+            static_cast<float>(windowWidth),
+            static_cast<float>(windowHeight)
+        );
+    }
+    if (world.grid && m_whiteTexture) {
+        world.grid->drawBaseCells(m_renderer.get(), m_whiteTexture, { 1.0f, 1.0f, 1.0f }, world.currentBackground);
+    }
+
+    // СЛОЙ 2: Фоновое окружение (настил, рельсы, здание копра, забор, трубы)
+    if (m_whiteTexture) {
+        BackgroundRenderer::renderEnvironment(
             m_renderer.get(),
             m_whiteTexture,
             world.currentBackground,
@@ -103,9 +118,9 @@ void GameplayRenderer::renderFrame(
         );
     }
 
-    // 2. Отрисовка игровой сетки
-    if (world.grid) {
-        world.grid->draw(m_renderer.get(), m_whiteTexture, { 1.0f, 1.0f, 1.0f }, world.currentBackground);
+    // СЛОЙ 3: Геймплейные препятствия (CellType::Scenery - ящики, стены)
+    if (world.grid && m_whiteTexture) {
+        world.grid->drawObstacleCells(m_renderer.get(), m_whiteTexture, { 1.0f, 1.0f, 1.0f }, world.currentBackground);
     }
 
     // 2.1. Цветные тайлы/маркеры спавнеров и баз (только если visibleInGame == true)

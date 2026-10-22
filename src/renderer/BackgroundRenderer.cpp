@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <cmath>
 
-void BackgroundRenderer::render(
+void BackgroundRenderer::renderSubstrate(
     SpriteRenderer* renderer,
     const std::shared_ptr<Texture2D>& whiteTexture,
     const std::string& backgroundType,
@@ -15,10 +15,10 @@ void BackgroundRenderer::render(
 ) {
     if (!renderer || !whiteTexture) return;
 
-    if (backgroundType == "pipes_canal") {
-        renderPipesCanal(renderer, whiteTexture, grid, screenWidth, screenHeight);
-    } else if (backgroundType == "mine_entrance") {
-        renderMineEntrance(renderer, whiteTexture, grid, screenWidth, screenHeight);
+    if (backgroundType == "pipes_canal" || backgroundType == "channel") {
+        renderPipesCanalSubstrate(renderer, whiteTexture, grid, screenWidth, screenHeight);
+    } else if (backgroundType == "mine_entrance" || backgroundType == "mine") {
+        renderMineEntranceSubstrate(renderer, whiteTexture, grid, screenWidth, screenHeight);
     } else {
         // Стандартная минималистичная темная подложка (с широким охватом для зума и панорамирования)
         glm::vec2 gridOffset = grid ? grid->getOffset() : glm::vec2(0.0f);
@@ -37,7 +37,36 @@ void BackgroundRenderer::render(
     }
 }
 
-void BackgroundRenderer::renderPipesCanal(
+void BackgroundRenderer::renderEnvironment(
+    SpriteRenderer* renderer,
+    const std::shared_ptr<Texture2D>& whiteTexture,
+    const std::string& backgroundType,
+    const Grid* grid,
+    float screenWidth,
+    float screenHeight
+) {
+    if (!renderer || !whiteTexture) return;
+
+    if (backgroundType == "pipes_canal" || backgroundType == "channel") {
+        renderPipesCanalEnvironment(renderer, whiteTexture, grid, screenWidth, screenHeight);
+    } else if (backgroundType == "mine_entrance" || backgroundType == "mine") {
+        renderMineEntranceEnvironment(renderer, whiteTexture, grid, screenWidth, screenHeight);
+    }
+}
+
+void BackgroundRenderer::render(
+    SpriteRenderer* renderer,
+    const std::shared_ptr<Texture2D>& whiteTexture,
+    const std::string& backgroundType,
+    const Grid* grid,
+    float screenWidth,
+    float screenHeight
+) {
+    renderSubstrate(renderer, whiteTexture, backgroundType, grid, screenWidth, screenHeight);
+    renderEnvironment(renderer, whiteTexture, backgroundType, grid, screenWidth, screenHeight);
+}
+
+void BackgroundRenderer::renderPipesCanalSubstrate(
     SpriteRenderer* renderer,
     const std::shared_ptr<Texture2D>& whiteTexture,
     const Grid* grid,
@@ -90,8 +119,25 @@ void BackgroundRenderer::renderPipesCanal(
             bandCol
         );
     }
+}
 
+void BackgroundRenderer::renderPipesCanalEnvironment(
+    SpriteRenderer* renderer,
+    const std::shared_ptr<Texture2D>& whiteTexture,
+    const Grid* grid,
+    float screenWidth,
+    float screenHeight
+) {
     if (!grid) return;
+
+    glm::vec2 gridOffset = grid->getOffset();
+    float cellSize = grid->getCellSize();
+    float gridW = static_cast<float>(grid->getWidth()) * cellSize;
+    float gridH = static_cast<float>(grid->getHeight()) * cellSize;
+
+    float marginX = std::max(1600.0f, screenWidth * 2.5f);
+    float startX = gridOffset.x - marginX;
+    float endX = gridOffset.x + gridW + marginX;
 
     // 2. Монументальные трубы дюкеров вдоль верхней и нижней границ поля
     // Толщина трубы и зазор строго пропорциональны cellSize, чтобы координаты тайлов декора и эмиттеров
@@ -310,7 +356,7 @@ void BackgroundRenderer::renderPipe(
     }
 }
 
-void BackgroundRenderer::renderMineEntrance(
+void BackgroundRenderer::renderMineEntranceSubstrate(
     SpriteRenderer* renderer,
     const std::shared_ptr<Texture2D>& whiteTexture,
     const Grid* grid,
@@ -367,8 +413,34 @@ void BackgroundRenderer::renderMineEntrance(
             bandCol
         );
     }
+}
 
-    if (!grid) return;
+void BackgroundRenderer::renderMineEntranceEnvironment(
+    SpriteRenderer* renderer,
+    const std::shared_ptr<Texture2D>& whiteTexture,
+    const Grid* grid,
+    float screenWidth,
+    float screenHeight
+) {
+    if (!renderer || !whiteTexture || !grid) return;
+
+    // Параметры мира и сетки
+    glm::vec2 gridOffset = grid->getOffset();
+    float cellSize = grid->getCellSize();
+    int gridW_tiles = grid->getWidth();
+    int gridH_tiles = grid->getHeight();
+    float gridW = static_cast<float>(gridW_tiles) * cellSize;
+    float gridH = static_cast<float>(gridH_tiles) * cellSize;
+
+    float marginX = std::max(1600.0f, screenWidth * 2.5f);
+    float marginY = std::max(1200.0f, screenHeight * 2.0f);
+    float startX = gridOffset.x - marginX;
+    float endX = gridOffset.x + gridW + marginX;
+    float totalW = endX - startX;
+
+    float startY = gridOffset.y - marginY;
+    float endY = gridOffset.y + gridH + marginY;
+    float totalH = endY - startY;
 
     // Расчет центральных 3 клеток по вертикали (Y)
     int startTileY = std::max(0, (gridH_tiles - 3) / 2);
@@ -377,10 +449,8 @@ void BackgroundRenderer::renderMineEntrance(
 
     // Сдвиг боковых карманов внутрь валидной сетки (0 .. W-1):
     // Первые 3 столбца (0, 1, 2) - настил спавнеров, последние 3 столбца (W-3, W-2, W-1) - здание и портал
-    bool hasPockets = (gridW_tiles >= 6);
-    int pocketCols = hasPockets ? 3 : 0;
-    float yardX = gridOffset.x + static_cast<float>(pocketCols) * cellSize;
-    float yardW = static_cast<float>(gridW_tiles - pocketCols * 2) * cellSize;
+    float yardX = gridOffset.x;
+    float yardW = gridW;
 
     // 2. СВЕРХУ И СНИЗУ: ИНДУСТРИАЛЬНЫЙ ЗАБОР (вдоль центральной зоны двора x = 3 .. W-4)
     float fenceH = std::max(22.0f, cellSize * 0.40f);

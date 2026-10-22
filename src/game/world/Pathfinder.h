@@ -1,29 +1,36 @@
 #pragma once
 #include <vector>
 #include <queue>
+#include <algorithm>
 #include <glm/glm.hpp>
 #include "Grid.h"
 
 // Карта расстояний (Dijkstra Map / Flow Field) от целевых баз
 struct DijkstraMap {
+    int minX = 0;
+    int minY = 0;
     int width = 0;
     int height = 0;
-    std::vector<int> distances;        // Flat array: y * width + x. 999999 = недостижимо
+    std::vector<int> distances;        // Flat array: (y - minY) * width + (x - minX). 999999 = недостижимо
     std::vector<glm::ivec2> bestNext;  // Следующая оптимальная клетка в сторону базы
 
+    int getIndex(int x, int y) const {
+        return (y - minY) * width + (x - minX);
+    }
+
     bool isReachable(int x, int y) const {
-        if (x < 0 || x >= width || y < 0 || y >= height) return false;
-        return distances[y * width + x] < 900000;
+        if (x < minX || x >= minX + width || y < minY || y >= minY + height) return false;
+        return distances[getIndex(x, y)] < 900000;
     }
 
     int getDistance(int x, int y) const {
-        if (x < 0 || x >= width || y < 0 || y >= height) return 999999;
-        return distances[y * width + x];
+        if (x < minX || x >= minX + width || y < minY || y >= minY + height) return 999999;
+        return distances[getIndex(x, y)];
     }
 
     glm::ivec2 getNext(int x, int y) const {
-        if (x < 0 || x >= width || y < 0 || y >= height) return glm::ivec2(-1, -1);
-        return bestNext[y * width + x];
+        if (x < minX || x >= minX + width || y < minY || y >= minY + height) return glm::ivec2(-1, -1);
+        return bestNext[getIndex(x, y)];
     }
 };
 
@@ -43,7 +50,7 @@ private:
         int fCost() const { return gCost + hCost; }
     };
 
-    mutable std::vector<AStarNode> m_nodes; // Flat vector [y * width + x]
+    mutable std::vector<AStarNode> m_nodes; // Flat vector
     mutable uint32_t m_currentEpoch = 0;
 
     int getOctileDistance(glm::ivec2 a, glm::ivec2 b) const;

@@ -2,6 +2,9 @@
 #include <vector>
 #include <string>
 #include <memory>
+#include <map>
+#include <set>
+#include <utility>
 #include <glm/glm.hpp>
 
 enum class CellType {
@@ -14,7 +17,8 @@ enum class CellType {
 
 	Tower, // башня
 	Spawner, // точка старта врагов
-	Base // база игрока
+	Base, // база игрока
+	Empty // пустая ячейка за пределами матрицы
 };
 
 class SpriteRenderer;
@@ -33,6 +37,15 @@ private:
 	std::vector<std::vector<CellType>> m_originalGrid; // Хранилище исходных типов клеток (до постройки башен)
 	std::vector<std::vector<bool>> m_noBuildMask; // [y][x], true = no-build zone
 	bool m_hasSidePockets = false;
+	std::map<std::pair<int, int>, CellType> m_outerCells;
+	std::map<std::pair<int, int>, CellType> m_originalOuterCells;
+	std::set<std::pair<int, int>> m_outerNoBuild;
+
+	void renderCellVisual(SpriteRenderer* renderer,
+		std::shared_ptr<Texture2D> whiteTexture,
+		int x, int y, CellType type,
+		glm::vec2 pixelPos, glm::vec3 color,
+		bool isMineTheme, bool isCanalTheme) const;
 
 public:
 	Grid(int width, int height, float cellSize, glm::vec2 offset = glm::vec2(0.0f, 0.0f));
@@ -45,6 +58,26 @@ public:
 
 	bool canBuildAt(int gridX, int gridY) const; // проверяем можно ли построить башню на этой клетке
 	void setCellType(int gridX, int gridY, CellType type); // устанавливаем тип клетки
+
+	// СЛОЙ 1: Базовые клетки матрицы и внешние клетки (Ground, Path, Platform, Chasm, Rail)
+	void drawBaseCells(SpriteRenderer* renderer,
+		std::shared_ptr<Texture2D> whiteTexture,
+		glm::vec3 color = glm::vec3(1.0f, 1.0f, 1.0f),
+		const std::string& backgroundPreset = "default") const;
+
+	// СЛОЙ 2: Мягкая сетка редактора поверх фона (линии свободных границ и внешних клеток)
+	void drawEditorGridLines(SpriteRenderer* renderer,
+		std::shared_ptr<Texture2D> whiteTexture) const;
+
+	// СЛОЙ 3: Геймплейные препятствия (CellType::Scenery - ящики, стены)
+	void drawObstacleCells(SpriteRenderer* renderer,
+		std::shared_ptr<Texture2D> whiteTexture,
+		glm::vec3 color = glm::vec3(1.0f, 1.0f, 1.0f),
+		const std::string& backgroundPreset = "default") const;
+
+	// СЛОЙ 4: Оверлей зон запрета стройки на внешних клетках
+	void drawOuterNoBuildOverlay(SpriteRenderer* renderer,
+		std::shared_ptr<Texture2D> whiteTexture) const;
 
 	void draw(SpriteRenderer* renderer,
 		std::shared_ptr<Texture2D> whiteTexture,
@@ -61,21 +94,16 @@ public:
 	CellType getCellType(int gridX, int gridY) const;
 	void setNoBuildMask(const std::vector<std::vector<bool>>& mask);
 	bool isNoBuild(int gridX, int gridY) const;
+	bool isNoBuildAt(int gridX, int gridY) const { return isNoBuild(gridX, gridY); }
 	void setNoBuildAt(int gridX, int gridY, bool value);
+	void removeNoBuildAt(int gridX, int gridY);
 	void setHasSidePockets(bool val) { m_hasSidePockets = val; }
 	bool hasSidePockets() const { return m_hasSidePockets; }
-	int getPocketPassageStartY() const { return std::max(0, (m_height - 3) / 2); }
-	int getPocketPassageEndY() const { return std::min(m_height - 1, getPocketPassageStartY() + 2); }
-	bool isInsideSidePocketPassage(int x, int y) const {
-		if (!m_hasSidePockets || m_width < 6) return false;
-		if (x >= 3 && x < m_width - 3) return false;
-		int startY = getPocketPassageStartY();
-		int endY = getPocketPassageEndY();
-		return (y >= startY && y <= endY);
-	}
-	bool isInsideSidePocketBlocked(int x, int y) const {
-		if (!m_hasSidePockets || m_width < 6) return false;
-		if (x >= 3 && x < m_width - 3) return false;
-		return !isInsideSidePocketPassage(x, y);
-	}
+
+	const std::map<std::pair<int, int>, CellType>& getOuterCells() const { return m_outerCells; }
+	const std::map<std::pair<int, int>, CellType>& getOriginalOuterCells() const { return m_originalOuterCells; }
+	const std::set<std::pair<int, int>>& getOuterNoBuild() const { return m_outerNoBuild; }
+	void setOuterCells(const std::map<std::pair<int, int>, CellType>& cells) { m_outerCells = cells; }
+	void setOuterNoBuild(const std::set<std::pair<int, int>>& noBuild) { m_outerNoBuild = noBuild; }
+	void clearOuterCells() { m_outerCells.clear(); m_originalOuterCells.clear(); m_outerNoBuild.clear(); }
 };

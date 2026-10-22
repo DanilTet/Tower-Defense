@@ -1,36 +1,31 @@
 #include "Pathfinder.h"
-#include <algorithm>
 #include <cmath>
+#include <algorithm>
 
 Pathfinder::Pathfinder(int width, int height)
-    : m_width(width), m_height(height), m_currentEpoch(0)
-{
+    : m_width(width), m_height(height) {
     m_nodes.resize(m_width * m_height);
 }
 
 int Pathfinder::getOctileDistance(glm::ivec2 a, glm::ivec2 b) const {
     int distX = std::abs(a.x - b.x);
     int distY = std::abs(a.y - b.y);
-    if (distX > distY) {
-        return 14 * distY + 10 * (distX - distY);
-    }
+    if (distX > distY) std::swap(distX, distY);
     return 14 * distX + 10 * (distY - distX);
 }
 
 bool Pathfinder::isCellWalkable(const Grid& grid, int x, int y) {
-    if (x < 0 || x >= grid.getWidth() || y < 0 || y >= grid.getHeight()) return false;
-    if (grid.hasSidePockets() && grid.getWidth() >= 6) {
-        if (x < 3 || x >= grid.getWidth() - 3) {
-            int startY = grid.getPocketPassageStartY();
-            int endY = grid.getPocketPassageEndY();
-            if (y < startY || y > endY) {
-                return false; // За пределами 3 центральных клеток по бокам непроходимо
-            }
-        }
+    if (x >= 0 && x < grid.getWidth() && y >= 0 && y < grid.getHeight()) {
+        CellType t = grid.getCellType(x, y);
+        if (t == CellType::Chasm) return false;
+        return t == CellType::Ground || t == CellType::Path || t == CellType::Spawner || t == CellType::Base || t == CellType::Rail;
     }
+
+    if (!grid.hasSidePockets()) return false;
+
     CellType t = grid.getCellType(x, y);
-    if (t == CellType::Chasm) return false; // Обрыв/шурф непроходим для обычного поиска пути
-    return t == CellType::Ground || t == CellType::Path || t == CellType::Spawner || t == CellType::Base || t == CellType::Rail;
+    if (t == CellType::Empty || t == CellType::Scenery || t == CellType::Chasm) return false;
+    return t == CellType::Ground || t == CellType::Platform || t == CellType::Path || t == CellType::Spawner || t == CellType::Base || t == CellType::Rail;
 }
 
 bool Pathfinder::canMove(const Grid& grid, glm::ivec2 from, glm::ivec2 to) {
@@ -47,11 +42,70 @@ bool Pathfinder::canMove(const Grid& grid, glm::ivec2 from, glm::ivec2 to) {
     return true;
 }
 
+namespace {
+struct BoundingBox {
+    int minX = 0;
+    int minY = 0;
+    int maxX = 0;
+    int maxY = 0;
+    int width() const { return maxX - minX + 1; }
+    int height() const { return maxY - minY + 1; }
+    int totalCells() const { return width() * height(); }
+    int getIndex(int x, int y) const {
+        return (y - minY) * width() + (x - minX);
+    }
+    glm::ivec2 getPos(int idx) const {
+        int w = width();
+        return glm::ivec2(minX + (idx % w), minY + (idx / w));
+    }
+    bool contains(int x, int y) const {
+        return x >= minX && x <= maxX && y >= minY && y <= maxY;
+    }
+};
+
+BoundingBox calculateBoundingBox(const Grid& grid, const std::vector<glm::ivec2>& points) {
+    int minX = 0;
+    int minY = 0;
+    int maxX = grid.getWidth() - 1;
+    int maxY = grid.getHeight() - 1;
+
+    if (grid.hasSidePockets()) {
+        for (const auto& [pos, type] : grid.getOuterCells()) {
+            minX = std::min(minX, pos.first);
+            maxX = std::max(maxX, pos.first);
+            minY = std::min(minY, pos.second);
+            maxY = std::max(maxY, pos.second);
+        }
+        for (const auto& p : points) {
+            minX = std::min(minX, p.x);
+            maxX = std::max(maxX, p.x);
+            minY = std::min(minY, p.y);
+            maxY = std::max(maxY, p.y);
+        }
+        minX -= 2;
+        minY -= 2;
+        maxX += 2;
+        maxY += 2;
+    }
+
+    BoundingBox bbox;
+    bbox.minX = minX;
+    bbox.minY = minY;
+    bbox.maxX = maxX;
+    bbox.maxY = maxY;
+    return bbox;
+}
+}
+
 DijkstraMap Pathfinder::generateDijkstraMap(const Grid& grid, const std::vector<glm::ivec2>& targetBases) const {
+    BoundingBox bbox = calculateBoundingBox(grid, targetBases);
+
     DijkstraMap dmap;
-    dmap.width = m_width;
-    dmap.height = m_height;
-    int totalCells = m_width * m_height;
+    dmap.minX = bbox.minX;
+    dmap.minY = bbox.minY;
+    dmap.width = bbox.width();
+    dmap.height = bbox.height();
+    int totalCells = bbox.totalCells();
     dmap.distances.assign(totalCells, 999999);
     dmap.bestNext.assign(totalCells, glm::ivec2(-1, -1));
 
@@ -61,8 +115,8 @@ DijkstraMap Pathfinder::generateDijkstraMap(const Grid& grid, const std::vector<
     std::priority_queue<PQElement, std::vector<PQElement>, std::greater<PQElement>> pq;
 
     for (const auto& base : targetBases) {
-        if (base.x >= 0 && base.x < m_width && base.y >= 0 && base.y < m_height) {
-            int idx = base.y * m_width + base.x;
+        if (bbox.contains(base.x, base.y)) {
+            int idx = bbox.getIndex(base.x, base.y);
             dmap.distances[idx] = 0;
             dmap.bestNext[idx] = base;
             pq.push({0, idx});
@@ -81,26 +135,23 @@ DijkstraMap Pathfinder::generateDijkstraMap(const Grid& grid, const std::vector<
 
         if (cost > dmap.distances[uIdx]) continue;
 
-        int ux = uIdx % m_width;
-        int uy = uIdx / m_width;
-        glm::ivec2 uPos(ux, uy);
+        glm::ivec2 uPos = bbox.getPos(uIdx);
 
         for (int i = 0; i < 8; ++i) {
-            int vx = ux + dx[i];
-            int vy = uy + dy[i];
+            int vx = uPos.x + dx[i];
+            int vy = uPos.y + dy[i];
 
-            if (vx < 0 || vx >= m_width || vy < 0 || vy >= m_height) continue;
+            if (!bbox.contains(vx, vy)) continue;
 
             glm::ivec2 vPos(vx, vy);
-            // В обратном поиске от базы проверяем возможность движения от v к u
             if (!canMove(grid, vPos, uPos)) continue;
 
             int newCost = cost + stepCosts[i];
-            int vIdx = vy * m_width + vx;
+            int vIdx = bbox.getIndex(vx, vy);
 
             if (newCost < dmap.distances[vIdx]) {
                 dmap.distances[vIdx] = newCost;
-                dmap.bestNext[vIdx] = uPos; // Следующий шаг из v в сторону базы ведет в u
+                dmap.bestNext[vIdx] = uPos;
                 pq.push({newCost, vIdx});
             }
         }
@@ -119,10 +170,10 @@ std::vector<glm::ivec2> Pathfinder::tracePath(const DijkstraMap& dmap, const Gri
     glm::ivec2 curr = startPos;
     int steps = 0;
 
-    // Двигаемся по цепочке bestNext, пока не достигнем базы (где distance == 0)
     while (dmap.getDistance(curr.x, curr.y) > 0 && steps < totalCells) {
         glm::ivec2 next = dmap.getNext(curr.x, curr.y);
-        if (next.x < 0 || next == curr) break;
+        if (next.x == -1 && next.y == -1) break;
+        if (next == curr) break;
         path.push_back(next);
         curr = next;
         steps++;
@@ -134,9 +185,19 @@ std::vector<glm::ivec2> Pathfinder::tracePath(const DijkstraMap& dmap, const Gri
 std::vector<glm::ivec2> Pathfinder::findPathToAny(const Grid& grid, glm::ivec2 startPos, const std::vector<glm::ivec2>& targetBases, int& outTotalCost) {
     outTotalCost = 999999;
     std::vector<glm::ivec2> path;
+    if (targetBases.empty()) return path;
 
-    if (startPos.x < 0 || startPos.x >= m_width || startPos.y < 0 || startPos.y >= m_height || targetBases.empty()) {
+    std::vector<glm::ivec2> allPoints = targetBases;
+    allPoints.push_back(startPos);
+    BoundingBox bbox = calculateBoundingBox(grid, allPoints);
+
+    if (!bbox.contains(startPos.x, startPos.y)) {
         return path;
+    }
+
+    int totalCells = bbox.totalCells();
+    if (m_nodes.size() < static_cast<size_t>(totalCells)) {
+        m_nodes.resize(totalCells);
     }
 
     m_currentEpoch++;
@@ -151,7 +212,7 @@ std::vector<glm::ivec2> Pathfinder::findPathToAny(const Grid& grid, glm::ivec2 s
         return minH;
     };
 
-    int startIdx = startPos.y * m_width + startPos.x;
+    int startIdx = bbox.getIndex(startPos.x, startPos.y);
     AStarNode& sNode = m_nodes[startIdx];
     sNode.epoch = epoch;
     sNode.gCost = 0;
@@ -176,18 +237,15 @@ std::vector<glm::ivec2> Pathfinder::findPathToAny(const Grid& grid, glm::ivec2 s
         if (uNode.epoch != epoch || uNode.isClosed) continue;
         uNode.isClosed = true;
 
-        int ux = uIdx % m_width;
-        int uy = uIdx / m_width;
-        glm::ivec2 uPos(ux, uy);
+        glm::ivec2 uPos = bbox.getPos(uIdx);
 
-        // Проверяем, достигнута ли любая из целевых баз
         for (const auto& b : targetBases) {
             if (uPos == b) {
                 outTotalCost = uNode.gCost;
                 glm::ivec2 cur = uPos;
                 while (cur != startPos && cur != glm::ivec2(-1, -1)) {
                     path.push_back(cur);
-                    int curIdx = cur.y * m_width + cur.x;
+                    int curIdx = bbox.getIndex(cur.x, cur.y);
                     cur = m_nodes[curIdx].parent;
                 }
                 std::reverse(path.begin(), path.end());
@@ -196,14 +254,14 @@ std::vector<glm::ivec2> Pathfinder::findPathToAny(const Grid& grid, glm::ivec2 s
         }
 
         for (int i = 0; i < 8; ++i) {
-            int vx = ux + dx[i];
-            int vy = uy + dy[i];
-            if (vx < 0 || vx >= m_width || vy < 0 || vy >= m_height) continue;
+            int vx = uPos.x + dx[i];
+            int vy = uPos.y + dy[i];
+            if (!bbox.contains(vx, vy)) continue;
 
             glm::ivec2 vPos(vx, vy);
             if (!canMove(grid, uPos, vPos)) continue;
 
-            int vIdx = vy * m_width + vx;
+            int vIdx = bbox.getIndex(vx, vy);
             AStarNode& vNode = m_nodes[vIdx];
 
             if (vNode.epoch != epoch) {

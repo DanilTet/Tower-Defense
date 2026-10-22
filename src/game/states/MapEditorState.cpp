@@ -1228,6 +1228,9 @@ void MapEditorState::eraseDecorationNear(glm::vec2 worldPos, float maxDist) {
 }
 
 void MapEditorState::saveMap() {
+    if (m_isCameraConfigMode) {
+        syncCameraSettingsFromCurrentView();
+    }
     LevelMapData data;
     data.name = m_currentLevelDisplayName;
     data.isCampaign = m_isCampaign;
@@ -2074,9 +2077,7 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
         m_isCameraConfigMode = !m_isCameraConfigMode;
         if (m_isCameraConfigMode) {
             if (!m_cameraSettings.isCustom) {
-                glm::vec2 worldCenter = screenToWorld(glm::vec2(static_cast<float>(m_width) * 0.5f, static_cast<float>(m_height) * 0.5f));
-                m_cameraSettings.targetTile = worldPixelToTile(worldCenter);
-                m_cameraSettings.zoom = m_zoom;
+                syncCameraSettingsFromCurrentView();
             }
             showToast("Режим камеры: сдвиньте/зуммируйте и нажмите [Зафиксировать камеру]", glm::vec4(0.35f, 0.85f, 1.0f, 1.0f));
         } else {
@@ -2343,9 +2344,7 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
             glm::vec2 mouseDelta = mousePos - m_prevMousePos;
             m_cameraPan += mouseDelta;
             if (m_isCameraConfigMode) {
-                glm::vec2 worldCenter = screenToWorld(glm::vec2(static_cast<float>(m_width) * 0.5f, static_cast<float>(m_height) * 0.5f));
-                m_cameraSettings.targetTile = worldPixelToTile(worldCenter);
-                m_cameraSettings.zoom = m_zoom;
+                syncCameraSettingsFromCurrentView();
             }
         }
         m_isPanning = true;
@@ -2411,9 +2410,7 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
                 m_zoom = newZoom;
                 m_cameraPan = mousePos - worldPosUnderCursor * m_zoom;
                 if (m_isCameraConfigMode) {
-                    glm::vec2 worldCenter = screenToWorld(glm::vec2(static_cast<float>(m_width) * 0.5f, static_cast<float>(m_height) * 0.5f));
-                    m_cameraSettings.targetTile = worldPixelToTile(worldCenter);
-                    m_cameraSettings.zoom = m_zoom;
+                    syncCameraSettingsFromCurrentView();
                 }
             }
         }
@@ -2427,8 +2424,7 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
         glm::vec2 defCenter = getDefaultWorldCenter();
         m_cameraPan = screenCenter - defCenter * m_zoom;
         if (m_isCameraConfigMode) {
-            m_cameraSettings.targetTile = glm::vec2(static_cast<float>(m_gridWidth) * 0.5f, static_cast<float>(m_gridHeight) * 0.5f);
-            m_cameraSettings.zoom = m_zoom;
+            syncCameraSettingsFromCurrentView();
         }
         showToast("Камера центрирована (1.0x)", glm::vec4(0.3f, 0.85f, 1.0f, 1.0f));
     }
@@ -2730,9 +2726,7 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
                 m_isCameraConfigMode = !m_isCameraConfigMode;
                 if (m_isCameraConfigMode) {
                     if (!m_cameraSettings.isCustom) {
-                        glm::vec2 worldCenter = screenToWorld(glm::vec2(static_cast<float>(m_width) * 0.5f, static_cast<float>(m_height) * 0.5f));
-                        m_cameraSettings.targetTile = worldPixelToTile(worldCenter);
-                        m_cameraSettings.zoom = m_zoom;
+                        syncCameraSettingsFromCurrentView();
                     }
                     showToast("Режим камеры: сдвиньте/зуммируйте и нажмите [Зафиксировать камеру]", glm::vec4(0.35f, 0.85f, 1.0f, 1.0f));
                 } else {
@@ -2742,11 +2736,7 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
                 updateButtonLayout();
                 break;
             case EditorActionType::LockCamera: {
-                glm::vec2 worldCenter = screenToWorld(glm::vec2(static_cast<float>(m_width) * 0.5f, static_cast<float>(m_height) * 0.5f));
-                m_cameraSettings.targetTile = worldPixelToTile(worldCenter);
-                m_cameraSettings.zoom = m_zoom;
-                m_cameraSettings.isCustom = true;
-                m_isDirty = true;
+                syncCameraSettingsFromCurrentView();
                 showToast("Стартовая камера сохранена", glm::vec4(0.35f, 1.0f, 0.55f, 1.0f));
                 updateButtonLayout();
                 break;
@@ -3581,11 +3571,22 @@ void MapEditorState::render() {
         float camZoom = std::clamp(m_cameraSettings.zoom, 0.4f, 2.5f);
         glm::vec2 camCenter = getWorldCamCenter();
 
-        // Размер видоискателя игрока (соответствует охвату экрана при боевом зуме: screen / camZoom)
-        glm::vec2 frameSize = getCameraViewportSize();
+        float cs = m_grid ? m_grid->getCellSize() : 64.0f;
+        glm::vec2 off = m_grid ? m_grid->getOffset() : glm::vec2(0.0f);
+        float centerWorldX = off.x + m_cameraSettings.targetTile.x * cs;
+        float centerWorldY = off.y + m_cameraSettings.targetTile.y * cs;
+        float halfW = (m_cameraSettings.viewTilesW > 0.1f) ? (m_cameraSettings.viewTilesW * cs * 0.5f) : ((static_cast<float>(m_width) / camZoom) * 0.5f);
+        float halfH = (m_cameraSettings.viewTilesH > 0.1f) ? (m_cameraSettings.viewTilesH * cs * 0.5f) : ((static_cast<float>(m_height) / camZoom) * 0.5f);
+
+        float worldLeft   = centerWorldX - halfW;
+        float worldRight  = centerWorldX + halfW;
+        float worldTop    = centerWorldY - halfH;
+        float worldBottom = centerWorldY + halfH;
+
+        glm::vec2 framePos(worldLeft, worldTop);
+        glm::vec2 frameSize(worldRight - worldLeft, worldBottom - worldTop);
         float frameW = frameSize.x;
         float frameH = frameSize.y;
-        glm::vec2 framePos = camCenter - glm::vec2(frameW * 0.5f, frameH * 0.5f);
 
         // Полупрозрачная белая подложка видоискателя
         float fillAlpha = m_isCameraConfigMode ? 0.08f : 0.04f;
@@ -4082,7 +4083,7 @@ glm::vec2 MapEditorState::getDefaultWorldCenter() const {
 glm::vec2 MapEditorState::getWorldCamCenter() const {
     if (!m_grid) return getDefaultWorldCenter();
     glm::vec2 targetTile = m_cameraSettings.targetTile;
-    if (targetTile.x < 0.0f || targetTile.y < 0.0f) {
+    if (targetTile.x < -100.0f || targetTile.y < -100.0f) {
         targetTile = glm::vec2(static_cast<float>(m_gridWidth) * 0.5f,
                                static_cast<float>(m_gridHeight) * 0.5f);
     }
@@ -4090,9 +4091,31 @@ glm::vec2 MapEditorState::getWorldCamCenter() const {
 }
 
 glm::vec2 MapEditorState::getCameraViewportSize() const {
+    if (!m_grid) {
+        float camZoom = std::clamp(m_cameraSettings.zoom, 0.4f, 2.5f);
+        return glm::vec2(static_cast<float>(m_width) / camZoom, static_cast<float>(m_height) / camZoom);
+    }
+    float cs = m_grid->getCellSize();
+    if (m_cameraSettings.viewTilesW > 0.1f && m_cameraSettings.viewTilesH > 0.1f) {
+        return glm::vec2(m_cameraSettings.viewTilesW * cs, m_cameraSettings.viewTilesH * cs);
+    }
     float camZoom = std::clamp(m_cameraSettings.zoom, 0.4f, 2.5f);
-    return glm::vec2(static_cast<float>(m_width) / camZoom,
-                     static_cast<float>(m_height) / camZoom);
+    return glm::vec2(static_cast<float>(m_width) / camZoom, static_cast<float>(m_height) / camZoom);
+}
+
+void MapEditorState::syncCameraSettingsFromCurrentView() {
+    glm::vec2 screenCenter = glm::vec2(static_cast<float>(m_width) * 0.5f, static_cast<float>(m_height) * 0.5f);
+    glm::vec2 worldCenter = screenToWorld(screenCenter);
+    float camZoom = std::clamp(m_zoom, 0.4f, 2.5f);
+    m_cameraSettings.targetTile = worldPixelToTile(worldCenter);
+    m_cameraSettings.zoom = camZoom;
+    if (m_grid && m_grid->getCellSize() > 0.001f) {
+        float cs = m_grid->getCellSize();
+        m_cameraSettings.viewTilesW = (static_cast<float>(m_width) / camZoom) / cs;
+        m_cameraSettings.viewTilesH = (static_cast<float>(m_height) / camZoom) / cs;
+    }
+    m_cameraSettings.isCustom = true;
+    m_isDirty = true;
 }
 
 glm::vec2 MapEditorState::worldPixelToTile(glm::vec2 worldPos) const {

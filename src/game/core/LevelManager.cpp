@@ -219,18 +219,29 @@ LevelMapData LevelManager::loadLevelMap(const std::string& filepath) {
         }
 
         // Читаем настройки камеры (Camera Viewport)
-        auto parseCamera = [&data](const json& cam) {
+        bool hadExplicitTileCoord = false;
+        auto parseCamera = [&data, &hadExplicitTileCoord](const json& cam) {
             float tx = -1.0f;
             float ty = -1.0f;
-            if (cam.contains("tileX")) tx = cam["tileX"].get<float>();
-            else if (cam.contains("x")) tx = cam["x"].get<float>();
+            if (cam.contains("tileX")) {
+                tx = cam["tileX"].get<float>();
+                hadExplicitTileCoord = true;
+            } else if (cam.contains("x")) {
+                tx = cam["x"].get<float>();
+            }
 
-            if (cam.contains("tileY")) ty = cam["tileY"].get<float>();
-            else if (cam.contains("y")) ty = cam["y"].get<float>();
+            if (cam.contains("tileY")) {
+                ty = cam["tileY"].get<float>();
+                hadExplicitTileCoord = true;
+            } else if (cam.contains("y")) {
+                ty = cam["y"].get<float>();
+            }
 
             data.camera.targetTile = glm::vec2(tx, ty);
             data.camera.zoom = cam.value("zoom", 1.0f);
-            data.camera.isCustom = cam.value("isCustom", (tx >= 0.0f && ty >= 0.0f));
+            data.camera.isCustom = cam.value("isCustom", (tx >= -100.0f && ty >= -100.0f && (tx >= 0.0f || ty >= 0.0f)));
+            data.camera.viewTilesW = cam.value("viewTilesW", 0.0f);
+            data.camera.viewTilesH = cam.value("viewTilesH", 0.0f);
         };
 
         if (j.contains("camera") && j["camera"].is_object()) {
@@ -340,6 +351,23 @@ LevelMapData LevelManager::loadLevelMap(const std::string& filepath) {
                 std::vector<bool>(static_cast<size_t>(data.gridWidth), false));
             for (auto& row : data.noBuildMask) {
                 row.resize(static_cast<size_t>(data.gridWidth), false);
+            }
+
+            const json* outerCellsJson = nullptr;
+            if (j["map"].contains("outerCells") && j["map"]["outerCells"].is_array()) {
+                outerCellsJson = &j["map"]["outerCells"];
+            } else if (j.contains("outerCells") && j["outerCells"].is_array()) {
+                outerCellsJson = &j["outerCells"];
+            }
+            if (outerCellsJson) {
+                for (const auto& ocNode : *outerCellsJson) {
+                    LevelMapData::OuterCellData oc;
+                    oc.x = ocNode.value("x", 0);
+                    oc.y = ocNode.value("y", 0);
+                    oc.type = ocNode.value("type", 0);
+                    oc.noBuild = ocNode.value("noBuild", false);
+                    data.outerCells.push_back(oc);
+                }
             }
 
             if (minecartsJson) {
@@ -466,13 +494,23 @@ LevelMapData LevelManager::loadLevelMap(const std::string& filepath) {
                 });
             }
 
-            // Обратная совместимость для старых карт, где x/y были сохранены в пикселях (x > gridWidth || y > gridHeight)
-            if (data.camera.isCustom) {
-                if (data.camera.targetTile.x > static_cast<float>(data.gridWidth) ||
-                    data.camera.targetTile.y > static_cast<float>(data.gridHeight)) {
+            // Обратная совместимость для старых карт, где x/y были сохранены в пикселях (только если не было явного tileX/tileY и координаты явно в пикселях > 50px)
+            if (data.camera.isCustom && !hadExplicitTileCoord) {
+                if ((data.camera.targetTile.x > static_cast<float>(data.gridWidth) * 2.0f && data.camera.targetTile.x > 50.0f) ||
+                    (data.camera.targetTile.y > static_cast<float>(data.gridHeight) * 2.0f && data.camera.targetTile.y > 50.0f)) {
                     float cs = (data.cellSize > 0.001f) ? data.cellSize : 64.0f;
                     data.camera.targetTile.x = (data.camera.targetTile.x - data.offsetX) / cs;
                     data.camera.targetTile.y = (data.camera.targetTile.y - data.offsetY) / cs;
+                }
+            }
+
+            // Вычисляем viewTilesW и viewTilesH, если они не были сохранены явно
+            if (data.camera.isCustom) {
+                if (data.camera.viewTilesW <= 0.01f || data.camera.viewTilesH <= 0.01f) {
+                    float cs = (data.cellSize > 0.001f) ? data.cellSize : 64.0f;
+                    float z = (data.camera.zoom > 0.001f) ? data.camera.zoom : 1.0f;
+                    data.camera.viewTilesW = (1280.0f / z) / cs;
+                    data.camera.viewTilesH = (720.0f / z) / cs;
                 }
             }
         }
@@ -556,7 +594,9 @@ bool LevelManager::saveLevelMap(const std::string& filepath, const LevelMapData&
             { "x", data.camera.targetTile.x },
             { "y", data.camera.targetTile.y },
             { "zoom", data.camera.zoom },
-            { "isCustom", true }
+            { "isCustom", true },
+            { "viewTilesW", data.camera.viewTilesW },
+            { "viewTilesH", data.camera.viewTilesH }
         };
     } else if (j.contains("camera")) {
         j.erase("camera");
@@ -580,6 +620,20 @@ bool LevelManager::saveLevelMap(const std::string& filepath, const LevelMapData&
             nbm.push_back(jrow);
         }
         j["map"]["noBuildMask"] = nbm;
+    }
+
+    // Сохраняем внешние клетки outerCells
+    {
+        json ocArr = json::array();
+        for (const auto& oc : data.outerCells) {
+            ocArr.push_back({
+                { "x", oc.x },
+                { "y", oc.y },
+                { "type", oc.type },
+                { "noBuild", oc.noBuild }
+            });
+        }
+        j["map"]["outerCells"] = ocArr;
     }
     j["startingMoney"] = data.startingMoney;
     j["startingHealth"] = data.startingHealth;

@@ -245,6 +245,7 @@ private:
     glm::vec2 getDefaultWorldCenter() const;
     glm::vec2 getWorldCamCenter() const;
     glm::vec2 getCameraViewportSize() const;
+    void syncCameraSettingsFromCurrentView();
     glm::vec2 worldPixelToTile(glm::vec2 worldPos) const;
     glm::vec2 tileToWorldPixel(glm::vec2 tilePos) const;
     void resizeMap(int newW, int newH, bool expandFromStart = false);
