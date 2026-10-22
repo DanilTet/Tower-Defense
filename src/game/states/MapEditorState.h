@@ -150,6 +150,7 @@ private:
     std::string m_currentLevelDisplayName = "level_editor";
     bool m_isCampaign = false;
     std::string m_background = "default";
+    bool m_hasSidePockets = false;
     LevelMapData::CameraSettings m_cameraSettings;
     bool m_isCameraConfigMode = false;
     std::vector<std::string> m_tags;

@@ -32,6 +32,7 @@ private:
 	std::vector<std::vector<CellType>> m_grid; // 2D вектор для хранения типа каждой клетки
 	std::vector<std::vector<CellType>> m_originalGrid; // Хранилище исходных типов клеток (до постройки башен)
 	std::vector<std::vector<bool>> m_noBuildMask; // [y][x], true = no-build zone
+	bool m_hasSidePockets = false;
 
 public:
 	Grid(int width, int height, float cellSize, glm::vec2 offset = glm::vec2(0.0f, 0.0f));
@@ -61,4 +62,20 @@ public:
 	void setNoBuildMask(const std::vector<std::vector<bool>>& mask);
 	bool isNoBuild(int gridX, int gridY) const;
 	void setNoBuildAt(int gridX, int gridY, bool value);
+	void setHasSidePockets(bool val) { m_hasSidePockets = val; }
+	bool hasSidePockets() const { return m_hasSidePockets; }
+	int getPocketPassageStartY() const { return std::max(0, (m_height - 3) / 2); }
+	int getPocketPassageEndY() const { return std::min(m_height - 1, getPocketPassageStartY() + 2); }
+	bool isInsideSidePocketPassage(int x, int y) const {
+		if (!m_hasSidePockets || m_width < 6) return false;
+		if (x >= 3 && x < m_width - 3) return false;
+		int startY = getPocketPassageStartY();
+		int endY = getPocketPassageEndY();
+		return (y >= startY && y <= endY);
+	}
+	bool isInsideSidePocketBlocked(int x, int y) const {
+		if (!m_hasSidePockets || m_width < 6) return false;
+		if (x >= 3 && x < m_width - 3) return false;
+		return !isInsideSidePocketPassage(x, y);
+	}
 };

@@ -208,9 +208,9 @@ void EditorToolbarUI::updateLayout(TextRenderer* textRenderer, const EditorConte
 
     std::string bgLabel;
     if (isCompact) {
-        bgLabel = (ctx.background == "pipes_canal") ? "[ Канал ]" : "[ Фон ]";
+        bgLabel = (ctx.background == "mine_entrance") ? "[ Шахта ]" : ((ctx.background == "pipes_canal") ? "[ Канал ]" : "[ Фон ]");
     } else {
-        bgLabel = (ctx.background == "pipes_canal") ? "[ Фон: Канал ]" : "[ Фон: Стандарт ]";
+        bgLabel = (ctx.background == "mine_entrance") ? "[ Фон: Шахта ]" : ((ctx.background == "pipes_canal") ? "[ Фон: Канал ]" : "[ Фон: Стандарт ]");
     }
     float bgBtnW = getTextW(bgLabel, topFontScale) + (isCompact ? 10.0f : 16.0f);
 
@@ -382,10 +382,11 @@ void EditorToolbarUI::updateLayout(TextRenderer* textRenderer, const EditorConte
 
     if (m_currentCategory == PaletteCategory::Tiles) {
         // Категория Tiles: Земля/Асфальт, Стена, Платформа/Трава, Дорога, Шурф, Ластик
-        std::string groundLabel = (ctx.background == "pipes_canal") ? "1:Асфальт" : ("1:" + LOC("EDITOR_GROUND"));
-        std::string platformLabel = (ctx.background == "pipes_canal") ? "3:Трава/Обочина" : ("3:" + LOC("EDITOR_PLATFORM"));
+        std::string groundLabel = (ctx.background == "mine_entrance") ? "1:Грунт" : ((ctx.background == "pipes_canal") ? "1:Асфальт" : ("1:" + LOC("EDITOR_GROUND")));
+        std::string wallLabel = (ctx.background == "mine_entrance") ? "2:Ящики" : ("2:" + LOC("EDITOR_WALL"));
+        std::string platformLabel = (ctx.background == "mine_entrance") ? "3:Сланец" : ((ctx.background == "pipes_canal") ? "3:Трава/Обочина" : ("3:" + LOC("EDITOR_PLATFORM")));
         items.push_back({ groundLabel,     false, EditorBrush::Ground,    0, 0.0f });
-        items.push_back({ "2:" + LOC("EDITOR_WALL"),       false, EditorBrush::Wall,      0, 0.0f });
+        items.push_back({ wallLabel,       false, EditorBrush::Wall,      0, 0.0f });
         items.push_back({ platformLabel,   false, EditorBrush::Platform,  0, 0.0f });
         items.push_back({ "4:" + LOC("EDITOR_PATH"),       false, EditorBrush::Path,      0, 0.0f });
         items.push_back({ "5:" + LOC("EDITOR_CHASM"),      false, EditorBrush::Chasm,     0, 0.0f });
@@ -429,6 +430,9 @@ void EditorToolbarUI::updateLayout(TextRenderer* textRenderer, const EditorConte
         items.push_back({ "8:Лужа",       false, EditorBrush::DecorPuddle,     0, 0.0f });
         items.push_back({ "9:Трещина",    false, EditorBrush::DecorCrack,      0, 0.0f });
         items.push_back({ "F:Туман",      false, EditorBrush::DecorFog,        0, 0.0f });
+        items.push_back({ "Ящик",         false, EditorBrush::DecorWoodenCrate, 0, 0.0f });
+        items.push_back({ "Вагонетка",    false, EditorBrush::DecorBrokenCart,  0, 0.0f });
+        items.push_back({ "Мусор/доски",  false, EditorBrush::DecorScrapDebris, 0, 0.0f });
         items.push_back({ "0:" + LOC("EDITOR_ERASER"), false, EditorBrush::Eraser, 0, 0.0f });
         items.push_back({ std::string("G:") + (ctx.decorGridSnap ? "Сетка ВКЛ" : "Сетка ВЫКЛ"), true, EditorBrush::Wall, 25, 0.0f });
         splitIndex1 = items.size();
@@ -499,6 +503,12 @@ void EditorToolbarUI::updateLayout(TextRenderer* textRenderer, const EditorConte
             btn.tooltip = "Ластик (Shift: снять только запрет стройки)";
         } else if (btn.actionId == 25) {
             btn.tooltip = "Привязка к сетке [G]: примагничивает декор к тайлам карты";
+        } else if (!btn.isAction && btn.brush == EditorBrush::DecorWoodenCrate) {
+            btn.tooltip = "Деревянный ящик (сколоченный ящик с диагональной планкой)";
+        } else if (!btn.isAction && btn.brush == EditorBrush::DecorBrokenCart) {
+            btn.tooltip = "Разбитая вагонетка (перевернутая вагонетка с разлитой ртутью)";
+        } else if (!btn.isAction && btn.brush == EditorBrush::DecorScrapDebris) {
+            btn.tooltip = "Куча мусора / досок (обломки ящиков, доски и кучки угля)";
         }
         m_bottomButtons.push_back(btn);
         currentX += it.width + padding;

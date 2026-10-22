@@ -27,6 +27,14 @@ private:
         float screenHeight
     );
 
+    static void renderMineEntrance(
+        SpriteRenderer* renderer,
+        const std::shared_ptr<Texture2D>& whiteTexture,
+        const Grid* grid,
+        float screenWidth,
+        float screenHeight
+    );
+
     static void renderPipe(
         SpriteRenderer* renderer,
         const std::shared_ptr<Texture2D>& whiteTexture,

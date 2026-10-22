@@ -367,7 +367,7 @@ void drawFog(SpriteRenderer* renderer, const std::shared_ptr<Texture2D>& whiteTe
 void drawSelection(SpriteRenderer* renderer, const std::shared_ptr<Texture2D>& tex, const DecorationConfig& d) {
     float sx = std::max(0.2f, d.scale * d.scaleX);
     float sy = std::max(0.2f, d.scale * d.scaleY);
-    float baseDim = (d.type == "fog") ? 130.0f : ((d.type == "grass_field") ? 64.0f : ((d.type == "bush") ? 56.0f : (d.type == "puddle" ? 52.0f : 42.0f)));
+    float baseDim = (d.type == "fog") ? 130.0f : ((d.type == "broken_mercury_cart") ? 60.0f : ((d.type == "grass_field") ? 64.0f : ((d.type == "bush") ? 56.0f : ((d.type == "scrap_debris" || d.type == "puddle") ? 52.0f : ((d.type == "wooden_crate") ? 48.0f : 42.0f)))));
     float boxW = baseDim * sx;
     float boxH = baseDim * sy;
     float cornerLen = std::min(12.0f, std::min(boxW, boxH) * 0.35f);
@@ -442,7 +442,7 @@ GizmoInfo DecorationRenderer::getGizmoInfo(const DecorationConfig& d, float cell
 
     float sx = std::max(0.2f, dec.scale * dec.scaleX);
     float sy = std::max(0.2f, dec.scale * dec.scaleY);
-    float baseDim = (dec.type == "fog") ? 130.0f : ((dec.type == "grass_field") ? 64.0f : ((dec.type == "bush") ? 56.0f : (dec.type == "puddle" ? 52.0f : 42.0f)));
+    float baseDim = (dec.type == "fog") ? 130.0f : ((dec.type == "broken_mercury_cart") ? 60.0f : ((dec.type == "grass_field") ? 64.0f : ((dec.type == "bush") ? 56.0f : ((dec.type == "scrap_debris" || dec.type == "puddle") ? 52.0f : ((dec.type == "wooden_crate") ? 48.0f : 42.0f)))));
     float boxW = baseDim * sx;
     float boxH = baseDim * sy;
     float halfW = boxW * 0.5f;
@@ -492,6 +492,158 @@ GizmoHandleType DecorationRenderer::hitTestGizmo(
     return GizmoHandleType::None;
 }
 
+
+void drawWoodenCrate(SpriteRenderer* renderer, const std::shared_ptr<Texture2D>& tex, const DecorationConfig& d, float a) {
+    glm::vec2 sVec(d.scale * d.scaleX, d.scale * d.scaleY);
+
+    // 1. Внешняя деревянная рамка и подложка
+    glm::vec4 darkWood(0.24f, 0.15f, 0.08f, a);
+    glm::vec4 plankCol1(0.56f, 0.36f, 0.20f, a);
+    glm::vec4 plankCol2(0.48f, 0.30f, 0.17f, a);
+    glm::vec4 braceCol(0.44f, 0.27f, 0.15f, a);
+    glm::vec4 metalCol(0.38f, 0.40f, 0.44f, a);
+    glm::vec4 rivetCol(0.85f, 0.88f, 0.92f, a);
+
+    // Тень под ящиком
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 2.0f, 2.0f }, { 46.0f, 46.0f }, 0.0f, glm::vec4(0.0f, 0.0f, 0.0f, 0.35f * a));
+
+    // Темная внешняя окантовка ящика
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 0.0f, 0.0f }, { 44.0f, 44.0f }, 0.0f, darkWood);
+
+    // Внутренние продольные доски (3 горизонтальные планки)
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 0.0f, -11.0f }, { 36.0f, 10.0f }, 0.0f, plankCol1);
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 0.0f, 0.0f },   { 36.0f, 10.0f }, 0.0f, plankCol2);
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 0.0f, 11.0f },  { 36.0f, 10.0f }, 0.0f, plankCol1);
+
+    // Темные швы между досками
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 0.0f, -5.5f }, { 36.0f, 1.5f }, 0.0f, darkWood);
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 0.0f, 5.5f },  { 36.0f, 1.5f }, 0.0f, darkWood);
+
+    // Характерная диагональная деревянная планка от угла к углу
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 1.0f, 1.0f }, { 48.0f, 6.5f }, 45.0f, glm::vec4(0.18f, 0.11f, 0.06f, 0.65f * a));
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 0.0f, 0.0f }, { 48.0f, 6.5f }, 45.0f, braceCol);
+
+    // Внешняя рельефная деревянная рамка по периметру
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 0.0f, -19.5f }, { 44.0f, 5.0f }, 0.0f, darkWood);
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 0.0f, 19.5f },  { 44.0f, 5.0f }, 0.0f, darkWood);
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { -19.5f, 0.0f }, { 5.0f, 44.0f }, 0.0f, darkWood);
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 19.5f, 0.0f },  { 5.0f, 44.0f }, 0.0f, darkWood);
+
+    // 4 металлических уголка с блестящими заклепками
+    float cornOff = 18.0f;
+    float brkSz = 7.0f;
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { -cornOff, -cornOff }, { brkSz, brkSz }, 0.0f, metalCol);
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { cornOff, -cornOff },  { brkSz, brkSz }, 0.0f, metalCol);
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { -cornOff, cornOff },  { brkSz, brkSz }, 0.0f, metalCol);
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { cornOff, cornOff },   { brkSz, brkSz }, 0.0f, metalCol);
+
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { -cornOff, -cornOff }, { 2.5f, 2.5f }, 0.0f, rivetCol);
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { cornOff, -cornOff },  { 2.5f, 2.5f }, 0.0f, rivetCol);
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { -cornOff, cornOff },  { 2.5f, 2.5f }, 0.0f, rivetCol);
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { cornOff, cornOff },   { 2.5f, 2.5f }, 0.0f, rivetCol);
+}
+
+void drawBrokenMercuryCart(SpriteRenderer* renderer, const std::shared_ptr<Texture2D>& tex, const DecorationConfig& d, float a) {
+    glm::vec2 sVec(d.scale * d.scaleX, d.scale * d.scaleY);
+
+    // 1. Разлившаяся серебристо-бирюзовая лужа ртути рядом с вагонеткой
+    glm::vec4 wetBorder(0.14f, 0.18f, 0.20f, 0.50f * a);
+    glm::vec4 mercuryBase(0.68f, 0.88f, 0.90f, 0.88f * a);
+    glm::vec4 mercuryCyan(0.24f, 0.62f, 0.68f, 0.80f * a);
+    glm::vec4 mercuryHi(0.96f, 0.98f, 1.00f, 0.95f * a);
+
+    // Темная влажная граница пятна
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 14.0f, 6.0f }, { 46.0f, 28.0f }, 8.0f, wetBorder);
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 22.0f, 12.0f }, { 26.0f, 20.0f }, -12.0f, wetBorder);
+
+    // Основная зеркальная лужа ртути
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 14.0f, 6.0f }, { 42.0f, 24.0f }, 8.0f, mercuryBase);
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 20.0f, 10.0f }, { 22.0f, 16.0f }, -12.0f, mercuryBase);
+
+    // Глубокий бирюзовый градиент глубины ртути
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 13.0f, 5.0f }, { 32.0f, 16.0f }, 8.0f, mercuryCyan);
+
+    // Зеркальные серебристые блики на поверхности ртути
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 10.0f, 3.0f }, { 18.0f, 6.0f }, 5.0f, mercuryHi);
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 22.0f, 8.0f }, { 10.0f, 4.0f }, -10.0f, mercuryHi);
+
+    // Откатившиеся блестящие капли ртути
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 36.0f, 4.0f }, { 6.0f, 6.0f }, 0.0f, mercuryBase);
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 35.0f, 3.0f }, { 2.5f, 2.5f }, 0.0f, mercuryHi);
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 28.0f, -8.0f }, { 5.0f, 5.0f }, 0.0f, mercuryBase);
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 27.0f, -9.0f }, { 2.0f, 2.0f }, 0.0f, mercuryHi);
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 18.0f, 22.0f }, { 4.5f, 4.5f }, 0.0f, mercuryBase);
+
+    // 2. Перевернутая ржавая шахтная вагонетка
+    // Тень под корпусом
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { -9.0f, -5.0f }, { 42.0f, 26.0f }, -15.0f, glm::vec4(0.0f, 0.0f, 0.0f, 0.42f * a));
+
+    // Торчащая колесная рама и ось
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { -12.0f, -14.0f }, { 34.0f, 6.0f }, -15.0f, glm::vec4(0.20f, 0.18f, 0.17f, a));
+    // Колесные обода (сталь и ржавчина)
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { -24.0f, -17.0f }, { 8.0f, 10.0f }, -15.0f, glm::vec4(0.45f, 0.48f, 0.52f, a));
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { -2.0f, -11.0f },  { 8.0f, 10.0f }, -15.0f, glm::vec4(0.45f, 0.48f, 0.52f, a));
+
+    // Опрокинутый металлический кузов вагонетки (ржавое темное железо)
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { -8.0f, -4.0f }, { 38.0f, 24.0f }, -15.0f, glm::vec4(0.34f, 0.22f, 0.16f, a));
+
+    // Ржавые разводы и коррозия на металле
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { -12.0f, -6.0f }, { 18.0f, 12.0f }, -18.0f, glm::vec4(0.55f, 0.28f, 0.14f, a));
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { -4.0f, 2.0f },   { 16.0f, 10.0f }, -12.0f, glm::vec4(0.48f, 0.24f, 0.12f, a));
+
+    // Помятый стальной бортик кузова
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { -7.0f, 6.0f }, { 38.0f, 4.0f }, -15.0f, glm::vec4(0.22f, 0.16f, 0.13f, a));
+
+    // Капли ртути, стекающие по помятому борту в лужу
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 3.0f, 4.0f }, { 5.0f, 7.0f }, -15.0f, mercuryBase);
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 2.5f, 3.5f }, { 2.0f, 3.0f }, -15.0f, mercuryHi);
+}
+
+void drawScrapDebris(SpriteRenderer* renderer, const std::shared_ptr<Texture2D>& tex, const DecorationConfig& d, float a) {
+    glm::vec2 sVec(d.scale * d.scaleX, d.scale * d.scaleY);
+
+    // 1. Кучки угля / куски черной руды
+    glm::vec4 coalDark(0.11f, 0.11f, 0.13f, a);
+    glm::vec4 coalMid(0.18f, 0.18f, 0.22f, a);
+    glm::vec4 coalHi(0.32f, 0.34f, 0.38f, a);
+
+    // Тень под обломками
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 1.0f, 1.0f }, { 44.0f, 38.0f }, 0.0f, glm::vec4(0.0f, 0.0f, 0.0f, 0.30f * a));
+
+    // Угольные глыбы слева
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { -14.0f, 8.0f }, { 16.0f, 13.0f }, 25.0f, coalDark);
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { -13.0f, 7.0f }, { 10.0f, 8.0f },  25.0f, coalMid);
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { -11.0f, 6.0f }, { 4.0f, 4.0f },   25.0f, coalHi);
+
+    // Угольные глыбы справа
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 13.0f, 10.0f }, { 15.0f, 12.0f }, -20.0f, coalDark);
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 12.0f, 9.0f },  { 9.0f, 7.0f },   -20.0f, coalMid);
+
+    // Мелкие куски руды сверху
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 3.0f, -12.0f }, { 10.0f, 8.0f }, 15.0f, coalDark);
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 2.0f, -13.0f }, { 5.0f, 4.0f },  15.0f, coalHi);
+
+    // 2. Разбросанные деревянные доски и обломки ящиков
+    glm::vec4 wood1(0.56f, 0.38f, 0.24f, a);
+    glm::vec4 wood2(0.44f, 0.28f, 0.17f, a);
+    glm::vec4 wood3(0.62f, 0.44f, 0.28f, a);
+    glm::vec4 nailCol(0.80f, 0.82f, 0.86f, a);
+
+    // Доска 1 (длинная, наискосок)
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { -1.0f, -3.0f }, { 34.0f, 7.0f }, 26.0f, wood1);
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 11.0f, 2.0f },  { 2.0f, 2.5f },  26.0f, nailCol);
+
+    // Доска 2 (перекрестная, темная выветренная)
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 5.0f, 2.0f }, { 28.0f, 6.0f }, -38.0f, wood2);
+
+    // Доска 3 (короткий отщеп доски ящика)
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { -9.0f, -6.0f }, { 18.0f, 6.0f }, 72.0f, wood3);
+
+    // Щепки и обломки ящика
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 15.0f, -7.0f }, { 10.0f, 4.5f }, -12.0f, wood2);
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { -6.0f, 13.0f }, { 12.0f, 4.0f }, 40.0f,  wood1);
+}
+
 void DecorationRenderer::renderDecoration(
     SpriteRenderer* renderer,
     std::shared_ptr<Texture2D> whiteTexture,
@@ -528,6 +680,12 @@ void DecorationRenderer::renderDecoration(
         drawCrack(renderer, whiteTexture, d, alpha);
     } else if (d.type == "fog") {
         drawFog(renderer, whiteTexture, d, alpha);
+    } else if (d.type == "wooden_crate") {
+        drawWoodenCrate(renderer, whiteTexture, d, alpha);
+    } else if (d.type == "broken_mercury_cart") {
+        drawBrokenMercuryCart(renderer, whiteTexture, d, alpha);
+    } else if (d.type == "scrap_debris") {
+        drawScrapDebris(renderer, whiteTexture, d, alpha);
     } else {
         // Запасной вариант для неизвестного типа
         drawBush(renderer, whiteTexture, d, alpha);

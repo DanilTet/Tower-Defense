@@ -19,6 +19,15 @@ int Pathfinder::getOctileDistance(glm::ivec2 a, glm::ivec2 b) const {
 
 bool Pathfinder::isCellWalkable(const Grid& grid, int x, int y) {
     if (x < 0 || x >= grid.getWidth() || y < 0 || y >= grid.getHeight()) return false;
+    if (grid.hasSidePockets() && grid.getWidth() >= 6) {
+        if (x < 3 || x >= grid.getWidth() - 3) {
+            int startY = grid.getPocketPassageStartY();
+            int endY = grid.getPocketPassageEndY();
+            if (y < startY || y > endY) {
+                return false; // За пределами 3 центральных клеток по бокам непроходимо
+            }
+        }
+    }
     CellType t = grid.getCellType(x, y);
     if (t == CellType::Chasm) return false; // Обрыв/шурф непроходим для обычного поиска пути
     return t == CellType::Ground || t == CellType::Path || t == CellType::Spawner || t == CellType::Base || t == CellType::Rail;

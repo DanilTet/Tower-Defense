@@ -57,7 +57,8 @@ public:
               const std::vector<std::string>& allowedTowers,
               const std::unordered_map<std::string, int>& towerMaxTiers,
               const std::map<std::string, std::vector<EnemyWaveBountyRule>>& bountyRules = {},
-              int totalWaves = 15);
+              int totalWaves = 15,
+              bool hasSidePockets = false);
 
     // Обратная совместимость со старым API open
     void open(int currentMoney, int currentHealth,
@@ -71,7 +72,7 @@ public:
                 const std::vector<std::string>& allowedTowers,
                 const std::unordered_map<std::string, int>& towerMaxTiers,
                 const std::map<std::string, std::vector<EnemyWaveBountyRule>>& bountyRules = {},
-                int totalWaves = 15);
+                int totalWaves = 15, bool hasSidePockets = false);
 
     void toggle(int currentMoney, int currentHealth,
                 const std::vector<std::string>& allowedTowers,
@@ -81,6 +82,17 @@ public:
     bool isOpen() const { return m_isOpen; }
 
     void update(float dt);
+
+    bool handleInput(GLFWwindow* window, glm::vec2 mousePos, bool leftDown,
+                     bool leftReleased, bool isEscJustPressed, float dt,
+                     int screenWidth, int screenHeight,
+                     int& outMoney, int& outHealth,
+                     std::vector<std::string>& outAllowedTowers,
+                     std::unordered_map<std::string, int>& outTowerMaxTiers,
+                     int& outMaxUpgradeTier,
+                     std::map<std::string, std::vector<EnemyWaveBountyRule>>& outEnemyBountyRules,
+                     bool& outHasSidePockets,
+                     bool& outDirty);
 
     bool handleInput(GLFWwindow* window, glm::vec2 mousePos, bool leftDown,
                      bool leftReleased, bool isEscJustPressed, float dt,
@@ -120,6 +132,7 @@ private:
     std::string m_healthStr = "20";
     std::vector<std::string> m_allowedTowers = { "Basic", "Mercury", "Piston" };
     std::unordered_map<std::string, int> m_towerMaxTiers = { { "Basic", 3 }, { "Mercury", 3 }, { "Piston", 3 } };
+    bool m_hasSidePockets = false;
 
     // Структура правил экономики врагов
     std::vector<std::pair<std::string, std::string>> m_mobTypes = {

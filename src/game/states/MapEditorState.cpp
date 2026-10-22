@@ -193,6 +193,7 @@ void MapEditorState::loadLevelByName(const std::string& fileName) {
         m_entityInspector.resetPosition();
         m_isCampaign = data.isCampaign;
         m_background = data.background.empty() ? "default" : data.background;
+        m_hasSidePockets = data.hasSidePockets;
         m_cameraSettings = data.camera;
         m_isCameraConfigMode = false;
         m_tags = data.tags;
@@ -272,6 +273,7 @@ void MapEditorState::loadLevelByName(const std::string& fileName) {
 
     m_grid = std::make_unique<Grid>(m_gridWidth, m_gridHeight, m_cellSize);
     m_grid->setNoBuildMask(m_noBuildMask);
+    m_grid->setHasSidePockets(m_hasSidePockets || m_background == "mine_entrance");
     updateGridDimensions();
 
     for (int y = 0; y < m_gridHeight; ++y) {
@@ -947,6 +949,7 @@ void MapEditorState::applyBrush(int gridX, int gridY, EditorBrush brush) {
 
     int changeIdx = recordCellBefore(gridX, gridY);
 
+    if (brush != EditorBrush::NoBuild) {
     // Иначе удаляем старый спавнер или базу в этой точке
     m_spawners.erase(
         std::remove_if(m_spawners.begin(), m_spawners.end(),
@@ -966,6 +969,7 @@ void MapEditorState::applyBrush(int gridX, int gridY, EditorBrush brush) {
             if (m_minecarts[0].start == glm::ivec2(gridX, gridY)) m_minecarts[0].start = glm::ivec2(-1, -1);
             if (m_minecarts[0].end == glm::ivec2(gridX, gridY)) m_minecarts[0].end = glm::ivec2(-1, -1);
         }
+    }
     }
 
     switch (brush) {
@@ -1173,6 +1177,7 @@ void MapEditorState::eraseEmitterNear(glm::vec2 worldPos, float maxDist) {
 }
 
 int MapEditorState::findNearestDecorationIndex(glm::vec2 worldPos, float maxDist) const {
+    if (m_currentBrush == EditorBrush::NoBuild) return -1;
     if (m_decorations.empty()) return -1;
 
     // Сначала проверяем уже выделенный декор (приоритет прямого захвата для свободного перемещения)
@@ -1227,6 +1232,7 @@ void MapEditorState::saveMap() {
     data.name = m_currentLevelDisplayName;
     data.isCampaign = m_isCampaign;
     data.background = m_background;
+    data.hasSidePockets = m_hasSidePockets;
     data.camera = m_cameraSettings;
     data.tags = m_tags;
     data.gridWidth = m_gridWidth;
@@ -1718,7 +1724,11 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
                                                        m_width, m_height,
                                                        m_startingMoney, m_startingHealth,
                                                        m_allowedTowers, m_towerMaxTiers,
-                                                       m_maxUpgradeTier, m_enemyBountyRules, m_isDirty);
+                                                       m_maxUpgradeTier, m_enemyBountyRules, m_hasSidePockets, m_isDirty);
+        if (handled && m_grid) {
+            m_grid->setHasSidePockets(m_hasSidePockets || m_background == "mine_entrance");
+            recalculatePaths();
+        }
         if (keyEscCheck && !m_keyEscPressedLastFrame) {
             m_keyEscPressedLastFrame = keyEscCheck;
         }
@@ -1917,6 +1927,12 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
             if (key3) m_currentBrush = EditorBrush::Platform;
             if (key4) m_currentBrush = EditorBrush::Path;
             if (key5) m_currentBrush = EditorBrush::Chasm;
+            if (key6) {
+                m_currentBrush = EditorBrush::NoBuild;
+                m_selectedDecorationIndex = -1;
+                m_selectedEntityIndex = -1;
+                m_selectedEmitterIndex = -1;
+            }
         } else if (m_toolbarUI.getCategory() == PaletteCategory::SpecialObjects) {
             if (key1) m_currentBrush = EditorBrush::Spawner;
             if (key2) {
@@ -2607,7 +2623,7 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
                         m_toolbarUI.setCategory(PaletteCategory::Particles);
                         updateButtonLayout();
                     }
-                } else if (m_currentBrush >= EditorBrush::DecorBush && m_currentBrush <= EditorBrush::DecorFog) {
+                } else if (m_currentBrush >= EditorBrush::DecorBush && m_currentBrush <= EditorBrush::DecorScrapDebris) {
                     if (m_toolbarUI.getCategory() != PaletteCategory::Decorations) {
                         m_toolbarUI.setCategory(PaletteCategory::Decorations);
                         updateButtonLayout();
@@ -2617,6 +2633,13 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
                         m_toolbarUI.setCategory(PaletteCategory::Tiles);
                         updateButtonLayout();
                     }
+                }
+                if (m_currentBrush == EditorBrush::NoBuild || (m_currentBrush >= EditorBrush::Ground && m_currentBrush <= EditorBrush::RailEnd)) {
+                    m_selectedDecorationIndex = -1;
+                    m_selectedEntityIndex = -1;
+                    m_selectedEmitterIndex = -1;
+                    m_isDraggingDecoration = false;
+                    m_isResizingDecoration = false;
                 }
                 break;
             case EditorActionType::SwitchPaletteCategory:
@@ -2686,9 +2709,21 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
                 m_minecartModal.toggle();
                 break;
             case EditorActionType::ToggleBackground:
-                m_background = (m_background == "pipes_canal") ? "default" : "pipes_canal";
+                if (m_background == "default") {
+                    m_background = "pipes_canal";
+                    showToast("Фон: Дюкеры Канала");
+                } else if (m_background == "pipes_canal") {
+                    m_background = "mine_entrance";
+                    showToast("Фон: Вход в шахту");
+                } else {
+                    m_background = "default";
+                    showToast("Фон: Стандартный");
+                }
+                if (m_grid) {
+                    m_grid->setHasSidePockets(m_hasSidePockets || m_background == "mine_entrance");
+                    recalculatePaths();
+                }
                 m_isDirty = true;
-                showToast(m_background == "pipes_canal" ? "Фон: Дюкеры Канала" : "Фон: Стандартный");
                 updateButtonLayout();
                 break;
             case EditorActionType::ToggleCameraMode:
@@ -2733,7 +2768,7 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
                 cycleHudPreviewMode();
                 break;
             case EditorActionType::OpenLevelSettingsModal:
-                m_levelSettingsModal.open(m_startingMoney, m_startingHealth, m_allowedTowers, m_towerMaxTiers, m_enemyBountyRules, static_cast<int>(m_waves.size()));
+                m_levelSettingsModal.open(m_startingMoney, m_startingHealth, m_allowedTowers, m_towerMaxTiers, m_enemyBountyRules, static_cast<int>(m_waves.size()), m_hasSidePockets);
                 m_suppressClickUntilRelease = true;
                 break;
             case EditorActionType::ModifyStartingMoney:
@@ -2900,7 +2935,7 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
                 m_isDirty = true;
             }
             // Б. Одиночный клик ЛКМ
-            else if (leftDown && !m_isLeftMouseDown) {
+            else if (leftDown && !m_isLeftMouseDown && m_currentBrush != EditorBrush::NoBuild) {
                 // Слоёный ластик партиклов: удаляет ТОЛЬКО эмиттер под курсором, не трогая тайлы сетки!
                 if (m_currentBrush == EditorBrush::Eraser) {
                     eraseEmitterNear(worldMouse, clickRadius);
@@ -3228,7 +3263,12 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
                                            m_currentBrush == EditorBrush::RailStart || m_currentBrush == EditorBrush::RailEnd);
                 if (m_currentBrush == EditorBrush::NoBuild) {
                     if (leftDown) {
-                        applyBrush(gridPos.x, gridPos.y, EditorBrush::NoBuild);
+                        if (!m_isLeftMouseDown && gridPos.y < (int)m_noBuildMask.size() && gridPos.x < (int)m_noBuildMask[gridPos.y].size() && m_noBuildMask[gridPos.y][gridPos.x]) {
+                            // Повторный клик ЛКМ по заблокированной клетке — снимает запрет
+                            removeNoBuildAt(gridPos.x, gridPos.y);
+                        } else {
+                            applyBrush(gridPos.x, gridPos.y, EditorBrush::NoBuild);
+                        }
                     } else if (rightDown) {
                         removeNoBuildAt(gridPos.x, gridPos.y);
                     }

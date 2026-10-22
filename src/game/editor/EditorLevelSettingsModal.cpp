@@ -19,11 +19,12 @@ void EditorLevelSettingsModal::open(int currentMoney, int currentHealth,
                                     const std::vector<std::string>& allowedTowers,
                                     const std::unordered_map<std::string, int>& towerMaxTiers,
                                     const std::map<std::string, std::vector<EnemyWaveBountyRule>>& bountyRules,
-                                    int totalWaves)
+                                    int totalWaves, bool hasSidePockets)
 {
     m_isOpen = true;
     m_justOpened = true;
     m_wasLeftDown = true;
+    m_hasSidePockets = hasSidePockets;
     m_focused = { FocusedType::None, "", -1 };
     m_cursorBlinkTimer = 0.0f;
     m_scrollOffset = 0.0f;
@@ -83,12 +84,12 @@ void EditorLevelSettingsModal::toggle(int currentMoney, int currentHealth,
                                       const std::vector<std::string>& allowedTowers,
                                       const std::unordered_map<std::string, int>& towerMaxTiers,
                                       const std::map<std::string, std::vector<EnemyWaveBountyRule>>& bountyRules,
-                                      int totalWaves)
+                                      int totalWaves, bool hasSidePockets)
 {
     if (m_isOpen) {
         close();
     } else {
-        open(currentMoney, currentHealth, allowedTowers, towerMaxTiers, bountyRules, totalWaves);
+        open(currentMoney, currentHealth, allowedTowers, towerMaxTiers, bountyRules, totalWaves, hasSidePockets);
     }
 }
 
@@ -156,6 +157,8 @@ float EditorLevelSettingsModal::calculateTotalEconHeight(float scale) const {
     return h;
 }
 
+
+
 bool EditorLevelSettingsModal::handleInput(GLFWwindow* window, glm::vec2 mousePos, bool leftDown,
                                           bool leftReleased, bool isEscJustPressed, float dt,
                                           int screenWidth, int screenHeight,
@@ -164,6 +167,7 @@ bool EditorLevelSettingsModal::handleInput(GLFWwindow* window, glm::vec2 mousePo
                                           std::unordered_map<std::string, int>& outTowerMaxTiers,
                                           int& outMaxUpgradeTier,
                                           std::map<std::string, std::vector<EnemyWaveBountyRule>>& outEnemyBountyRules,
+                                          bool& outHasSidePockets,
                                           bool& outDirty)
 {
     if (!m_isOpen) return false;
@@ -246,7 +250,11 @@ bool EditorLevelSettingsModal::handleInput(GLFWwindow* window, glm::vec2 mousePo
     glm::vec2 btnCancelSize(cancelBtnW, btnH);
 
     // Секция 3: Контейнер экономики (скроллируемая область)
-    float econAreaTop = rowPistonY + towerRowH + 10.0f * scale;
+    float rowPocketsY = rowPistonY + towerRowH + rowSpacing + 4.0f * scale;
+    glm::vec2 rowPocketsTogglePos(contentLeft, rowPocketsY);
+    glm::vec2 rowPocketsToggleSize(contentW, towerRowH);
+
+    float econAreaTop = rowPocketsY + towerRowH + 8.0f * scale;
     float econAreaBottom = btnY - 10.0f * scale;
     float econAreaH = econAreaBottom - econAreaTop;
     glm::vec2 econAreaPos(contentLeft, econAreaTop);
@@ -343,6 +351,7 @@ bool EditorLevelSettingsModal::handleInput(GLFWwindow* window, glm::vec2 mousePo
             outEnemyBountyRules[mob.first] = rules;
         }
 
+        outHasSidePockets = m_hasSidePockets;
         outDirty = true;
         close();
     };
@@ -500,6 +509,12 @@ bool EditorLevelSettingsModal::handleInput(GLFWwindow* window, glm::vec2 mousePo
     if (isPointInRect(mousePos, pistonT2Pos, tierBtnSize)) { setTowerTier("Piston", 2); m_focused = { FocusedType::None, "", -1 }; return true; }
     if (isPointInRect(mousePos, pistonT3Pos, tierBtnSize)) { setTowerTier("Piston", 3); m_focused = { FocusedType::None, "", -1 }; return true; }
 
+    if (isPointInRect(mousePos, rowPocketsTogglePos, rowPocketsToggleSize)) {
+        m_hasSidePockets = !m_hasSidePockets;
+        m_focused = { FocusedType::None, "", -1 };
+        return true;
+    }
+
     // Клик внутри области экономики
     if (isPointInRect(mousePos, econAreaPos, econAreaSize)) {
         float curY = econAreaTop + 24.0f * scale - m_scrollOffset;
@@ -626,6 +641,24 @@ bool EditorLevelSettingsModal::handleInput(GLFWwindow* window, glm::vec2 mousePo
     close();
     return true;
 }
+
+bool EditorLevelSettingsModal::handleInput(GLFWwindow* window, glm::vec2 mousePos, bool leftDown,
+                                          bool leftReleased, bool isEscJustPressed, float dt,
+                                          int screenWidth, int screenHeight,
+                                          int& outMoney, int& outHealth,
+                                          std::vector<std::string>& outAllowedTowers,
+                                          std::unordered_map<std::string, int>& outTowerMaxTiers,
+                                          int& outMaxUpgradeTier,
+                                          std::map<std::string, std::vector<EnemyWaveBountyRule>>& outEnemyBountyRules,
+                                          bool& outDirty)
+{
+    bool dummyPockets = false;
+    return handleInput(window, mousePos, leftDown, leftReleased, isEscJustPressed, dt,
+                       screenWidth, screenHeight, outMoney, outHealth, outAllowedTowers,
+                       outTowerMaxTiers, outMaxUpgradeTier, outEnemyBountyRules, dummyPockets, outDirty);
+}
+
+
 
 bool EditorLevelSettingsModal::handleInput(GLFWwindow* window, glm::vec2 mousePos, bool leftDown,
                                           bool leftReleased, bool isEscJustPressed, float dt,
@@ -774,6 +807,10 @@ void EditorLevelSettingsModal::render(SpriteRenderer* renderer, TextRenderer* te
     renderCheckbox(glm::vec2(contentLeft + 4.0f * scale, rowPistonY + (towerRowH - cbSize) * 0.5f), hasTower("Piston"));
     renderRowTierButtons("Piston", rowPistonY);
 
+    float rowPocketsY = rowPistonY + towerRowH + rowSpacing + 4.0f * scale;
+    float cbSizePockets = 16.0f * scale;
+    renderCheckbox(glm::vec2(contentLeft + 4.0f * scale, rowPocketsY + (towerRowH - cbSizePockets) * 0.5f), m_hasSidePockets);
+
     // Секция 4: Нижние кнопки [ Сохранить ] и [ Отмена ]
     float btnH = 32.0f * scale;
     float btnY = modalPos.y + modalH - btnH - 12.0f * scale;
@@ -795,7 +832,7 @@ void EditorLevelSettingsModal::render(SpriteRenderer* renderer, TextRenderer* te
     renderer->drawSprite(whiteTexture, btnCancelPos + glm::vec2(1.5f), btnCancelSize - glm::vec2(3.0f), 0.0f, cancelHover ? glm::vec3(0.24f, 0.28f, 0.36f) : glm::vec3(0.18f, 0.22f, 0.28f));
 
     // Секция 3: Контейнер экономики
-    float econAreaTop = rowPistonY + towerRowH + 10.0f * scale;
+    float econAreaTop = rowPocketsY + towerRowH + 8.0f * scale;
     float econAreaBottom = btnY - 10.0f * scale;
     float econAreaH = econAreaBottom - econAreaTop;
     glm::vec2 econAreaPos(contentLeft, econAreaTop);
@@ -1048,6 +1085,7 @@ void EditorLevelSettingsModal::render(SpriteRenderer* renderer, TextRenderer* te
     renderRowLabels("Базовая пушка (Basic)", rowBasicY);
     renderRowLabels("Ртутная вышка (Mercury)", rowMercuryY);
     renderRowLabels("Поршень-толкатель (Piston)", rowPistonY);
+    textRenderer->RenderText("Боковые карманы (вход и настил внутри сетки для Шахты)", contentLeft + 26.0f * scale, rowPocketsY + 4.0f * scale, 0.40f * scale, m_hasSidePockets ? glm::vec3(0.4f, 0.9f, 0.5f) : glm::vec3(0.85f, 0.90f, 0.98f));
 
     auto renderRowTierTexts = [&](const std::string& type, float rowY) {
         float startX = contentLeft + contentW - totalTierGroupW;

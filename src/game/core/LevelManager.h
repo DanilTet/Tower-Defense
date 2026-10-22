@@ -78,7 +78,7 @@ struct ParticleEmitterConfig {
 
 struct DecorationConfig {
     int id = 0;
-    std::string type = "bush"; // "bush", "grass_tuft", "flower", "stone", "helmet", "pickaxe", "puddle", "crack", "fog"
+    std::string type = "bush"; // "bush", "grass_tuft", "flower", "stone", "helmet", "pickaxe", "puddle", "crack", "fog", "wooden_crate", "broken_mercury_cart", "scrap_debris"
     glm::vec2 tilePos = glm::vec2(0.0f);  // координаты в единицах сетки (float tileX, tileY)
     glm::vec2 worldPos = glm::vec2(0.0f); // абсолютная мировая позиция (актуализируется через tilePos)
     float scale = 1.0f;     // общий масштаб (0.5x .. 2.5x)
@@ -168,7 +168,8 @@ struct LevelMapData {
     std::string name = "";          // Отображаемое имя (UTF-8, RU/UA/EN)
     bool isCampaign = false;        // true = Кампания, false = Тестовый / Кастомный
     std::vector<std::string> tags;  // Теги для фильтрации и поиска (например: "Ртуть", "Тест", "Сложный")
-    std::string background = "default"; // "default", "pipes_canal"
+    std::string background = "default"; // "default", "pipes_canal", "mine_entrance"
+    bool hasSidePockets = false;        // Включает боковые карманы (настил слева и вход в шахту справа) внутри матрицы
 
     struct CameraSettings {
         glm::vec2 targetTile = glm::vec2(-1.0f, -1.0f);   // центр обзора в координатах сетки (в клетках/тайлах)

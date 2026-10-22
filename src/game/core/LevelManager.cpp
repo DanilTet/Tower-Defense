@@ -44,6 +44,10 @@ LevelMapData LevelManager::loadLevelMap(const std::string& filepath) {
         if (data.background.empty()) {
             data.background = "default";
         }
+        data.hasSidePockets = j.value("hasSidePockets", false);
+        if (!data.hasSidePockets && j.contains("map") && j["map"].contains("hasSidePockets")) {
+            data.hasSidePockets = j["map"].value("hasSidePockets", false);
+        }
         std::string fname = fs::path(filepath).filename().string();
         bool defaultCampaign = (fname == "level_1.json" || fname == "level_2.json");
         data.isCampaign = j.value("isCampaign", defaultCampaign);
@@ -543,6 +547,7 @@ bool LevelManager::saveLevelMap(const std::string& filepath, const LevelMapData&
     j["isCampaign"] = data.isCampaign;
     j["tags"] = data.tags;
     j["background"] = data.background.empty() ? "default" : data.background;
+    j["hasSidePockets"] = data.hasSidePockets;
 
     if (data.camera.isCustom) {
         j["camera"] = {

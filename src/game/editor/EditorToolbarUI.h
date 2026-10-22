@@ -35,8 +35,11 @@ enum class EditorBrush {
     DecorPickaxe = 22,     // Декор: Кирка
     DecorPuddle = 23,      // Декор: Лужа
     DecorCrack = 24,       // Декор: Трещина
-    DecorFog = 25,
-    NoBuild = 26          // No-Build Zone overlay          // Декор: Туман
+    DecorFog = 25, // Декор: Туман
+    DecorWoodenCrate = 26, // Декор: Деревянный ящик
+    DecorBrokenCart = 27,  // Декор: Разбитая вагонетка с ртутью
+    DecorScrapDebris = 28, // Декор: Куча мусора / досок
+    NoBuild = 29          // No-Build Zone overlay
 };
 
 enum class PaletteCategory {

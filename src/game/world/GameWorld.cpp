@@ -26,6 +26,7 @@ bool GameWorld::loadLevel(const std::string& levelPath, int windowWidth, int win
     float bottomBarHeight = Buildpanel::getBottomBarHeight(windowWidth, windowHeight);
     float topMargin = TimeControlUI::getTopMargin(windowWidth, windowHeight);
     grid->updateCellSize(windowWidth, windowHeight, bottomBarHeight, topMargin);
+    grid->setHasSidePockets(levelData.hasSidePockets || currentBackground == "mine_entrance");
 
     if (!levelData.layout.empty()) {
         for (int y = 0; y < levelData.gridHeight; ++y) {
@@ -144,6 +145,7 @@ void GameWorld::resize(int windowWidth, int windowHeight) {
         float bottomBarHeight = Buildpanel::getBottomBarHeight(windowWidth, windowHeight);
         float topMargin = TimeControlUI::getTopMargin(windowWidth, windowHeight);
         grid->updateCellSize(windowWidth, windowHeight, bottomBarHeight, topMargin);
+    grid->setHasSidePockets(levelData.hasSidePockets || currentBackground == "mine_entrance");
         minecartManager.updateCellSize(grid->getCellSize(), grid->getOffset());
 
         for (const auto& enemy : entityManager->getEnemies()) {
@@ -258,7 +260,7 @@ void GameWorld::demolishDecorationsInCell(int gridX, int gridY) {
             float s = dec.scale;
             if (dec.type == "bush" || dec.type == "grass_tuft" || dec.type == "flower") {
                 envParticleManager.spawnDemolitionLeaves(dec.worldPos, s);
-            } else if (dec.type == "stone" || dec.type == "helmet" || dec.type == "pickaxe") {
+            } else if (dec.type == "stone" || dec.type == "helmet" || dec.type == "pickaxe" || dec.type == "wooden_crate" || dec.type == "broken_mercury_cart" || dec.type == "scrap_debris") {
                 envParticleManager.spawnDemolitionSparksGravel(dec.worldPos, s);
                 AudioManager::playSound("res/sounds/build.wav");
             } else if (dec.type == "puddle") {

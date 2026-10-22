@@ -248,7 +248,8 @@ bool EditorDecorInspector::handleInput(glm::vec2 mousePos, bool leftDown, bool w
     }
 
     static const std::vector<std::string> s_decorTypes = {
-        "bush", "grass_tuft", "grass_field", "flower", "stone", "helmet", "pickaxe", "puddle", "crack", "fog"
+        "bush", "grass_tuft", "grass_field", "flower", "stone", "helmet", "pickaxe", "puddle", "crack", "fog",
+        "wooden_crate", "broken_mercury_cart", "scrap_debris"
     };
 
     auto cycleType = [&](int dir) {
@@ -534,6 +535,9 @@ void EditorDecorInspector::render(SpriteRenderer* renderer, TextRenderer* textRe
     else if (config.type == "puddle") friendlyName = "Лужа";
     else if (config.type == "crack") friendlyName = "Трещина";
     else if (config.type == "fog") friendlyName = "Туман";
+    else if (config.type == "wooden_crate") friendlyName = "Ящик";
+    else if (config.type == "broken_mercury_cart") friendlyName = "Вагонетка";
+    else if (config.type == "scrap_debris") friendlyName = "Куча мусора";
 
     renderCentered("<", l.btnTypePrevPos, l.btnTypePrevSize, l.fontScale * 1.1f, glm::vec3(0.8f, 0.9f, 1.0f));
     renderCentered("ТИП: " + friendlyName, l.btnTypePos, l.btnTypeSize, l.fontScale, glm::vec3(0.6f, 0.9f, 1.0f));
