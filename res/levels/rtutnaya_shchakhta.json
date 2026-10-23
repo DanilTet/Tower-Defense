@@ -5,6 +5,16 @@
     "Piston"
   ],
   "background": "mine_entrance",
+  "camera": {
+    "isCustom": true,
+    "tileX": 6.005685329437256,
+    "tileY": 4.996287822723389,
+    "viewTilesH": 21.4506893157959,
+    "viewTilesW": 40.11231994628906,
+    "x": 6.005685329437256,
+    "y": 4.996287822723389,
+    "zoom": 0.7049366235733032
+  },
   "enemyBountyRules": {
     "Coal": [
       {
@@ -65,7 +75,15 @@
       "Mercury",
       "Piston"
     ],
-    "bases": [],
+    "bases": [
+      {
+        "enableFadeOut": true,
+        "id": 0,
+        "visibleInGame": false,
+        "x": 25,
+        "y": 5
+      }
+    ],
     "cellSize": 108.45454406738281,
     "enemyBountyRules": {
       "Coal": [
@@ -677,8 +695,288 @@
     ],
     "offsetX": 32.772705078125,
     "offsetY": 62.0,
-    "outerCells": [],
-    "spawners": [],
+    "outerCells": [
+      {
+        "noBuild": false,
+        "type": 0,
+        "x": -14,
+        "y": 4
+      },
+      {
+        "noBuild": false,
+        "type": 6,
+        "x": -14,
+        "y": 5
+      },
+      {
+        "noBuild": false,
+        "type": 0,
+        "x": -14,
+        "y": 6
+      },
+      {
+        "noBuild": false,
+        "type": 0,
+        "x": -13,
+        "y": 4
+      },
+      {
+        "noBuild": false,
+        "type": 0,
+        "x": -13,
+        "y": 5
+      },
+      {
+        "noBuild": false,
+        "type": 0,
+        "x": -13,
+        "y": 6
+      },
+      {
+        "noBuild": false,
+        "type": 0,
+        "x": -12,
+        "y": 4
+      },
+      {
+        "noBuild": false,
+        "type": 0,
+        "x": -12,
+        "y": 5
+      },
+      {
+        "noBuild": false,
+        "type": 0,
+        "x": -12,
+        "y": 6
+      },
+      {
+        "noBuild": false,
+        "type": 0,
+        "x": -11,
+        "y": 4
+      },
+      {
+        "noBuild": false,
+        "type": 0,
+        "x": -11,
+        "y": 5
+      },
+      {
+        "noBuild": false,
+        "type": 0,
+        "x": -11,
+        "y": 6
+      },
+      {
+        "noBuild": false,
+        "type": 0,
+        "x": -10,
+        "y": 4
+      },
+      {
+        "noBuild": false,
+        "type": 0,
+        "x": -10,
+        "y": 5
+      },
+      {
+        "noBuild": false,
+        "type": 0,
+        "x": -10,
+        "y": 6
+      },
+      {
+        "noBuild": false,
+        "type": 0,
+        "x": -9,
+        "y": 4
+      },
+      {
+        "noBuild": false,
+        "type": 0,
+        "x": -9,
+        "y": 5
+      },
+      {
+        "noBuild": false,
+        "type": 0,
+        "x": -9,
+        "y": 6
+      },
+      {
+        "noBuild": false,
+        "type": 0,
+        "x": -8,
+        "y": 4
+      },
+      {
+        "noBuild": false,
+        "type": 0,
+        "x": -8,
+        "y": 5
+      },
+      {
+        "noBuild": false,
+        "type": 0,
+        "x": -8,
+        "y": 6
+      },
+      {
+        "noBuild": false,
+        "type": 0,
+        "x": -7,
+        "y": 4
+      },
+      {
+        "noBuild": false,
+        "type": 0,
+        "x": -7,
+        "y": 5
+      },
+      {
+        "noBuild": false,
+        "type": 0,
+        "x": -7,
+        "y": 6
+      },
+      {
+        "noBuild": false,
+        "type": 0,
+        "x": -6,
+        "y": 4
+      },
+      {
+        "noBuild": false,
+        "type": 0,
+        "x": -6,
+        "y": 5
+      },
+      {
+        "noBuild": false,
+        "type": 0,
+        "x": -6,
+        "y": 6
+      },
+      {
+        "noBuild": false,
+        "type": 0,
+        "x": -5,
+        "y": 4
+      },
+      {
+        "noBuild": false,
+        "type": 0,
+        "x": -5,
+        "y": 5
+      },
+      {
+        "noBuild": false,
+        "type": 0,
+        "x": -5,
+        "y": 6
+      },
+      {
+        "noBuild": false,
+        "type": 0,
+        "x": -4,
+        "y": 4
+      },
+      {
+        "noBuild": false,
+        "type": 0,
+        "x": -4,
+        "y": 5
+      },
+      {
+        "noBuild": false,
+        "type": 0,
+        "x": -4,
+        "y": 6
+      },
+      {
+        "noBuild": false,
+        "type": 0,
+        "x": -3,
+        "y": 4
+      },
+      {
+        "noBuild": false,
+        "type": 0,
+        "x": -3,
+        "y": 5
+      },
+      {
+        "noBuild": false,
+        "type": 0,
+        "x": -3,
+        "y": 6
+      },
+      {
+        "noBuild": false,
+        "type": 0,
+        "x": -2,
+        "y": 4
+      },
+      {
+        "noBuild": false,
+        "type": 0,
+        "x": -2,
+        "y": 5
+      },
+      {
+        "noBuild": false,
+        "type": 0,
+        "x": -2,
+        "y": 6
+      },
+      {
+        "noBuild": false,
+        "type": 0,
+        "x": -1,
+        "y": 4
+      },
+      {
+        "noBuild": false,
+        "type": 0,
+        "x": -1,
+        "y": 5
+      },
+      {
+        "noBuild": false,
+        "type": 0,
+        "x": -1,
+        "y": 6
+      },
+      {
+        "noBuild": false,
+        "type": 0,
+        "x": 23,
+        "y": 5
+      },
+      {
+        "noBuild": false,
+        "type": 0,
+        "x": 24,
+        "y": 5
+      },
+      {
+        "noBuild": false,
+        "type": 7,
+        "x": 25,
+        "y": 5
+      }
+    ],
+    "spawners": [
+      {
+        "enableFadeIn": false,
+        "groupId": 0,
+        "targetBaseIndex": 0,
+        "visibleInGame": false,
+        "x": -14,
+        "y": 5
+      }
+    ],
     "startingHealth": 20,
     "startingMoney": 50,
     "towerMaxTiers": {
@@ -710,7 +1008,7 @@
           "reward": -1,
           "reward_step": -1,
           "spawner_id": -1,
-          "type": "Basic"
+          "type": "Coal"
         }
       ]
     }
