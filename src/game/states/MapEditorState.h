@@ -24,6 +24,7 @@
 #include "../../renderer/DecorationRenderer.h"
 #include "../editor/EditorCamera.h"
 #include "../editor/EditorHudPreviewRenderer.h"
+#include "../editor/EditorTileInfoOverlay.h"
 
 class SpriteRenderer;
 class TextRenderer;
