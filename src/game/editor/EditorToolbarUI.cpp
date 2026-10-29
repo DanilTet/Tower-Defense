@@ -419,20 +419,36 @@ void EditorToolbarUI::updateLayout(TextRenderer* textRenderer, const EditorConte
         items.push_back({ "0:" + LOC("EDITOR_ERASER"), false, EditorBrush::Eraser, 0, 0.0f });
         splitIndex1 = items.size();
     } else {
-        // Категория Decorations: Пресеты декораций
-        items.push_back({ "1:Куст",       false, EditorBrush::DecorBush,       0, 0.0f });
-        items.push_back({ "2:Пучок",      false, EditorBrush::DecorGrass,      0, 0.0f });
-        items.push_back({ "3:Поле",       false, EditorBrush::DecorGrassField, 0, 0.0f });
-        items.push_back({ "4:Цветы",      false, EditorBrush::DecorFlower,     0, 0.0f });
-        items.push_back({ "5:Камень",     false, EditorBrush::DecorStone,      0, 0.0f });
-        items.push_back({ "6:Каска",      false, EditorBrush::DecorHelmet,     0, 0.0f });
-        items.push_back({ "7:Кирка",      false, EditorBrush::DecorPickaxe,    0, 0.0f });
-        items.push_back({ "8:Лужа",       false, EditorBrush::DecorPuddle,     0, 0.0f });
-        items.push_back({ "9:Трещина",    false, EditorBrush::DecorCrack,      0, 0.0f });
-        items.push_back({ "F:Туман",      false, EditorBrush::DecorFog,        0, 0.0f });
-        items.push_back({ "Ящик",         false, EditorBrush::DecorWoodenCrate, 0, 0.0f });
-        items.push_back({ "Вагонетка",    false, EditorBrush::DecorBrokenCart,  0, 0.0f });
-        items.push_back({ "Мусор/доски",  false, EditorBrush::DecorScrapDebris, 0, 0.0f });
+        // Категория Decorations: Пагинация декораций (Стр. 1/2 и 2/2)
+        // Стрелка [ < ] перехода на предыдущую страницу
+        items.push_back({ "<", true, EditorBrush::Wall, 26, 0.0f });
+
+        if (m_decorPage == 0) {
+            // Страница 1: Классические декорации двора (10 слотов)
+            items.push_back({ "1:Куст",       false, EditorBrush::DecorBush,       0, 0.0f });
+            items.push_back({ "2:Пучок",      false, EditorBrush::DecorGrass,      0, 0.0f });
+            items.push_back({ "3:Поле",       false, EditorBrush::DecorGrassField, 0, 0.0f });
+            items.push_back({ "4:Цветы",      false, EditorBrush::DecorFlower,     0, 0.0f });
+            items.push_back({ "5:Камень",     false, EditorBrush::DecorStone,      0, 0.0f });
+            items.push_back({ "6:Каска",      false, EditorBrush::DecorHelmet,     0, 0.0f });
+            items.push_back({ "7:Кирка",      false, EditorBrush::DecorPickaxe,    0, 0.0f });
+            items.push_back({ "8:Лужа",       false, EditorBrush::DecorPuddle,     0, 0.0f });
+            items.push_back({ "9:Трещина",    false, EditorBrush::DecorCrack,      0, 0.0f });
+            items.push_back({ "F:Туман",      false, EditorBrush::DecorFog,        0, 0.0f });
+        } else {
+            // Страница 2: Шахтный инвентарь и новые декорации рудника
+            items.push_back({ "1:Ящик",       false, EditorBrush::DecorWoodenCrate, 0, 0.0f });
+            items.push_back({ "2:Вагонетка",  false, EditorBrush::DecorBrokenCart,  0, 0.0f });
+            items.push_back({ "3:Мусор",      false, EditorBrush::DecorScrapDebris, 0, 0.0f });
+            items.push_back({ "4:Дерево",     false, EditorBrush::DecorDeadTree,    0, 0.0f });
+            items.push_back({ "5:Бурьян",     false, EditorBrush::DecorDryGrass,    0, 0.0f });
+            items.push_back({ "6:Руда",       false, EditorBrush::DecorOreDebris,   0, 0.0f });
+        }
+
+        // Стрелка [ > ] перехода на следующую страницу и индикатор страницы
+        items.push_back({ ">", true, EditorBrush::Wall, 27, 0.0f });
+        items.push_back({ (m_decorPage == 0 ? "1/2" : "2/2"), true, EditorBrush::Wall, 28, 0.0f });
+
         items.push_back({ "0:" + LOC("EDITOR_ERASER"), false, EditorBrush::Eraser, 0, 0.0f });
         items.push_back({ std::string("G:") + (ctx.decorGridSnap ? "Сетка ВКЛ" : "Сетка ВЫКЛ"), true, EditorBrush::Wall, 25, 0.0f });
         splitIndex1 = items.size();
@@ -451,8 +467,10 @@ void EditorToolbarUI::updateLayout(TextRenderer* textRenderer, const EditorConte
     for (size_t i = 0; i < items.size(); ++i) {
         auto& it = items[i];
         float tw = getTextW(it.label, bottomFontScale);
-        if (it.actionId == 5 || it.actionId == 7) {
+        if (it.actionId == 5 || it.actionId == 7 || it.actionId == 26 || it.actionId == 27) {
             it.width = 28.0f;
+        } else if (it.actionId == 28) {
+            it.width = 38.0f;
         } else if (it.actionId == 6) {
             it.width = std::max(68.0f, tw + 18.0f);
         } else {
@@ -473,8 +491,10 @@ void EditorToolbarUI::updateLayout(TextRenderer* textRenderer, const EditorConte
         padding = std::max(2.0f, padding * factor);
         for (auto& it : items) {
             float tw = getTextW(it.label, bottomFontScale);
-            if (it.actionId == 5 || it.actionId == 7) {
+            if (it.actionId == 5 || it.actionId == 7 || it.actionId == 26 || it.actionId == 27) {
                 it.width = std::max(22.0f, 28.0f * factor);
+            } else if (it.actionId == 28) {
+                it.width = std::max(28.0f, 38.0f * factor);
             } else if (it.actionId == 6) {
                 it.width = std::max(50.0f, tw + 10.0f);
             } else {
@@ -503,12 +523,24 @@ void EditorToolbarUI::updateLayout(TextRenderer* textRenderer, const EditorConte
             btn.tooltip = "Ластик (Shift: снять только запрет стройки)";
         } else if (btn.actionId == 25) {
             btn.tooltip = "Привязка к сетке [G]: примагничивает декор к тайлам карты";
+        } else if (btn.actionId == 26) {
+            btn.tooltip = std::string("Стр. ") + (m_decorPage == 0 ? "1/2" : "2/2") + ": Пред. страница декора [Колесико мыши]";
+        } else if (btn.actionId == 27) {
+            btn.tooltip = std::string("Стр. ") + (m_decorPage == 0 ? "1/2" : "2/2") + ": След. страница декора [Колесико мыши]";
+        } else if (btn.actionId == 28) {
+            btn.tooltip = std::string("Страница ") + (m_decorPage == 0 ? "1 из 2" : "2 из 2") + " [Клик для смены страницы]";
         } else if (!btn.isAction && btn.brush == EditorBrush::DecorWoodenCrate) {
-            btn.tooltip = "Деревянный ящик (сколоченный ящик с диагональной планкой)";
+            btn.tooltip = "Ящик [1]: Старый деревянный ящик шахтеров";
         } else if (!btn.isAction && btn.brush == EditorBrush::DecorBrokenCart) {
-            btn.tooltip = "Разбитая вагонетка (перевернутая вагонетка с разлитой ртутью)";
+            btn.tooltip = "Вагонетка [2]: Опрокинутая разбитая ртутная вагонетка";
         } else if (!btn.isAction && btn.brush == EditorBrush::DecorScrapDebris) {
-            btn.tooltip = "Куча мусора / досок (обломки ящиков, доски и кучки угля)";
+            btn.tooltip = "Мусор/доски [3]: Обломки крепи, доски и металлолом";
+        } else if (!btn.isAction && btn.brush == EditorBrush::DecorDeadTree) {
+            btn.tooltip = "Сухое дерево [4]: Высокое мертвое ветвистое дерево без листьев";
+        } else if (!btn.isAction && btn.brush == EditorBrush::DecorDryGrass) {
+            btn.tooltip = "Сухая трава [5]: Пучок желто-бурого степного бурьяна";
+        } else if (!btn.isAction && btn.brush == EditorBrush::DecorOreDebris) {
+            btn.tooltip = "Обломки руды [6]: Каменная осыпь с вкраплениями темно-красной киновари";
         }
         m_bottomButtons.push_back(btn);
         currentX += it.width + padding;
@@ -621,6 +653,18 @@ EditorAction EditorToolbarUI::handleInput(float mouseX, float mouseY, bool mouse
                     result.type = EditorActionType::ToggleMinecartModal;
                 } else if (btn.actionId == 25) {
                     result.type = EditorActionType::ToggleDecorGridSnap;
+                } else if (btn.actionId == 26) {
+                    prevDecorPage();
+                    result.type = EditorActionType::SwitchPaletteCategory;
+                    return result;
+                } else if (btn.actionId == 27) {
+                    nextDecorPage();
+                    result.type = EditorActionType::SwitchPaletteCategory;
+                    return result;
+                } else if (btn.actionId == 28) {
+                    m_decorPage = (m_decorPage == 0) ? 1 : 0;
+                    result.type = EditorActionType::SwitchPaletteCategory;
+                    return result;
                 }
             }
             return result;
@@ -803,6 +847,24 @@ void EditorToolbarUI::render(SpriteRenderer* renderer, TextRenderer* textRendere
             } else if (btn.brush == EditorBrush::DecorFog) {
                 btnBg = glm::vec3(0.24f, 0.28f, 0.28f);
                 borderColor = glm::vec3(0.70f, 0.82f, 0.80f);
+            } else if (btn.brush == EditorBrush::DecorWoodenCrate) {
+                btnBg = glm::vec3(0.28f, 0.22f, 0.15f);
+                borderColor = glm::vec3(0.70f, 0.55f, 0.38f);
+            } else if (btn.brush == EditorBrush::DecorBrokenCart) {
+                btnBg = glm::vec3(0.20f, 0.22f, 0.25f);
+                borderColor = glm::vec3(0.45f, 0.70f, 0.85f);
+            } else if (btn.brush == EditorBrush::DecorScrapDebris) {
+                btnBg = glm::vec3(0.22f, 0.20f, 0.18f);
+                borderColor = glm::vec3(0.60f, 0.55f, 0.50f);
+            } else if (btn.brush == EditorBrush::DecorDeadTree) {
+                btnBg = glm::vec3(0.25f, 0.20f, 0.16f);
+                borderColor = glm::vec3(0.65f, 0.52f, 0.40f);
+            } else if (btn.brush == EditorBrush::DecorDryGrass) {
+                btnBg = glm::vec3(0.28f, 0.24f, 0.12f);
+                borderColor = glm::vec3(0.75f, 0.65f, 0.30f);
+            } else if (btn.brush == EditorBrush::DecorOreDebris) {
+                btnBg = glm::vec3(0.26f, 0.14f, 0.14f);
+                borderColor = glm::vec3(0.85f, 0.25f, 0.25f);
             }
         } else if (!btn.isAction && btn.brush == EditorBrush::Eraser) {
             btnBg = glm::vec3(0.28f, 0.15f, 0.15f);
@@ -967,6 +1029,8 @@ void EditorToolbarUI::render(SpriteRenderer* renderer, TextRenderer* textRendere
                 textColor = ctx.isMinecartModalOpen ? glm::vec3(1.0f, 0.90f, 0.25f) : glm::vec3(0.90f, 0.72f, 0.30f);
             } else if (btn.actionId == 25) {
                 textColor = ctx.decorGridSnap ? glm::vec3(0.4f, 1.0f, 0.5f) : glm::vec3(0.7f, 0.75f, 0.8f);
+            } else if (btn.actionId == 26 || btn.actionId == 27 || btn.actionId == 28) {
+                textColor = glm::vec3(0.40f, 0.90f, 1.0f);
             }
             float tw = textRenderer->CalculateTextWidth(btn.label, m_bottomFontScale);
             float tx = btn.pos.x + (btn.size.x - tw) * 0.5f;

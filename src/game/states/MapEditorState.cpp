@@ -2051,16 +2051,25 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
             if (key4) m_currentBrush = EditorBrush::EmitterSmoke;
             if (key5) m_currentBrush = EditorBrush::EmitterFog;
         } else if (m_toolbarUI.getCategory() == PaletteCategory::Decorations) {
-            if (key1) m_currentBrush = EditorBrush::DecorBush;
-            if (key2) m_currentBrush = EditorBrush::DecorGrass;
-            if (key3) m_currentBrush = EditorBrush::DecorGrassField;
-            if (key4) m_currentBrush = EditorBrush::DecorFlower;
-            if (key5) m_currentBrush = EditorBrush::DecorStone;
-            if (key6) m_currentBrush = EditorBrush::DecorHelmet;
-            if (key7) m_currentBrush = EditorBrush::DecorPickaxe;
-            if (key8) m_currentBrush = EditorBrush::DecorPuddle;
-            if (key9) m_currentBrush = EditorBrush::DecorCrack;
-            if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS) m_currentBrush = EditorBrush::DecorFog;
+            if (m_toolbarUI.getDecorPage() == 0) {
+                if (key1) m_currentBrush = EditorBrush::DecorBush;
+                if (key2) m_currentBrush = EditorBrush::DecorGrass;
+                if (key3) m_currentBrush = EditorBrush::DecorGrassField;
+                if (key4) m_currentBrush = EditorBrush::DecorFlower;
+                if (key5) m_currentBrush = EditorBrush::DecorStone;
+                if (key6) m_currentBrush = EditorBrush::DecorHelmet;
+                if (key7) m_currentBrush = EditorBrush::DecorPickaxe;
+                if (key8) m_currentBrush = EditorBrush::DecorPuddle;
+                if (key9) m_currentBrush = EditorBrush::DecorCrack;
+                if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS) m_currentBrush = EditorBrush::DecorFog;
+            } else {
+                if (key1) m_currentBrush = EditorBrush::DecorWoodenCrate;
+                if (key2) m_currentBrush = EditorBrush::DecorBrokenCart;
+                if (key3) m_currentBrush = EditorBrush::DecorScrapDebris;
+                if (key4) m_currentBrush = EditorBrush::DecorDeadTree;
+                if (key5) m_currentBrush = EditorBrush::DecorDryGrass;
+                if (key6) m_currentBrush = EditorBrush::DecorOreDebris;
+            }
         }
 
         // Прямые клавиши 6, 7, 8 с переключением категории при необходимости (если не на вкладке Декор)
@@ -2494,6 +2503,19 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
         }
     }
 
+    // Прокрутка страниц декораций колёсиком мыши над нижней панелью инструментов
+    if (m_toolbarUI.isBottomDockHovered(mousePos.x, mousePos.y) && m_toolbarUI.getCategory() == PaletteCategory::Decorations) {
+        float scrollY = InputManager::getScrollY();
+        if (std::abs(scrollY) > 0.01f) {
+            if (scrollY < 0.0f) {
+                m_toolbarUI.nextDecorPage();
+            } else {
+                m_toolbarUI.prevDecorPage();
+            }
+            updateButtonLayout();
+        }
+    }
+
     // Зум камеры колёсиком мыши (зум в точку под курсором)
     if (!panActive && !m_toolbarUI.isHovered(mousePos.x, mousePos.y)) {
         float scrollY = InputManager::getScrollY();
@@ -2715,7 +2737,7 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
                         m_toolbarUI.setCategory(PaletteCategory::Particles);
                         updateButtonLayout();
                     }
-                } else if (m_currentBrush >= EditorBrush::DecorBush && m_currentBrush <= EditorBrush::DecorScrapDebris) {
+                } else if (m_currentBrush >= EditorBrush::DecorBush && m_currentBrush <= EditorBrush::DecorOreDebris) {
                     if (m_toolbarUI.getCategory() != PaletteCategory::Decorations) {
                         m_toolbarUI.setCategory(PaletteCategory::Decorations);
                         updateButtonLayout();
@@ -3152,6 +3174,18 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
                                 dType = "crack"; dName = "Трещина";
                             } else if (m_currentBrush == EditorBrush::DecorFog) {
                                 dType = "fog"; dName = "Туман"; isDestructible = false;
+                            } else if (m_currentBrush == EditorBrush::DecorWoodenCrate) {
+                                dType = "wooden_crate"; dName = "Деревянный ящик";
+                            } else if (m_currentBrush == EditorBrush::DecorBrokenCart) {
+                                dType = "broken_mercury_cart"; dName = "Разбитая вагонетка";
+                            } else if (m_currentBrush == EditorBrush::DecorScrapDebris) {
+                                dType = "scrap_debris"; dName = "Куча мусора";
+                            } else if (m_currentBrush == EditorBrush::DecorDeadTree) {
+                                dType = "dead_tree"; dName = "Сухое дерево";
+                            } else if (m_currentBrush == EditorBrush::DecorDryGrass) {
+                                dType = "dry_grass"; dName = "Сухая трава";
+                            } else if (m_currentBrush == EditorBrush::DecorOreDebris) {
+                                dType = "ore_debris"; dName = "Обломки руды";
                             }
 
                             DecorationConfig cfg;
@@ -3430,6 +3464,16 @@ void MapEditorState::render() {
         m_grid->draw(m_renderer.get(), m_whiteTexture, glm::vec3(1.0f), m_background);
     }
 
+    // 2.1. Верхний слой фона (2.5D забор, козырек копра поверх клеток земли двора)
+    BackgroundRenderer::renderForeground(
+        m_renderer.get(),
+        m_whiteTexture,
+        m_background,
+        m_grid.get(),
+        static_cast<float>(m_width),
+        static_cast<float>(m_height)
+    );
+
     // 3. Стрелочки путей в реальном времени с цветом, соответствующим целевой базе!
     if (m_showPathArrows && m_grid && m_arrowTexture) {
         for (size_t i = 0; i < m_activePaths.size(); ++i) {
@@ -3689,6 +3733,12 @@ void MapEditorState::render() {
         else if (m_currentBrush == EditorBrush::DecorPickaxe) previewType = "pickaxe";
         else if (m_currentBrush == EditorBrush::DecorPuddle) previewType = "puddle";
         else if (m_currentBrush == EditorBrush::DecorCrack) previewType = "crack";
+        else if (m_currentBrush == EditorBrush::DecorWoodenCrate) previewType = "wooden_crate";
+        else if (m_currentBrush == EditorBrush::DecorBrokenCart) previewType = "broken_mercury_cart";
+        else if (m_currentBrush == EditorBrush::DecorScrapDebris) previewType = "scrap_debris";
+        else if (m_currentBrush == EditorBrush::DecorDeadTree) previewType = "dead_tree";
+        else if (m_currentBrush == EditorBrush::DecorDryGrass) previewType = "dry_grass";
+        else if (m_currentBrush == EditorBrush::DecorOreDebris) previewType = "ore_debris";
 
         glm::vec2 worldMouse = screenToWorld(m_mousePos);
         float previewCellSize = m_grid ? m_grid->getCellSize() : 64.0f;
@@ -4699,6 +4749,12 @@ void MapEditorState::executePipette(int gx, int gy, glm::vec2 worldMouse) {
         else if (dt == "puddle") { pickedBrush = EditorBrush::DecorPuddle; tileName = "Лужа"; }
         else if (dt == "crack") { pickedBrush = EditorBrush::DecorCrack; tileName = "Трещина"; }
         else if (dt == "fog") { pickedBrush = EditorBrush::DecorFog; tileName = "Туман"; }
+        else if (dt == "wooden_crate") { pickedBrush = EditorBrush::DecorWoodenCrate; tileName = "Ящик"; }
+        else if (dt == "broken_mercury_cart") { pickedBrush = EditorBrush::DecorBrokenCart; tileName = "Вагонетка"; }
+        else if (dt == "scrap_debris") { pickedBrush = EditorBrush::DecorScrapDebris; tileName = "Мусор/доски"; }
+        else if (dt == "dead_tree") { pickedBrush = EditorBrush::DecorDeadTree; tileName = "Сухое дерево"; }
+        else if (dt == "dry_grass") { pickedBrush = EditorBrush::DecorDryGrass; tileName = "Сухая трава"; }
+        else if (dt == "ore_debris") { pickedBrush = EditorBrush::DecorOreDebris; tileName = "Обломки руды"; }
         foundObj = true;
     }
 
@@ -4711,8 +4767,13 @@ void MapEditorState::executePipette(int gx, int gy, glm::vec2 worldMouse) {
                pickedBrush == EditorBrush::EmitterSparks || pickedBrush == EditorBrush::EmitterSmoke ||
                pickedBrush == EditorBrush::EmitterFog) {
         m_toolbarUI.setCategory(PaletteCategory::Particles);
-    } else if (pickedBrush >= EditorBrush::DecorBush && pickedBrush <= EditorBrush::DecorFog) {
+    } else if (pickedBrush >= EditorBrush::DecorBush && pickedBrush <= EditorBrush::DecorOreDebris) {
         m_toolbarUI.setCategory(PaletteCategory::Decorations);
+        if (pickedBrush >= EditorBrush::DecorWoodenCrate) {
+            m_toolbarUI.setDecorPage(1);
+        } else {
+            m_toolbarUI.setDecorPage(0);
+        }
     } else {
         m_toolbarUI.setCategory(PaletteCategory::Tiles);
     }

@@ -367,7 +367,7 @@ void drawFog(SpriteRenderer* renderer, const std::shared_ptr<Texture2D>& whiteTe
 void drawSelection(SpriteRenderer* renderer, const std::shared_ptr<Texture2D>& tex, const DecorationConfig& d) {
     float sx = std::max(0.2f, d.scale * d.scaleX);
     float sy = std::max(0.2f, d.scale * d.scaleY);
-    float baseDim = (d.type == "fog") ? 130.0f : ((d.type == "broken_mercury_cart") ? 60.0f : ((d.type == "grass_field") ? 64.0f : ((d.type == "bush") ? 56.0f : ((d.type == "scrap_debris" || d.type == "puddle") ? 52.0f : ((d.type == "wooden_crate") ? 48.0f : 42.0f)))));
+    float baseDim = (d.type == "fog") ? 130.0f : ((d.type == "dead_tree") ? 74.0f : ((d.type == "broken_mercury_cart") ? 60.0f : ((d.type == "grass_field") ? 64.0f : ((d.type == "bush") ? 56.0f : ((d.type == "scrap_debris" || d.type == "puddle" || d.type == "ore_debris") ? 52.0f : ((d.type == "wooden_crate") ? 48.0f : 42.0f))))));
     float boxW = baseDim * sx;
     float boxH = baseDim * sy;
     float cornerLen = std::min(12.0f, std::min(boxW, boxH) * 0.35f);
@@ -442,7 +442,7 @@ GizmoInfo DecorationRenderer::getGizmoInfo(const DecorationConfig& d, float cell
 
     float sx = std::max(0.2f, dec.scale * dec.scaleX);
     float sy = std::max(0.2f, dec.scale * dec.scaleY);
-    float baseDim = (dec.type == "fog") ? 130.0f : ((dec.type == "broken_mercury_cart") ? 60.0f : ((dec.type == "grass_field") ? 64.0f : ((dec.type == "bush") ? 56.0f : ((dec.type == "scrap_debris" || dec.type == "puddle") ? 52.0f : ((dec.type == "wooden_crate") ? 48.0f : 42.0f)))));
+    float baseDim = (dec.type == "fog") ? 130.0f : ((dec.type == "dead_tree") ? 74.0f : ((dec.type == "broken_mercury_cart") ? 60.0f : ((dec.type == "grass_field") ? 64.0f : ((dec.type == "bush") ? 56.0f : ((dec.type == "scrap_debris" || dec.type == "puddle" || dec.type == "ore_debris") ? 52.0f : ((dec.type == "wooden_crate") ? 48.0f : 42.0f))))));
     float boxW = baseDim * sx;
     float boxH = baseDim * sy;
     float halfW = boxW * 0.5f;
@@ -644,6 +644,111 @@ void drawScrapDebris(SpriteRenderer* renderer, const std::shared_ptr<Texture2D>&
     drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { -6.0f, 13.0f }, { 12.0f, 4.0f }, 40.0f,  wood1);
 }
 
+
+void drawDeadTree(SpriteRenderer* renderer, const std::shared_ptr<Texture2D>& tex, const DecorationConfig& d, float a) {
+    glm::vec2 sVec(d.scale * d.scaleX, d.scale * d.scaleY);
+
+    // 1. Падающая тень на земле
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 10.0f, 16.0f }, { 38.0f, 16.0f }, 15.0f, glm::vec4(0.04f, 0.05f, 0.07f, 0.35f * a));
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 24.0f, 24.0f }, { 48.0f, 10.0f }, 32.0f, glm::vec4(0.04f, 0.05f, 0.07f, 0.28f * a));
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 38.0f, 28.0f }, { 28.0f, 6.0f }, 45.0f, glm::vec4(0.04f, 0.05f, 0.07f, 0.22f * a));
+
+    // 2. Корни и основание ствола
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { -9.0f, 14.0f }, { 13.0f, 7.0f }, -25.0f, glm::vec4(0.20f, 0.16f, 0.12f, a));
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 8.0f, 15.0f }, { 15.0f, 8.0f }, 20.0f, glm::vec4(0.16f, 0.13f, 0.10f, a));
+
+    // 3. Нижняя часть ствола
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 0.0f, 6.0f }, { 12.0f, 18.0f }, -4.0f, glm::vec4(0.26f, 0.21f, 0.16f, a));
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { -3.5f, 6.0f }, { 3.5f, 18.0f }, -4.0f, glm::vec4(0.42f, 0.35f, 0.26f, a));
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 3.5f, 6.0f }, { 3.5f, 18.0f }, -4.0f, glm::vec4(0.14f, 0.11f, 0.08f, a));
+
+    // 4. Средняя часть ствола (изгиб)
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 1.5f, -9.0f }, { 9.0f, 20.0f }, 8.0f, glm::vec4(0.28f, 0.23f, 0.17f, a));
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { -1.5f, -9.0f }, { 2.5f, 20.0f }, 8.0f, glm::vec4(0.44f, 0.37f, 0.28f, a));
+
+    // 5. Левая крупная ветвь с сучьями
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { -13.0f, -15.0f }, { 22.0f, 6.5f }, -35.0f, glm::vec4(0.30f, 0.24f, 0.18f, a));
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { -22.0f, -23.0f }, { 15.0f, 4.0f }, -60.0f, glm::vec4(0.33f, 0.26f, 0.20f, a));
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { -17.0f, -11.0f }, { 11.0f, 3.5f }, -15.0f, glm::vec4(0.25f, 0.20f, 0.15f, a));
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { -28.0f, -28.0f }, { 9.0f, 2.5f }, -75.0f, glm::vec4(0.42f, 0.35f, 0.27f, a));
+
+    // 6. Правая крупная ветвь с разветвлениями
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 15.0f, -17.0f }, { 24.0f, 7.0f }, 38.0f, glm::vec4(0.27f, 0.22f, 0.16f, a));
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 24.0f, -25.0f }, { 17.0f, 4.0f }, 65.0f, glm::vec4(0.30f, 0.24f, 0.18f, a));
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 26.0f, -13.0f }, { 13.0f, 3.5f }, 15.0f, glm::vec4(0.22f, 0.17f, 0.13f, a));
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 30.0f, -32.0f }, { 10.0f, 2.5f }, 80.0f, glm::vec4(0.38f, 0.31f, 0.24f, a));
+
+    // 7. Центральная макушка кроны (сухие острые пики)
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 3.0f, -26.0f }, { 6.5f, 18.0f }, -6.0f, glm::vec4(0.32f, 0.26f, 0.19f, a));
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { -3.0f, -36.0f }, { 11.0f, 3.0f }, -30.0f, glm::vec4(0.36f, 0.29f, 0.22f, a));
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 9.0f, -37.0f }, { 12.0f, 3.0f }, 25.0f, glm::vec4(0.40f, 0.33f, 0.25f, a));
+
+    // Сучок на стволе
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 1.0f, 2.0f }, { 3.5f, 6.0f }, 0.0f, glm::vec4(0.12f, 0.09f, 0.07f, a));
+}
+
+void drawDryGrass(SpriteRenderer* renderer, const std::shared_ptr<Texture2D>& tex, const DecorationConfig& d, float a) {
+    glm::vec2 sVec(d.scale * d.scaleX, d.scale * d.scaleY);
+
+    // 1. Тень под кочкой бурьяна
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 3.0f, 13.0f }, { 32.0f, 10.0f }, 0.0f, glm::vec4(0.06f, 0.05f, 0.04f, 0.32f * a));
+
+    // 2. Густое плотное основание дерновины
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 0.0f, 8.0f }, { 22.0f, 9.0f }, 0.0f, glm::vec4(0.24f, 0.18f, 0.10f, a));
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { -1.0f, 6.0f }, { 17.0f, 7.0f }, 0.0f, glm::vec4(0.32f, 0.24f, 0.12f, a));
+
+    // 3. Задние темные стебли сухой травы
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { -11.0f, 0.0f }, { 4.0f, 19.0f }, -35.0f, glm::vec4(0.42f, 0.34f, 0.16f, a));
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 11.0f, 1.0f }, { 4.0f, 18.0f }, 32.0f, glm::vec4(0.40f, 0.32f, 0.15f, a));
+
+    // 4. Основной веер желто-бурых стеблей
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { -7.0f, -4.0f }, { 3.5f, 25.0f }, -18.0f, glm::vec4(0.56f, 0.46f, 0.22f, a));
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 0.0f, -8.0f }, { 4.0f, 29.0f }, 2.0f, glm::vec4(0.62f, 0.52f, 0.25f, a));
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 6.0f, -6.0f }, { 3.5f, 26.0f }, 15.0f, glm::vec4(0.58f, 0.48f, 0.23f, a));
+
+    // 5. Выжженные солнцем сухие метелки / колоски
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { -15.0f, -7.0f }, { 3.0f, 17.0f }, -52.0f, glm::vec4(0.68f, 0.58f, 0.28f, a));
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 14.0f, -8.0f }, { 3.0f, 19.0f }, 48.0f, glm::vec4(0.66f, 0.56f, 0.27f, a));
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { -2.0f, -19.0f }, { 3.0f, 13.0f }, -8.0f, glm::vec4(0.74f, 0.65f, 0.32f, a));
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 4.0f, -20.0f }, { 3.0f, 14.0f }, 10.0f, glm::vec4(0.72f, 0.62f, 0.30f, a));
+
+    // 6. Поникшие надломленные сухие былинки
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 17.0f, 5.0f }, { 13.0f, 2.5f }, 68.0f, glm::vec4(0.48f, 0.38f, 0.18f, a));
+}
+
+void drawOreDebris(SpriteRenderer* renderer, const std::shared_ptr<Texture2D>& tex, const DecorationConfig& d, float a) {
+    glm::vec2 sVec(d.scale * d.scaleX, d.scale * d.scaleY);
+
+    // 1. Падающая тень под осыпью
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 2.0f, 6.0f }, { 44.0f, 23.0f }, 0.0f, glm::vec4(0.05f, 0.05f, 0.07f, 0.45f * a));
+
+    // 2. Центральный крупный валун породы (сланец / доломит)
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 1.0f, 3.0f }, { 26.0f, 18.0f }, 4.0f, glm::vec4(0.16f, 0.17f, 0.19f, a));
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { -1.0f, 0.0f }, { 24.0f, 16.0f }, -3.0f, glm::vec4(0.32f, 0.33f, 0.36f, a));
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { -4.0f, -3.0f }, { 16.0f, 10.0f }, -8.0f, glm::vec4(0.48f, 0.50f, 0.54f, a));
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { -5.0f, -5.0f }, { 10.0f, 4.0f }, -12.0f, glm::vec4(0.65f, 0.68f, 0.72f, a));
+
+    // 3. Массивные вкрапления киновари (HgS) на центральном камне
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 0.0f, -1.0f }, { 12.0f, 7.0f }, 15.0f, glm::vec4(0.55f, 0.07f, 0.10f, a));
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { -1.0f, -2.0f }, { 8.0f, 4.0f }, 18.0f, glm::vec4(0.82f, 0.12f, 0.16f, a));
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { -2.0f, -3.0f }, { 4.0f, 2.0f }, 20.0f, glm::vec4(0.96f, 0.28f, 0.25f, a));
+
+    // 4. Левый камень осыпи
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { -14.0f, 4.0f }, { 16.0f, 12.0f }, -14.0f, glm::vec4(0.24f, 0.25f, 0.28f, a));
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { -16.0f, 2.0f }, { 11.0f, 7.0f }, -18.0f, glm::vec4(0.44f, 0.46f, 0.50f, a));
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { -13.0f, 3.0f }, { 5.0f, 4.0f }, 5.0f, glm::vec4(0.70f, 0.09f, 0.12f, a));
+
+    // 5. Правый камень осыпи
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 14.0f, 3.0f }, { 17.0f, 13.0f }, 22.0f, glm::vec4(0.26f, 0.27f, 0.30f, a));
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 13.0f, 1.0f }, { 12.0f, 6.0f }, 20.0f, glm::vec4(0.46f, 0.48f, 0.52f, a));
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 15.0f, 2.0f }, { 6.0f, 3.5f }, -10.0f, glm::vec4(0.75f, 0.10f, 0.14f, a));
+
+    // 6. Мелкие осколки и киноварная крошка
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { -19.0f, 9.0f }, { 5.0f, 4.0f }, 8.0f, glm::vec4(0.36f, 0.38f, 0.40f, a));
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 6.0f, 9.0f }, { 6.0f, 4.5f }, -5.0f, glm::vec4(0.68f, 0.12f, 0.15f, a));
+    drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 21.0f, 8.0f }, { 5.5f, 4.0f }, 30.0f, glm::vec4(0.30f, 0.32f, 0.34f, a));
+}
+
 void DecorationRenderer::renderDecoration(
     SpriteRenderer* renderer,
     std::shared_ptr<Texture2D> whiteTexture,
@@ -686,6 +791,12 @@ void DecorationRenderer::renderDecoration(
         drawBrokenMercuryCart(renderer, whiteTexture, d, alpha);
     } else if (d.type == "scrap_debris") {
         drawScrapDebris(renderer, whiteTexture, d, alpha);
+    } else if (d.type == "dead_tree") {
+        drawDeadTree(renderer, whiteTexture, d, alpha);
+    } else if (d.type == "dry_grass") {
+        drawDryGrass(renderer, whiteTexture, d, alpha);
+    } else if (d.type == "ore_debris") {
+        drawOreDebris(renderer, whiteTexture, d, alpha);
     } else {
         // Запасной вариант для неизвестного типа
         drawBush(renderer, whiteTexture, d, alpha);

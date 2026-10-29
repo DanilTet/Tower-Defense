@@ -54,6 +54,21 @@ void BackgroundRenderer::renderEnvironment(
     }
 }
 
+void BackgroundRenderer::renderForeground(
+    SpriteRenderer* renderer,
+    const std::shared_ptr<Texture2D>& whiteTexture,
+    const std::string& backgroundType,
+    const Grid* grid,
+    float screenWidth,
+    float screenHeight
+) {
+    if (!renderer || !whiteTexture) return;
+
+    if (backgroundType == "mine_entrance" || backgroundType == "mine") {
+        renderMineEntranceForeground(renderer, whiteTexture, grid, screenWidth, screenHeight);
+    }
+}
+
 void BackgroundRenderer::render(
     SpriteRenderer* renderer,
     const std::shared_ptr<Texture2D>& whiteTexture,
@@ -611,8 +626,242 @@ void BackgroundRenderer::renderMineEntranceEnvironment(
     drawWheelRuts(yardX - cellSize * 1.8f, midYardY, cellSize * 2.2f);
     drawWheelRuts(yardX + yardW - cellSize * 0.4f, midYardY, cellSize * 2.2f);
 
+
     // =========================================================================
-    // 4. ОБЪЕМНЫЙ 2.5D ЗАБОР (СВЕРХУ И СНИЗУ РАБОЧЕГО ДВОРА)
+    // 4. СОВЕТСКИЙ БЕТОННЫЙ ШАХТНЫЙ КОПЁР СПРАВА (ФОНОВЫЙ КОРПУС И ПОРТАЛ)
+    // =========================================================================
+    float bldgX = yardX + yardW;
+    float bldgW = std::max(1800.0f, marginX + cellSize * 2.0f);
+    float bldgTopY = startY;
+    float bldgBotY = endY;
+    float bldgH = bldgBotY - bldgTopY;
+
+    // 4.1. Монолитная бетонная стена копра (основной массив серого бетона)
+    renderer->drawSprite(
+        whiteTexture,
+        glm::vec2(bldgX, bldgTopY),
+        glm::vec2(bldgW, bldgH),
+        0.0f,
+        glm::vec3(0.42f, 0.44f, 0.46f)
+    );
+
+    // Падающая мягкая тень от гигантского копра на рабочий двор влево
+    float castShadowW = std::max(40.0f, cellSize * 0.80f);
+    renderer->drawSpriteRGBA(
+        whiteTexture,
+        glm::vec2(bldgX - castShadowW, bldgTopY),
+        glm::vec2(castShadowW, bldgH),
+        0.0f,
+        glm::vec4(0.08f, 0.09f, 0.10f, 0.38f)
+    );
+    renderer->drawSpriteRGBA(
+        whiteTexture,
+        glm::vec2(bldgX - castShadowW * 0.4f, bldgTopY),
+        glm::vec2(castShadowW * 0.4f, bldgH),
+        0.0f,
+        glm::vec4(0.05f, 0.06f, 0.07f, 0.32f)
+    );
+
+    // 4.2. Горизонтальные швы между монолитными бетонными блоками
+    float blockH = cellSize * 1.30f;
+    for (float by = bldgTopY; by <= bldgBotY; by += blockH) {
+        renderer->drawSprite(
+            whiteTexture,
+            glm::vec2(bldgX, by - 1.5f),
+            glm::vec2(bldgW, 3.0f),
+            0.0f,
+            glm::vec3(0.24f, 0.25f, 0.27f)
+        );
+        renderer->drawSprite(
+            whiteTexture,
+            glm::vec2(bldgX, by + 1.5f),
+            glm::vec2(bldgW, 1.5f),
+            0.0f,
+            glm::vec3(0.55f, 0.57f, 0.60f)
+        );
+    }
+
+    // Вертикальные швы панелей (шахматная перевязка)
+    float blockW = cellSize * 2.6f;
+    int rowIdx = 0;
+    for (float by = bldgTopY; by <= bldgBotY; by += blockH, ++rowIdx) {
+        float xShift = (rowIdx % 2 == 1) ? (blockW * 0.5f) : 0.0f;
+        for (float bx = bldgX + xShift; bx < bldgX + bldgW; bx += blockW) {
+            renderer->drawSprite(
+                whiteTexture,
+                glm::vec2(bx, by),
+                glm::vec2(2.5f, blockH),
+                0.0f,
+                glm::vec3(0.25f, 0.26f, 0.28f)
+            );
+            renderer->drawSprite(
+                whiteTexture,
+                glm::vec2(bx + 2.5f, by),
+                glm::vec2(1.0f, blockH),
+                0.0f,
+                glm::vec3(0.52f, 0.54f, 0.56f)
+            );
+        }
+    }
+
+    // 4.3. Массивные вертикальные пилоны / ребра жесткости (несущие колонны)
+    float pylonSpacing = cellSize * 3.4f;
+    float pylonW = std::max(22.0f, cellSize * 0.45f);
+    for (float px = bldgX; px < bldgX + bldgW; px += pylonSpacing) {
+        renderer->drawSprite(
+            whiteTexture,
+            glm::vec2(px, bldgTopY),
+            glm::vec2(pylonW, bldgH),
+            0.0f,
+            glm::vec3(0.48f, 0.50f, 0.52f)
+        );
+        renderer->drawSprite(
+            whiteTexture,
+            glm::vec2(px, bldgTopY),
+            glm::vec2(2.5f, bldgH),
+            0.0f,
+            glm::vec3(0.62f, 0.64f, 0.66f)
+        );
+        renderer->drawSprite(
+            whiteTexture,
+            glm::vec2(px + pylonW - 3.5f, bldgTopY),
+            glm::vec2(3.5f, bldgH),
+            0.0f,
+            glm::vec3(0.30f, 0.32f, 0.34f)
+        );
+        renderer->drawSpriteRGBA(
+            whiteTexture,
+            glm::vec2(px + pylonW, bldgTopY),
+            glm::vec2(cellSize * 0.28f, bldgH),
+            0.0f,
+            glm::vec4(0.12f, 0.13f, 0.15f, 0.35f)
+        );
+    }
+
+    // 4.4. Подтеки грязи, ржавчины и потеки копоти
+    for (int s = 0; s < 32; ++s) {
+        uint32_t sh = hash2D(s, 1984, 0x50B137);
+        float sx = bldgX + rand01(sh) * std::min(bldgW, 1100.0f);
+        float sy = yardY - cellSize * 3.5f + rand01(sh >> 8) * (yardH + cellSize * 5.0f);
+        float sLen = std::max(24.0f, rand01(sh >> 16) * cellSize * 3.0f);
+        float sW = 2.0f + (sh % 3);
+        bool isRust = (s % 2 == 0);
+        glm::vec4 streakCol = isRust
+            ? glm::vec4(0.32f, 0.18f, 0.10f, 0.55f)
+            : glm::vec4(0.16f, 0.17f, 0.18f, 0.65f);
+        renderer->drawSpriteRGBA(whiteTexture, glm::vec2(sx, sy), glm::vec2(sW, sLen), 0.0f, streakCol);
+        renderer->drawSpriteRGBA(whiteTexture, glm::vec2(sx + 0.5f, sy + sLen * 0.4f), glm::vec2(sW * 0.6f, sLen * 0.6f), 0.0f, streakCol * glm::vec4(0.8f, 0.8f, 0.8f, 0.8f));
+    }
+
+    // 4.5. Узкие технические окна наверху (промышленное остекление)
+    float winRowY1 = yardY - cellSize * 2.5f;
+    float winRowY2 = yardY - cellSize * 4.4f;
+    auto drawWindowRow = [&](float rowY) {
+        float winW = std::max(16.0f, cellSize * 0.30f);
+        float winH = std::max(38.0f, cellSize * 0.80f);
+        float winSpacing = cellSize * 0.70f;
+        for (float wx = bldgX + cellSize * 0.6f; wx < bldgX + std::min(bldgW, 950.0f); wx += winSpacing) {
+            float pylonRel = std::fmod(wx - bldgX, pylonSpacing);
+            if (pylonRel < pylonW + 8.0f) continue;
+
+            renderer->drawSprite(whiteTexture, glm::vec2(wx - 2.0f, rowY - 2.0f), glm::vec2(winW + 4.0f, winH + 4.0f), 0.0f, glm::vec3(0.20f, 0.21f, 0.23f));
+            renderer->drawSprite(whiteTexture, glm::vec2(wx, rowY), glm::vec2(winW, winH), 0.0f, glm::vec3(0.14f, 0.20f, 0.24f));
+            renderer->drawSprite(whiteTexture, glm::vec2(wx + winW * 0.5f - 0.75f, rowY), glm::vec2(1.5f, winH), 0.0f, glm::vec3(0.10f, 0.11f, 0.12f));
+            renderer->drawSprite(whiteTexture, glm::vec2(wx, rowY + winH * 0.5f - 0.75f), glm::vec2(winW, 1.5f), 0.0f, glm::vec3(0.10f, 0.11f, 0.12f));
+            renderer->drawSpriteRGBA(whiteTexture, glm::vec2(wx + 2.0f, rowY + 3.0f), glm::vec2(winW * 0.4f, winH * 0.35f), 0.0f, glm::vec4(0.40f, 0.55f, 0.60f, 0.25f));
+            renderer->drawSprite(whiteTexture, glm::vec2(wx - 3.0f, rowY + winH), glm::vec2(winW + 6.0f, 3.5f), 0.0f, glm::vec3(0.50f, 0.52f, 0.55f));
+            renderer->drawSpriteRGBA(whiteTexture, glm::vec2(wx + winW * 0.3f, rowY + winH + 3.5f), glm::vec2(2.5f, 15.0f), 0.0f, glm::vec4(0.30f, 0.17f, 0.10f, 0.45f));
+        }
+    };
+    drawWindowRow(winRowY1);
+    drawWindowRow(winRowY2);
+
+    // 4.6. Техническая советская маркировка на бетоне ("СТВОЛ №2")
+    float signY = yardY + yardH * 0.5f - cellSize * 2.0f;
+    renderer->drawSprite(whiteTexture, glm::vec2(bldgX + cellSize * 0.4f, signY), glm::vec2(cellSize * 3.0f, cellSize * 0.38f), 0.0f, glm::vec3(0.28f, 0.29f, 0.31f));
+    renderer->drawSprite(whiteTexture, glm::vec2(bldgX + cellSize * 0.45f, signY + 2.0f), glm::vec2(cellSize * 2.9f, cellSize * 0.38f - 4.0f), 0.0f, glm::vec3(0.85f, 0.72f, 0.15f));
+    for (int t = 0; t < 6; ++t) {
+        renderer->drawSprite(whiteTexture, glm::vec2(bldgX + cellSize * 0.55f + static_cast<float>(t) * (cellSize * 0.45f), signY + 4.0f), glm::vec2(cellSize * 0.28f, cellSize * 0.24f), 0.0f, glm::vec3(0.12f, 0.12f, 0.14f));
+    }
+
+    // 4.7. Проём ворот шахты в основании (вход в ствол)
+    float portalCenterY = yardY + yardH * 0.5f;
+    float portalH = std::max(150.0f, cellSize * 2.6f);
+    float portalTopY = portalCenterY - portalH * 0.5f;
+    float portalW = std::max(150.0f, cellSize * 2.5f);
+    float portalX = bldgX;
+
+    // Внутреннее пространство ствола шахты: абсолютно черное
+    renderer->drawSpriteRGBA(
+        whiteTexture,
+        glm::vec2(portalX, portalTopY),
+        glm::vec2(portalW, portalH),
+        0.0f,
+        glm::vec4(0.01f, 0.01f, 0.01f, 1.0f)
+    );
+
+    // Глубокий градиент бездны ствола
+    renderer->drawSpriteRGBA(
+        whiteTexture,
+        glm::vec2(portalX + portalW * 0.20f, portalTopY + 3.0f),
+        glm::vec2(portalW * 0.80f, portalH - 6.0f),
+        0.0f,
+        glm::vec4(0.005f, 0.005f, 0.005f, 1.0f)
+    );
+
+    // Боковые косяки портала
+    float jambW = std::max(14.0f, cellSize * 0.24f);
+    renderer->drawSprite(whiteTexture, glm::vec2(portalX - jambW * 0.3f, portalTopY), glm::vec2(jambW, portalH), 0.0f, glm::vec3(0.35f, 0.36f, 0.38f));
+    renderer->drawSprite(whiteTexture, glm::vec2(portalX - jambW * 0.3f, portalTopY), glm::vec2(2.5f, portalH), 0.0f, glm::vec3(0.55f, 0.57f, 0.60f));
+    renderer->drawSprite(whiteTexture, glm::vec2(portalX + portalW - jambW * 0.8f, portalTopY), glm::vec2(jambW, portalH), 0.0f, glm::vec3(0.20f, 0.21f, 0.22f));
+
+    // Рельсовый путь, уходящий во тьму шахты
+    float railTrackY = portalCenterY;
+    float railGauge = std::max(24.0f, cellSize * 0.42f);
+    float railStartY = railTrackY - railGauge * 0.5f;
+    float railLen = portalW * 0.85f;
+    float sleeperSpacing = std::max(14.0f, cellSize * 0.25f);
+    for (float slx = portalX; slx < portalX + railLen; slx += sleeperSpacing) {
+        float depthFade = 1.0f - ((slx - portalX) / railLen);
+        glm::vec4 slCol = glm::vec4(0.18f, 0.15f, 0.12f, depthFade * 0.9f);
+        renderer->drawSpriteRGBA(whiteTexture, glm::vec2(slx, railStartY - 4.0f), glm::vec2(4.5f, railGauge + 8.0f), 0.0f, slCol);
+    }
+    for (float slx = portalX; slx < portalX + railLen; slx += 6.0f) {
+        float depthFade = std::max(0.02f, 1.0f - ((slx - portalX) / railLen));
+        glm::vec4 railCol = glm::vec4(0.60f, 0.62f, 0.65f, depthFade * 0.9f);
+        renderer->drawSpriteRGBA(whiteTexture, glm::vec2(slx, railStartY), glm::vec2(6.0f, 3.0f), 0.0f, railCol);
+        renderer->drawSpriteRGBA(whiteTexture, glm::vec2(slx, railStartY + railGauge), glm::vec2(6.0f, 3.0f), 0.0f, railCol);
+    }
+
+    // Бетонный порог / пандус у основания входа
+    float threshH = std::max(10.0f, cellSize * 0.18f);
+    renderer->drawSprite(whiteTexture, glm::vec2(portalX - cellSize * 0.35f, portalTopY + portalH - threshH), glm::vec2(portalW * 0.65f, threshH), 0.0f, glm::vec3(0.32f, 0.33f, 0.35f));
+    renderer->drawSprite(whiteTexture, glm::vec2(portalX - cellSize * 0.35f, portalTopY + portalH - threshH), glm::vec2(portalW * 0.65f, 2.5f), 0.0f, glm::vec3(0.50f, 0.52f, 0.55f));
+}
+
+void BackgroundRenderer::renderMineEntranceForeground(
+    SpriteRenderer* renderer,
+    const std::shared_ptr<Texture2D>& whiteTexture,
+    const Grid* grid,
+    float screenWidth,
+    float screenHeight
+) {
+    if (!renderer || !whiteTexture || !grid) return;
+
+    glm::vec2 gridOffset = grid->getOffset();
+    float cellSize = grid->getCellSize();
+    int gridW_tiles = grid->getWidth();
+    int gridH_tiles = grid->getHeight();
+    float gridW = static_cast<float>(gridW_tiles) * cellSize;
+    float gridH = static_cast<float>(gridH_tiles) * cellSize;
+
+    float yardX = gridOffset.x;
+    float yardY = gridOffset.y;
+    float yardW = gridW;
+    float yardH = gridH;
+
+    // =========================================================================
+    // 1. ОБЪЕМНЫЙ 2.5D ЗАБОР (ПОВЕРХ ЗЕМЛИ ДВОРА)
     // =========================================================================
     auto drawFence25D = [&](float groundY, bool isTop) {
         float fenceH = cellSize * 0.46f;
@@ -626,226 +875,75 @@ void BackgroundRenderer::renderMineEntranceEnvironment(
         float fenceLen = yardW;
         float facadeTopY = groundY - fenceH;
 
-        // 4.1. Мягкая падающая тень на земле
+        // Падающая тень на земле
         float shadowH = std::max(10.0f, cellSize * 0.20f);
         renderer->drawSpriteRGBA(
             whiteTexture,
-            glm::vec2(fenceStartX - postW * 0.5f, groundY),
-            glm::vec2(fenceLen + postW, shadowH),
+            glm::vec2(fenceStartX - 10.0f, groundY - shadowH * 0.25f),
+            glm::vec2(fenceLen + 20.0f, shadowH),
             0.0f,
-            glm::vec4(0.0f, 0.0f, 0.0f, isTop ? 0.42f : 0.36f)
+            glm::vec4(0.08f, 0.07f, 0.05f, 0.38f)
         );
-        // Темный контактный кант
         renderer->drawSpriteRGBA(
             whiteTexture,
-            glm::vec2(fenceStartX - postW * 0.5f, groundY),
-            glm::vec2(fenceLen + postW, 2.0f),
+            glm::vec2(fenceStartX - 5.0f, groundY - shadowH * 0.1f),
+            glm::vec2(fenceLen + 10.0f, shadowH * 0.5f),
             0.0f,
-            glm::vec4(0.0f, 0.0f, 0.0f, 0.58f)
+            glm::vec4(0.05f, 0.04f, 0.03f, 0.25f)
         );
 
-        // 4.2. Каменный/бетонный цоколь под пролетами
-        float plinthH = std::max(4.0f, cellSize * 0.08f);
-        float plinthY = groundY - plinthH;
-        renderer->drawSprite(
-            whiteTexture,
-            glm::vec2(fenceStartX - postW * 0.5f, plinthY),
-            glm::vec2(fenceLen + postW, plinthH),
-            0.0f,
-            glm::vec3(0.38f, 0.37f, 0.35f)
-        );
-        renderer->drawSprite(
-            whiteTexture,
-            glm::vec2(fenceStartX - postW * 0.5f, plinthY),
-            glm::vec2(fenceLen + postW, 1.5f),
-            0.0f,
-            glm::vec3(0.52f, 0.51f, 0.48f)
-        );
-        renderer->drawSprite(
-            whiteTexture,
-            glm::vec2(fenceStartX - postW * 0.5f, groundY - 1.5f),
-            glm::vec2(fenceLen + postW, 1.5f),
-            0.0f,
-            glm::vec3(0.20f, 0.19f, 0.18f)
-        );
+        // Горизонтальные лаги (ригели)
+        float railH = std::max(5.0f, cellSize * 0.085f);
+        float topRailY = facadeTopY + fenceH * 0.22f;
+        float botRailY = facadeTopY + fenceH * 0.72f;
 
-        // 4.3. Пролеты забора: вертикальный штакетник и горизонтальные балки-слеги
+        auto drawHorizontalRail = [&](float ry) {
+            renderer->drawSprite(whiteTexture, glm::vec2(fenceStartX, ry), glm::vec2(fenceLen, railH), 0.0f, glm::vec3(0.25f, 0.27f, 0.29f));
+            renderer->drawSprite(whiteTexture, glm::vec2(fenceStartX, ry), glm::vec2(fenceLen, 1.5f), 0.0f, glm::vec3(0.55f, 0.58f, 0.62f));
+            renderer->drawSprite(whiteTexture, glm::vec2(fenceStartX, ry + railH - 1.5f), glm::vec2(fenceLen, 1.5f), 0.0f, glm::vec3(0.12f, 0.13f, 0.14f));
+        };
+        drawHorizontalRail(topRailY);
+        drawHorizontalRail(botRailY);
+
+        // Вертикальные секции профлиста/сетки рабицы
         int numIntervals = static_cast<int>(std::ceil(fenceLen / postSpacing));
-        if (numIntervals < 1) numIntervals = 1;
+        for (int i = 0; i < numIntervals; ++i) {
+            float secX = fenceStartX + static_cast<float>(i) * postSpacing + postW;
+            float nextPostX = fenceStartX + static_cast<float>(i + 1) * postSpacing;
+            if (nextPostX > fenceEndX) nextPostX = fenceEndX;
+            float secW = nextPostX - secX;
+            if (secW <= 0.0f) continue;
 
-        float railH = std::max(4.0f, cellSize * 0.09f);
-        float topRailY = facadeTopY + fenceH * 0.20f;
-        float botRailY = facadeTopY + fenceH * 0.65f;
+            float panelTop = topRailY - 2.0f;
+            float panelH = (botRailY + railH + 2.0f) - panelTop;
 
-        float plankW = std::max(5.0f, cellSize * 0.09f);
-        float plankGap = std::max(3.0f, cellSize * 0.05f);
-        float plankH = fenceH * 0.82f;
-        float plankTopY = facadeTopY + fenceH * 0.08f;
+            renderer->drawSpriteRGBA(whiteTexture, glm::vec2(secX, panelTop), glm::vec2(secW, panelH), 0.0f, glm::vec4(0.18f, 0.20f, 0.22f, 0.35f));
 
-        // Вертикальный штакетник между столбами
-        for (int p = 0; p < numIntervals; ++p) {
-            float p1 = fenceStartX + static_cast<float>(p) * postSpacing;
-            float p2 = fenceStartX + static_cast<float>(p + 1) * postSpacing;
-            if (p2 > fenceEndX) p2 = fenceEndX;
-            if (p1 >= p2) break;
-
-            float spanStartX = p1 + postW * 0.5f;
-            float spanEndX = p2 - postW * 0.5f;
-            float spanW = spanEndX - spanStartX;
-            if (spanW <= 0.0f) continue;
-
-            int numPlanks = static_cast<int>(spanW / (plankW + plankGap));
-            float actualGap = (numPlanks > 1) ? ((spanW - numPlanks * plankW) / static_cast<float>(numPlanks)) : plankGap;
-
-            for (int k = 0; k < numPlanks; ++k) {
-                float pkX = spanStartX + actualGap * 0.5f + static_cast<float>(k) * (plankW + actualGap);
-
-                uint32_t pHash = hash2D(static_cast<int>(p1), k, 38911u);
-                float hueVar = 0.90f + 0.20f * rand01(pHash);
-                glm::vec3 woodCol = glm::vec3(0.50f, 0.33f, 0.18f) * hueVar;
-
-                // Падающая микротень справа от доски
-                renderer->drawSpriteRGBA(
-                    whiteTexture,
-                    glm::vec2(pkX + plankW, plankTopY + 1.0f),
-                    glm::vec2(1.5f, plankH - 1.0f),
-                    0.0f,
-                    glm::vec4(0.0f, 0.0f, 0.0f, 0.28f)
-                );
-                // Тело доски
-                renderer->drawSprite(
-                    whiteTexture,
-                    glm::vec2(pkX, plankTopY),
-                    glm::vec2(plankW, plankH),
-                    0.0f,
-                    woodCol
-                );
-                // Светлая фаска/верх доски
-                renderer->drawSprite(
-                    whiteTexture,
-                    glm::vec2(pkX, plankTopY),
-                    glm::vec2(plankW, 1.5f),
-                    0.0f,
-                    woodCol + glm::vec3(0.14f, 0.12f, 0.08f)
-                );
-                // Темный низ доски
-                renderer->drawSprite(
-                    whiteTexture,
-                    glm::vec2(pkX, plankTopY + plankH - 1.5f),
-                    glm::vec2(plankW, 1.5f),
-                    0.0f,
-                    woodCol * 0.60f
-                );
+            float meshStep = std::max(6.0f, cellSize * 0.12f);
+            for (float mx = secX; mx < secX + secW; mx += meshStep) {
+                renderer->drawSpriteRGBA(whiteTexture, glm::vec2(mx, panelTop), glm::vec2(1.5f, panelH), 0.0f, glm::vec4(0.40f, 0.43f, 0.47f, 0.60f));
             }
         }
 
-        // Две горизонтальные толстые деревянные балки-слеги (светлая верхняя фаска 1-2px, темный низ)
-        auto drawRail = [&](float ry) {
-            renderer->drawSprite(
-                whiteTexture,
-                glm::vec2(fenceStartX - postW * 0.5f, ry),
-                glm::vec2(fenceLen + postW, railH),
-                0.0f,
-                glm::vec3(0.42f, 0.28f, 0.16f)
-            );
-            renderer->drawSprite(
-                whiteTexture,
-                glm::vec2(fenceStartX - postW * 0.5f, ry),
-                glm::vec2(fenceLen + postW, 1.5f),
-                0.0f,
-                glm::vec3(0.64f, 0.46f, 0.28f)
-            );
-            renderer->drawSprite(
-                whiteTexture,
-                glm::vec2(fenceStartX - postW * 0.5f, ry + railH - 1.5f),
-                glm::vec2(fenceLen + postW, 1.5f),
-                0.0f,
-                glm::vec3(0.20f, 0.13f, 0.07f)
-            );
-        };
-        drawRail(topRailY);
-        drawRail(botRailY);
+        // Вертикальные опорные железобетонные столбы
+        auto drawSinglePost = [&](float postX) {
+            float py = groundY - postH;
+            renderer->drawSprite(whiteTexture, glm::vec2(postX, py), glm::vec2(postW, postH), 0.0f, glm::vec3(0.46f, 0.48f, 0.50f));
+            renderer->drawSprite(whiteTexture, glm::vec2(postX, py), glm::vec2(2.5f, postH), 0.0f, glm::vec3(0.68f, 0.70f, 0.74f));
+            renderer->drawSprite(whiteTexture, glm::vec2(postX + postW - 3.0f, py), glm::vec2(3.0f, postH), 0.0f, glm::vec3(0.24f, 0.25f, 0.26f));
 
-        // 4.4. Массивные столбы (каждые 2 тайла)
-        auto drawSinglePost = [&](float px) {
-            float postX = px - postW * 0.5f;
-            float postTopY = groundY - postH;
-
-            // Тень под столбом
-            renderer->drawSpriteRGBA(
-                whiteTexture,
-                glm::vec2(postX - 2.0f, groundY),
-                glm::vec2(postW + 6.0f, shadowH * 1.35f),
-                0.0f,
-                glm::vec4(0.0f, 0.0f, 0.0f, 0.45f)
-            );
-
-            // Разделение на освещенную (слева) и теневую (справа) сторону
-            float halfW = postW * 0.5f;
-            renderer->drawSprite(
-                whiteTexture,
-                glm::vec2(postX, postTopY),
-                glm::vec2(halfW, postH),
-                0.0f,
-                glm::vec3(0.58f, 0.56f, 0.52f)
-            );
-            renderer->drawSprite(
-                whiteTexture,
-                glm::vec2(postX, postTopY),
-                glm::vec2(1.5f, postH),
-                0.0f,
-                glm::vec3(0.74f, 0.72f, 0.68f)
-            );
-            renderer->drawSprite(
-                whiteTexture,
-                glm::vec2(postX + halfW, postTopY),
-                glm::vec2(halfW, postH),
-                0.0f,
-                glm::vec3(0.36f, 0.35f, 0.33f)
-            );
-            renderer->drawSprite(
-                whiteTexture,
-                glm::vec2(postX + postW - 1.5f, postTopY),
-                glm::vec2(1.5f, postH),
-                0.0f,
-                glm::vec3(0.22f, 0.21f, 0.20f)
-            );
-
-            // Верхняя горизонтальная грань / шапка столба (более светлая, объемная фаска)
             float capW = postW + 4.0f;
-            float capX = px - capW * 0.5f;
-            float capY = postTopY - postCapH;
+            float capX = postX - 2.0f;
+            float capY = py - postCapH + 1.0f;
+            renderer->drawSprite(whiteTexture, glm::vec2(capX, capY), glm::vec2(capW, postCapH), 0.0f, glm::vec3(0.52f, 0.54f, 0.56f));
+            renderer->drawSprite(whiteTexture, glm::vec2(capX, capY), glm::vec2(capW, 1.5f), 0.0f, glm::vec3(0.75f, 0.78f, 0.82f));
+            renderer->drawSprite(whiteTexture, glm::vec2(capX, capY + postCapH - 1.5f), glm::vec2(capW, 1.5f), 0.0f, glm::vec3(0.26f, 0.25f, 0.24f));
 
-            renderer->drawSprite(
-                whiteTexture,
-                glm::vec2(capX, capY),
-                glm::vec2(capW, postCapH),
-                0.0f,
-                glm::vec3(0.68f, 0.66f, 0.62f)
-            );
-            renderer->drawSprite(
-                whiteTexture,
-                glm::vec2(capX, capY),
-                glm::vec2(capW, 2.0f),
-                0.0f,
-                glm::vec3(0.84f, 0.82f, 0.78f)
-            );
-            renderer->drawSprite(
-                whiteTexture,
-                glm::vec2(capX, capY + postCapH - 1.5f),
-                glm::vec2(capW, 1.5f),
-                0.0f,
-                glm::vec3(0.26f, 0.25f, 0.24f)
-            );
-
-            // Болты/заклепки на стыках со столбами
             auto drawRivetPlate = [&](float ry) {
                 float plateW = std::max(6.0f, postW * 0.42f);
                 float plateH = railH + 2.0f;
-                // Левая монтажная пластина
                 renderer->drawSprite(whiteTexture, glm::vec2(postX - plateW * 0.5f, ry - 1.0f), glm::vec2(plateW, plateH), 0.0f, glm::vec3(0.28f, 0.30f, 0.32f));
                 renderer->drawSprite(whiteTexture, glm::vec2(postX - plateW * 0.5f + 1.5f, ry + 1.5f), glm::vec2(2.5f, 2.5f), 0.0f, glm::vec3(0.82f, 0.84f, 0.88f));
-                // Правая монтажная пластина
                 renderer->drawSprite(whiteTexture, glm::vec2(postX + postW - plateW * 0.5f, ry - 1.0f), glm::vec2(plateW, plateH), 0.0f, glm::vec3(0.26f, 0.27f, 0.29f));
                 renderer->drawSprite(whiteTexture, glm::vec2(postX + postW - plateW * 0.5f + 1.5f, ry + 1.5f), glm::vec2(2.5f, 2.5f), 0.0f, glm::vec3(0.80f, 0.82f, 0.85f));
             };
@@ -861,10 +959,90 @@ void BackgroundRenderer::renderMineEntranceEnvironment(
         }
     };
 
-    // Верхний забор: основание на верхней границе двора (Y = yardY)
+    // Верхний забор на границе двора (Y = yardY)
     drawFence25D(yardY, true);
-    // Нижний забор: фасад расположен под нижней границей двора (Y = yardY + yardH + fenceH)
+    // Нижний забор под границей двора (Y = yardY + yardH + fenceH)
     drawFence25D(yardY + yardH + cellSize * 0.46f, false);
-}
 
+    // =========================================================================
+    // 2. ВЕРХНЯЯ ЧАСТЬ ПРОЁМА И КОЗЫРЁК КОПРА (МАСКИРУЮТ МОБОВ ПРИ ВХОДЕ В СТВОЛ)
+    // =========================================================================
+    float bldgX = yardX + yardW;
+    float portalCenterY = yardY + yardH * 0.5f;
+    float portalH = std::max(150.0f, cellSize * 2.6f);
+    float portalTopY = portalCenterY - portalH * 0.5f;
+    float portalW = std::max(150.0f, cellSize * 2.5f);
+
+    // 2.1. Массивная балка-перемычка над головой (капитальная железобетонная окантовка)
+    float beamW = portalW + cellSize * 0.8f;
+    float beamH = std::max(30.0f, cellSize * 0.52f);
+    float beamX = bldgX - cellSize * 0.35f;
+    float beamY = portalTopY - beamH * 0.45f;
+
+    // Тень под балкой на проём
+    renderer->drawSpriteRGBA(whiteTexture, glm::vec2(beamX, beamY + beamH), glm::vec2(beamW, 14.0f), 0.0f, glm::vec4(0.02f, 0.02f, 0.02f, 0.75f));
+
+    // Массив бетона перемычки
+    renderer->drawSprite(whiteTexture, glm::vec2(beamX, beamY), glm::vec2(beamW, beamH), 0.0f, glm::vec3(0.44f, 0.46f, 0.48f));
+    // Верхняя световая грань балки
+    renderer->drawSprite(whiteTexture, glm::vec2(beamX, beamY), glm::vec2(beamW, 2.5f), 0.0f, glm::vec3(0.66f, 0.68f, 0.72f));
+    // Нижний темный срез балки
+    renderer->drawSprite(whiteTexture, glm::vec2(beamX, beamY + beamH - 3.5f), glm::vec2(beamW, 3.5f), 0.0f, glm::vec3(0.20f, 0.22f, 0.24f));
+
+    // Сигнальная черно-желтая разметка опасности (ГОСТ полосы по нижнему канту балки)
+    float stripeBarH = std::max(9.0f, cellSize * 0.16f);
+    float stripeBarY = beamY + beamH - stripeBarH - 3.5f;
+    float stripeStep = std::max(16.0f, cellSize * 0.28f);
+    for (float sx = beamX + 4.0f; sx < beamX + beamW - 4.0f; sx += stripeStep) {
+        renderer->drawSprite(whiteTexture, glm::vec2(sx, stripeBarY), glm::vec2(stripeStep * 0.55f, stripeBarH), 0.0f, glm::vec3(0.88f, 0.76f, 0.12f));
+        renderer->drawSprite(whiteTexture, glm::vec2(sx + stripeStep * 0.55f, stripeBarY), glm::vec2(stripeStep * 0.45f, stripeBarH), 0.0f, glm::vec3(0.12f, 0.12f, 0.14f));
+    }
+
+    // Монтажные стальные анкерные пластины на балке с болтами
+    auto drawBeamBolts = [&](float bx) {
+        renderer->drawSprite(whiteTexture, glm::vec2(bx, beamY + 4.0f), glm::vec2(12.0f, beamH - 8.0f), 0.0f, glm::vec3(0.28f, 0.30f, 0.32f));
+        renderer->drawSprite(whiteTexture, glm::vec2(bx + 4.0f, beamY + 8.0f), glm::vec2(4.0f, 4.0f), 0.0f, glm::vec3(0.75f, 0.78f, 0.82f));
+        renderer->drawSprite(whiteTexture, glm::vec2(bx + 4.0f, beamY + beamH - 16.0f), glm::vec2(4.0f, 4.0f), 0.0f, glm::vec3(0.75f, 0.78f, 0.82f));
+    };
+    drawBeamBolts(beamX + 6.0f);
+    drawBeamBolts(beamX + beamW * 0.45f);
+    drawBeamBolts(beamX + beamW - 18.0f);
+
+    // 2.2. Защитный нависающий козырек над входом (вынос влево на рабочий двор)
+    float canopyReach = std::max(56.0f, cellSize * 0.95f);
+    float canopyX = bldgX - canopyReach;
+    float canopyW = canopyReach + cellSize * 0.6f;
+    float canopyH = std::max(18.0f, cellSize * 0.30f);
+    float canopyY = beamY - canopyH + 4.0f;
+
+    // Падающая тень от козырька на стену и балку
+    renderer->drawSpriteRGBA(whiteTexture, glm::vec2(canopyX, beamY), glm::vec2(canopyW, 10.0f), 0.0f, glm::vec4(0.04f, 0.04f, 0.05f, 0.50f));
+
+    // Профнастил / металлический скат козырька
+    renderer->drawSprite(whiteTexture, glm::vec2(canopyX, canopyY), glm::vec2(canopyW, canopyH), 0.0f, glm::vec3(0.32f, 0.34f, 0.37f));
+    renderer->drawSprite(whiteTexture, glm::vec2(canopyX, canopyY), glm::vec2(canopyW, 2.5f), 0.0f, glm::vec3(0.60f, 0.64f, 0.68f));
+    renderer->drawSprite(whiteTexture, glm::vec2(canopyX, canopyY + canopyH - 2.0f), glm::vec2(canopyW, 2.0f), 0.0f, glm::vec3(0.18f, 0.19f, 0.20f));
+
+    // Ребра гофрированного листа
+    float ribStep = std::max(10.0f, cellSize * 0.18f);
+    for (float rx = canopyX + 6.0f; rx < canopyX + canopyW - 6.0f; rx += ribStep) {
+        renderer->drawSprite(whiteTexture, glm::vec2(rx, canopyY), glm::vec2(2.0f, canopyH), 0.0f, glm::vec3(0.22f, 0.23f, 0.25f));
+        renderer->drawSprite(whiteTexture, glm::vec2(rx + 2.0f, canopyY), glm::vec2(1.0f, canopyH), 0.0f, glm::vec3(0.48f, 0.52f, 0.56f));
+    }
+
+    // Диагональные стальные подкосы (несущие кронштейны козырька к бетону)
+    auto drawStrut = [&](float sx, float sy) {
+        renderer->drawSprite(whiteTexture, glm::vec2(sx, sy), glm::vec2(4.0f, std::max(24.0f, cellSize * 0.40f)), -28.0f, glm::vec3(0.24f, 0.26f, 0.28f));
+        renderer->drawSprite(whiteTexture, glm::vec2(sx + 1.0f, sy), glm::vec2(1.5f, std::max(24.0f, cellSize * 0.40f)), -28.0f, glm::vec3(0.55f, 0.58f, 0.62f));
+    };
+    drawStrut(canopyX + 8.0f, canopyY + canopyH);
+    drawStrut(canopyX + canopyReach * 0.6f, canopyY + canopyH);
+
+    // 2.3. Рудничный светильник над входом (ВЗГ во взрывозащищенном корпусе)
+    float lampX = canopyX + canopyReach * 0.45f;
+    float lampY = beamY - 4.0f;
+    renderer->drawSprite(whiteTexture, glm::vec2(lampX - 6.0f, lampY), glm::vec2(12.0f, 10.0f), 0.0f, glm::vec3(0.26f, 0.28f, 0.30f));
+    renderer->drawSprite(whiteTexture, glm::vec2(lampX - 4.0f, lampY + 4.0f), glm::vec2(8.0f, 8.0f), 0.0f, glm::vec3(1.0f, 0.85f, 0.40f));
+    renderer->drawSpriteRGBA(whiteTexture, glm::vec2(lampX - 35.0f, lampY + 12.0f), glm::vec2(70.0f, 50.0f), 0.0f, glm::vec4(1.0f, 0.82f, 0.35f, 0.16f));
+}
 

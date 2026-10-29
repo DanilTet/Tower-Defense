@@ -969,9 +969,9 @@
     ],
     "spawners": [
       {
-        "enableFadeIn": false,
-        "groupId": 0,
-        "targetBaseIndex": 0,
+        "enableFadeIn": true,
+        "groupId": -1,
+        "targetBaseIndex": -1,
         "visibleInGame": false,
         "x": -14,
         "y": 5

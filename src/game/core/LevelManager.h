@@ -78,7 +78,7 @@ struct ParticleEmitterConfig {
 
 struct DecorationConfig {
     int id = 0;
-    std::string type = "bush"; // "bush", "grass_tuft", "flower", "stone", "helmet", "pickaxe", "puddle", "crack", "fog", "wooden_crate", "broken_mercury_cart", "scrap_debris"
+    std::string type = "bush"; // "bush", "grass_tuft", "grass_field", "flower", "stone", "helmet", "pickaxe", "puddle", "crack", "fog", "wooden_crate", "broken_mercury_cart", "scrap_debris", "dead_tree", "dry_grass", "ore_debris"
     glm::vec2 tilePos = glm::vec2(0.0f);  // координаты в единицах сетки (float tileX, tileY)
     glm::vec2 worldPos = glm::vec2(0.0f); // абсолютная мировая позиция (актуализируется через tilePos)
     float scale = 1.0f;     // общий масштаб (0.5x .. 2.5x)

@@ -189,6 +189,18 @@ void GameplayRenderer::renderFrame(
     // 4.1. Отрисовка вагонетки и опасности на рельсах
     world.render(m_renderer.get(), m_whiteTexture);
 
+    // 4.15. Верхний слой фона (2.5D забор, козырек копра) — поверх клеток земли и мобов (враги скрываются под сводом)
+    if (m_whiteTexture) {
+        BackgroundRenderer::renderForeground(
+            m_renderer.get(),
+            m_whiteTexture,
+            world.currentBackground,
+            world.grid.get(),
+            static_cast<float>(windowWidth),
+            static_cast<float>(windowHeight)
+        );
+    }
+
     // 4.2. Меню башни на поле (привязано к мировым координатам башни)
     if (world.grid && selectedTowerOnMap) {
         towerMenuUI.render(selectedTowerOnMap, m_renderer.get(), m_textRenderer, m_uiBaseTexture, *world.grid, world.levelData.getMaxTierForTower(selectedTowerOnMap->getType()));

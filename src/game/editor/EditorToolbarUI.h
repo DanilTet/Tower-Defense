@@ -39,7 +39,10 @@ enum class EditorBrush {
     DecorWoodenCrate = 26, // Декор: Деревянный ящик
     DecorBrokenCart = 27,  // Декор: Разбитая вагонетка с ртутью
     DecorScrapDebris = 28, // Декор: Куча мусора / досок
-    NoBuild = 29          // No-Build Zone overlay
+    DecorDeadTree = 29,    // Декор: Сухое дерево
+    DecorDryGrass = 30,    // Декор: Сухая трава
+    DecorOreDebris = 31,   // Декор: Обломки руды
+    NoBuild = 32           // No-Build Zone overlay
 };
 
 enum class PaletteCategory {
@@ -156,6 +159,7 @@ public:
                 float screenWidth, float screenHeight, const EditorContext& ctx);
 
     bool isHovered(float mouseX, float mouseY) const;
+    bool isBottomDockHovered(float mouseX, float mouseY) const { return mouseY >= static_cast<float>(m_screenHeight) - m_dockH; }
 
     float getTopBarHeight() const { return m_topBarH; }
     float getBottomDockHeight() const { return m_dockH; }
@@ -163,6 +167,12 @@ public:
 
     PaletteCategory getCategory() const { return m_currentCategory; }
     void setCategory(PaletteCategory cat) { m_currentCategory = cat; }
+
+    int getDecorPage() const { return m_decorPage; }
+    void setDecorPage(int p) { m_decorPage = (p < 0) ? 0 : (p > MAX_DECOR_PAGE ? MAX_DECOR_PAGE : p); }
+    void prevDecorPage() { m_decorPage = (m_decorPage > 0) ? m_decorPage - 1 : MAX_DECOR_PAGE; }
+    void nextDecorPage() { m_decorPage = (m_decorPage < MAX_DECOR_PAGE) ? m_decorPage + 1 : 0; }
+    static constexpr int MAX_DECOR_PAGE = 1;
 
     static float calculateTopBarHeight(int width, int height);
     static float calculateBottomDockHeight(int width, int height);
@@ -180,6 +190,7 @@ private:
     int m_screenHeight = 720;
 
     PaletteCategory m_currentCategory = PaletteCategory::Tiles;
+    int m_decorPage = 0;
 
     std::vector<EditorButton> m_topButtons;
     std::vector<EditorButton> m_bottomButtons;
