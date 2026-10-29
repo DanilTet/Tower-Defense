@@ -174,6 +174,8 @@ add_executable(${PROJECT_NAME}
     src/game/editor/EditorHelpModal.cpp
     src/game/editor/EditorCamera.h
     src/game/editor/EditorCamera.cpp
+    src/game/editor/EditorHudPreviewRenderer.h
+    src/game/editor/EditorHudPreviewRenderer.cpp
     src/game/editor/EditorToolbarUI.h
     src/game/editor/EditorToolbarUI.cpp
     src/game/editor/EditorLevelSettingsModal.h

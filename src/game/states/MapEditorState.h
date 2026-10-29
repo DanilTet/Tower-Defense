@@ -23,6 +23,7 @@
 #include "../../particles/EnvironmentParticleManager.h"
 #include "../../renderer/DecorationRenderer.h"
 #include "../editor/EditorCamera.h"
+#include "../editor/EditorHudPreviewRenderer.h"
 
 class SpriteRenderer;
 class TextRenderer;
