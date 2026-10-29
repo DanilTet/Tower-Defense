@@ -22,6 +22,7 @@
 #include "../editor/EditorEntityInspector.h"
 #include "../../particles/EnvironmentParticleManager.h"
 #include "../../renderer/DecorationRenderer.h"
+#include "../editor/EditorCamera.h"
 
 class SpriteRenderer;
 class TextRenderer;
@@ -131,18 +132,17 @@ private:
     glm::ivec2 m_boxStartCell = glm::ivec2(-1);
     glm::ivec2 m_boxCurrentCell = glm::ivec2(-1);
 
-    // Интерактивная камера редактора (Zoom & Pan)
-    float m_zoom = 1.0f; // диапазон [0.4f, 2.5f]
-    glm::vec2 m_cameraPan = glm::vec2(0.0f);
-    bool m_isPanning = false;
-    glm::vec2 m_prevMousePos = glm::vec2(0.0f);
+    // Интерактивная камера редактора (Zoom & Pan) — вынесена в EditorCamera
+    EditorCamera m_camera;
 
-    glm::vec2 screenToWorld(glm::vec2 screenPos) const {
-        return (screenPos - m_cameraPan) / m_zoom;
-    }
-    glm::vec2 worldToScreen(glm::vec2 worldPos) const {
-        return worldPos * m_zoom + m_cameraPan;
-    }
+    // Удобные алиасы (для минимального diff в остальном коде)
+    float&      m_zoom       = m_camera.zoom;
+    glm::vec2&  m_cameraPan  = m_camera.pan;
+    bool&       m_isPanning  = m_camera.isPanning;
+    glm::vec2&  m_prevMousePos = m_camera.prevMouse;
+
+    glm::vec2 screenToWorld(glm::vec2 screenPos) const { return m_camera.screenToWorld(screenPos); }
+    glm::vec2 worldToScreen(glm::vec2 worldPos)  const { return m_camera.worldToScreen(worldPos);  }
 
     EditorToolbarUI m_toolbarUI;
 

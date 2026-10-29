@@ -3440,11 +3440,8 @@ void MapEditorState::render() {
     m_renderer->drawSprite(m_whiteTexture, glm::vec2(0.0f), glm::vec2(m_width, m_height), 0.0f, glm::vec3(0.08f, 0.09f, 0.12f));
     m_renderer->endBatch();
 
-    // 1. Установка матрицы камеры мира (Zoom & Pan)
-    glm::mat4 V = glm::mat4(1.0f);
-    V = glm::translate(V, glm::vec3(m_cameraPan, 0.0f));
-    V = glm::scale(V, glm::vec3(m_zoom, m_zoom, 1.0f));
-    glm::mat4 cameraProj = P_screen * V;
+    // 1. Установка матрицы камеры мира (Zoom & Pan) — через EditorCamera
+    glm::mat4 cameraProj = P_screen * m_camera.viewMatrix();
 
     m_renderer->setProjection(cameraProj);
     m_renderer->beginBatch();
