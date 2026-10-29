@@ -181,8 +181,8 @@ bool EditorLevelSettingsModal::handleInput(GLFWwindow* window, glm::vec2 mousePo
     float sh = static_cast<float>(screenHeight > 0 ? screenHeight : 720);
     float scale = GetUIScale(static_cast<int>(sw), static_cast<int>(sh));
 
-    float modalW = std::clamp(640.0f * scale, 560.0f, sw - 20.0f);
-    float modalH = std::clamp(620.0f * scale, 520.0f, sh - 20.0f);
+    float modalW = std::clamp(640.0f * scale, 320.0f, std::max(320.0f, sw - 20.0f));
+    float modalH = std::clamp(620.0f * scale, 320.0f, std::max(320.0f, sh - 20.0f));
     glm::vec2 modalPos((sw - modalW) * 0.5f, (sh - modalH) * 0.5f);
 
     float headerH = 40.0f * scale;
@@ -699,8 +699,8 @@ void EditorLevelSettingsModal::render(SpriteRenderer* renderer, TextRenderer* te
     renderer->drawSprite(whiteTexture, glm::vec2(0.0f, 0.0f), glm::vec2(sw, sh), 0.0f, glm::vec3(0.0f, 0.0f, 0.0f));
 
     // 2. Геометрия модального окна
-    float modalW = std::clamp(640.0f * scale, 560.0f, sw - 20.0f);
-    float modalH = std::clamp(620.0f * scale, 520.0f, sh - 20.0f);
+    float modalW = std::clamp(640.0f * scale, 320.0f, std::max(320.0f, sw - 20.0f));
+    float modalH = std::clamp(620.0f * scale, 320.0f, std::max(320.0f, sh - 20.0f));
     glm::vec2 modalPos((sw - modalW) * 0.5f, (sh - modalH) * 0.5f);
 
     float headerH = 40.0f * scale;

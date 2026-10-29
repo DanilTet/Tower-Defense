@@ -31,9 +31,9 @@ DecorInspectorLayout EditorDecorInspector::getLayout(const DecorationConfig& con
     l.fontScale = std::clamp(0.40f * s, 0.32f, 0.60f);
 
     float minX = 12.0f * s;
-    float maxX = screenW - w - 12.0f * s;
+    float maxX = std::max(minX, screenW - w - 12.0f * s);
     float minY = topBarH + 8.0f * s;
-    float maxY = screenH - bottomDockH - h - 8.0f * s;
+    float maxY = std::max(minY, screenH - bottomDockH - h - 8.0f * s);
 
     float px = 0.0f;
     float py = 0.0f;
@@ -165,9 +165,9 @@ bool EditorDecorInspector::handleInput(glm::vec2 mousePos, bool leftDown, bool w
         } else {
             float s = GetUIScale(static_cast<int>(screenW), static_cast<int>(screenH));
             float minX = 12.0f * s;
-            float maxX = screenW - l.panelSize.x - 12.0f * s;
+            float maxX = std::max(minX, screenW - l.panelSize.x - 12.0f * s);
             float minY = topBarH + 8.0f * s;
-            float maxY = screenH - bottomDockH - l.panelSize.y - 8.0f * s;
+            float maxY = std::max(minY, screenH - bottomDockH - l.panelSize.y - 8.0f * s);
             glm::vec2 newPos = mousePos + m_dragOffset;
             newPos.x = std::clamp(newPos.x, minX, maxX);
             newPos.y = std::clamp(newPos.y, minY, maxY);

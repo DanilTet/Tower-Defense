@@ -60,8 +60,8 @@ ExitModalLayout EditorExitModal::layoutExitModal(float screenW, float screenH, T
     float btnGap = std::clamp(12.0f * scale, 8.0f, 16.0f);
 
     float desiredW = std::max(540.0f * scale, totalReq + 2.0f * sideMargin + 2.0f * btnGap);
-    layout.modalSize.x = std::clamp(desiredW, 380.0f, screenW - 40.0f);
-    layout.modalSize.y = std::clamp(220.0f * scale, 170.0f, screenH - 40.0f);
+    layout.modalSize.x = std::clamp(desiredW, 300.0f, std::max(300.0f, screenW - 40.0f));
+    layout.modalSize.y = std::clamp(220.0f * scale, 150.0f, std::max(150.0f, screenH - 40.0f));
 
     layout.modalPos = glm::vec2((screenW - layout.modalSize.x) * 0.5f,
                                 (screenH - layout.modalSize.y) * 0.5f);

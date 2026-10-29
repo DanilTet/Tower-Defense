@@ -27,8 +27,8 @@ bool EditorHelpModal::handleInput(GLFWwindow* window, glm::vec2 mousePos, bool l
     }
     float scale = GetUIScale(winW, winH);
 
-    float modalW = std::clamp(680.0f * scale, 580.0f, static_cast<float>(winW) - 40.0f);
-    float modalH = std::clamp(540.0f * scale, 460.0f, static_cast<float>(winH) - 40.0f);
+    float modalW = std::clamp(680.0f * scale, 300.0f, std::max(300.0f, static_cast<float>(winW) - 40.0f));
+    float modalH = std::clamp(540.0f * scale, 300.0f, std::max(300.0f, static_cast<float>(winH) - 40.0f));
     glm::vec2 modalPos((static_cast<float>(winW) - modalW) * 0.5f,
                        (static_cast<float>(winH) - modalH) * 0.5f);
 
@@ -84,8 +84,8 @@ void EditorHelpModal::render(SpriteRenderer* renderer, TextRenderer* textRendere
     renderer->drawSpriteRGBA(whiteTexture, glm::vec2(0.0f), glm::vec2(sw, sh), 0.0f, glm::vec4(0.0f, 0.0f, 0.0f, 0.70f));
 
     // 2. Размеры и позиция модалки
-    float modalW = std::clamp(680.0f * scale, 580.0f, sw - 40.0f);
-    float modalH = std::clamp(540.0f * scale, 460.0f, sh - 40.0f);
+    float modalW = std::clamp(680.0f * scale, 300.0f, std::max(300.0f, sw - 40.0f));
+    float modalH = std::clamp(540.0f * scale, 300.0f, std::max(300.0f, sh - 40.0f));
     glm::vec2 modalPos((sw - modalW) * 0.5f, (sh - modalH) * 0.5f);
 
     // Рамка и фон карточки
