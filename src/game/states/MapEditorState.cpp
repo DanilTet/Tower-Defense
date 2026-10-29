@@ -966,7 +966,7 @@ void MapEditorState::applyBrush(int gridX, int gridY, EditorBrush brush) {
         }
     }
 
-    int changeIdx = inBounds ? recordCellBefore(gridX, gridY) : -1;
+    int changeIdx = recordCellBefore(gridX, gridY);
 
     if (brush != EditorBrush::NoBuild) {
     // Иначе удаляем старый спавнер или базу в этой точке
@@ -1100,9 +1100,7 @@ void MapEditorState::applyBrush(int gridX, int gridY, EditorBrush brush) {
         m_grid->setCellType(gridX, gridY, cellTypeToSet);
     }
 
-    if (inBounds) {
-        recordCellAfter(gridX, gridY, changeIdx);
-    }
+    recordCellAfter(gridX, gridY, changeIdx);
 
     m_grid->saveOriginalGrid();
     recalculatePaths();
@@ -1115,7 +1113,7 @@ void MapEditorState::eraseCell(int gridX, int gridY) {
     if (!inBounds && !allowOuter) return;
     if (!inBounds && (gridX < -50 || gridX > m_gridWidth + 50 || gridY < -50 || gridY > m_gridHeight + 50)) return;
 
-    int changeIdx = inBounds ? recordCellBefore(gridX, gridY) : -1;
+    int changeIdx = recordCellBefore(gridX, gridY);
 
     if (m_selectedEntityIndex >= 0) {
         if (m_selectedEntityType == EditorEntityType::Spawner && m_selectedEntityIndex < static_cast<int>(m_spawners.size())) {
@@ -1172,9 +1170,7 @@ void MapEditorState::eraseCell(int gridX, int gridY) {
         m_grid->setCellType(gridX, gridY, CellType::Empty);
     }
 
-    if (inBounds) {
-        recordCellAfter(gridX, gridY, changeIdx);
-    }
+    recordCellAfter(gridX, gridY, changeIdx);
 
     m_grid->saveOriginalGrid();
     recalculatePaths();
@@ -1198,12 +1194,12 @@ void MapEditorState::removeNoBuildAt(int gridX, int gridY) {
                 showToast("Зона запрета стройки удалена", glm::vec4(0.3f, 0.85f, 0.4f, 1.0f));
             }
         }
-    } else {
-        if (m_grid && m_grid->isNoBuild(gridX, gridY)) {
-            m_grid->setNoBuildAt(gridX, gridY, false);
-            m_isDirty = true;
-            showToast("Зона запрета стройки удалена", glm::vec4(0.3f, 0.85f, 0.4f, 1.0f));
-        }
+    } else if (m_grid && m_grid->isNoBuild(gridX, gridY)) {
+        int changeIdx = recordCellBefore(gridX, gridY);
+        m_grid->setNoBuildAt(gridX, gridY, false);
+        recordCellAfter(gridX, gridY, changeIdx);
+        m_isDirty = true;
+        showToast("Зона запрета стройки удалена", glm::vec4(0.3f, 0.85f, 0.4f, 1.0f));
     }
 }
 
@@ -1421,9 +1417,42 @@ void MapEditorState::clearMap() {
     showToast("Карта очищена", glm::vec4(0.9f, 0.9f, 0.3f, 1.0f));
 }
 
+static int cellTypeToTileCode(CellType ct) {
+    switch (ct) {
+        case CellType::Path:     return 1;
+        case CellType::Platform: return 2;
+        case CellType::Scenery:  return 3;
+        case CellType::Chasm:    return 4;
+        case CellType::Rail:     return 5;
+        case CellType::Spawner:  return 6;
+        case CellType::Base:     return 7;
+        case CellType::Ground:   return 0;
+        case CellType::Empty:
+        default:                 return -1;
+    }
+}
+
+static CellType tileCodeToCellType(int code) {
+    switch (code) {
+        case 1:  return CellType::Path;
+        case 2:  return CellType::Platform;
+        case 3:  return CellType::Scenery;
+        case 4:  return CellType::Chasm;
+        case 5:  return CellType::Rail;
+        case 6:  return CellType::Spawner;
+        case 7:  return CellType::Base;
+        case 0:  return CellType::Ground;
+        case -1:
+        default: return CellType::Empty;
+    }
+}
+
 int MapEditorState::recordCellBefore(int x, int y) {
     if (m_isApplyingUndoRedo) return -1;
-    if (x < 0 || x >= m_gridWidth || y < 0 || y >= m_gridHeight) return -1;
+    bool inBounds = (x >= 0 && x < m_gridWidth && y >= 0 && y < m_gridHeight);
+    bool allowOuter = (m_hasSidePockets || (m_grid && m_grid->hasSidePockets()));
+    if (!inBounds && !allowOuter) return -1;
+    if (!inBounds && (x < -50 || x > m_gridWidth + 50 || y < -50 || y > m_gridHeight + 50)) return -1;
 
     for (size_t i = 0; i < m_currentStrokeAction.changes.size(); ++i) {
         if (m_currentStrokeAction.changes[i].x == x && m_currentStrokeAction.changes[i].y == y) {
@@ -1434,8 +1463,13 @@ int MapEditorState::recordCellBefore(int x, int y) {
     CellChange change;
     change.x = x;
     change.y = y;
-    change.oldTile = (y < (int)m_rawLayout.size() && x < (int)m_rawLayout[y].size()) ? m_rawLayout[y][x] : 0;
-    change.oldNoBuild = (y < (int)m_noBuildMask.size() && x < (int)m_noBuildMask[y].size()) ? m_noBuildMask[y][x] : false;
+    if (inBounds) {
+        change.oldTile = (y < (int)m_rawLayout.size() && x < (int)m_rawLayout[y].size()) ? m_rawLayout[y][x] : 0;
+        change.oldNoBuild = (y < (int)m_noBuildMask.size() && x < (int)m_noBuildMask[y].size()) ? m_noBuildMask[y][x] : false;
+    } else {
+        change.oldTile = m_grid ? cellTypeToTileCode(m_grid->getCellType(x, y)) : -1;
+        change.oldNoBuild = m_grid ? m_grid->isNoBuild(x, y) : false;
+    }
 
     for (const auto& sp : m_spawners) {
         if (sp.pos.x == x && sp.pos.y == y) change.oldSpawners.push_back(sp);
@@ -1456,9 +1490,15 @@ void MapEditorState::recordCellAfter(int x, int y, int changeIndex) {
     if (m_isApplyingUndoRedo) return;
     if (changeIndex < 0 || changeIndex >= static_cast<int>(m_currentStrokeAction.changes.size())) return;
 
+    bool inBounds = (x >= 0 && x < m_gridWidth && y >= 0 && y < m_gridHeight);
     CellChange& change = m_currentStrokeAction.changes[changeIndex];
-    change.newTile = (y < (int)m_rawLayout.size() && x < (int)m_rawLayout[y].size()) ? m_rawLayout[y][x] : 0;
-    change.newNoBuild = (y < (int)m_noBuildMask.size() && x < (int)m_noBuildMask[y].size()) ? m_noBuildMask[y][x] : false;
+    if (inBounds) {
+        change.newTile = (y < (int)m_rawLayout.size() && x < (int)m_rawLayout[y].size()) ? m_rawLayout[y][x] : 0;
+        change.newNoBuild = (y < (int)m_noBuildMask.size() && x < (int)m_noBuildMask[y].size()) ? m_noBuildMask[y][x] : false;
+    } else {
+        change.newTile = m_grid ? cellTypeToTileCode(m_grid->getCellType(x, y)) : -1;
+        change.newNoBuild = m_grid ? m_grid->isNoBuild(x, y) : false;
+    }
 
     change.newSpawners.clear();
     for (const auto& sp : m_spawners) {
@@ -1513,14 +1553,18 @@ void MapEditorState::undo() {
     m_isApplyingUndoRedo = true;
     for (auto it = action.changes.rbegin(); it != action.changes.rend(); ++it) {
         const auto& c = *it;
-        if (c.x < 0 || c.x >= m_gridWidth || c.y < 0 || c.y >= m_gridHeight) continue;
+        bool inBounds = (c.x >= 0 && c.x < m_gridWidth && c.y >= 0 && c.y < m_gridHeight);
+        bool allowOuter = (m_hasSidePockets || (m_grid && m_grid->hasSidePockets()));
+        if (!inBounds && !allowOuter) continue;
+        if (!inBounds && (c.x < -50 || c.x > m_gridWidth + 50 || c.y < -50 || c.y > m_gridHeight + 50)) continue;
 
-        m_rawLayout[c.y][c.x] = c.oldTile;
-
-        if (c.y < (int)m_noBuildMask.size() && c.x < (int)m_noBuildMask[c.y].size()) {
-            m_noBuildMask[c.y][c.x] = c.oldNoBuild;
-            m_grid->setNoBuildAt(c.x, c.y, c.oldNoBuild);
+        if (inBounds) {
+            m_rawLayout[c.y][c.x] = (c.oldTile >= 0 ? c.oldTile : 0);
+            if (c.y < (int)m_noBuildMask.size() && c.x < (int)m_noBuildMask[c.y].size()) {
+                m_noBuildMask[c.y][c.x] = c.oldNoBuild;
+            }
         }
+        m_grid->setNoBuildAt(c.x, c.y, c.oldNoBuild);
 
         m_spawners.erase(
             std::remove_if(m_spawners.begin(), m_spawners.end(),
@@ -1568,13 +1612,17 @@ void MapEditorState::undo() {
         } else if (hasBase) {
             m_grid->setCellType(c.x, c.y, CellType::Base);
         } else {
-            switch (c.oldTile) {
-                case 1:  m_grid->setCellType(c.x, c.y, CellType::Path); break;
-                case 2:  m_grid->setCellType(c.x, c.y, CellType::Platform); break;
-                case 3:  m_grid->setCellType(c.x, c.y, CellType::Scenery); break;
-                case 4:  m_grid->setCellType(c.x, c.y, CellType::Chasm); break;
-                case 5:  m_grid->setCellType(c.x, c.y, CellType::Rail); break;
-                default: m_grid->setCellType(c.x, c.y, CellType::Ground); break;
+            if (inBounds) {
+                switch (c.oldTile) {
+                    case 1:  m_grid->setCellType(c.x, c.y, CellType::Path); break;
+                    case 2:  m_grid->setCellType(c.x, c.y, CellType::Platform); break;
+                    case 3:  m_grid->setCellType(c.x, c.y, CellType::Scenery); break;
+                    case 4:  m_grid->setCellType(c.x, c.y, CellType::Chasm); break;
+                    case 5:  m_grid->setCellType(c.x, c.y, CellType::Rail); break;
+                    default: m_grid->setCellType(c.x, c.y, CellType::Ground); break;
+                }
+            } else {
+                m_grid->setCellType(c.x, c.y, tileCodeToCellType(c.oldTile));
             }
         }
     }
@@ -1597,14 +1645,18 @@ void MapEditorState::redo() {
 
     m_isApplyingUndoRedo = true;
     for (const auto& c : action.changes) {
-        if (c.x < 0 || c.x >= m_gridWidth || c.y < 0 || c.y >= m_gridHeight) continue;
+        bool inBounds = (c.x >= 0 && c.x < m_gridWidth && c.y >= 0 && c.y < m_gridHeight);
+        bool allowOuter = (m_hasSidePockets || (m_grid && m_grid->hasSidePockets()));
+        if (!inBounds && !allowOuter) continue;
+        if (!inBounds && (c.x < -50 || c.x > m_gridWidth + 50 || c.y < -50 || c.y > m_gridHeight + 50)) continue;
 
-        m_rawLayout[c.y][c.x] = c.newTile;
-
-        if (c.y < (int)m_noBuildMask.size() && c.x < (int)m_noBuildMask[c.y].size()) {
-            m_noBuildMask[c.y][c.x] = c.newNoBuild;
-            m_grid->setNoBuildAt(c.x, c.y, c.newNoBuild);
+        if (inBounds) {
+            m_rawLayout[c.y][c.x] = (c.newTile >= 0 ? c.newTile : 0);
+            if (c.y < (int)m_noBuildMask.size() && c.x < (int)m_noBuildMask[c.y].size()) {
+                m_noBuildMask[c.y][c.x] = c.newNoBuild;
+            }
         }
+        m_grid->setNoBuildAt(c.x, c.y, c.newNoBuild);
 
         m_spawners.erase(
             std::remove_if(m_spawners.begin(), m_spawners.end(),
@@ -1652,13 +1704,17 @@ void MapEditorState::redo() {
         } else if (hasBase) {
             m_grid->setCellType(c.x, c.y, CellType::Base);
         } else {
-            switch (c.newTile) {
-                case 1:  m_grid->setCellType(c.x, c.y, CellType::Path); break;
-                case 2:  m_grid->setCellType(c.x, c.y, CellType::Platform); break;
-                case 3:  m_grid->setCellType(c.x, c.y, CellType::Scenery); break;
-                case 4:  m_grid->setCellType(c.x, c.y, CellType::Chasm); break;
-                case 5:  m_grid->setCellType(c.x, c.y, CellType::Rail); break;
-                default: m_grid->setCellType(c.x, c.y, CellType::Ground); break;
+            if (inBounds) {
+                switch (c.newTile) {
+                    case 1:  m_grid->setCellType(c.x, c.y, CellType::Path); break;
+                    case 2:  m_grid->setCellType(c.x, c.y, CellType::Platform); break;
+                    case 3:  m_grid->setCellType(c.x, c.y, CellType::Scenery); break;
+                    case 4:  m_grid->setCellType(c.x, c.y, CellType::Chasm); break;
+                    case 5:  m_grid->setCellType(c.x, c.y, CellType::Rail); break;
+                    default: m_grid->setCellType(c.x, c.y, CellType::Ground); break;
+                }
+            } else {
+                m_grid->setCellType(c.x, c.y, tileCodeToCellType(c.newTile));
             }
         }
     }
