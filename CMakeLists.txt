@@ -180,6 +180,8 @@ add_executable(${PROJECT_NAME}
     src/game/editor/EditorTileInfoOverlay.cpp
     src/game/editor/EditorGizmoController.h
     src/game/editor/EditorGizmoController.cpp
+    src/game/editor/EditorEmitterRenderer.h
+    src/game/editor/EditorEmitterRenderer.cpp
     src/game/editor/EditorToolbarUI.h
     src/game/editor/EditorToolbarUI.cpp
     src/game/editor/EditorLevelSettingsModal.h

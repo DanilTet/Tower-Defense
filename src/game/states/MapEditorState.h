@@ -26,6 +26,7 @@
 #include "../editor/EditorHudPreviewRenderer.h"
 #include "../editor/EditorTileInfoOverlay.h"
 #include "../editor/EditorGizmoController.h"
+#include "../editor/EditorEmitterRenderer.h"
 
 class SpriteRenderer;
 class TextRenderer;
