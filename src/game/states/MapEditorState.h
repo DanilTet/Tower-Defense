@@ -25,6 +25,7 @@
 #include "../editor/EditorCamera.h"
 #include "../editor/EditorHudPreviewRenderer.h"
 #include "../editor/EditorTileInfoOverlay.h"
+#include "../editor/EditorGizmoController.h"
 
 class SpriteRenderer;
 class TextRenderer;
@@ -178,20 +179,8 @@ private:
     bool m_decorGridSnap = false;
     bool m_keyGPressedLastFrame = false;
 
-    // Gizmo handles для интерактивного масштабирования декораций мышью
-    bool m_isResizingDecoration = false;
-    GizmoHandleType m_activeGizmoHandle = GizmoHandleType::None;
-    GizmoHandleType m_hoverGizmoHandle = GizmoHandleType::None;
-    glm::vec2 m_resizeStartLocalMouse = glm::vec2(0.0f);
-    glm::vec2 m_resizeStartWorldMouse = glm::vec2(0.0f);
-    float m_resizeStartScaleX = 1.0f;
-    float m_resizeStartScaleY = 1.0f;
-    float m_resizeStartScale = 1.0f;
-
-    // Стандартные курсоры GLFW для масштабирования
-    GLFWcursor* m_cursorResizeNWSE = nullptr;
-    GLFWcursor* m_cursorResizeEW = nullptr;
-    GLFWcursor* m_cursorResizeNS = nullptr;
+    // Контроллер масштабирования декораций и курсоров GLFW (Gizmo)
+    EditorGizmoController m_gizmoController;
 
     bool m_suppressPlacementUntilRelease = true;
     bool m_suppressClickUntilRelease = true;

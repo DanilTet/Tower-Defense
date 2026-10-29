@@ -112,18 +112,14 @@ void MapEditorState::init() {
     m_arrowTexture = wrapNoDelete("arrowTexture");
     m_whiteTexture = std::shared_ptr<Texture2D>(ResourceManager::getWhiteTexture(), [](Texture2D*) {});
 
-    m_cursorResizeNWSE = glfwCreateStandardCursor(GLFW_RESIZE_NWSE_CURSOR);
-    m_cursorResizeEW = glfwCreateStandardCursor(GLFW_RESIZE_EW_CURSOR);
-    m_cursorResizeNS = glfwCreateStandardCursor(GLFW_RESIZE_NS_CURSOR);
+    m_gizmoController.initCursors();
 
     loadInitialMap();
     updateButtonLayout();
 }
 
 void MapEditorState::cleanup() {
-    if (m_cursorResizeNWSE) { glfwDestroyCursor(m_cursorResizeNWSE); m_cursorResizeNWSE = nullptr; }
-    if (m_cursorResizeEW) { glfwDestroyCursor(m_cursorResizeEW); m_cursorResizeEW = nullptr; }
-    if (m_cursorResizeNS) { glfwDestroyCursor(m_cursorResizeNS); m_cursorResizeNS = nullptr; }
+    m_gizmoController.destroyCursors();
 
     glm::mat4 P_screen = glm::ortho(0.0f, static_cast<float>(m_width), static_cast<float>(m_height), 0.0f, -1.0f, 1.0f);
     if (m_renderer) m_renderer->setProjection(P_screen);
@@ -2753,7 +2749,7 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
                     m_selectedEntityIndex = -1;
                     m_selectedEmitterIndex = -1;
                     m_isDraggingDecoration = false;
-                    m_isResizingDecoration = false;
+                    m_gizmoController.endResize();
                 }
                 break;
             case EditorActionType::SwitchPaletteCategory:
@@ -2893,25 +2889,17 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
     }
 
     // 1.9. Обновление курсора мыши при наведении на интерактивные ручки трансформации (Gizmo)
-    m_hoverGizmoHandle = GizmoHandleType::None;
-    if (m_toolbarUI.getCategory() == PaletteCategory::Decorations &&
-        m_selectedDecorationIndex >= 0 && m_selectedDecorationIndex < static_cast<int>(m_decorations.size()) &&
-        !m_toolbarUI.isHovered(mousePos.x, mousePos.y)) {
-        glm::vec2 worldPosForHover = screenToWorld(mousePos);
-        float cellSize = m_grid ? m_grid->getCellSize() : 64.0f;
-        m_hoverGizmoHandle = DecorationRenderer::hitTestGizmo(m_decorations[m_selectedDecorationIndex], worldPosForHover, 16.0f, cellSize);
-    }
-
-    GizmoHandleType curHandle = m_isResizingDecoration ? m_activeGizmoHandle : m_hoverGizmoHandle;
-    if (curHandle == GizmoHandleType::Corner && m_cursorResizeNWSE) {
-        glfwSetCursor(window, m_cursorResizeNWSE);
-    } else if (curHandle == GizmoHandleType::ScaleX && m_cursorResizeEW) {
-        glfwSetCursor(window, m_cursorResizeEW);
-    } else if (curHandle == GizmoHandleType::ScaleY && m_cursorResizeNS) {
-        glfwSetCursor(window, m_cursorResizeNS);
-    } else {
-        glfwSetCursor(window, nullptr);
-    }
+    const DecorationConfig* selDecor = (m_selectedDecorationIndex >= 0 && m_selectedDecorationIndex < static_cast<int>(m_decorations.size())) ? &m_decorations[m_selectedDecorationIndex] : nullptr;
+    float gizmoCellSize = m_grid ? m_grid->getCellSize() : 64.0f;
+    glm::vec2 worldPosForHover = screenToWorld(mousePos);
+    m_gizmoController.updateHoverCursor(
+        window,
+        selDecor,
+        worldPosForHover,
+        gizmoCellSize,
+        m_toolbarUI.getCategory() == PaletteCategory::Decorations,
+        m_toolbarUI.isHovered(mousePos.x, mousePos.y)
+    );
 
     // 2. Если кликаем по рабочей области сетки
     if (!clickedUI && !panActive && !m_isCameraConfigMode && !m_toolbarUI.isHovered(mousePos.x, mousePos.y) && m_grid) {
@@ -3049,50 +3037,10 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
             };
 
             // А. Растягивание интерактивными ручками (Gizmo Handles) выделенного декора
-            if (leftDown && m_isResizingDecoration && m_selectedDecorationIndex >= 0 &&
+            if (leftDown && m_gizmoController.isResizing() && m_selectedDecorationIndex >= 0 &&
                 m_selectedDecorationIndex < static_cast<int>(m_decorations.size())) {
-                auto& d = m_decorations[m_selectedDecorationIndex];
-                float rad = glm::radians(d.rotation);
-                float cosR = std::cos(rad);
-                float sinR = std::sin(rad);
-                glm::vec2 deltaCur = worldMouse - d.worldPos;
-                glm::vec2 curLocal(
-                    deltaCur.x * cosR + deltaCur.y * sinR,
-                    -deltaCur.x * sinR + deltaCur.y * cosR
-                );
-
                 float cellSize = m_grid ? m_grid->getCellSize() : 64.0f;
-                float baseDim = (d.type == "fog") ? 130.0f : ((d.type == "grass_field") ? 64.0f : ((d.type == "bush") ? 56.0f : (d.type == "puddle" ? 52.0f : 42.0f)));
-                float cellScaleFactor = (cellSize > 0.001f) ? (cellSize / 64.0f) : 1.0f;
-                float baseHalfW = 0.5f * baseDim * (d.scale * cellScaleFactor) * m_resizeStartScaleX;
-                float baseHalfH = 0.5f * baseDim * (d.scale * cellScaleFactor) * m_resizeStartScaleY;
-
-                if (m_activeGizmoHandle == GizmoHandleType::ScaleX) {
-                    float dx = curLocal.x - m_resizeStartLocalMouse.x;
-                    if (baseHalfW > 1.0f) {
-                        float ratio = (baseHalfW + dx) / baseHalfW;
-                        float newScaleX = std::clamp(m_resizeStartScaleX * ratio, 0.2f, 4.0f);
-                        d.scaleX = std::round(newScaleX * 100.0f) / 100.0f;
-                        m_isDirty = true;
-                    }
-                } else if (m_activeGizmoHandle == GizmoHandleType::ScaleY) {
-                    float dy = -(curLocal.y - m_resizeStartLocalMouse.y); // вверх = -Y
-                    if (baseHalfH > 1.0f) {
-                        float ratio = (baseHalfH + dy) / baseHalfH;
-                        float newScaleY = std::clamp(m_resizeStartScaleY * ratio, 0.2f, 4.0f);
-                        d.scaleY = std::round(newScaleY * 100.0f) / 100.0f;
-                        m_isDirty = true;
-                    }
-                } else if (m_activeGizmoHandle == GizmoHandleType::Corner) {
-                    float dx = curLocal.x - m_resizeStartLocalMouse.x;
-                    float dy = curLocal.y - m_resizeStartLocalMouse.y;
-                    float ratioX = (baseHalfW > 1.0f) ? ((baseHalfW + dx) / baseHalfW) : 1.0f;
-                    float ratioY = (baseHalfH > 1.0f) ? ((baseHalfH + dy) / baseHalfH) : 1.0f;
-                    float ratio = (ratioX + ratioY) * 0.5f;
-                    float newScaleX = std::clamp(m_resizeStartScaleX * ratio, 0.2f, 4.0f);
-                    float newScaleY = std::clamp(m_resizeStartScaleY * ratio, 0.2f, 4.0f);
-                    d.scaleX = std::round(newScaleX * 100.0f) / 100.0f;
-                    d.scaleY = std::round(newScaleY * 100.0f) / 100.0f;
+                if (m_gizmoController.updateResize(m_decorations[m_selectedDecorationIndex], worldMouse, cellSize)) {
                     m_isDirty = true;
                 }
             }
@@ -3120,25 +3068,7 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
                     bool hitGizmo = false;
                     if (m_selectedDecorationIndex >= 0 && m_selectedDecorationIndex < static_cast<int>(m_decorations.size())) {
                         float cellSize = m_grid ? m_grid->getCellSize() : 64.0f;
-                        auto handleType = DecorationRenderer::hitTestGizmo(m_decorations[m_selectedDecorationIndex], worldMouse, 16.0f, cellSize);
-                        if (handleType != GizmoHandleType::None) {
-                            hitGizmo = true;
-                            m_isResizingDecoration = true;
-                            m_activeGizmoHandle = handleType;
-                            auto& d = m_decorations[m_selectedDecorationIndex];
-                            m_resizeStartScaleX = d.scaleX;
-                            m_resizeStartScaleY = d.scaleY;
-                            m_resizeStartScale = d.scale;
-                            m_resizeStartWorldMouse = worldMouse;
-                            float rad = glm::radians(d.rotation);
-                            float cosR = std::cos(rad);
-                            float sinR = std::sin(rad);
-                            glm::vec2 deltaStart = worldMouse - d.worldPos;
-                            m_resizeStartLocalMouse = glm::vec2(
-                                deltaStart.x * cosR + deltaStart.y * sinR,
-                                -deltaStart.x * sinR + deltaStart.y * cosR
-                            );
-                        }
+                        hitGizmo = m_gizmoController.tryStartResize(m_decorations[m_selectedDecorationIndex], worldMouse, cellSize);
                     }
 
                     if (!hitGizmo) {
@@ -3251,7 +3181,7 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
         // 2.5. СТАНДАРТНАЯ РАБОТА С СЕТКОЙ (ТАЙЛЫ И СПЕЦ-ОБЪЕКТЫ)
         else if (!m_suppressPlacementUntilRelease) {
             m_isDraggingDecoration = false;
-            m_isResizingDecoration = false;
+            m_gizmoController.endResize();
             bool canInteractTile = inBounds || m_hasSidePockets || (m_grid && m_grid->hasSidePockets());
             if (canInteractTile) {
                 // Если мы в категории спец-объектов или нейтральном курсоре - проверяем выбор существующего спавнера/базы
@@ -3375,8 +3305,7 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
     if (!leftDown) {
         m_isDraggingEmitter = false;
         m_isDraggingDecoration = false;
-        m_isResizingDecoration = false;
-        m_activeGizmoHandle = GizmoHandleType::None;
+        m_gizmoController.endResize();
     }
 
     if (!leftDown && !rightDown) {
@@ -3719,7 +3648,7 @@ void MapEditorState::render() {
     }
 
     // Предпросмотр установки декора под курсором на вкладке [4] Декор (для обычных декораций)
-    if (m_toolbarUI.getCategory() == PaletteCategory::Decorations && !m_isDraggingDecoration && !m_isResizingDecoration &&
+    if (m_toolbarUI.getCategory() == PaletteCategory::Decorations && !m_isDraggingDecoration && !m_gizmoController.isResizing() &&
         m_currentBrush != EditorBrush::Eraser && m_currentBrush != EditorBrush::None && m_currentBrush != EditorBrush::DecorFog) {
         std::string previewType = "bush";
         if (m_currentBrush == EditorBrush::DecorGrass) previewType = "grass_tuft";
@@ -3764,7 +3693,7 @@ void MapEditorState::render() {
     }
 
     // Предпросмотр установки тумана под курсором на вкладке [4] Декор (поверх частиц)
-    if (m_toolbarUI.getCategory() == PaletteCategory::Decorations && !m_isDraggingDecoration && !m_isResizingDecoration &&
+    if (m_toolbarUI.getCategory() == PaletteCategory::Decorations && !m_isDraggingDecoration && !m_gizmoController.isResizing() &&
         m_currentBrush == EditorBrush::DecorFog) {
         glm::vec2 worldMouse = screenToWorld(m_mousePos);
         float previewCellSize = m_grid ? m_grid->getCellSize() : 64.0f;
