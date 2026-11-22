@@ -1,4 +1,4 @@
-﻿# Аудит проекта Tower Defense (C++ / OpenGL)
+# Аудит проекта Tower Defense (C++ / OpenGL)
 
 > **Дата аудита:** 2026-11-23  
 > **Объём кодовой базы:** 142 исходных файла в `src/`, **32 500 строк** (без учёта `external/`). Автотестов: **0**.  
@@ -279,7 +279,7 @@ flowchart TD
    - Убрать/закрыть `DevMode`-флагом чит на `M`, добавить `try/catch` в `ConfigManager`/`WaveManager`/`SaveManager`, починить сохранение `angle` Поршня, `world.paths.empty()`, `shader != nullptr`, `rewardStep >= 1`, `glfwSetCursor(nullptr)`.
    - Исправить битую ссылку `enemy_death.wav` и добавить кеширование декодированных SFX в `AudioManager` + остановку музыки при выходе из боя.
    - Починить сайд-эффект и диагональный corner-cutting в `PathService::isPlacementValid`, перенести расчёт `Projectile::m_radius` из `render()` в `init()`/`update()`.
-2. **Этап 2 — Обновление скиллов, документации и пересборка `graphify-out`:**
+2. **Этап 2 — ✅ ВЫПОЛНЕН (скиллы и AGENTS.md обновлены; пересборка `graphify-out` остаётся за пользователем) — Обновление скиллов, документации и пересборка `graphify-out`:**
    - Починить `refactor-god-object/SKILL.md`, актуализировать `mine-mechanics`, `td-ui`, `engine-standards`, `optimize-pathfinding`, `token-saver-graphify`, `AGENTS.md` и пересобрать граф — чтобы все последующие сессии с агентами работали точно и без устаревших предположений.
 3. **Этап 3 — Архитектурная чистка рендерера и ядра:**
    - Перевести `SpriteRenderer` на `const Texture2D*` (убрать 27 no-op `shared_ptr` и аллокации в кадре), перевести `TextRenderer` на font atlas (1 draw call на строку/блок).
