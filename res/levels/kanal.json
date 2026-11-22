@@ -5,13 +5,13 @@
   "background": "pipes_canal",
   "camera": {
     "isCustom": true,
-    "tileX": 16.51216697692871,
-    "tileY": 3.520596504211426,
-    "viewTilesH": 14.204867362976074,
-    "viewTilesW": 26.562789916992188,
-    "x": 16.51216697692871,
-    "y": 3.520596504211426,
-    "zoom": 1.2423392534255981
+    "tileX": 16.483308792114258,
+    "tileY": 3.508995294570923,
+    "viewTilesH": 13.933029174804688,
+    "viewTilesW": 26.054460525512695,
+    "x": 16.483308792114258,
+    "y": 3.508995294570923,
+    "zoom": 1.2665777206420898
   },
   "enemyBountyRules": {
     "Coal": [
@@ -132,6 +132,27 @@
     ],
     "cellSize": 77.57575988769531,
     "decorations": [
+      {
+        "destructible": true,
+        "id": 60,
+        "opacity": 0.5,
+        "rotation": 0.0,
+        "scale": 1.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "tilePos": {
+          "x": 13.510285377502441,
+          "y": 11.679563522338867
+        },
+        "tileX": 13.510285377502441,
+        "tileY": 11.679563522338867,
+        "type": "puddle",
+        "worldPos": {
+          "x": 1048.0706787109375,
+          "y": 1293.035888671875
+        },
+        "zIndex": -1
+      },
       {
         "destructible": true,
         "id": 2,
@@ -957,8 +978,8 @@
         "opacity": 0.5,
         "rotation": 0.0,
         "scale": 1.0,
-        "scaleX": 1.0,
-        "scaleY": 1.0,
+        "scaleX": 1.0199999809265137,
+        "scaleY": 1.1100000143051147,
         "tilePos": {
           "x": 15.005949020385742,
           "y": -2.263387441635132
@@ -981,15 +1002,15 @@
         "scaleX": 1.0,
         "scaleY": 1.0,
         "tilePos": {
-          "x": 14.548393249511719,
-          "y": -2.606555938720703
+          "x": 14.409173965454102,
+          "y": -2.51889967918396
         },
-        "tileX": 14.548393249511719,
-        "tileY": -2.606555938720703,
+        "tileX": 14.409173965454102,
+        "tileY": -2.51889967918396,
         "type": "flower",
         "worldPos": {
-          "x": 1128.6026611328125,
-          "y": 184.77928161621094
+          "x": 1117.8026123046875,
+          "y": 191.5792694091797
         },
         "zIndex": 0
       },
@@ -1179,6 +1200,153 @@
         "worldPos": {
           "x": 678.5044555664063,
           "y": 1072.300048828125
+        },
+        "zIndex": 0
+      },
+      {
+        "destructible": true,
+        "id": 53,
+        "opacity": 0.5,
+        "rotation": 0.0,
+        "scale": 1.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0700000524520874,
+        "tilePos": {
+          "x": 5.787607192993164,
+          "y": 11.838589668273926
+        },
+        "tileX": 5.787607192993164,
+        "tileY": 11.838589668273926,
+        "type": "bush",
+        "worldPos": {
+          "x": 448.97802734375,
+          "y": 1305.3724365234375
+        },
+        "zIndex": 0
+      },
+      {
+        "destructible": true,
+        "id": 54,
+        "opacity": 0.5,
+        "rotation": 0.0,
+        "scale": 1.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "tilePos": {
+          "x": 7.025107383728027,
+          "y": 11.78187084197998
+        },
+        "tileX": 7.025107383728027,
+        "tileY": 11.78187084197998,
+        "type": "grass_tuft",
+        "worldPos": {
+          "x": 544.97802734375,
+          "y": 1300.972412109375
+        },
+        "zIndex": 0
+      },
+      {
+        "destructible": true,
+        "id": 55,
+        "opacity": 0.5,
+        "rotation": 0.0,
+        "scale": 1.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "tilePos": {
+          "x": 8.5,
+          "y": 11.5
+        },
+        "tileX": 8.5,
+        "tileY": 11.5,
+        "type": "grass_field",
+        "worldPos": {
+          "x": 659.3939819335938,
+          "y": 1279.1060791015625
+        },
+        "zIndex": 0
+      },
+      {
+        "destructible": true,
+        "id": 56,
+        "opacity": 0.5,
+        "rotation": 0.0,
+        "scale": 1.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "tilePos": {
+          "x": 9.469169616699219,
+          "y": 11.776715278625488
+        },
+        "tileX": 9.469169616699219,
+        "tileY": 11.776715278625488,
+        "type": "flower",
+        "worldPos": {
+          "x": 734.5780029296875,
+          "y": 1300.572509765625
+        },
+        "zIndex": 0
+      },
+      {
+        "destructible": true,
+        "id": 57,
+        "opacity": 0.5,
+        "rotation": 0.0,
+        "scale": 1.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "tilePos": {
+          "x": 10.43057918548584,
+          "y": 11.735344886779785
+        },
+        "tileX": 10.43057918548584,
+        "tileY": 11.735344886779785,
+        "type": "stone",
+        "worldPos": {
+          "x": 809.1600952148438,
+          "y": 1297.3631591796875
+        },
+        "zIndex": 0
+      },
+      {
+        "destructible": true,
+        "id": 58,
+        "opacity": 0.5,
+        "rotation": 0.0,
+        "scale": 1.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "tilePos": {
+          "x": 11.459249496459961,
+          "y": 11.764322280883789
+        },
+        "tileX": 11.459249496459961,
+        "tileY": 11.764322280883789,
+        "type": "helmet",
+        "worldPos": {
+          "x": 888.9599609375,
+          "y": 1299.611083984375
+        },
+        "zIndex": 0
+      },
+      {
+        "destructible": true,
+        "id": 59,
+        "opacity": 0.5,
+        "rotation": 0.0,
+        "scale": 1.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "tilePos": {
+          "x": 12.49516487121582,
+          "y": 11.612195014953613
+        },
+        "tileX": 12.49516487121582,
+        "tileY": 11.612195014953613,
+        "type": "pickaxe",
+        "worldPos": {
+          "x": 969.3218994140625,
+          "y": 1287.8096923828125
         },
         "zIndex": 0
       },
@@ -1893,206 +2061,7 @@
     ],
     "offsetX": 0.0,
     "offsetY": 386.9848327636719,
-    "outerCells": [
-      {
-        "noBuild": false,
-        "type": 3,
-        "x": -3,
-        "y": -7
-      },
-      {
-        "noBuild": false,
-        "type": 3,
-        "x": -3,
-        "y": -6
-      },
-      {
-        "noBuild": false,
-        "type": 3,
-        "x": -3,
-        "y": -5
-      },
-      {
-        "noBuild": false,
-        "type": 3,
-        "x": -2,
-        "y": -7
-      },
-      {
-        "noBuild": false,
-        "type": 3,
-        "x": -2,
-        "y": -6
-      },
-      {
-        "noBuild": false,
-        "type": 3,
-        "x": -2,
-        "y": -5
-      },
-      {
-        "noBuild": false,
-        "type": 3,
-        "x": -1,
-        "y": -11
-      },
-      {
-        "noBuild": false,
-        "type": 3,
-        "x": -1,
-        "y": -10
-      },
-      {
-        "noBuild": false,
-        "type": 3,
-        "x": -1,
-        "y": -9
-      },
-      {
-        "noBuild": false,
-        "type": 3,
-        "x": -1,
-        "y": -8
-      },
-      {
-        "noBuild": false,
-        "type": 3,
-        "x": -1,
-        "y": -7
-      },
-      {
-        "noBuild": false,
-        "type": 3,
-        "x": -1,
-        "y": -6
-      },
-      {
-        "noBuild": false,
-        "type": 3,
-        "x": -1,
-        "y": -5
-      },
-      {
-        "noBuild": false,
-        "type": 0,
-        "x": 0,
-        "y": -11
-      },
-      {
-        "noBuild": false,
-        "type": 0,
-        "x": 0,
-        "y": -10
-      },
-      {
-        "noBuild": false,
-        "type": 3,
-        "x": 0,
-        "y": -9
-      },
-      {
-        "noBuild": false,
-        "type": 3,
-        "x": 0,
-        "y": -8
-      },
-      {
-        "noBuild": false,
-        "type": 3,
-        "x": 0,
-        "y": -7
-      },
-      {
-        "noBuild": false,
-        "type": 3,
-        "x": 0,
-        "y": -6
-      },
-      {
-        "noBuild": false,
-        "type": 3,
-        "x": 0,
-        "y": -5
-      },
-      {
-        "noBuild": false,
-        "type": 3,
-        "x": 1,
-        "y": -11
-      },
-      {
-        "noBuild": false,
-        "type": 3,
-        "x": 1,
-        "y": -10
-      },
-      {
-        "noBuild": false,
-        "type": 3,
-        "x": 1,
-        "y": -9
-      },
-      {
-        "noBuild": false,
-        "type": 3,
-        "x": 1,
-        "y": -8
-      },
-      {
-        "noBuild": false,
-        "type": 3,
-        "x": 1,
-        "y": -7
-      },
-      {
-        "noBuild": false,
-        "type": 3,
-        "x": 1,
-        "y": -6
-      },
-      {
-        "noBuild": false,
-        "type": 3,
-        "x": 1,
-        "y": -5
-      },
-      {
-        "noBuild": false,
-        "type": 3,
-        "x": 2,
-        "y": -7
-      },
-      {
-        "noBuild": false,
-        "type": 3,
-        "x": 2,
-        "y": -6
-      },
-      {
-        "noBuild": false,
-        "type": 3,
-        "x": 2,
-        "y": -5
-      },
-      {
-        "noBuild": false,
-        "type": 3,
-        "x": 3,
-        "y": -7
-      },
-      {
-        "noBuild": false,
-        "type": 3,
-        "x": 3,
-        "y": -6
-      },
-      {
-        "noBuild": false,
-        "type": 3,
-        "x": 3,
-        "y": -5
-      }
-    ],
+    "outerCells": [],
     "spawners": [
       {
         "enableFadeIn": true,

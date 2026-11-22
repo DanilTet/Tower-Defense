@@ -85,6 +85,365 @@
       }
     ],
     "cellSize": 108.45454406738281,
+    "decorations": [
+      {
+        "destructible": true,
+        "id": 1,
+        "opacity": 0.5,
+        "rotation": 0.0,
+        "scale": 1.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "tilePos": {
+          "x": 2.2164270877838135,
+          "y": -2.0081233978271484
+        },
+        "tileX": 2.2164270877838135,
+        "tileY": -2.0081233978271484,
+        "type": "wooden_crate",
+        "worldPos": {
+          "x": 273.154296875,
+          "y": -155.79010009765625
+        },
+        "zIndex": 0
+      },
+      {
+        "destructible": true,
+        "id": 2,
+        "opacity": 0.5,
+        "rotation": 0.0,
+        "scale": 1.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "tilePos": {
+          "x": -3.846020460128784,
+          "y": 8.756754875183105
+        },
+        "tileX": -3.846020460128784,
+        "tileY": 8.756754875183105,
+        "type": "broken_mercury_cart",
+        "worldPos": {
+          "x": -384.345703125,
+          "y": 1011.7098388671875
+        },
+        "zIndex": 0
+      },
+      {
+        "destructible": true,
+        "id": 3,
+        "opacity": 0.5,
+        "rotation": 0.0,
+        "scale": 1.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "tilePos": {
+          "x": -1.2922343015670776,
+          "y": 7.48508882522583
+        },
+        "tileX": -1.2922343015670776,
+        "tileY": 7.48508882522583,
+        "type": "scrap_debris",
+        "worldPos": {
+          "x": -107.3759765625,
+          "y": 873.7918701171875
+        },
+        "zIndex": 0
+      },
+      {
+        "destructible": true,
+        "id": 4,
+        "opacity": 0.5,
+        "rotation": 0.0,
+        "scale": 1.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "tilePos": {
+          "x": -0.4903891980648041,
+          "y": 5.148283004760742
+        },
+        "tileX": -0.4903891980648041,
+        "tileY": 5.148283004760742,
+        "type": "scrap_debris",
+        "worldPos": {
+          "x": -20.4122314453125,
+          "y": 620.3546752929688
+        },
+        "zIndex": 0
+      },
+      {
+        "destructible": true,
+        "id": 5,
+        "opacity": 0.5,
+        "rotation": 0.0,
+        "scale": 1.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "tilePos": {
+          "x": -1.5786075592041016,
+          "y": 9.627161026000977
+        },
+        "tileX": -1.5786075592041016,
+        "tileY": 9.627161026000977,
+        "type": "dead_tree",
+        "worldPos": {
+          "x": -138.43446350097656,
+          "y": 1106.109375
+        },
+        "zIndex": 0
+      },
+      {
+        "destructible": true,
+        "id": 6,
+        "opacity": 0.5,
+        "rotation": 0.0,
+        "scale": 1.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "tilePos": {
+          "x": -0.7767624855041504,
+          "y": 12.52525806427002
+        },
+        "tileX": -0.7767624855041504,
+        "tileY": 12.52525806427002,
+        "type": "dead_tree",
+        "worldPos": {
+          "x": -51.47071838378906,
+          "y": 1420.421142578125
+        },
+        "zIndex": 0
+      },
+      {
+        "destructible": true,
+        "id": 7,
+        "opacity": 0.5,
+        "rotation": 0.0,
+        "scale": 1.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "tilePos": {
+          "x": -5.7367472648620605,
+          "y": 11.437039375305176
+        },
+        "tileX": -5.7367472648620605,
+        "tileY": 11.437039375305176,
+        "type": "dead_tree",
+        "worldPos": {
+          "x": -589.4036254882813,
+          "y": 1302.39892578125
+        },
+        "zIndex": 0
+      },
+      {
+        "destructible": true,
+        "id": 8,
+        "opacity": 0.5,
+        "rotation": 0.0,
+        "scale": 1.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "tilePos": {
+          "x": -5.5305585861206055,
+          "y": 8.275479316711426
+        },
+        "tileX": -5.5305585861206055,
+        "tileY": 8.275479316711426,
+        "type": "dead_tree",
+        "worldPos": {
+          "x": -567.04150390625,
+          "y": 959.5133666992188
+        },
+        "zIndex": 0
+      },
+      {
+        "destructible": true,
+        "id": 9,
+        "opacity": 0.5,
+        "rotation": 0.0,
+        "scale": 1.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "tilePos": {
+          "x": 3.312189817428589,
+          "y": 6.217459201812744
+        },
+        "tileX": 3.312189817428589,
+        "tileY": 6.217459201812744,
+        "type": "dead_tree",
+        "worldPos": {
+          "x": 391.9947509765625,
+          "y": 736.3117065429688
+        },
+        "zIndex": 0
+      },
+      {
+        "destructible": true,
+        "id": 10,
+        "opacity": 0.5,
+        "rotation": 0.0,
+        "scale": 1.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "tilePos": {
+          "x": 3.585202217102051,
+          "y": 4.2920050621032715
+        },
+        "tileX": 3.585202217102051,
+        "tileY": 4.2920050621032715,
+        "type": "dead_tree",
+        "worldPos": {
+          "x": 421.60418701171875,
+          "y": 527.4874267578125
+        },
+        "zIndex": 0
+      },
+      {
+        "destructible": true,
+        "id": 11,
+        "opacity": 0.5,
+        "rotation": 0.0,
+        "scale": 1.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "tilePos": {
+          "x": 1.5820904970169067,
+          "y": 12.30263900756836
+        },
+        "tileX": 1.5820904970169067,
+        "tileY": 12.30263900756836,
+        "type": "wooden_crate",
+        "worldPos": {
+          "x": 204.35760498046875,
+          "y": 1396.277099609375
+        },
+        "zIndex": 0
+      },
+      {
+        "destructible": true,
+        "id": 12,
+        "opacity": 0.5,
+        "rotation": 0.0,
+        "scale": 1.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "tilePos": {
+          "x": 2.5689468383789063,
+          "y": 12.842616081237793
+        },
+        "tileX": 2.5689468383789063,
+        "tileY": 12.842616081237793,
+        "type": "broken_mercury_cart",
+        "worldPos": {
+          "x": 311.38665771484375,
+          "y": 1454.840087890625
+        },
+        "zIndex": 0
+      },
+      {
+        "destructible": true,
+        "id": 13,
+        "opacity": 0.5,
+        "rotation": 0.0,
+        "scale": 1.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "tilePos": {
+          "x": 0.683060348033905,
+          "y": 8.937324523925781
+        },
+        "tileX": 0.683060348033905,
+        "tileY": 8.937324523925781,
+        "type": "scrap_debris",
+        "worldPos": {
+          "x": 106.85370635986328,
+          "y": 1031.29345703125
+        },
+        "zIndex": 0
+      },
+      {
+        "destructible": true,
+        "id": 14,
+        "opacity": 0.5,
+        "rotation": 0.0,
+        "scale": 1.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "tilePos": {
+          "x": 3.886718988418579,
+          "y": 12.797703742980957
+        },
+        "tileX": 3.886718988418579,
+        "tileY": 12.797703742980957,
+        "type": "dry_grass",
+        "worldPos": {
+          "x": 454.3050537109375,
+          "y": 1449.9691162109375
+        },
+        "zIndex": 0
+      },
+      {
+        "destructible": true,
+        "id": 15,
+        "opacity": 0.5,
+        "rotation": 0.0,
+        "scale": 1.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "tilePos": {
+          "x": 6.484305381774902,
+          "y": 12.210816383361816
+        },
+        "tileX": 6.484305381774902,
+        "tileY": 12.210816383361816,
+        "type": "ore_debris",
+        "worldPos": {
+          "x": 736.0250854492188,
+          "y": 1386.3184814453125
+        },
+        "zIndex": 0
+      },
+      {
+        "destructible": true,
+        "id": 16,
+        "opacity": 0.5,
+        "rotation": 0.0,
+        "scale": 1.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "tilePos": {
+          "x": 5.491639614105225,
+          "y": 12.876485824584961
+        },
+        "tileX": 5.491639614105225,
+        "tileY": 12.876485824584961,
+        "type": "ore_debris",
+        "worldPos": {
+          "x": 628.365966796875,
+          "y": 1458.513427734375
+        },
+        "zIndex": 0
+      },
+      {
+        "destructible": true,
+        "id": 17,
+        "opacity": 0.5,
+        "rotation": 0.0,
+        "scale": 1.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "tilePos": {
+          "x": 4.825969219207764,
+          "y": 12.047318458557129
+        },
+        "tileX": 4.825969219207764,
+        "tileY": 12.047318458557129,
+        "type": "ore_debris",
+        "worldPos": {
+          "x": 556.1710205078125,
+          "y": 1368.58642578125
+        },
+        "zIndex": 0
+      }
+    ],
     "enemyBountyRules": {
       "Coal": [
         {
@@ -145,7 +504,7 @@
         0,
         0,
         0,
-        0,
+        3,
         0,
         0,
         0,
@@ -170,7 +529,7 @@
         0,
         0,
         0,
-        0,
+        3,
         0,
         0,
         0,
@@ -195,7 +554,7 @@
         0,
         0,
         0,
-        0,
+        3,
         0,
         0,
         0,
@@ -220,32 +579,7 @@
         0,
         0,
         0,
-        0,
-        0,
         3,
-        0,
-        3,
-        0,
-        3,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
         0,
         3,
         0,
@@ -270,7 +604,7 @@
         0,
         0,
         0,
-        0,
+        3,
         0,
         3,
         0,
@@ -320,7 +654,7 @@
         0,
         0,
         0,
-        0,
+        3,
         0,
         3,
         0,
@@ -345,7 +679,32 @@
         0,
         0,
         0,
+        3,
         0,
+        3,
+        0,
+        3,
+        0,
+        3,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        3,
         0,
         0,
         0,
@@ -369,8 +728,8 @@
         0,
         0,
         0,
-        0,
-        0,
+        3,
+        3,
         0,
         0,
         0,
@@ -394,7 +753,7 @@
         0,
         0,
         0,
-        0,
+        3,
         0,
         0,
         0,
@@ -978,7 +1337,7 @@
       }
     ],
     "startingHealth": 20,
-    "startingMoney": 50,
+    "startingMoney": 10000,
     "towerMaxTiers": {
       "Basic": 3,
       "Mercury": 3,
@@ -989,7 +1348,7 @@
   "maxUpgradeTier": 3,
   "name": "Ртутная щахта",
   "startingHealth": 20,
-  "startingMoney": 50,
+  "startingMoney": 10000,
   "tags": [
     "Тест"
   ],
@@ -1002,7 +1361,20 @@
     {
       "parts": [
         {
-          "count": 10,
+          "count": 5,
+          "delayAfter": 2.0,
+          "interval": 0.800000011920929,
+          "reward": -1,
+          "reward_step": -1,
+          "spawner_id": -1,
+          "type": "Mercury_Large"
+        }
+      ]
+    },
+    {
+      "parts": [
+        {
+          "count": 5,
           "delayAfter": 2.0,
           "interval": 0.800000011920929,
           "reward": -1,
