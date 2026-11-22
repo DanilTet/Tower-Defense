@@ -137,7 +137,8 @@ flowchart TD
    - В `RenderText` (строки 122–123) многобайтовый UTF-8 декодируется без проверки `i + 1 < text.length()` и `i + 2 < text.length()` — обрезанная строка вызывает чтение за пределами буфера.
    - Каждый символ текста вызывает `glBindTexture` + `glBufferSubData` + `glDrawArrays(GL_TRIANGLES, 0, 6)` (нет единого font atlas), а `glGetUniformLocation` вызывается при каждом `RenderText`. На экранах редактора с десятками лейблов это сотни лишних draw call'ов и синхронизаций CPU↔GPU на кадр.
 
-2. **Несуществующий звук `res/sounds/enemy_death.wav` + синхронный disk I/O в `AudioManager::playSound`**  
+2. ✅ **[ВЫПОЛНЕНО] Несуществующий звук `res/sounds/enemy_death.wav` + синхронный disk I/O в `AudioManager::playSound`**  
+   > ✅ Исправлено: добавлен `res/sounds/enemy_death.wav`; в `AudioManager` — кэш декодированных источников (`MA_SOUND_FLAG_DECODE` + `ma_sound_init_copy`, диск читается один раз, есть `preloadSound`), анти-спам 60 мс на путь, `stopMusic()` в `GameplayState::cleanup()`, `cleanup()` сбрасывает `isMusicLoaded`/`sfxAllocated` и кэш.
    *Файлы:* `res/configs/enemies.json`, `src/audio/AudioManager.cpp:70-96`, `src/audio/AudioEventSystem.cpp:6-22`  
    - Все 8 типов врагов в `enemies.json` указывают `"deathSound": "res/sounds/enemy_death.wav"`, но такого файла в `res/sounds/` нет. Каждая смерть врага приводит к неудачному обращению к диску и спаму `ERROR::AUDIO: Failed to load sound` в `stderr`.
    - `AudioManager::playSound()` на каждый выстрел/смерть/постройку вызывает `ma_sound_init_from_file()` синхронно в главном потоке вместо предзагруженных декодированных буферов. На скорости `4x` это прямое узкое место по фреймтайму.

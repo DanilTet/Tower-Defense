@@ -16,6 +16,7 @@
 #include "../resources/ResourceManager.h"
 #include "../textures/Texture2D.h"
 #include "../../audio/AudioEventSystem.h"
+#include "../../audio/AudioManager.h"
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include <algorithm>
@@ -39,6 +40,7 @@ GameplayState::GameplayState(GameStateManager& stateManager, int windowWidth, in
 void GameplayState::cleanup() {
     EventBus::clear();
     AudioEventSystem::cleanup();
+    AudioManager::stopMusic();
 }
 
 void GameplayState::setupUI() {

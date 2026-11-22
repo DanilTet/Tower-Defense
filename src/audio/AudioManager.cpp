@@ -3,6 +3,9 @@
 #include "AudioManager.h"
 #include "../game/core/SettingsManager.h"
 #include <iostream>
+#include <map>
+#include <string>
+#include <chrono>
 
 // глобальные обьекты аудио движка тут именно для звуков
 static ma_engine engine;
@@ -17,6 +20,11 @@ const int MAX_SOUNDS = 32; // одновременно может звучать
 static ma_sound sfxPool[MAX_SOUNDS]; // массив звуковых объектов
 static bool sfxAllocated[MAX_SOUNDS]; // флаг занят ли слот
 static int currentSfxIndex = 0; // текущий слод для нового звука
+
+// кэш предзагруженных декодированных звуков и анти-спам по пути
+static std::map<std::string, ma_sound*> s_sfxCache;
+static std::map<std::string, double> s_lastPlayMs;
+static const double SFX_COOLDOWN_MS = 60.0;
 
 // глобальная громкость и состояние mute
 static float s_masterVolume = 0.8f;
@@ -52,14 +60,27 @@ bool AudioManager::init() {
 void AudioManager::cleanup() {
     if (isMusicLoaded) {
         ma_sound_uninit(&bgmSound);
+        isMusicLoaded = false;
     }
 
     // очищаем буффер
     for (int i = 0; i < MAX_SOUNDS; i++) {
         if (sfxAllocated[i]) {
             ma_sound_uninit(&sfxPool[i]);
+            sfxAllocated[i] = false;
         }
     }
+    currentSfxIndex = 0;
+
+    // копии выгружены - теперь можно освободить кэшированные источники
+    for (std::map<std::string, ma_sound*>::iterator it = s_sfxCache.begin(); it != s_sfxCache.end(); ++it) {
+        if (it->second != nullptr) {
+            ma_sound_uninit(it->second);
+            delete it->second;
+        }
+    }
+    s_sfxCache.clear();
+    s_lastPlayMs.clear();
 
     if (isInitialized) {
         ma_engine_uninit(&engine);
@@ -67,8 +88,49 @@ void AudioManager::cleanup() {
     }
 }
 
+// возвращает закэшированный декодированный источник (грузит с диска только один раз)
+static ma_sound* getCachedSource(const std::string& filepath) {
+    std::map<std::string, ma_sound*>::iterator it = s_sfxCache.find(filepath);
+    if (it != s_sfxCache.end()) {
+        return it->second; // может быть nullptr, если файл ранее не удалось загрузить
+    }
+
+    ma_sound* source = new ma_sound();
+    ma_result result = ma_sound_init_from_file(&engine, filepath.c_str(), MA_SOUND_FLAG_DECODE, NULL, NULL, source);
+    if (result != MA_SUCCESS) {
+        std::cerr << "ERROR::AUDIO: Failed to load sound: " << filepath << std::endl;
+        delete source;
+        s_sfxCache[filepath] = nullptr; // запоминаем неудачу, чтобы не бить по диску повторно
+        return nullptr;
+    }
+
+    s_sfxCache[filepath] = source;
+    return source;
+}
+
+void AudioManager::preloadSound(const std::string& filepath) {
+    if (!isInitialized) return;
+    getCachedSource(filepath);
+}
+
 void AudioManager::playSound(const std::string& filepath,  float volume) {
     if (!isInitialized) return;
+
+    // анти-спам: один и тот же звук не чаще чем раз в SFX_COOLDOWN_MS
+    double nowMs = std::chrono::duration<double, std::milli>(
+        std::chrono::steady_clock::now().time_since_epoch()).count();
+    std::map<std::string, double>::iterator cd = s_lastPlayMs.find(filepath);
+    if (cd != s_lastPlayMs.end()) {
+        if (nowMs - cd->second < SFX_COOLDOWN_MS) {
+            return;
+        }
+    }
+
+    ma_sound* source = getCachedSource(filepath);
+    if (source == nullptr) {
+        return;
+    }
+    s_lastPlayMs[filepath] = nowMs;
 
     // если в слоте есть уже звук то выгружаем его из памяти
     if (sfxAllocated[currentSfxIndex]) {
@@ -76,8 +138,8 @@ void AudioManager::playSound(const std::string& filepath,  float volume) {
         sfxAllocated[currentSfxIndex] = false;
     }
 
-    // загружаем новый звук в текущий слот буфера
-    ma_result result = ma_sound_init_from_file(&engine, filepath.c_str(), 0, NULL, NULL, &sfxPool[currentSfxIndex]);
+    // копия делит уже декодированный буфер с источником, без обращения к диску
+    ma_result result = ma_sound_init_copy(&engine, source, 0, NULL, &sfxPool[currentSfxIndex]);
 
     if (result == MA_SUCCESS) {
         sfxAllocated[currentSfxIndex] = true;
@@ -89,7 +151,7 @@ void AudioManager::playSound(const std::string& filepath,  float volume) {
         ma_sound_start(&sfxPool[currentSfxIndex]);
     }
     else {
-        std::cerr << "ERROR::AUDIO: Failed to load sound: " << filepath << std::endl;
+        std::cerr << "ERROR::AUDIO: Failed to copy cached sound: " << filepath << std::endl;
     }
     // пускаем индекс по кругу
     currentSfxIndex = (currentSfxIndex + 1) % MAX_SOUNDS;
