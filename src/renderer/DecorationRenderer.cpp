@@ -12,7 +12,7 @@ namespace {
 
 void drawPart(
     SpriteRenderer* renderer,
-    const std::shared_ptr<Texture2D>& texture,
+    const Texture2D* texture,
     glm::vec2 decorPos,
     float decorRot,
     glm::vec2 decorScale,
@@ -40,7 +40,7 @@ void drawPart(
     renderer->drawSpriteRGBA(texture, drawPos, finalSize, localAngle + decorRot, color);
 }
 
-void drawBush(SpriteRenderer* renderer, const std::shared_ptr<Texture2D>& tex, const DecorationConfig& d, float a) {
+void drawBush(SpriteRenderer* renderer, const Texture2D* tex, const DecorationConfig& d, float a) {
     glm::vec2 sVec(d.scale * d.scaleX, d.scale * d.scaleY);
 
     // 1. Темно-зеленый базис кроны (круглые перекрывающиеся объемы для зубчатого пушистого края)
@@ -72,7 +72,7 @@ struct GrassBladeDesc {
     float phase;
 };
 
-void drawGrassTuft(SpriteRenderer* renderer, const std::shared_ptr<Texture2D>& tex, const DecorationConfig& d, float a) {
+void drawGrassTuft(SpriteRenderer* renderer, const Texture2D* tex, const DecorationConfig& d, float a) {
     glm::vec2 sVec(d.scale * d.scaleX, d.scale * d.scaleY);
     float time = static_cast<float>(glfwGetTime());
 
@@ -123,7 +123,7 @@ void drawGrassTuft(SpriteRenderer* renderer, const std::shared_ptr<Texture2D>& t
     }
 }
 
-void drawGrassField(SpriteRenderer* renderer, const std::shared_ptr<Texture2D>& tex, const DecorationConfig& d, float a) {
+void drawGrassField(SpriteRenderer* renderer, const Texture2D* tex, const DecorationConfig& d, float a) {
     glm::vec2 sVec(d.scale * d.scaleX, d.scale * d.scaleY);
     float time = static_cast<float>(glfwGetTime());
 
@@ -205,7 +205,7 @@ void drawGrassField(SpriteRenderer* renderer, const std::shared_ptr<Texture2D>& 
     }
 }
 
-void drawFlower(SpriteRenderer* renderer, const std::shared_ptr<Texture2D>& tex, const DecorationConfig& d, float a) {
+void drawFlower(SpriteRenderer* renderer, const Texture2D* tex, const DecorationConfig& d, float a) {
     glm::vec2 sVec(d.scale * d.scaleX, d.scale * d.scaleY);
 
     // 1. Тень
@@ -227,7 +227,7 @@ void drawFlower(SpriteRenderer* renderer, const std::shared_ptr<Texture2D>& tex,
     drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 11.0f, -4.0f }, { 4.0f, 4.0f }, 0.0f, glm::vec4(1.0f, 0.90f, 0.20f, a));
 }
 
-void drawStone(SpriteRenderer* renderer, const std::shared_ptr<Texture2D>& tex, const DecorationConfig& d, float a) {
+void drawStone(SpriteRenderer* renderer, const Texture2D* tex, const DecorationConfig& d, float a) {
     glm::vec2 sVec(d.scale * d.scaleX, d.scale * d.scaleY);
 
     // 1. Тень
@@ -243,7 +243,7 @@ void drawStone(SpriteRenderer* renderer, const std::shared_ptr<Texture2D>& tex, 
     drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { -14.0f, 8.0f }, { 9.0f, 7.0f }, 10.0f, glm::vec4(0.40f, 0.42f, 0.46f, a));
 }
 
-void drawHelmet(SpriteRenderer* renderer, const std::shared_ptr<Texture2D>& tex, const DecorationConfig& d, float a) {
+void drawHelmet(SpriteRenderer* renderer, const Texture2D* tex, const DecorationConfig& d, float a) {
     glm::vec2 sVec(d.scale * d.scaleX, d.scale * d.scaleY);
 
     // 1. Тень
@@ -262,7 +262,7 @@ void drawHelmet(SpriteRenderer* renderer, const std::shared_ptr<Texture2D>& tex,
     drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 0.0f, -20.0f }, { 16.0f, 12.0f }, 0.0f, glm::vec4(1.0f, 0.95f, 0.55f, 0.30f * a));
 }
 
-void drawPickaxe(SpriteRenderer* renderer, const std::shared_ptr<Texture2D>& tex, const DecorationConfig& d, float a) {
+void drawPickaxe(SpriteRenderer* renderer, const Texture2D* tex, const DecorationConfig& d, float a) {
     glm::vec2 sVec(d.scale * d.scaleX, d.scale * d.scaleY);
 
     // 1. Тень
@@ -292,7 +292,7 @@ void drawPickaxe(SpriteRenderer* renderer, const std::shared_ptr<Texture2D>& tex
     drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 19.5f, -14.0f }, { 1.5f, 5.0f }, 0.0f, glm::vec4(0.82f, 0.85f, 0.90f, a));
 }
 
-void drawPuddle(SpriteRenderer* renderer, const std::shared_ptr<Texture2D>& tex, const DecorationConfig& d, float a) {
+void drawPuddle(SpriteRenderer* renderer, const Texture2D* tex, const DecorationConfig& d, float a) {
     glm::vec2 sVec(d.scale * d.scaleX, d.scale * d.scaleY);
     float op = std::clamp(d.opacity, 0.10f, 1.0f);
     float baseWaterAlpha = 0.45f * (op / 0.5f);
@@ -318,7 +318,7 @@ void drawPuddle(SpriteRenderer* renderer, const std::shared_ptr<Texture2D>& tex,
     drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { -4.0f, 2.0f }, { 15.0f, 1.4f }, -3.0f, glm::vec4(0.65f, 0.82f, 0.95f, 0.20f * a));
 }
 
-void drawCrack(SpriteRenderer* renderer, const std::shared_ptr<Texture2D>& tex, const DecorationConfig& d, float a) {
+void drawCrack(SpriteRenderer* renderer, const Texture2D* tex, const DecorationConfig& d, float a) {
     glm::vec2 sVec(d.scale * d.scaleX, d.scale * d.scaleY);
     float crackAlpha = std::clamp(d.opacity, 0.10f, 1.0f) * a;
 
@@ -332,7 +332,7 @@ void drawCrack(SpriteRenderer* renderer, const std::shared_ptr<Texture2D>& tex, 
     drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 14.0f, 1.0f }, { 14.0f, 1.5f }, 45.0f, glm::vec4(0.50f, 0.52f, 0.56f, 0.35f * crackAlpha));
 }
 
-void drawFog(SpriteRenderer* renderer, const std::shared_ptr<Texture2D>& whiteTexture, const DecorationConfig& d, float a) {
+void drawFog(SpriteRenderer* renderer, const Texture2D* whiteTexture, const DecorationConfig& d, float a) {
     glm::vec2 sVec(d.scale * d.scaleX, d.scale * d.scaleY);
     float op = std::clamp(d.opacity, 0.05f, 1.0f);
     float finalAlpha = op * a;
@@ -345,9 +345,10 @@ void drawFog(SpriteRenderer* renderer, const std::shared_ptr<Texture2D>& whiteTe
             rawPartTex = ResourceManager::loadTexture("particleTexture", "res/textures/particle.png");
         }
     }
-    std::shared_ptr<Texture2D> partTex = rawPartTex 
-        ? std::shared_ptr<Texture2D>(rawPartTex, [](Texture2D*) {}) 
-        : whiteTexture;
+    const Texture2D* partTex = whiteTexture;
+    if (rawPartTex) {
+        partTex = rawPartTex;
+    }
 
     // Мягкий объемный туман / облако дыма: несколько смещенных перекрывающихся слоев
     glm::vec4 fogColor(0.48f, 0.50f, 0.52f, 0.40f * finalAlpha);
@@ -364,7 +365,7 @@ void drawFog(SpriteRenderer* renderer, const std::shared_ptr<Texture2D>& whiteTe
     drawPart(renderer, partTex, d.worldPos, d.rotation, sVec, { 2.0f, 2.0f }, { 80.0f, 65.0f }, 0.0f, coreColor);
 }
 
-void drawSelection(SpriteRenderer* renderer, const std::shared_ptr<Texture2D>& tex, const DecorationConfig& d) {
+void drawSelection(SpriteRenderer* renderer, const Texture2D* tex, const DecorationConfig& d) {
     float sx = std::max(0.2f, d.scale * d.scaleX);
     float sy = std::max(0.2f, d.scale * d.scaleY);
     float baseDim = (d.type == "fog") ? 130.0f : ((d.type == "dead_tree") ? 74.0f : ((d.type == "broken_mercury_cart") ? 60.0f : ((d.type == "grass_field") ? 64.0f : ((d.type == "bush") ? 56.0f : ((d.type == "scrap_debris" || d.type == "puddle" || d.type == "ore_debris") ? 52.0f : ((d.type == "wooden_crate") ? 48.0f : 42.0f))))));
@@ -493,7 +494,7 @@ GizmoHandleType DecorationRenderer::hitTestGizmo(
 }
 
 
-void drawWoodenCrate(SpriteRenderer* renderer, const std::shared_ptr<Texture2D>& tex, const DecorationConfig& d, float a) {
+void drawWoodenCrate(SpriteRenderer* renderer, const Texture2D* tex, const DecorationConfig& d, float a) {
     glm::vec2 sVec(d.scale * d.scaleX, d.scale * d.scaleY);
 
     // 1. Внешняя деревянная рамка и подложка
@@ -543,7 +544,7 @@ void drawWoodenCrate(SpriteRenderer* renderer, const std::shared_ptr<Texture2D>&
     drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { cornOff, cornOff },   { 2.5f, 2.5f }, 0.0f, rivetCol);
 }
 
-void drawBrokenMercuryCart(SpriteRenderer* renderer, const std::shared_ptr<Texture2D>& tex, const DecorationConfig& d, float a) {
+void drawBrokenMercuryCart(SpriteRenderer* renderer, const Texture2D* tex, const DecorationConfig& d, float a) {
     glm::vec2 sVec(d.scale * d.scaleX, d.scale * d.scaleY);
 
     // 1. Разлившаяся серебристо-бирюзовая лужа ртути рядом с вагонеткой
@@ -599,7 +600,7 @@ void drawBrokenMercuryCart(SpriteRenderer* renderer, const std::shared_ptr<Textu
     drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 2.5f, 3.5f }, { 2.0f, 3.0f }, -15.0f, mercuryHi);
 }
 
-void drawScrapDebris(SpriteRenderer* renderer, const std::shared_ptr<Texture2D>& tex, const DecorationConfig& d, float a) {
+void drawScrapDebris(SpriteRenderer* renderer, const Texture2D* tex, const DecorationConfig& d, float a) {
     glm::vec2 sVec(d.scale * d.scaleX, d.scale * d.scaleY);
 
     // 1. Кучки угля / куски черной руды
@@ -645,7 +646,7 @@ void drawScrapDebris(SpriteRenderer* renderer, const std::shared_ptr<Texture2D>&
 }
 
 
-void drawDeadTree(SpriteRenderer* renderer, const std::shared_ptr<Texture2D>& tex, const DecorationConfig& d, float a) {
+void drawDeadTree(SpriteRenderer* renderer, const Texture2D* tex, const DecorationConfig& d, float a) {
     glm::vec2 sVec(d.scale * d.scaleX, d.scale * d.scaleY);
 
     // 1. Падающая тень на земле
@@ -687,7 +688,7 @@ void drawDeadTree(SpriteRenderer* renderer, const std::shared_ptr<Texture2D>& te
     drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 1.0f, 2.0f }, { 3.5f, 6.0f }, 0.0f, glm::vec4(0.12f, 0.09f, 0.07f, a));
 }
 
-void drawDryGrass(SpriteRenderer* renderer, const std::shared_ptr<Texture2D>& tex, const DecorationConfig& d, float a) {
+void drawDryGrass(SpriteRenderer* renderer, const Texture2D* tex, const DecorationConfig& d, float a) {
     glm::vec2 sVec(d.scale * d.scaleX, d.scale * d.scaleY);
 
     // 1. Тень под кочкой бурьяна
@@ -716,7 +717,7 @@ void drawDryGrass(SpriteRenderer* renderer, const std::shared_ptr<Texture2D>& te
     drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 17.0f, 5.0f }, { 13.0f, 2.5f }, 68.0f, glm::vec4(0.48f, 0.38f, 0.18f, a));
 }
 
-void drawOreDebris(SpriteRenderer* renderer, const std::shared_ptr<Texture2D>& tex, const DecorationConfig& d, float a) {
+void drawOreDebris(SpriteRenderer* renderer, const Texture2D* tex, const DecorationConfig& d, float a) {
     glm::vec2 sVec(d.scale * d.scaleX, d.scale * d.scaleY);
 
     // 1. Падающая тень под осыпью
@@ -751,7 +752,7 @@ void drawOreDebris(SpriteRenderer* renderer, const std::shared_ptr<Texture2D>& t
 
 void DecorationRenderer::renderDecoration(
     SpriteRenderer* renderer,
-    std::shared_ptr<Texture2D> whiteTexture,
+    const Texture2D* whiteTexture,
     const DecorationConfig& decor,
     bool isSelected,
     float alpha,
@@ -809,7 +810,7 @@ void DecorationRenderer::renderDecoration(
 
 void DecorationRenderer::renderDecoration(
     SpriteRenderer* renderer,
-    std::shared_ptr<Texture2D> whiteTexture,
+    const Texture2D* whiteTexture,
     glm::vec2 renderPos,
     const DecorationConfig& decor,
     bool isSelected,
@@ -823,7 +824,7 @@ void DecorationRenderer::renderDecoration(
 
 void DecorationRenderer::renderDecorations(
     SpriteRenderer* renderer,
-    std::shared_ptr<Texture2D> whiteTexture,
+    const Texture2D* whiteTexture,
     const std::vector<DecorationConfig>& decorations,
     int selectedIndex,
     float cellSize,
@@ -847,7 +848,7 @@ void DecorationRenderer::renderDecorations(
 
 void DecorationRenderer::renderDecorations(
     SpriteRenderer* renderer,
-    std::shared_ptr<Texture2D> whiteTexture,
+    const Texture2D* whiteTexture,
     const std::vector<DecorationConfig>& decorations,
     glm::vec2 gridOffset,
     float cellSize,
@@ -873,7 +874,7 @@ void DecorationRenderer::renderDecorations(
 
 void DecorationRenderer::renderDecorations(
     SpriteRenderer* renderer,
-    std::shared_ptr<Texture2D> whiteTexture,
+    const Texture2D* whiteTexture,
     const std::vector<DecorationConfig>& decorations,
     const Grid& grid,
     int selectedIndex,
@@ -884,7 +885,7 @@ void DecorationRenderer::renderDecorations(
 
 void DecorationRenderer::renderPreview(
     SpriteRenderer* renderer,
-    std::shared_ptr<Texture2D> whiteTexture,
+    const Texture2D* whiteTexture,
     const std::string& type,
     glm::vec2 worldPos,
     float rotation,

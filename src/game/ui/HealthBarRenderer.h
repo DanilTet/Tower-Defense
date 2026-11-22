@@ -9,7 +9,7 @@ class HealthBarRenderer {
 public:
     static void draw(
         SpriteRenderer* renderer,
-        std::shared_ptr<Texture2D> texture,
+        const Texture2D* texture,
         const glm::vec2& entityPos,
         float entityWidth,
         int currentHp,

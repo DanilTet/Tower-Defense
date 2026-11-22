@@ -10,7 +10,7 @@ void PathVisualizer::update(float dt, float cellSize) {
 
 void PathVisualizer::renderPathArrows(
     SpriteRenderer* renderer,
-    std::shared_ptr<Texture2D> arrowTex,
+    const Texture2D* arrowTex,
     const std::vector<glm::ivec2>& levelPath,
     const Grid& gameGrid,
     glm::vec3 arrowColor) {

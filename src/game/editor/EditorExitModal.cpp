@@ -159,12 +159,12 @@ ExitModalAction EditorExitModal::handleInput(glm::vec2 mousePos, bool mouseClick
 }
 
 void EditorExitModal::render(SpriteRenderer* renderer, TextRenderer* textRenderer, float screenW, float screenH) {
-    auto whiteTex = std::shared_ptr<Texture2D>(ResourceManager::getWhiteTexture(), [](Texture2D*) {});
+    auto whiteTex = ResourceManager::getWhiteTexture();
     render(renderer, textRenderer, whiteTex, screenW, screenH, m_mousePos);
 }
 
 void EditorExitModal::render(SpriteRenderer* renderer, TextRenderer* textRenderer,
-                             const std::shared_ptr<Texture2D>& whiteTexture,
+                             const Texture2D* whiteTexture,
                              float screenW, float screenH, glm::vec2 mousePos) {
     if (!m_isOpen || !renderer || !whiteTexture) return;
 

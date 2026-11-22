@@ -208,7 +208,7 @@ bool EditorMinecartModal::handleInput(float mouseX, float mouseY, bool mousePres
 }
 
 void EditorMinecartModal::render(SpriteRenderer* renderer, TextRenderer* textRenderer,
-                                 const std::shared_ptr<Texture2D>& whiteTexture,
+                                 const Texture2D* whiteTexture,
                                  int screenWidth, int screenHeight,
                                  glm::vec2 mousePos,
                                  const std::vector<MinecartData>& minecarts,
@@ -216,7 +216,7 @@ void EditorMinecartModal::render(SpriteRenderer* renderer, TextRenderer* textRen
                                  size_t railPathSize) {
     if (!m_isOpen || !renderer) return;
 
-    std::shared_ptr<Texture2D> tex = whiteTexture;
+    const Texture2D* tex = whiteTexture;
     if (!tex) return;
 
     updateLayout(screenWidth, screenHeight);

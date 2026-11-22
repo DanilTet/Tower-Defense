@@ -35,7 +35,7 @@ public:
 
     static void renderDecoration(
         SpriteRenderer* renderer,
-        std::shared_ptr<Texture2D> whiteTexture,
+        const Texture2D* whiteTexture,
         const DecorationConfig& decor,
         bool isSelected = false,
         float alpha = 1.0f,
@@ -44,7 +44,7 @@ public:
 
     static void renderDecoration(
         SpriteRenderer* renderer,
-        std::shared_ptr<Texture2D> whiteTexture,
+        const Texture2D* whiteTexture,
         glm::vec2 renderPos,
         const DecorationConfig& decor,
         bool isSelected = false,
@@ -54,7 +54,7 @@ public:
 
     static void renderDecorations(
         SpriteRenderer* renderer,
-        std::shared_ptr<Texture2D> whiteTexture,
+        const Texture2D* whiteTexture,
         const std::vector<DecorationConfig>& decorations,
         int selectedIndex = -1,
         float cellSize = 64.0f,
@@ -63,7 +63,7 @@ public:
 
     static void renderDecorations(
         SpriteRenderer* renderer,
-        std::shared_ptr<Texture2D> whiteTexture,
+        const Texture2D* whiteTexture,
         const std::vector<DecorationConfig>& decorations,
         glm::vec2 gridOffset,
         float cellSize,
@@ -73,7 +73,7 @@ public:
 
     static void renderDecorations(
         SpriteRenderer* renderer,
-        std::shared_ptr<Texture2D> whiteTexture,
+        const Texture2D* whiteTexture,
         const std::vector<DecorationConfig>& decorations,
         const Grid& grid,
         int selectedIndex = -1,
@@ -82,7 +82,7 @@ public:
 
     static void renderPreview(
         SpriteRenderer* renderer,
-        std::shared_ptr<Texture2D> whiteTexture,
+        const Texture2D* whiteTexture,
         const std::string& type,
         glm::vec2 worldPos,
         float rotation = 0.0f,

@@ -98,7 +98,7 @@ void EntityManager::update(float dt, Grid& gameGrid) {
     }
 }
 
-void EntityManager::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> mainAtlas, std::shared_ptr<Texture2D> enemyAtlas, std::shared_ptr<Texture2D> radiusTex, std::shared_ptr<Texture2D> arrowTex, std::shared_ptr<Texture2D> particleTex, Grid& gameGrid, Tower* selectedTower) {
+void EntityManager::render(SpriteRenderer* renderer, const Texture2D* mainAtlas, const Texture2D* enemyAtlas, const Texture2D* radiusTex, const Texture2D* arrowTex, const Texture2D* particleTex, Grid& gameGrid, Tower* selectedTower) {
     for (const auto& tower : m_towers) {
         if (tower) {
             bool isSelected = (tower.get() == selectedTower);

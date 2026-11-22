@@ -185,12 +185,12 @@ flowchart TD
    - Глобальный `EventBus` с `EventBus::clear()` и лямбдами `[this]` из `GameplayState` опасен при любом нестандартном жизненном цикле стейтов; `AudioManager::stopMusic()` не вызывается нигде — боевая музыка продолжает играть в главном меню и редакторе.
    - `GameStateManager::render()` (строки 55–63) рендерит максимум 2 верхних стейта (`size - 2` и `size - 1`), что ломает отрисовку фона при стеке глубиной 3+ (например, `MapEditorState → GameplayState → PauseState`).
 
-9. **Антипаттерн no-op `std::shared_ptr<Texture2D>` в горячем рендере и разрыв батчинга**  
+9. **[ИСПРАВЛЕНО: подпункт про shared_ptr] Антипаттерн no-op `std::shared_ptr<Texture2D>` в горячем рендере и разрыв батчинга**  
    *Файлы:* `src/renderer/SpriteRenderer.h`, `src/resources/ResourceManager.h`, `src/game/entities/Enemy.cpp:440,485,516`, `src/game/entities/Tower.cpp:80`, `src/renderer/DecorationRenderer.cpp:349` (всего 27 мест)  
    - `ResourceManager` возвращает `Texture2D*`, но `SpriteRenderer::drawSprite` принимает `const std::shared_ptr<Texture2D>&`. В результате по всему проекту создаются фиктивные `std::shared_ptr<Texture2D>(rawPtr, [](Texture2D*){})`, в том числе **внутри покадровых циклов** по всем врагам и башням — сотни лишних аллокаций control block в куче каждый кадр.
    - В `Enemy::render` (строки 436, 483) для каждого врага `Coal` по очереди рисуются `enemy_coal` и `enemy_coal_glow`, что сбрасывает батч на каждом `Coal` (2 draw call на одного врага вместо 2 проходов на всю толпу или единого атласа).
 
-10. **Дублирование систем и хардкод игрового баланса в C++ в обход JSON**  
+10. **[ЧАСТИЧНО: баланс Piston вынесен в towers.json (блок "piston")] Дублирование систем и хардкод игрового баланса в C++ в обход JSON**  
     *Файлы:* `src/particles/`, `src/game/world/MinecartManager.h`, `src/game/entities/Tower.cpp:188-209`, `src/game/core/WaveManager.h:58-68`, `src/game/world/GameWorld.cpp:12-135`  
     - В проекте **3 независимые системы частиц**: `ParticleSystem` (боевые), `EnvironmentParticleManager` (окружение) и `MinecartManager::m_particles` (искры/дым вагонетки).
     - Логика и баланс `Piston` T1/T2/T3 (урон `35`, bleed, vulnerable, дистанции `0.25/1.0/1.3`, иммунитет `5.0s`, список тяжёлых врагов `"Tank" || "Mercury_Large"`) захардкожены в `Tower.cpp`, игнорируя `m_damage` и `m_knockbackForce` из `towers.json`.
@@ -202,7 +202,7 @@ flowchart TD
     *Файлы:* `src/game/core/LevelManager.cpp:833-915`, `src/game/core/SettingsManager.cpp:18-43`, `CMakeLists.txt:18,224`  
     - Рантайм-код ищет и двусторонне синхронизирует JSON-файлы между `res/`, `out/build/x64-Debug/res`, `build/res`, смешивая неизменяемые ассеты репозитория с пользовательскими настройками и картами (из-за чего `git status` постоянно «грязный»). При этом `build/Debug/res/levels` (реальный путь сборки Visual Studio) вообще отсутствует в списке кандидатов `getLevelDirectories()`.
 
-12. **Ограничения и пробелы в игровых фичах и локализации**  
+12. **[ЧАСТИЧНО: подсветка блокировки пути в PlacementUI сделана] Ограничения и пробелы в игровых фичах и локализации**  
     *Файлы:* `src/game/world/MinecartManager.cpp:34,231-300`, `src/game/ui/PlacementUI.cpp:60`, `src/game/ui/TowerMenuUI.cpp:59-64`, `src/renderer/GameplayRenderer.cpp:267-276`  
     - `MinecartManager::init` читает только `levelData.minecarts[0]` (множественные вагонетки игнорируются), проверяет столкновение только в конечной точке шага (без swept CCD) и не воспроизводит звук сирены/колокола.
     - `PlacementUI` не проверяет блокировку маршрута — голограмма горит зелёным на клетках, где постройка будет отклонена.

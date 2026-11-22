@@ -148,7 +148,7 @@ void GameWorld::update(float dt) {
     }
 }
 
-void GameWorld::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> whiteTexture) {
+void GameWorld::render(SpriteRenderer* renderer, const Texture2D* whiteTexture) {
     minecartManager.render(renderer, whiteTexture);
     if (grid) {
         envParticleManager.render(renderer, whiteTexture, *grid, 0, 100);

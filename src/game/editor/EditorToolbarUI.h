@@ -152,7 +152,7 @@ public:
     EditorAction handleInput(float mouseX, float mouseY, bool mousePressed, bool mouseReleased, EditorContext& ctx);
 
     void render(SpriteRenderer* renderer, TextRenderer* textRenderer,
-                const std::shared_ptr<Texture2D>& whiteTexture,
+                const Texture2D* whiteTexture,
                 const EditorContext& ctx, glm::vec2 mousePos);
 
     void render(SpriteRenderer* renderer, TextRenderer* textRenderer,

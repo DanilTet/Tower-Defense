@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include <memory>
 #include <vector>
 #include <string>
@@ -50,7 +50,7 @@ struct GameWorld {
     void recalculateAllPaths();
     void notifyEnemiesPathChanged(glm::ivec2 blockedCell = glm::ivec2(-1, -1));
     void update(float dt);
-    void render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> whiteTexture);
+    void render(SpriteRenderer* renderer, const Texture2D* whiteTexture);
     void resize(int windowWidth, int windowHeight);
     void spawnEnemy(const std::string& type, int spawnerIndex = 0, int reward = 1, int rewardStep = 1);
     void demolishDecorationsInCell(int gridX, int gridY);

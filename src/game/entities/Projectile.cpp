@@ -179,7 +179,7 @@ void Projectile::update(float dt, const std::vector<std::unique_ptr<Enemy>>& ene
 
 }
 
-void Projectile::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> mainAtlas, const Grid& grid) {
+void Projectile::render(SpriteRenderer* renderer, const Texture2D* mainAtlas, const Grid& grid) {
     if (!m_isActive || m_destroyed) return;
 
     float scaleFactor = grid.getCellSize() / 64.0f;

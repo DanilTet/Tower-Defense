@@ -680,7 +680,7 @@ EditorAction EditorToolbarUI::handleInput(float mouseX, float mouseY, bool mouse
 }
 
 void EditorToolbarUI::render(SpriteRenderer* renderer, TextRenderer* textRenderer,
-                             const std::shared_ptr<Texture2D>& whiteTexture,
+                             const Texture2D* whiteTexture,
                              const EditorContext& ctx, glm::vec2 mousePos) {
     (void)mousePos;
     if (!renderer) return;
@@ -1083,7 +1083,7 @@ void EditorToolbarUI::render(SpriteRenderer* renderer, TextRenderer* textRendere
 
 void EditorToolbarUI::render(SpriteRenderer* renderer, TextRenderer* textRenderer,
                              float screenWidth, float screenHeight, const EditorContext& ctx) {
-    auto whiteTex = std::shared_ptr<Texture2D>(ResourceManager::getWhiteTexture(), [](Texture2D*) {});
+    auto whiteTex = ResourceManager::getWhiteTexture();
     EditorContext renderCtx = ctx;
     renderCtx.screenWidth = static_cast<int>(screenWidth);
     renderCtx.screenHeight = static_cast<int>(screenHeight);

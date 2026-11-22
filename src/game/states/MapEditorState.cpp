@@ -105,12 +105,12 @@ void MapEditorState::init() {
 
     auto wrapNoDelete = [](const std::string& name) {
         Texture2D* tex = ResourceManager::getTexture(name);
-        return std::shared_ptr<Texture2D>(tex, [](Texture2D*) {});
+        return tex;
     };
 
     m_uiTexture = wrapNoDelete("uiBaseTexture");
     m_arrowTexture = wrapNoDelete("arrowTexture");
-    m_whiteTexture = std::shared_ptr<Texture2D>(ResourceManager::getWhiteTexture(), [](Texture2D*) {});
+    m_whiteTexture = ResourceManager::getWhiteTexture();
 
     m_gizmoController.initCursors();
 
@@ -4266,7 +4266,7 @@ void MapEditorState::renderHudPreviewText() {
     );
 }
 
-void MapEditorState::renderEmitters(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture) {
+void MapEditorState::renderEmitters(SpriteRenderer* renderer, const Texture2D* texture) {
     EditorEmitterRenderer::render(renderer, texture, m_grid.get(), m_emitters, m_selectedEmitterIndex);
 }
 

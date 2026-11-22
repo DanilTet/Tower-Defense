@@ -26,7 +26,7 @@ LevelSelectState::LevelSelectState(GameStateManager& stateManager, int width, in
       m_textRenderer(textRenderer),
       m_activeTab(initialTab)
 {
-    m_whiteTexture = std::shared_ptr<Texture2D>(ResourceManager::getWhiteTexture(), [](Texture2D*) {});
+    m_whiteTexture = ResourceManager::getWhiteTexture();
     m_mousePressedLastFrame = true;
     CampaignManager::init();
     m_isDevMode = CampaignManager::isDevMode();
@@ -89,13 +89,13 @@ bool LevelSelectState::isPointInRect(glm::vec2 point, glm::vec2 rectPos, glm::ve
            point.y >= rectPos.y && point.y <= rectPos.y + rectSize.y;
 }
 
-void LevelSelectState::drawQuad(glm::vec2 pos, glm::vec2 size, glm::vec3 color, const std::shared_ptr<Texture2D>& tex) {
+void LevelSelectState::drawQuad(glm::vec2 pos, glm::vec2 size, glm::vec3 color, const Texture2D* tex) {
     if (m_renderer) {
         m_renderer->drawSprite(tex ? tex : m_whiteTexture, pos, size, 0.0f, color);
     }
 }
 
-void LevelSelectState::drawQuadRGBA(glm::vec2 pos, glm::vec2 size, glm::vec4 color, const std::shared_ptr<Texture2D>& tex) {
+void LevelSelectState::drawQuadRGBA(glm::vec2 pos, glm::vec2 size, glm::vec4 color, const Texture2D* tex) {
     if (m_renderer) {
         m_renderer->drawSpriteRGBA(tex ? tex : m_whiteTexture, pos, size, 0.0f, color);
     }

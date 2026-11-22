@@ -381,7 +381,7 @@ void Enemy::update(float dt, const Grid& grid, ParticleSystem* particleSystem) {
 }
 
 // отрисовка врага на экране
-void Enemy::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture, std::shared_ptr<Texture2D> radiusTex, glm::vec2 gridOffset, const Grid& grid) {
+void Enemy::render(SpriteRenderer* renderer, const Texture2D* texture, const Texture2D* radiusTex, glm::vec2 gridOffset, const Grid& grid) {
 	if (m_reachedEnd) return; // если враг достиг конца пути, то не рисуем его
 
 	// Получаем характеристики врага в зависимости от его типа, чтобы использовать их для отрисовки (например, размер спрайта)
@@ -437,7 +437,7 @@ void Enemy::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture,
     if (!enemyTex) {
         enemyTex = ResourceManager::getTexture("towerTexture");
     }
-    std::shared_ptr<Texture2D> enemyTexPtr(enemyTex, [](Texture2D*) {});
+    const Texture2D* enemyTexPtr = enemyTex;
 
     SpriteUV currentFrameUV = m_animator.getCurrentUV();
 
@@ -482,7 +482,7 @@ void Enemy::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture,
             if (m_type == "Coal") {
                 Texture2D* glowTex = ResourceManager::getTexture("enemy_coal_glow");
                 if (glowTex) {
-                    std::shared_ptr<Texture2D> glowTexPtr(glowTex, [](Texture2D*) {});
+                    const Texture2D* glowTexPtr = glowTex;
 
                     // Индивидуальный сдвиг фазы на основе m_id, чтобы пачка из 30 угольков не мигала синхронно
                     float phase = static_cast<float>(m_id) * 1.731f;
@@ -511,9 +511,9 @@ void Enemy::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture,
     if (!m_isFalling) {
         // --- ОТРИСОВКА ВРАЩАЮЩИХСЯ ЗВЕЗДОЧЕК СТАНА НАД ГОЛОВОЙ ВРАГА ---
         if (m_stunTimer > 0.0f) {
-            Texture2D* starTex = ResourceManager::getTexture("particleTexture");
-            if (!starTex) starTex = radiusTex.get();
-            std::shared_ptr<Texture2D> starTexPtr(starTex, [](Texture2D*) {});
+            const Texture2D* starTex = ResourceManager::getTexture("particleTexture");
+            if (!starTex) starTex = radiusTex;
+            const Texture2D* starTexPtr = starTex;
 
             glm::vec2 headCenter = drawPos + glm::vec2(size.x * 0.5f, -size.y * 0.05f);
             float rx = size.x * 0.42f;

@@ -5,19 +5,22 @@
 #include "core/ConfigManager.h"
 #include "gameplay/PlayerStats.h"
 #include "entities/Enemy.h"
+#include "world/PathService.h"
+#include "world/Pathfinder.h"
 
 void PlacementUI::renderHologram(
     SpriteRenderer* renderer,
-    std::shared_ptr<Texture2D> mainAtlas,
-    std::shared_ptr<Texture2D> radiusTexture,
-    const Grid& gameGrid,
+    const Texture2D* mainAtlas,
+    const Texture2D* radiusTexture,
+    Grid& gameGrid,
     glm::vec2 currentMousePos,
     const std::string& selectedTower,
     const PlayerStats& stats,
     glm::vec2 panelPos,
     bool hasValidPath,
     const std::vector<std::unique_ptr<Enemy>>* activeEnemies,
-    float placementAngle) {
+    float placementAngle,
+    const PlacementPathContext* pathContext) {
 
     // если рука пустая то выходим
     if (selectedTower.empty()) {
@@ -54,10 +57,22 @@ void PlacementUI::renderHologram(
         }
     }
 
+    // проверяем, не перекроет ли постройка маршрут врагов (Grid восстанавливается внутри isPlacementValid)
+    bool blocksPath = false;
+    if (canBuildHere && !hasEnemyHere && pathContext && pathContext->pathfinder && pathContext->spawners && pathContext->bases) {
+        std::vector<std::vector<glm::ivec2>> newPaths;
+        bool placementValid = PathService::isPlacementValid(
+            gameGrid, *pathContext->pathfinder, *pathContext->spawners, *pathContext->bases,
+            gridPos.x, gridPos.y, newPaths, pathContext->currentPaths, activeEnemies);
+        if (!placementValid) {
+            blocksPath = true;
+        }
+    }
+
     // задаем цвет голограмы
     glm::vec3 holoColor;
 
-    if (hasMoney && canBuildHere && !hasEnemyHere) {
+    if (hasMoney && canBuildHere && !hasEnemyHere && !blocksPath) {
         holoColor = glm::vec3(0.2f, 1.0f, 0.2f); // Зелёная голограмма все ок
     }
     else {

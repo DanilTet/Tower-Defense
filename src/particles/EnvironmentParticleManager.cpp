@@ -373,7 +373,7 @@ void EnvironmentParticleManager::update(float dt, const Grid& grid) {
     }
 }
 
-void EnvironmentParticleManager::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture, const Grid& /*grid*/, int minZ, int maxZ) {
+void EnvironmentParticleManager::render(SpriteRenderer* renderer, const Texture2D* texture, const Grid& /*grid*/, int minZ, int maxZ) {
     if (!renderer || !texture) return;
 
     for (const auto& p : m_pool) {

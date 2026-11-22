@@ -16,6 +16,20 @@ enum class TargetMode {
 	Weak // меньше всего здоровья
 };
 
+//параметры Поршня (data-driven, безопасные значения по умолчанию)
+struct PistonStats {
+	float pushDistance = 1.0f; // дистанция отталкивания (клеток)
+	float heavyPushDistance = -1.0f; // для тяжёлых врагов; < 0 => как pushDistance
+	std::vector<std::string> heavyEnemyTypes; // типы тяжёлых врагов
+	int impactDamage = 0; // мгновенный урон шипами
+	float bleedDuration = 0.0f; // 0 => без кровотечения
+	float bleedInterval = 0.5f;
+	int bleedDamagePerTick = 0;
+	float vulnerableDuration = 0.0f; // 0 => без уязвимости
+	float vulnerableMultiplier = 1.0f;
+	float immunityCooldown = 5.0f; // иммунитет врага к этому поршню (сек)
+};
+
 //конфиг характеристик башни
 struct TowerStats {
 	float range = 2.0f; // радиус атаки
@@ -47,6 +61,9 @@ struct TowerStats {
 	float poisonInterval = 0.5f;
 	int poisonDamagePerTick = 0;
 	float knockbackForce = 0.0f;
+
+	// баланс Поршня (из towers.json, блок "piston" уровня)
+	PistonStats piston;
 };
 
 class SpriteRenderer;
@@ -100,6 +117,7 @@ private:
 	float m_poisonInterval = 0.5f;
 	int m_poisonDamagePerTick = 0;
 	float m_knockbackForce = 0.0f;
+	PistonStats m_pistonStats; // баланс Поршня из конфига
 
 	// режим наводки
 	TargetMode m_targetMode = TargetMode::First;
@@ -118,7 +136,7 @@ public:
 	//обновление логики
 	void update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies, EntityManager& entityManager, const Grid& grid, ParticleSystem& particleSystem);
 	// отрисовка
-	void render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> atlasTexture, std::shared_ptr<Texture2D> radiusTexture, std::shared_ptr<Texture2D> arrowTexture, const Grid& grid, bool isSelected = false);
+	void render(SpriteRenderer* renderer, const Texture2D* atlasTexture, const Texture2D* radiusTexture, const Texture2D* arrowTexture, const Grid& grid, bool isSelected = false);
 
 	bool upgrade(int& playerMoney);
 	int getUpgradeCost() const;

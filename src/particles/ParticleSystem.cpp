@@ -33,7 +33,7 @@ void ParticleSystem::update(float dt) {
     }
 }
 
-void ParticleSystem::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture, const Grid& grid) {
+void ParticleSystem::render(SpriteRenderer* renderer, const Texture2D* texture, const Grid& grid) {
     float scaleFactor = grid.getCellSize() / 64.0f; // масштаб
     for (auto& p : m_pool) {
         if (!p.active) continue;

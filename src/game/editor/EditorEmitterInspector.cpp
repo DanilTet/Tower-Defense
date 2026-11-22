@@ -364,12 +364,12 @@ void EditorEmitterInspector::render(SpriteRenderer* renderer, TextRenderer* text
                                     const ParticleEmitterConfig& config, int emitterIndex, glm::vec2 emitterScreenPos,
                                     float screenW, float screenH, float topBarH, float bottomDockH,
                                     glm::vec2 mousePos) {
-    auto whiteTex = std::shared_ptr<Texture2D>(ResourceManager::getWhiteTexture(), [](Texture2D*) {});
+    auto whiteTex = ResourceManager::getWhiteTexture();
     render(renderer, textRenderer, whiteTex, config, emitterIndex, emitterScreenPos, screenW, screenH, topBarH, bottomDockH, mousePos);
 }
 
 void EditorEmitterInspector::render(SpriteRenderer* renderer, TextRenderer* textRenderer,
-                                    const std::shared_ptr<Texture2D>& whiteTexture,
+                                    const Texture2D* whiteTexture,
                                     const ParticleEmitterConfig& config, int emitterIndex, glm::vec2 emitterScreenPos,
                                     float screenW, float screenH, float topBarH, float bottomDockH,
                                     glm::vec2 mousePos) {

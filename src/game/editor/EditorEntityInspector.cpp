@@ -318,7 +318,7 @@ void EditorEntityInspector::render(SpriteRenderer* renderer, TextRenderer* textR
                                    const SpawnerData& spawner, int entityIndex, glm::vec2 entityScreenPos,
                                    float screenW, float screenH, float topBarH, float bottomDockH,
                                    glm::vec2 mousePos) {
-    auto whiteTex = std::shared_ptr<Texture2D>(ResourceManager::getWhiteTexture(), [](Texture2D*) {});
+    auto whiteTex = ResourceManager::getWhiteTexture();
     render(renderer, textRenderer, whiteTex, spawner, entityIndex, entityScreenPos, screenW, screenH, topBarH, bottomDockH, mousePos);
 }
 
@@ -326,12 +326,12 @@ void EditorEntityInspector::render(SpriteRenderer* renderer, TextRenderer* textR
                                    const BaseData& base, int entityIndex, glm::vec2 entityScreenPos,
                                    float screenW, float screenH, float topBarH, float bottomDockH,
                                    glm::vec2 mousePos) {
-    auto whiteTex = std::shared_ptr<Texture2D>(ResourceManager::getWhiteTexture(), [](Texture2D*) {});
+    auto whiteTex = ResourceManager::getWhiteTexture();
     render(renderer, textRenderer, whiteTex, base, entityIndex, entityScreenPos, screenW, screenH, topBarH, bottomDockH, mousePos);
 }
 
 void EditorEntityInspector::render(SpriteRenderer* renderer, TextRenderer* textRenderer,
-                                   const std::shared_ptr<Texture2D>& whiteTexture,
+                                   const Texture2D* whiteTexture,
                                    const SpawnerData& spawner, int entityIndex, glm::vec2 entityScreenPos,
                                    float screenW, float screenH, float topBarH, float bottomDockH,
                                    glm::vec2 mousePos) {
@@ -455,7 +455,7 @@ void EditorEntityInspector::render(SpriteRenderer* renderer, TextRenderer* textR
 }
 
 void EditorEntityInspector::render(SpriteRenderer* renderer, TextRenderer* textRenderer,
-                                   const std::shared_ptr<Texture2D>& whiteTexture,
+                                   const Texture2D* whiteTexture,
                                    const BaseData& base, int entityIndex, glm::vec2 entityScreenPos,
                                    float screenW, float screenH, float topBarH, float bottomDockH,
                                    glm::vec2 mousePos) {

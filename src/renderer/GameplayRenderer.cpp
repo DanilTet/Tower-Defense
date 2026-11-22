@@ -50,7 +50,7 @@ void GameplayRenderer::loadTextures() {
 
     auto wrapNoDelete = [](const std::string& name) {
         Texture2D* tex = ResourceManager::getTexture(name);
-        return std::shared_ptr<Texture2D>(tex, [](Texture2D*) {});
+        return tex;
     };
 
     m_mainAtlas = wrapNoDelete("mainAtlas");
@@ -60,7 +60,7 @@ void GameplayRenderer::loadTextures() {
     m_particleTexture = wrapNoDelete("particleTexture");
     m_arrowTexture = wrapNoDelete("arrowTexture");
     m_uiBaseTexture = wrapNoDelete("uiBaseTexture");
-    m_whiteTexture = std::shared_ptr<Texture2D>(ResourceManager::getWhiteTexture(), [](Texture2D*) {});
+    m_whiteTexture = ResourceManager::getWhiteTexture();
 }
 
 void GameplayRenderer::renderFrame(
@@ -212,6 +212,11 @@ void GameplayRenderer::renderFrame(
     glm::vec2 currentPanelPos = buildPanel.getUIPanelPos(windowWidth, windowHeight);
 
     if (world.grid) {
+        PlacementPathContext pathContext;
+        pathContext.pathfinder = world.pathfinder.get();
+        pathContext.spawners = &world.spawners;
+        pathContext.bases = &world.bases;
+        pathContext.currentPaths = &world.paths;
         placementUI.renderHologram(
             m_renderer.get(),
             m_mainAtlas,
@@ -223,7 +228,8 @@ void GameplayRenderer::renderFrame(
             currentPanelPos,
             hasPath,
             world.entityManager ? &world.entityManager->getEnemies() : nullptr,
-            pistonPlacementAngle
+            pistonPlacementAngle,
+            &pathContext
         );
     }
 

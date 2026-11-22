@@ -42,7 +42,7 @@ private:
 	std::set<std::pair<int, int>> m_outerNoBuild;
 
 	void renderCellVisual(SpriteRenderer* renderer,
-		std::shared_ptr<Texture2D> whiteTexture,
+		const Texture2D* whiteTexture,
 		int x, int y, CellType type,
 		glm::vec2 pixelPos, glm::vec3 color,
 		bool isMineTheme, bool isCanalTheme) const;
@@ -61,26 +61,26 @@ public:
 
 	// СЛОЙ 1: Базовые клетки матрицы и внешние клетки (Ground, Path, Platform, Chasm, Rail)
 	void drawBaseCells(SpriteRenderer* renderer,
-		std::shared_ptr<Texture2D> whiteTexture,
+		const Texture2D* whiteTexture,
 		glm::vec3 color = glm::vec3(1.0f, 1.0f, 1.0f),
 		const std::string& backgroundPreset = "default") const;
 
 	// СЛОЙ 2: Мягкая сетка редактора поверх фона (линии свободных границ и внешних клеток)
 	void drawEditorGridLines(SpriteRenderer* renderer,
-		std::shared_ptr<Texture2D> whiteTexture) const;
+		const Texture2D* whiteTexture) const;
 
 	// СЛОЙ 3: Геймплейные препятствия (CellType::Scenery - ящики, стены)
 	void drawObstacleCells(SpriteRenderer* renderer,
-		std::shared_ptr<Texture2D> whiteTexture,
+		const Texture2D* whiteTexture,
 		glm::vec3 color = glm::vec3(1.0f, 1.0f, 1.0f),
 		const std::string& backgroundPreset = "default") const;
 
 	// СЛОЙ 4: Оверлей зон запрета стройки на внешних клетках
 	void drawOuterNoBuildOverlay(SpriteRenderer* renderer,
-		std::shared_ptr<Texture2D> whiteTexture) const;
+		const Texture2D* whiteTexture) const;
 
 	void draw(SpriteRenderer* renderer,
-		std::shared_ptr<Texture2D> whiteTexture,
+		const Texture2D* whiteTexture,
 		glm::vec3 color = glm::vec3(1.0f, 1.0f, 1.0f),
 		const std::string& backgroundPreset = "default");
 

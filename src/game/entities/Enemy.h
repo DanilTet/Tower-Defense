@@ -132,7 +132,7 @@ public:
 	Enemy(const std::vector<glm::ivec2>& gridPath, const Grid& grid, const std::string& type, int targetBaseIndex, size_t currentWaypoint, glm::vec2 spawnPixelPos, bool enableFadeIn = true, bool enableFadeOut = true);
 	void update(float dt, const Grid& grid, ParticleSystem* particleSystem = nullptr);
 
-	void render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture, std::shared_ptr<Texture2D> radiusTex, glm::vec2 offset, const Grid& grid);
+	void render(SpriteRenderer* renderer, const Texture2D* texture, const Texture2D* radiusTex, glm::vec2 offset, const Grid& grid);
 	glm::vec2 getPixelPos() const { return m_pixelPos; }
 	bool isReachedEnd() const { return m_reachedEnd; }
 	void takeDamage(int damage) {

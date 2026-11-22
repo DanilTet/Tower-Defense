@@ -14,7 +14,7 @@ class EditorHudPreviewRenderer {
 public:
     static void renderWorldOverlay(
         SpriteRenderer* renderer,
-        const std::shared_ptr<Texture2D>& whiteTexture,
+        const Texture2D* whiteTexture,
         HudPreviewMode mode,
         const LevelMapData::CameraSettings& camSettings,
         glm::vec2 camCenter,

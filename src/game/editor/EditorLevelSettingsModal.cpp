@@ -686,7 +686,7 @@ bool EditorLevelSettingsModal::handleInput(GLFWwindow* window, glm::vec2 mousePo
 }
 
 void EditorLevelSettingsModal::render(SpriteRenderer* renderer, TextRenderer* textRenderer,
-                                     const std::shared_ptr<Texture2D>& whiteTexture,
+                                     const Texture2D* whiteTexture,
                                      int screenWidth, int screenHeight, glm::vec2 mousePos)
 {
     if (!m_isOpen || !renderer || !whiteTexture) return;

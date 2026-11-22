@@ -12,7 +12,7 @@ public:
     // СЛОЙ 1: Базовая подложка под фон (заливка земли/травы и горизонтальные пласты породы/склона)
     static void renderSubstrate(
         SpriteRenderer* renderer,
-        const std::shared_ptr<Texture2D>& whiteTexture,
+        const Texture2D* whiteTexture,
         const std::string& backgroundType,
         const Grid* grid,
         float screenWidth,
@@ -22,7 +22,7 @@ public:
     // СЛОЙ 2: Фоновое окружение (деревянный настил, здание копра, рельсы, трубы)
     static void renderEnvironment(
         SpriteRenderer* renderer,
-        const std::shared_ptr<Texture2D>& whiteTexture,
+        const Texture2D* whiteTexture,
         const std::string& backgroundType,
         const Grid* grid,
         float screenWidth,
@@ -32,7 +32,7 @@ public:
     // СЛОЙ 3: Верхнее окружение переднего плана (2.5D забор поверх клеток земли, козырек копра)
     static void renderForeground(
         SpriteRenderer* renderer,
-        const std::shared_ptr<Texture2D>& whiteTexture,
+        const Texture2D* whiteTexture,
         const std::string& backgroundType,
         const Grid* grid,
         float screenWidth,
@@ -42,7 +42,7 @@ public:
     // Полная отрисовка обоих слоев (обратная совместимость)
     static void render(
         SpriteRenderer* renderer,
-        const std::shared_ptr<Texture2D>& whiteTexture,
+        const Texture2D* whiteTexture,
         const std::string& backgroundType,
         const Grid* grid,
         float screenWidth,
@@ -52,7 +52,7 @@ public:
 private:
     static void renderPipesCanalSubstrate(
         SpriteRenderer* renderer,
-        const std::shared_ptr<Texture2D>& whiteTexture,
+        const Texture2D* whiteTexture,
         const Grid* grid,
         float screenWidth,
         float screenHeight
@@ -60,7 +60,7 @@ private:
 
     static void renderPipesCanalEnvironment(
         SpriteRenderer* renderer,
-        const std::shared_ptr<Texture2D>& whiteTexture,
+        const Texture2D* whiteTexture,
         const Grid* grid,
         float screenWidth,
         float screenHeight
@@ -68,7 +68,7 @@ private:
 
     static void renderMineEntranceSubstrate(
         SpriteRenderer* renderer,
-        const std::shared_ptr<Texture2D>& whiteTexture,
+        const Texture2D* whiteTexture,
         const Grid* grid,
         float screenWidth,
         float screenHeight
@@ -76,7 +76,7 @@ private:
 
     static void renderMineEntranceEnvironment(
         SpriteRenderer* renderer,
-        const std::shared_ptr<Texture2D>& whiteTexture,
+        const Texture2D* whiteTexture,
         const Grid* grid,
         float screenWidth,
         float screenHeight
@@ -84,7 +84,7 @@ private:
 
     static void renderMineEntranceForeground(
         SpriteRenderer* renderer,
-        const std::shared_ptr<Texture2D>& whiteTexture,
+        const Texture2D* whiteTexture,
         const Grid* grid,
         float screenWidth,
         float screenHeight
@@ -92,7 +92,7 @@ private:
 
     static void renderPipe(
         SpriteRenderer* renderer,
-        const std::shared_ptr<Texture2D>& whiteTexture,
+        const Texture2D* whiteTexture,
         float startX,
         float endX,
         float pipeY,

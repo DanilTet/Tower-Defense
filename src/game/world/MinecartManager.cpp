@@ -315,7 +315,7 @@ void MinecartManager::update(float dt, std::vector<std::shared_ptr<Enemy>>& enem
     updateInternal(dt, enemies);
 }
 
-void MinecartManager::renderSemaphore(SpriteRenderer* renderer, std::shared_ptr<Texture2D> whiteTexture) {
+void MinecartManager::renderSemaphore(SpriteRenderer* renderer, const Texture2D* whiteTexture) {
     if (m_waypoints.empty()) return;
 
     glm::vec2 depotCenter = m_waypoints[0];
@@ -398,7 +398,7 @@ void MinecartManager::renderSemaphore(SpriteRenderer* renderer, std::shared_ptr<
     }
 }
 
-void MinecartManager::renderMovingCart(SpriteRenderer* renderer, std::shared_ptr<Texture2D> whiteTexture) {
+void MinecartManager::renderMovingCart(SpriteRenderer* renderer, const Texture2D* whiteTexture) {
     float rotDeg = glm::degrees(m_currentAngle);
     float cosA = std::cos(m_currentAngle);
     float sinA = std::sin(m_currentAngle);
@@ -481,7 +481,7 @@ void MinecartManager::renderMovingCart(SpriteRenderer* renderer, std::shared_ptr
     drawLocalQuad(glm::vec2(m_cellSize * 0.51f, 0.0f), glm::vec2(m_cellSize * 0.04f, m_cellSize * 0.18f), glm::vec3(0.92f, 0.80f, 0.15f));
 }
 
-void MinecartManager::renderParticles(SpriteRenderer* renderer, std::shared_ptr<Texture2D> whiteTexture) {
+void MinecartManager::renderParticles(SpriteRenderer* renderer, const Texture2D* whiteTexture) {
     for (const auto& p : m_particles) {
         float t = 1.0f - std::clamp(p.life / p.maxLife, 0.0f, 1.0f);
         float curSize = glm::mix(p.size, p.endSize, t);
@@ -540,7 +540,7 @@ static uint8_t getCharBitmapRow(char c, int row) {
     }
 }
 
-void MinecartManager::renderFloatingTexts(SpriteRenderer* renderer, std::shared_ptr<Texture2D> whiteTexture) {
+void MinecartManager::renderFloatingTexts(SpriteRenderer* renderer, const Texture2D* whiteTexture) {
     for (const auto& ft : m_floatingTexts) {
         float progress = 1.0f - std::clamp(ft.life / ft.maxLife, 0.0f, 1.0f);
         float alpha = std::clamp(ft.life / 0.3f, 0.0f, 1.0f);
@@ -597,7 +597,7 @@ void MinecartManager::renderFloatingTexts(SpriteRenderer* renderer, std::shared_
     }
 }
 
-void MinecartManager::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> whiteTexture) {
+void MinecartManager::render(SpriteRenderer* renderer, const Texture2D* whiteTexture) {
     if (!renderer || !whiteTexture || m_state == CartState::Inactive) return;
 
     // 1. Семафор на станції початку (замість заливки всієї колії)

@@ -507,7 +507,7 @@ bool EditorMapsBrowserModal::handleInput(float mouseX, float mouseY, bool mouseP
 }
 
 void EditorMapsBrowserModal::render(SpriteRenderer* renderer, TextRenderer* textRenderer,
-                                    const std::shared_ptr<Texture2D>& whiteTexture,
+                                    const Texture2D* whiteTexture,
                                     int screenWidth, int screenHeight, glm::vec2 mousePos) {
     if (m_isOpen) {
         renderMapsModal(renderer, textRenderer, whiteTexture, screenWidth, screenHeight, mousePos);
@@ -519,12 +519,12 @@ void EditorMapsBrowserModal::render(SpriteRenderer* renderer, TextRenderer* text
 
 void EditorMapsBrowserModal::render(SpriteRenderer* renderer, TextRenderer* textRenderer,
                                     float screenWidth, float screenHeight) {
-    auto whiteTex = std::shared_ptr<Texture2D>(ResourceManager::getWhiteTexture(), [](Texture2D*) {});
+    auto whiteTex = ResourceManager::getWhiteTexture();
     render(renderer, textRenderer, whiteTex, static_cast<int>(screenWidth), static_cast<int>(screenHeight), glm::vec2(0.0f));
 }
 
 void EditorMapsBrowserModal::renderRenameModal(SpriteRenderer* renderer, TextRenderer* textRenderer,
-                                               const std::shared_ptr<Texture2D>& whiteTexture,
+                                               const Texture2D* whiteTexture,
                                                int screenWidth, int screenHeight, glm::vec2 mousePos) {
     renderer->drawSpriteRGBA(whiteTexture, glm::vec2(0.0f), glm::vec2(screenWidth, screenHeight), 0.0f, glm::vec4(0.04f, 0.05f, 0.07f, 0.78f));
 
@@ -603,7 +603,7 @@ void EditorMapsBrowserModal::renderRenameModal(SpriteRenderer* renderer, TextRen
 }
 
 void EditorMapsBrowserModal::renderMapsModal(SpriteRenderer* renderer, TextRenderer* textRenderer,
-                                             const std::shared_ptr<Texture2D>& whiteTexture,
+                                             const Texture2D* whiteTexture,
                                              int screenWidth, int screenHeight, glm::vec2 mousePos) {
     MapsModalLayout l = getMapsModalLayout(screenWidth, screenHeight);
 

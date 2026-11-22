@@ -114,7 +114,7 @@ public:
                      std::function<void()> onNewMap);
 
     void render(SpriteRenderer* renderer, TextRenderer* textRenderer,
-                const std::shared_ptr<Texture2D>& whiteTexture,
+                const Texture2D* whiteTexture,
                 int screenWidth, int screenHeight, glm::vec2 mousePos);
 
     void render(SpriteRenderer* renderer, TextRenderer* textRenderer,
@@ -151,11 +151,11 @@ private:
     void confirmRename(const std::function<void(const std::string&, const std::string&, const std::string&)>& onRenameLevel);
 
     void renderMapsModal(SpriteRenderer* renderer, TextRenderer* textRenderer,
-                         const std::shared_ptr<Texture2D>& whiteTexture,
+                         const Texture2D* whiteTexture,
                          int screenWidth, int screenHeight, glm::vec2 mousePos);
 
     void renderRenameModal(SpriteRenderer* renderer, TextRenderer* textRenderer,
-                           const std::shared_ptr<Texture2D>& whiteTexture,
+                           const Texture2D* whiteTexture,
                            int screenWidth, int screenHeight, glm::vec2 mousePos);
 };
 

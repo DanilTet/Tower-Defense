@@ -139,6 +139,27 @@ bool ConfigManager::loadConfigs(const std::string& towerPath, const std::string&
 					stats.poisonDamagePerTick = lvlJson.value("poisonDamagePerTick", 0);
 					stats.knockbackForce = lvlJson.value("knockbackForce", 0.0f);
 
+					// баланс Поршня (опционально, с безопасными значениями по умолчанию)
+					if (lvlJson.contains("piston") && lvlJson["piston"].is_object()) {
+						const auto& pj = lvlJson["piston"];
+						stats.piston.pushDistance = pj.value("pushDistance", 1.0f);
+						stats.piston.heavyPushDistance = pj.value("heavyPushDistance", -1.0f);
+						stats.piston.impactDamage = pj.value("impactDamage", 0);
+						stats.piston.bleedDuration = pj.value("bleedDuration", 0.0f);
+						stats.piston.bleedInterval = pj.value("bleedInterval", 0.5f);
+						stats.piston.bleedDamagePerTick = pj.value("bleedDamagePerTick", 0);
+						stats.piston.vulnerableDuration = pj.value("vulnerableDuration", 0.0f);
+						stats.piston.vulnerableMultiplier = pj.value("vulnerableMultiplier", 1.0f);
+						stats.piston.immunityCooldown = pj.value("immunityCooldown", 5.0f);
+						if (pj.contains("heavyEnemyTypes") && pj["heavyEnemyTypes"].is_array()) {
+							for (const auto& typeJson : pj["heavyEnemyTypes"]) {
+								if (typeJson.is_string()) {
+									stats.piston.heavyEnemyTypes.push_back(typeJson.get<std::string>());
+								}
+							}
+						}
+					}
+
 					// записываем статы в словарь по имени башни
 					s_towerStats[towerName].push_back(stats);
 				}

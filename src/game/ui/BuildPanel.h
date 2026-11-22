@@ -49,8 +49,8 @@ public:
 		const PlayerStats& playerStats,
 		SpriteRenderer* renderer,
 		TextRenderer* textRenderer,
-		std::shared_ptr<Texture2D> mainAtlas,
-		std::shared_ptr<Texture2D> uiTexture,
+		const Texture2D* mainAtlas,
+		const Texture2D* uiTexture,
 		int windowWidth,
 		int windowHeight,
 		const std::string& selectedTower,
@@ -63,8 +63,8 @@ public:
 		const PlayerStats& playerStats, // сколька деняяяк
 		SpriteRenderer* renderer, // для рисования спрайта
 		TextRenderer* textRenderer, // для рисования цен
-		std::shared_ptr<Texture2D> mainAtlas, //текстурка
-		std::shared_ptr<Texture2D> uiTexture, // для фона
+		const Texture2D* mainAtlas, //текстурка
+		const Texture2D* uiTexture, // для фона
 		int windowWidth, // размері окна
 		int windowHeight,
 		const std::string& selectedTower, // выбраная башня

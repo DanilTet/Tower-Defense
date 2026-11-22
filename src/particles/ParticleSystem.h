@@ -39,7 +39,7 @@ public:
 
 	void update(float dt);
 
-	void render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture, const Grid& grid);
+	void render(SpriteRenderer* renderer, const Texture2D* texture, const Grid& grid);
 
 	// выстрелить пачкой частиц
 	void emit(const ParticleEmitterProps& props, int count = 1);

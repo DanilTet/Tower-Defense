@@ -31,11 +31,11 @@ public:
 	// методы обновления и рендера
 	void update(float dt, Grid& gameGrid);
 	void render(SpriteRenderer* renderer,
-		std::shared_ptr<Texture2D> mainAtlas, // атлас карты и башен
-		std::shared_ptr<Texture2D> enemyAtlas, // атлас врагов
-		std::shared_ptr<Texture2D> radiusTex,
-		std::shared_ptr<Texture2D> arrowTex,
-		std::shared_ptr<Texture2D> particleTex,
+		const Texture2D* mainAtlas, // атлас карты и башен
+		const Texture2D* enemyAtlas, // атлас врагов
+		const Texture2D* radiusTex,
+		const Texture2D* arrowTex,
+		const Texture2D* particleTex,
 		Grid& gameGrid,
 		Tower* selectedTower = nullptr);
 	// методы добавления

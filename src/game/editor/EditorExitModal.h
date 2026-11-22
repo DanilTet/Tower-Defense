@@ -50,7 +50,7 @@ public:
 
     void render(SpriteRenderer* renderer, TextRenderer* textRenderer, float screenW, float screenH);
     void render(SpriteRenderer* renderer, TextRenderer* textRenderer,
-                const std::shared_ptr<Texture2D>& whiteTexture,
+                const Texture2D* whiteTexture,
                 float screenW, float screenH, glm::vec2 mousePos);
 
 private:

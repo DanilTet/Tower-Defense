@@ -299,9 +299,12 @@ void GameplayState::render() {
         bool hovered = (mousePos.x >= btnX && mousePos.x <= btnX + btnW &&
                         mousePos.y >= btnY && mousePos.y <= btnY + btnH);
 
-        auto whiteTex = std::shared_ptr<Texture2D>(ResourceManager::getWhiteTexture(), [](Texture2D*) {});
+        auto whiteTex = ResourceManager::getWhiteTexture();
         Texture2D* rawUiTex = ResourceManager::getTexture("uiBaseTexture");
-        auto uiTex = rawUiTex ? std::shared_ptr<Texture2D>(rawUiTex, [](Texture2D*) {}) : whiteTex;
+        const Texture2D* uiTex = whiteTex;
+        if (rawUiTex) {
+            uiTex = rawUiTex;
+        }
 
         m_renderer->beginBatch();
 

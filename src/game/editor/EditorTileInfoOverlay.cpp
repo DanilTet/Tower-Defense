@@ -11,7 +11,7 @@
 void EditorTileInfoOverlay::render(
     SpriteRenderer* renderer,
     TextRenderer* textRenderer,
-    const std::shared_ptr<Texture2D>& whiteTexture,
+    const Texture2D* whiteTexture,
     const EditorCamera& camera,
     const Grid* grid,
     const std::vector<SpawnerData>& spawners,

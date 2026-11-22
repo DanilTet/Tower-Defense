@@ -22,7 +22,7 @@ public:
                      bool leftReleased, bool isEscJustPressed);
 
     void render(SpriteRenderer* renderer, TextRenderer* textRenderer,
-                const std::shared_ptr<Texture2D>& whiteTexture,
+                const Texture2D* whiteTexture,
                 int screenWidth, int screenHeight);
 
 private:

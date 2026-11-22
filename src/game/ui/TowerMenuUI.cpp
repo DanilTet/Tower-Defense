@@ -70,7 +70,7 @@ void TowerMenuUI::render(
     Tower* selectedTower,
     SpriteRenderer* renderer,
     TextRenderer* textRenderer,
-    std::shared_ptr<Texture2D> uiTexture,
+    const Texture2D* uiTexture,
     const Grid& gameGrid,
     int maxUpgradeTier)
 {

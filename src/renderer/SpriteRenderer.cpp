@@ -155,12 +155,12 @@ void SpriteRenderer::setAdditiveBlending(bool enabled) {
     }
 }
 
-void SpriteRenderer::drawSprite(const std::shared_ptr<Texture2D>& texture, glm::vec2 position, glm::vec2 size, float rotation, glm::vec3 color, SpriteUV uv) {
+void SpriteRenderer::drawSprite(const Texture2D* texture, glm::vec2 position, glm::vec2 size, float rotation, glm::vec3 color, SpriteUV uv) {
     // перенаправляем на RGBA
     drawSpriteRGBA(texture, position, size, rotation, glm::vec4(color, 1.0f), uv);
 }
 
-void SpriteRenderer::drawSpriteRGBA(const std::shared_ptr<Texture2D>& texture, glm::vec2 position, glm::vec2 size, float rotation, glm::vec4 color, SpriteUV uv) {
+void SpriteRenderer::drawSpriteRGBA(const Texture2D* texture, glm::vec2 position, glm::vec2 size, float rotation, glm::vec4 color, SpriteUV uv) {
     // рисуем то, что накопили
     if (m_currentTexture != texture || m_spriteCount >= MAX_SPRITES) {
         flush();

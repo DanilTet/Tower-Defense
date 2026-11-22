@@ -82,10 +82,10 @@ private:
     template <typename TEnemyPtr>
     void updateInternal(float dt, std::vector<TEnemyPtr>& enemies);
 
-    void renderSemaphore(SpriteRenderer* renderer, std::shared_ptr<Texture2D> whiteTexture);
-    void renderMovingCart(SpriteRenderer* renderer, std::shared_ptr<Texture2D> whiteTexture);
-    void renderParticles(SpriteRenderer* renderer, std::shared_ptr<Texture2D> whiteTexture);
-    void renderFloatingTexts(SpriteRenderer* renderer, std::shared_ptr<Texture2D> whiteTexture);
+    void renderSemaphore(SpriteRenderer* renderer, const Texture2D* whiteTexture);
+    void renderMovingCart(SpriteRenderer* renderer, const Texture2D* whiteTexture);
+    void renderParticles(SpriteRenderer* renderer, const Texture2D* whiteTexture);
+    void renderFloatingTexts(SpriteRenderer* renderer, const Texture2D* whiteTexture);
 
 public:
     MinecartManager() = default;
@@ -97,7 +97,7 @@ public:
     void update(float dt, std::vector<std::unique_ptr<Enemy>>& enemies);
     void update(float dt, std::vector<std::shared_ptr<Enemy>>& enemies);
 
-    void render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> whiteTexture);
+    void render(SpriteRenderer* renderer, const Texture2D* whiteTexture);
 
     bool isWarning() const { return m_state == CartState::Warning; }
     CartState getState() const { return m_state; }

@@ -78,7 +78,7 @@ public:
                      const std::function<void(const std::string&, const glm::vec4&)>& showToast = nullptr);
 
     void render(SpriteRenderer* renderer, TextRenderer* textRenderer,
-                const std::shared_ptr<Texture2D>& whiteTexture,
+                const Texture2D* whiteTexture,
                 const SpawnerData& spawner, int entityIndex, glm::vec2 entityScreenPos,
                 float screenW, float screenH, float topBarH, float bottomDockH,
                 glm::vec2 mousePos);
@@ -89,7 +89,7 @@ public:
                 glm::vec2 mousePos);
 
     void render(SpriteRenderer* renderer, TextRenderer* textRenderer,
-                const std::shared_ptr<Texture2D>& whiteTexture,
+                const Texture2D* whiteTexture,
                 const BaseData& base, int entityIndex, glm::vec2 entityScreenPos,
                 float screenW, float screenH, float topBarH, float bottomDockH,
                 glm::vec2 mousePos);

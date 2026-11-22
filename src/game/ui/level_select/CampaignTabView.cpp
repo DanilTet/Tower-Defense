@@ -16,7 +16,7 @@
 CampaignTabView::CampaignTabView(GameStateManager& stateManager,
                                  std::shared_ptr<SpriteRenderer> renderer,
                                  TextRenderer* textRenderer,
-                                 std::shared_ptr<Texture2D> whiteTexture)
+                                 const Texture2D* whiteTexture)
     : m_stateManager(stateManager),
       m_renderer(renderer),
       m_textRenderer(textRenderer),
@@ -501,13 +501,13 @@ bool CampaignTabView::isPointInRect(glm::vec2 point, glm::vec2 rectPos, glm::vec
            point.y >= rectPos.y && point.y <= rectPos.y + rectSize.y;
 }
 
-void CampaignTabView::drawQuad(glm::vec2 pos, glm::vec2 size, glm::vec3 color, const std::shared_ptr<Texture2D>& tex) {
+void CampaignTabView::drawQuad(glm::vec2 pos, glm::vec2 size, glm::vec3 color, const Texture2D* tex) {
     if (m_renderer) {
         m_renderer->drawSprite(tex ? tex : m_whiteTexture, pos, size, 0.0f, color);
     }
 }
 
-void CampaignTabView::drawQuadRGBA(glm::vec2 pos, glm::vec2 size, glm::vec4 color, const std::shared_ptr<Texture2D>& tex) {
+void CampaignTabView::drawQuadRGBA(glm::vec2 pos, glm::vec2 size, glm::vec4 color, const Texture2D* tex) {
     if (m_renderer) {
         m_renderer->drawSpriteRGBA(tex ? tex : m_whiteTexture, pos, size, 0.0f, color);
     }

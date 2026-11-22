@@ -18,7 +18,7 @@ private:
     int m_width, m_height;
     std::shared_ptr<SpriteRenderer> m_renderer;
     TextRenderer* m_textRenderer;
-    std::shared_ptr<Texture2D> m_whiteTexture;
+    const Texture2D* m_whiteTexture;
 
     bool m_mousePressedLastFrame = false;
     bool m_suppressClickUntilRelease = true;
@@ -43,8 +43,8 @@ private:
     std::unique_ptr<CustomMapsTabView> m_customTab;
 
     bool isPointInRect(glm::vec2 point, glm::vec2 rectPos, glm::vec2 rectSize) const;
-    void drawQuad(glm::vec2 pos, glm::vec2 size, glm::vec3 color, const std::shared_ptr<Texture2D>& tex = nullptr);
-    void drawQuadRGBA(glm::vec2 pos, glm::vec2 size, glm::vec4 color, const std::shared_ptr<Texture2D>& tex = nullptr);
+    void drawQuad(glm::vec2 pos, glm::vec2 size, glm::vec3 color, const Texture2D* tex = nullptr);
+    void drawQuadRGBA(glm::vec2 pos, glm::vec2 size, glm::vec4 color, const Texture2D* tex = nullptr);
 
 public:
     static LevelTab getLastActiveTab() { return s_lastActiveTab; }

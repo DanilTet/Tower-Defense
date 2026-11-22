@@ -84,7 +84,7 @@ public:
     bool handleInput(float mouseX, float mouseY, bool mousePressed, LevelMapData& mapData, int key = -1, int action = -1);
 
     void render(SpriteRenderer* renderer, TextRenderer* textRenderer,
-                const std::shared_ptr<Texture2D>& whiteTexture,
+                const Texture2D* whiteTexture,
                 int screenWidth, int screenHeight, float topBarHeight, float bottomDockHeight,
                 glm::vec2 mousePos, const std::vector<WaveConfig>& waves);
 

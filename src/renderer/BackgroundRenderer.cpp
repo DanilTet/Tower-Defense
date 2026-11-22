@@ -7,7 +7,7 @@
 
 void BackgroundRenderer::renderSubstrate(
     SpriteRenderer* renderer,
-    const std::shared_ptr<Texture2D>& whiteTexture,
+    const Texture2D* whiteTexture,
     const std::string& backgroundType,
     const Grid* grid,
     float screenWidth,
@@ -39,7 +39,7 @@ void BackgroundRenderer::renderSubstrate(
 
 void BackgroundRenderer::renderEnvironment(
     SpriteRenderer* renderer,
-    const std::shared_ptr<Texture2D>& whiteTexture,
+    const Texture2D* whiteTexture,
     const std::string& backgroundType,
     const Grid* grid,
     float screenWidth,
@@ -56,7 +56,7 @@ void BackgroundRenderer::renderEnvironment(
 
 void BackgroundRenderer::renderForeground(
     SpriteRenderer* renderer,
-    const std::shared_ptr<Texture2D>& whiteTexture,
+    const Texture2D* whiteTexture,
     const std::string& backgroundType,
     const Grid* grid,
     float screenWidth,
@@ -71,7 +71,7 @@ void BackgroundRenderer::renderForeground(
 
 void BackgroundRenderer::render(
     SpriteRenderer* renderer,
-    const std::shared_ptr<Texture2D>& whiteTexture,
+    const Texture2D* whiteTexture,
     const std::string& backgroundType,
     const Grid* grid,
     float screenWidth,
@@ -83,7 +83,7 @@ void BackgroundRenderer::render(
 
 void BackgroundRenderer::renderPipesCanalSubstrate(
     SpriteRenderer* renderer,
-    const std::shared_ptr<Texture2D>& whiteTexture,
+    const Texture2D* whiteTexture,
     const Grid* grid,
     float screenWidth,
     float screenHeight
@@ -138,7 +138,7 @@ void BackgroundRenderer::renderPipesCanalSubstrate(
 
 void BackgroundRenderer::renderPipesCanalEnvironment(
     SpriteRenderer* renderer,
-    const std::shared_ptr<Texture2D>& whiteTexture,
+    const Texture2D* whiteTexture,
     const Grid* grid,
     float screenWidth,
     float screenHeight
@@ -169,7 +169,7 @@ void BackgroundRenderer::renderPipesCanalEnvironment(
 
 void BackgroundRenderer::renderPipe(
     SpriteRenderer* renderer,
-    const std::shared_ptr<Texture2D>& whiteTexture,
+    const Texture2D* whiteTexture,
     float startX,
     float endX,
     float pipeY,
@@ -373,7 +373,7 @@ void BackgroundRenderer::renderPipe(
 
 void BackgroundRenderer::renderMineEntranceSubstrate(
     SpriteRenderer* renderer,
-    const std::shared_ptr<Texture2D>& whiteTexture,
+    const Texture2D* whiteTexture,
     const Grid* grid,
     float screenWidth,
     float screenHeight
@@ -432,7 +432,7 @@ void BackgroundRenderer::renderMineEntranceSubstrate(
 
 void BackgroundRenderer::renderMineEntranceEnvironment(
     SpriteRenderer* renderer,
-    const std::shared_ptr<Texture2D>& whiteTexture,
+    const Texture2D* whiteTexture,
     const Grid* grid,
     float screenWidth,
     float screenHeight
@@ -841,7 +841,7 @@ void BackgroundRenderer::renderMineEntranceEnvironment(
 
 void BackgroundRenderer::renderMineEntranceForeground(
     SpriteRenderer* renderer,
-    const std::shared_ptr<Texture2D>& whiteTexture,
+    const Texture2D* whiteTexture,
     const Grid* grid,
     float screenWidth,
     float screenHeight

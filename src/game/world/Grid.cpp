@@ -88,7 +88,7 @@ void Grid::setCellType(int gridX, int gridY, CellType type) {
 
 // Отрисовка всей карты ячейка за ячейкой
 void Grid::renderCellVisual(SpriteRenderer* renderer,
-	std::shared_ptr<Texture2D> whiteTexture,
+	const Texture2D* whiteTexture,
 	int x, int y, CellType type,
 	glm::vec2 pixelPos, glm::vec3 color,
 	bool isMineTheme, bool isCanalTheme) const
@@ -339,7 +339,7 @@ void Grid::renderCellVisual(SpriteRenderer* renderer,
 	}
 
 void Grid::drawBaseCells(SpriteRenderer* renderer,
-	std::shared_ptr<Texture2D> whiteTexture,
+	const Texture2D* whiteTexture,
 	glm::vec3 color,
 	const std::string& backgroundPreset) const
 {
@@ -375,7 +375,7 @@ void Grid::drawBaseCells(SpriteRenderer* renderer,
 }
 
 void Grid::drawEditorGridLines(SpriteRenderer* renderer,
-	std::shared_ptr<Texture2D> whiteTexture) const
+	const Texture2D* whiteTexture) const
 {
 	if (!renderer || !whiteTexture) return;
 
@@ -399,7 +399,7 @@ void Grid::drawEditorGridLines(SpriteRenderer* renderer,
 }
 
 void Grid::drawObstacleCells(SpriteRenderer* renderer,
-	std::shared_ptr<Texture2D> whiteTexture,
+	const Texture2D* whiteTexture,
 	glm::vec3 color,
 	const std::string& backgroundPreset) const
 {
@@ -430,7 +430,7 @@ void Grid::drawObstacleCells(SpriteRenderer* renderer,
 }
 
 void Grid::drawOuterNoBuildOverlay(SpriteRenderer* renderer,
-	std::shared_ptr<Texture2D> whiteTexture) const
+	const Texture2D* whiteTexture) const
 {
 	if (!renderer || !whiteTexture) return;
 
@@ -456,7 +456,7 @@ void Grid::drawOuterNoBuildOverlay(SpriteRenderer* renderer,
 }
 
 void Grid::draw(SpriteRenderer* renderer,
-	std::shared_ptr<Texture2D> whiteTexture,
+	const Texture2D* whiteTexture,
 	glm::vec3 color,
 	const std::string& backgroundPreset)
 {

@@ -879,7 +879,7 @@ bool EditorWaveModal::handleInput(float mouseX, float mouseY, bool mousePressed,
 }
 
 void EditorWaveModal::render(SpriteRenderer* renderer, TextRenderer* textRenderer,
-                             const std::shared_ptr<Texture2D>& whiteTexture,
+                             const Texture2D* whiteTexture,
                              int screenWidth, int screenHeight, float, float,
                              glm::vec2 mousePos, const std::vector<WaveConfig>& waves) {
     if (!m_isOpen || !renderer || !whiteTexture) return;

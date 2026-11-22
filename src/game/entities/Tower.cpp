@@ -47,7 +47,7 @@ glm::ivec2 Tower::getPistonTargetCell() const {
 	return glm::ivec2(m_gridX - 1, m_gridY);                                                                                 // West (Влево)
 }
 
-void Tower::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> atlasTexture, std::shared_ptr<Texture2D> radiusTexture, std::shared_ptr<Texture2D> arrowTexture, const Grid& grid, bool isSelected) {
+void Tower::render(SpriteRenderer* renderer, const Texture2D* atlasTexture, const Texture2D* radiusTexture, const Texture2D* arrowTexture, const Grid& grid, bool isSelected) {
 	float cellSize = grid.getCellSize(); //подтягиваем рязмер чтобы в клетку попала башня
 	glm::vec2 size(cellSize, cellSize); // создаем вектор чтобы башня идеально стала в клетку
 	glm::vec2 pixelPos = grid.gridToPixel(m_gridX, m_gridY); // получаем пиксели клетки
@@ -77,7 +77,7 @@ void Tower::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> atlasTex
 
 	// Для T3 Поршня ("Шипованный боёк") отрисовываем стальные шипы на передней кромке ударной плиты
 	if (m_type == "Piston" && m_currentLevel >= 3) {
-		std::shared_ptr<Texture2D> whiteTex(ResourceManager::getWhiteTexture(), [](Texture2D*) {});
+		const Texture2D* whiteTex = ResourceManager::getWhiteTexture();
 		if (whiteTex) {
 			glm::vec2 currentCenter = drawPos + size * 0.5f;
 			float angleRad = glm::radians(m_angle);
@@ -184,29 +184,28 @@ void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies,
 				glm::ivec2 punchDir = targetCell - glm::ivec2(m_gridX, m_gridY);
 
 				for (Enemy* victim : hitEnemies) {
-					float pushDist = 1.0f;
-					if (m_currentLevel == 1) {
+					float pushDist = m_pistonStats.pushDistance;
+					if (m_pistonStats.heavyPushDistance >= 0.0f) {
 						const std::string& type = victim->getType();
-						if (type == "Tank" || type == "Mercury_Large") {
-							pushDist = 0.25f; // T1: микро-сдвиг тяжелых врагов
-						} else {
-							pushDist = 1.0f; // T1: полный толчок легких и средних врагов
+						for (const std::string& heavyType : m_pistonStats.heavyEnemyTypes) {
+							if (type == heavyType) {
+								pushDist = m_pistonStats.heavyPushDistance;
+								break;
+							}
 						}
-					} else if (m_currentLevel == 2) {
-						pushDist = 1.0f; // T2: полный толчок абсолютно всех врагов
-					} else if (m_currentLevel >= 3) {
-						pushDist = 1.3f; // T3: усиленный толчок на 1.3 клетки
-
-						// T3 "Шипованный боёк":
-						// 1. Мгновенный физический урон шипами
-						victim->takeDamage(35);
-						// 2. Кровотечение (DoT: 12 урона в секунду в течение 4 секунд -> 6 урона каждые 0.5 сек)
-						victim->applyBleed(4.0f, 0.5f, 6);
-						// 3. Срез брони / уязвимость (+40% входящего урона от всех башен на 4 секунды)
-						victim->applyVulnerable(4.0f, 1.4f);
 					}
 
-					victim->addPistonCooldown(glm::ivec2(m_gridX, m_gridY), 5.0f);
+					if (m_pistonStats.impactDamage > 0) {
+						victim->takeDamage(m_pistonStats.impactDamage);
+					}
+					if (m_pistonStats.bleedDuration > 0.0f) {
+						victim->applyBleed(m_pistonStats.bleedDuration, m_pistonStats.bleedInterval, m_pistonStats.bleedDamagePerTick);
+					}
+					if (m_pistonStats.vulnerableDuration > 0.0f) {
+						victim->applyVulnerable(m_pistonStats.vulnerableDuration, m_pistonStats.vulnerableMultiplier);
+					}
+
+					victim->addPistonCooldown(glm::ivec2(m_gridX, m_gridY), m_pistonStats.immunityCooldown);
 					victim->pushOneCell(targetCell, punchDir, grid, &particleSystem, pushDist);
 				}
 
@@ -343,4 +342,5 @@ void Tower::applyStats(const TowerStats& stats) {
 	m_poisonDuration = stats.poisonDuration;
 	m_poisonInterval = stats.poisonInterval;
 	m_poisonDamagePerTick = stats.poisonDamagePerTick;
+	m_pistonStats = stats.piston;
 }

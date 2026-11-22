@@ -36,7 +36,7 @@ public:
     CustomMapsTabView(GameStateManager& stateManager,
                       std::shared_ptr<SpriteRenderer> renderer,
                       TextRenderer* textRenderer,
-                      std::shared_ptr<Texture2D> whiteTexture);
+                      const Texture2D* whiteTexture);
     ~CustomMapsTabView() = default;
 
     void init(int screenWidth, int screenHeight, float tabY, float tabH, float bottomY, float navBtnH);
@@ -54,7 +54,7 @@ private:
     GameStateManager& m_stateManager;
     std::shared_ptr<SpriteRenderer> m_renderer;
     TextRenderer* m_textRenderer;
-    std::shared_ptr<Texture2D> m_whiteTexture;
+    const Texture2D* m_whiteTexture;
 
     int m_width = 0;
     int m_height = 0;
@@ -111,7 +111,7 @@ private:
     void renderDeleteModal(float uiScale);
 
     bool isPointInRect(glm::vec2 point, glm::vec2 rectPos, glm::vec2 rectSize) const;
-    void drawQuad(glm::vec2 pos, glm::vec2 size, glm::vec3 color, const std::shared_ptr<Texture2D>& tex = nullptr);
-    void drawQuadRGBA(glm::vec2 pos, glm::vec2 size, glm::vec4 color, const std::shared_ptr<Texture2D>& tex = nullptr);
+    void drawQuad(glm::vec2 pos, glm::vec2 size, glm::vec3 color, const Texture2D* tex = nullptr);
+    void drawQuadRGBA(glm::vec2 pos, glm::vec2 size, glm::vec4 color, const Texture2D* tex = nullptr);
 };
 

@@ -66,9 +66,9 @@ private:
     std::shared_ptr<SpriteRenderer> m_renderer;
     TextRenderer* m_textRenderer;
 
-    std::shared_ptr<Texture2D> m_whiteTexture;
-    std::shared_ptr<Texture2D> m_uiTexture;
-    std::shared_ptr<Texture2D> m_arrowTexture;
+    const Texture2D* m_whiteTexture;
+    const Texture2D* m_uiTexture;
+    const Texture2D* m_arrowTexture;
 
     // Сетка и данные карты
     int m_gridWidth = 20;
@@ -254,7 +254,7 @@ private:
     void closeExitModal();
     void renderHudPreview();
     void renderHudPreviewText();
-    void renderEmitters(SpriteRenderer* renderer, std::shared_ptr<Texture2D> texture);
+    void renderEmitters(SpriteRenderer* renderer, const Texture2D* texture);
 
     EditorEmitterInspector m_emitterInspector;
 
