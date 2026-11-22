@@ -394,18 +394,39 @@ bool GameplayState::loadSavedGame(const std::string& saveName) {
     AudioEventSystem::playThemeMusic("res/sounds/background.mp3");
 
     for (const auto& tData : restoredTowers) {
-        std::string type = tData.at("type").get<std::string>();
-        int gx = tData.at("grid_x").get<int>();
-        int gy = tData.at("grid_y").get<int>();
-        int lvl = tData.at("level").get<int>();
-        int modeInt = tData.at("target_mode").get<int>();
+        try {
+            std::string type = tData.at("type").get<std::string>();
+            int gx = tData.at("grid_x").get<int>();
+            int gy = tData.at("grid_y").get<int>();
+            int lvl = tData.at("level").get<int>();
+            int modeInt = tData.at("target_mode").get<int>();
+            float angle = 270.0f;
+            if (tData.contains("angle")) {
+                angle = tData.at("angle").get<float>();
+            }
 
-        auto restoredTower = std::make_unique<Tower>(gx, gy, type);
-        restoredTower->forceLevel(lvl);
-        restoredTower->setTargetMode(static_cast<TargetMode>(modeInt));
+            if (gx < 0 || gy < 0 || gx >= m_world->grid->getWidth() || gy >= m_world->grid->getHeight()) {
+                std::cerr << "[LoadGame] Башня вне границ сетки пропущена: " << gx << "," << gy << std::endl;
+                continue;
+            }
 
-        m_world->entityManager->addTower(std::move(restoredTower));
-        m_world->grid->setCellType(gx, gy, CellType::Tower);
+            auto restoredTower = std::make_unique<Tower>(gx, gy, type, angle);
+            if (lvl < 1) {
+                lvl = 1;
+            }
+            if (lvl > restoredTower->getMaxLevel()) {
+                lvl = restoredTower->getMaxLevel();
+            }
+            restoredTower->forceLevel(lvl);
+            restoredTower->setTargetMode(static_cast<TargetMode>(modeInt));
+
+            m_world->grid->setCellType(gx, gy, CellType::Tower);
+            m_world->demolishDecorationsInCell(gx, gy);
+            m_world->entityManager->addTower(std::move(restoredTower));
+        }
+        catch (const std::exception& e) {
+            std::cerr << "[LoadGame] Пропущена повреждённая запись башни: " << e.what() << std::endl;
+        }
     }
 
     m_world->recalculateAllPaths();

@@ -74,7 +74,7 @@
         "y": 4
       }
     ],
-    "cellSize": 132.55555725097656,
+    "cellSize": 60.44444274902344,
     "enemyBountyRules": {
       "Coal": [
         {
@@ -493,7 +493,7 @@
         0
       ]
     ],
-    "offsetX": 87.0,
+    "offsetX": 96.0,
     "offsetY": 62.0,
     "outerCells": [],
     "spawners": [

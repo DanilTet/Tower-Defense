@@ -17,9 +17,10 @@ static bool doesPathIntersectCell(const std::vector<glm::ivec2>& path, int gridX
             int dx = path[i + 1].x - path[i].x;
             int dy = path[i + 1].y - path[i].y;
             if (std::abs(dx) == 1 && std::abs(dy) == 1) {
-                // Если новая башня ставится на любой из двух углов диагонального шага
-                if ((gridX == path[i].x + dx && gridY == path[i].y) ||
-                    (gridX == path[i].x && gridY == path[i].y + dy)) {
+                // Любая из двух ортогональных клеток диагонального шага блокирует его (corner-cutting)
+                bool isCornerA = (gridX == path[i].x + dx && gridY == path[i].y);
+                bool isCornerB = (gridX == path[i].x && gridY == path[i].y + dy);
+                if (isCornerA || isCornerB) {
                     return true;
                 }
             }
@@ -139,7 +140,6 @@ bool PathService::isPlacementValid(
         }
 
         if (!intersectsAny) {
-            grid.setCellType(gridX, gridY, CellType::Tower);
             outNewPaths = *currentPaths;
             return true; // 0 ms instant exit!
         }
@@ -231,7 +231,8 @@ bool PathService::isPlacementValid(
         return false;
     }
 
-    grid.setCellType(gridX, gridY, CellType::Tower);
+    // Предикат не должен мутировать сетку — возвращаем исходный тип клетки
+    grid.setCellType(gridX, gridY, oldCellType);
     return true;
 }
 

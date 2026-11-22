@@ -40,7 +40,8 @@ void SaveManager::writeSave(const std::string& saveName,
                 {"grid_x", tower->getGridX()},
                 {"grid_y", tower->getGridY()},
                 {"level", tower->getLevel()},
-                {"target_mode", static_cast<int>(tower->getTargetMode())}
+                {"target_mode", static_cast<int>(tower->getTargetMode())},
+                {"angle", tower->getAngle()}
                 });
         }
     }
