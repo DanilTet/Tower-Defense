@@ -38,6 +38,9 @@ void Projectile::update(float dt, const std::vector<std::unique_ptr<Enemy>>& ene
     if (!m_isActive || m_destroyed) return;
 
     // уменьшаем время жизни
+    // физический радиус хитбокса зависит от размера клетки и считается в update, а не в render
+    m_radius = (m_baseSize * (grid.getCellSize() / 64.0f)) / 2.0f;
+
     m_lifeTime -= dt;
     if (m_lifeTime <= 0.0f) {
         m_destroyed = true;
@@ -180,7 +183,6 @@ void Projectile::render(SpriteRenderer* renderer, std::shared_ptr<Texture2D> mai
     if (!m_isActive || m_destroyed) return;
 
     float scaleFactor = grid.getCellSize() / 64.0f;
-    m_radius = (m_baseSize * scaleFactor) / 2.0f;
 
     float paddingCompensation = 1.0f;
     float visualSize = m_baseSize * scaleFactor * paddingCompensation;

@@ -15,6 +15,7 @@ bool ConfigManager::loadTextureConfig(const std::string& filepath) {
 	std::ifstream file(filepath);
 	if (!file.is_open()) return false;
 
+	try {
 	nlohmann::json j;
 	file >> j;
 
@@ -35,6 +36,11 @@ bool ConfigManager::loadTextureConfig(const std::string& filepath) {
 		s_atlases[atlasName] = atlas;
 	}
 	return true;
+	}
+	catch (const std::exception& e) {
+		std::cerr << "ConfigManager::loadTextureConfig error in " << filepath << ": " << e.what() << std::endl;
+		return false;
+	}
 }
 
 // функция получения готового UV для рендерера
@@ -62,6 +68,8 @@ bool ConfigManager::hasUV(const std::string& atlasName, const std::string& regio
 bool ConfigManager::loadConfigs(const std::string& towerPath, const std::string& enemiesPath, const std::string& particlesPath) {
 	s_towerStats.clear();
 	s_enemyStats.clear();
+
+	try {
 	
 	//загрузка башен
 	std::ifstream tFile(towerPath); // откріваем файл
@@ -261,6 +269,11 @@ bool ConfigManager::loadConfigs(const std::string& towerPath, const std::string&
 
 	std::cout << "Configs loaded successfully!" << std::endl;
 	return true;
+	}
+	catch (const std::exception& e) {
+		std::cerr << "ConfigManager::loadConfigs error: " << e.what() << std::endl;
+		return false;
+	}
 }
 
 TowerStats ConfigManager::getTowerStats(const std::string& type, int level) {

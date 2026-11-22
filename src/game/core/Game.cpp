@@ -38,10 +38,15 @@ void Game::init() {
     m_renderer->setProjection(projection);
 
     // Включаем шейдер в работу на GPU
-    shader->use();
+    if (shader != nullptr) {
+        shader->use();
 
-    // Привязываем uniform-переменную текстуры в фрагментном шейдере к текстурному слоту №0
-    glUniform1i(glGetUniformLocation(shader->getId(), "u_texture"), 0);
+        // Привязываем uniform-переменную текстуры в фрагментном шейдере к текстурному слоту №0
+        glUniform1i(glGetUniformLocation(shader->getId(), "u_texture"), 0);
+    }
+    else {
+        std::cerr << "Game::init: sprite shader is null, rendering disabled" << std::endl;
+    }
 
     // ИНИЦИАЛИЗАЦИЯ ТЕКСТА
     if (!ResourceManager::loadShader("textShader", "res/shaders/text_shader.vert", "res/shaders/text_shader.frag")) {

@@ -153,7 +153,7 @@ flowchart TD
    - При возврате `true` метод оставляет `grid.setCellType(gridX, gridY, CellType::Tower)` изменённым (как в fast-path строке 142, так и в строке 234). Если вызвать `isPlacementValid` для предпросмотра голограммы в `PlacementUI`, он начнёт тихо «застраивать» карту невидимыми башнями под курсором.
    - Fast-path `doesPathIntersectCell` проверяет только совпадение клетки с узлами маршрута, но игнорирует случай, когда башня ставится ортогонально рядом с диагональным переходом (где `Pathfinder::canMove` запрещает срезание угла). В результате пересчёт пути может быть пропущен.
 
-5. **Активный чит-код `+99999` денег в боевом вводе и необработанные крэш-сценарии**  
+5. ✅ **[ВЫПОЛНЕНО]** **Активный чит-код `+99999` денег в боевом вводе и необработанные крэш-сценарии**  
    *Файлы:* `src/game/states/GameplayInputHandler.cpp:83-85`, `src/game/core/ConfigManager.cpp:19,70`, `src/game/core/WaveManager.cpp:44-80`, `src/game/states/GameplayState.cpp:68-80,230`, `src/game/gameplay/BuildManager.cpp:65`, `src/game/core/Game.cpp:19-41`  
    - Нажатие `M` во время игры безусловно добавляет `+99999` золота (не закрыто даже `CampaignManager::isDevMode()`).
    - `ConfigManager::loadTextureConfig` / `loadConfigs` парсят JSON без `try/catch`; `WaveManager::loadLevel` ловит только `parse_error`, но не `type_error`/`out_of_range` при отсутствии `"waves"` / `"parts"`.
@@ -162,7 +162,7 @@ flowchart TD
    - Карта без волн (`m_waves.empty()`) мгновенно завершается победой на первом кадре (`WaveManager::isAllWavesCompleted()` возвращает `true`).
    - В `Game::init()` при ошибке загрузки шейдера `shader` равен `nullptr`, но строка 41 вызывает `shader->use()` без проверки.
 
-6. **Поломанное смешивание OpenGL, мутация физического хитбокса в `render()` и висячий курсор GLFW**  
+6. ✅ **[ВЫПОЛНЕНО]** **Поломанное смешивание OpenGL, мутация физического хитбокса в `render()` и висячий курсор GLFW**  
    *Файлы:* `src/game/ui/PlacementUI.cpp:73,114`, `src/game/entities/Projectile.cpp:100,182-183`, `src/game/states/MapEditorState.cpp:121-128`  
    - `PlacementUI::renderHologram` вызывает `glBlendFunc(GL_SRC_ALPHA, GL_ONE)` поверх батчевого `SpriteRenderer`, но `SpriteRenderer::flush()` (строка 132) принудительно выставляет стандартный `glBlendFuncSeparate` перед `glDrawElements` — аддитивное свечение голограммы фактически не работает.
    - `Projectile::render()` (строка 183) вычисляет коллизионный радиус `m_radius` во время отрисовки, а не в `init()`/`update()` — первые тики симуляции до рендера используют старый радиус из пула. Кроме того, скорость полёта пули `m_speed` не масштабируется от `grid.getCellSize()`, из-за чего скорость пуль в клетках/сек меняется при разных разрешениях окна.

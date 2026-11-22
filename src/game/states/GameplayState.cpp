@@ -72,11 +72,29 @@ void GameplayState::setupEventListeners() {
             rule.reward = bounty.first;
             rule.rewardStep = bounty.second;
         } else {
-            rule.reward = (e.value1 > 0) ? e.value1 : 1;
-            rule.rewardStep = (e.rewardStep > 0) ? e.rewardStep : 1;
+            if (e.value1 > 0) {
+                rule.reward = e.value1;
+            } else {
+                rule.reward = 1;
+            }
+            if (e.rewardStep > 0) {
+                rule.rewardStep = e.rewardStep;
+            } else {
+                rule.rewardStep = 1;
+            }
         }
 
+        if (rule.rewardStep <= 0) {
+            rule.rewardStep = 1;
+        }
+
+        if (!this->m_world) {
+            return;
+        }
+
+        int addedMoney = 0;
         if (this->enemyKillCounts[type] % rule.rewardStep == 0) {
+            addedMoney = rule.reward;
             this->m_world->playerStats.addMoney(rule.reward);
         }
         this->m_world->playerStats.score += e.value2;
@@ -85,11 +103,14 @@ void GameplayState::setupEventListeners() {
                   << " | Enemy: " << type 
                   << " | KillCount: " << this->enemyKillCounts[type] 
                   << " | Step: " << rule.rewardStep 
-                  << " | Added: $" << (this->enemyKillCounts[type] % rule.rewardStep == 0 ? rule.reward : 0) 
+                  << " | Added: $" << addedMoney 
                   << std::endl;
     });
 
     EventBus::subscribe(EventType::EnemyReachedBase, [this](const Event& e) {
+        if (!this->m_world) {
+            return;
+        }
         this->m_world->playerStats.baseHealth -= e.value1;
         if (this->m_world->playerStats.baseHealth <= 0) {
             this->m_world->playerStats.baseHealth = 0;

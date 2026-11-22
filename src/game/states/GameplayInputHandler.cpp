@@ -7,6 +7,7 @@
 #include "../gameplay/BuildManager.h"
 #include "../entities/Tower.h"
 #include "../ui/UICommon.h"
+#include "../core/CampaignManager.h"
 
 bool GameplayInputHandler::isKeyJustPressed(GLFWwindow* window, int key) {
     if (key < 0 || key >= 1024) return false;
@@ -81,7 +82,9 @@ void GameplayInputHandler::processInput(
     }
 
     if (isKeyJustPressed(window, GLFW_KEY_M)) {
-        world.playerStats.money += 99999;
+        if (CampaignManager::isDevMode()) {
+            world.playerStats.money += 99999;
+        }
     }
 
     if (isKeyJustPressed(window, GLFW_KEY_R)) {

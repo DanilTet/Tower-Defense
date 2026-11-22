@@ -129,7 +129,12 @@ void SpriteRenderer::flush() {
 
     // загружаем наш массив вершин в память видеокарты
     glEnable(GL_BLEND);
-    glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+    if (m_additiveBlending) {
+        glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ONE, GL_ONE);
+    }
+    else {
+        glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+    }
 
     glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
     glBufferSubData(GL_ARRAY_BUFFER, 0, m_spriteCount * 4 * sizeof(SpriteVertex), m_vertices.data());
@@ -141,6 +146,13 @@ void SpriteRenderer::flush() {
 
     // сбрасываем счетчик
     m_spriteCount = 0;
+}
+
+void SpriteRenderer::setAdditiveBlending(bool enabled) {
+    if (m_additiveBlending != enabled) {
+        flush();
+        m_additiveBlending = enabled;
+    }
 }
 
 void SpriteRenderer::drawSprite(const std::shared_ptr<Texture2D>& texture, glm::vec2 position, glm::vec2 size, float rotation, glm::vec3 color, SpriteUV uv) {

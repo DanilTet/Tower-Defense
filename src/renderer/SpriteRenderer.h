@@ -50,6 +50,8 @@ public:
 	void beginBatch();
 	void endBatch();
 	void flush();
+	// Включает/выключает аддитивное смешивание для следующих спрайтов (сначала сбрасывает накопленный батч)
+	void setAdditiveBlending(bool enabled);
 
 	void drawSprite(const std::shared_ptr<Texture2D>& texture,
 		glm::vec2 position,
@@ -79,6 +81,7 @@ private:
 
 	std::vector<SpriteVertex> m_vertices;
 	std::shared_ptr<Texture2D> m_currentTexture = nullptr;
+	bool m_additiveBlending = false;
 	int m_spriteCount = 0;
 
 	void initRenderData();

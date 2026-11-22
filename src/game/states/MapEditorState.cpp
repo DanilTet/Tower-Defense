@@ -119,6 +119,10 @@ void MapEditorState::init() {
 }
 
 void MapEditorState::cleanup() {
+    GLFWwindow* currentWindow = glfwGetCurrentContext();
+    if (currentWindow != nullptr) {
+        glfwSetCursor(currentWindow, nullptr);
+    }
     m_gizmoController.destroyCursors();
 
     glm::mat4 P_screen = glm::ortho(0.0f, static_cast<float>(m_width), static_cast<float>(m_height), 0.0f, -1.0f, 1.0f);

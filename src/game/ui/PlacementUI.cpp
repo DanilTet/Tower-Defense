@@ -70,7 +70,7 @@ void PlacementUI::renderHologram(
     glm::vec2 cellCenter = cellPixelPos + glm::vec2(cellSize / 2.0f);
 
     // включаем режим свечения
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+    renderer->setAdditiveBlending(true);
 
     if (selectedTower == "Piston") {
         // Для поршня подсвечиваем строго 1 клетку удара перед бойком
@@ -111,5 +111,5 @@ void PlacementUI::renderHologram(
     renderer->drawSprite(mainAtlas, cellPixelPos, glm::vec2(cellSize), drawAngle, holoColor, towerUV);
 
     // выключаем свечение
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    renderer->setAdditiveBlending(false);
 }

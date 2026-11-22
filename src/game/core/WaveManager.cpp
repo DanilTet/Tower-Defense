@@ -41,9 +41,17 @@ bool WaveManager::loadLevel(const std::string& filepath) {
 		nlohmann::json j;
 		file >> j;
 		// проходим по всем волнам в уровне
+		if (!j.contains("waves") || !j["waves"].is_array()) {
+			std::cerr << "ERROR::WAVEMANAGER: Level has no \"waves\" array: " << filepath << std::endl;
+			return false;
+		}
 		for (const auto& waveJson : j["waves"]) {
 			WaveConfig wave;
 			// проходим по всем пачкам в волне
+			if (!waveJson.contains("parts") || !waveJson["parts"].is_array()) {
+				m_waves.push_back(wave);
+				continue;
+			}
 			for (const auto& partJson : waveJson["parts"]) {
 				WavePart part;
 				part.count = partJson.value("count", 10); // присваевем количество врагов из текущей пачки
@@ -74,8 +82,9 @@ bool WaveManager::loadLevel(const std::string& filepath) {
 		}
 	}
 	// если не получилось считать файл json
-	catch (nlohmann::json::parse_error& e) {
-		std::cerr << "ERROR::WAVEMANAGER: JSON parse error: " << e.what() << std::endl;
+	catch (const std::exception& e) {
+		m_waves.clear();
+		std::cerr << "ERROR::WAVEMANAGER: JSON error: " << e.what() << std::endl;
 		return false;
 	}
 	// скачать

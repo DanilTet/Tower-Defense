@@ -52,6 +52,9 @@ public:
 	float getTimeBetweenWaves() const { return m_timeBetweenWaves; }
 
 	bool isAllWavesCompleted() const {
+		if (m_waves.empty()) {
+			return false;
+		}
 		return !m_isWaveActive && m_currentWaveIndex >= static_cast<int>(m_waves.size());
 	}
 	// Реестр поддерживаемых типов врагов

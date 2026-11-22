@@ -62,7 +62,9 @@ void BuildManager::tryBuildOrUpgrade(
 
         // обновляем все маршруты
         world.paths = newPaths;
-        world.levelPath = world.paths[0];
+        if (!world.paths.empty()) {
+            world.levelPath = world.paths[0];
+        }
 
         // даем врагам новый путь (только тем, чей маршрут пересекает новую башню)
         world.notifyEnemiesPathChanged(clickedCell);
