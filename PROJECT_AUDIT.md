@@ -129,7 +129,8 @@ flowchart TD
 
 ### 🔴 Critical (баги, утечки ресурсов, падения, поломка механик)
 
-1. **Утечка ~470 OpenGL-текстур, UB в UTF-8 парсере и деградация рендера в `TextRenderer`**  
+1. ✅ **[ВЫПОЛНЕНО] Утечка ~470 OpenGL-текстур, UB в UTF-8 парсере и деградация рендера в `TextRenderer`**  
+   > ✅ Исправлено: glDeleteTextures в деструкторе и Load(), FT_Done_FreeType при ошибке FT_New_Face, безопасный UTF-8 декодер с проверкой границ, закэшированные uniform-локации. Отдельный font atlas (батчинг draw call'ов) пока не реализован.
    *Файлы:* `src/renderer/TextRenderer.cpp:30-33, 40-54, 95-103, 112-156`  
    - `~TextRenderer()` удаляет только `VAO` и `VBO`, **не вызывая `glDeleteTextures`** ни для одной из ~470 глиф-текстур в `Characters`. Повторный вызов `Load()` также делает `Characters.clear()` без освобождения VRAM.
    - При ошибке `FT_New_Face` (строка 51) не вызывается `FT_Done_FreeType(ft)` (утечка памяти FreeType).
