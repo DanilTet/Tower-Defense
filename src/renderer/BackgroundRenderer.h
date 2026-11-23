@@ -1,11 +1,18 @@
 #pragma once
 #include <memory>
 #include <string>
+#include <vector>
 #include <glm/glm.hpp>
 
 class SpriteRenderer;
 class Texture2D;
 class Grid;
+
+struct BackgroundViewRect {
+    glm::vec2 min = glm::vec2(0.0f);
+    glm::vec2 max = glm::vec2(0.0f);
+    bool valid = false;
+};
 
 class BackgroundRenderer {
 public:
@@ -16,7 +23,8 @@ public:
         const std::string& backgroundType,
         const Grid* grid,
         float screenWidth,
-        float screenHeight
+        float screenHeight,
+        const BackgroundViewRect& viewRect = BackgroundViewRect()
     );
 
     // СЛОЙ 2: Фоновое окружение (деревянный настил, здание копра, рельсы, трубы)
@@ -26,7 +34,9 @@ public:
         const std::string& backgroundType,
         const Grid* grid,
         float screenWidth,
-        float screenHeight
+        float screenHeight,
+        const BackgroundViewRect& viewRect = BackgroundViewRect(),
+        const std::vector<glm::ivec2>* baseCells = nullptr
     );
 
     // СЛОЙ 3: Верхнее окружение переднего плана (2.5D забор поверх клеток земли, козырек копра)
@@ -36,7 +46,9 @@ public:
         const std::string& backgroundType,
         const Grid* grid,
         float screenWidth,
-        float screenHeight
+        float screenHeight,
+        const BackgroundViewRect& viewRect = BackgroundViewRect(),
+        const std::vector<glm::ivec2>* baseCells = nullptr
     );
 
     // Полная отрисовка обоих слоев (обратная совместимость)
@@ -46,16 +58,57 @@ public:
         const std::string& backgroundType,
         const Grid* grid,
         float screenWidth,
-        float screenHeight
+        float screenHeight,
+        const BackgroundViewRect& viewRect = BackgroundViewRect(),
+        const std::vector<glm::ivec2>* baseCells = nullptr
     );
 
 private:
+    struct MinePortalGeom {
+        float mouthX;
+        float coverStartX;
+        float endX;
+        float centerY;
+        float openingH;
+        float topY;
+        float botY;
+    };
+
+    static void computeCulledBounds(
+        const Grid* grid,
+        float screenWidth,
+        float screenHeight,
+        const BackgroundViewRect& viewRect,
+        float paddingCells,
+        float& outMinX,
+        float& outMinY,
+        float& outMaxX,
+        float& outMaxY
+    );
+
+    static bool isRectVisible(
+        float x,
+        float y,
+        float w,
+        float h,
+        float cullMinX,
+        float cullMinY,
+        float cullMaxX,
+        float cullMaxY
+    );
+
+    static std::vector<MinePortalGeom> collectMinePortals(
+        const Grid* grid,
+        const std::vector<glm::ivec2>* baseCells
+    );
+
     static void renderPipesCanalSubstrate(
         SpriteRenderer* renderer,
         const Texture2D* whiteTexture,
         const Grid* grid,
         float screenWidth,
-        float screenHeight
+        float screenHeight,
+        const BackgroundViewRect& viewRect
     );
 
     static void renderPipesCanalEnvironment(
@@ -63,7 +116,8 @@ private:
         const Texture2D* whiteTexture,
         const Grid* grid,
         float screenWidth,
-        float screenHeight
+        float screenHeight,
+        const BackgroundViewRect& viewRect
     );
 
     static void renderMineEntranceSubstrate(
@@ -71,7 +125,8 @@ private:
         const Texture2D* whiteTexture,
         const Grid* grid,
         float screenWidth,
-        float screenHeight
+        float screenHeight,
+        const BackgroundViewRect& viewRect
     );
 
     static void renderMineEntranceEnvironment(
@@ -79,7 +134,9 @@ private:
         const Texture2D* whiteTexture,
         const Grid* grid,
         float screenWidth,
-        float screenHeight
+        float screenHeight,
+        const BackgroundViewRect& viewRect,
+        const std::vector<glm::ivec2>* baseCells
     );
 
     static void renderMineEntranceForeground(
@@ -87,7 +144,9 @@ private:
         const Texture2D* whiteTexture,
         const Grid* grid,
         float screenWidth,
-        float screenHeight
+        float screenHeight,
+        const BackgroundViewRect& viewRect,
+        const std::vector<glm::ivec2>* baseCells
     );
 
     static void renderPipe(

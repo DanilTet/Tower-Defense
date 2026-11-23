@@ -3435,29 +3435,60 @@ void MapEditorState::render() {
     m_renderer->setProjection(cameraProj);
     m_renderer->beginBatch();
 
-    // 1.1. Отрисовка фона игровой зоны (в мировых координатах)
-    BackgroundRenderer::render(
+    BackgroundViewRect bgView;
+    bgView.min = m_camera.screenToWorld(glm::vec2(0.0f, 0.0f));
+    bgView.max = m_camera.screenToWorld(glm::vec2(static_cast<float>(m_width), static_cast<float>(m_height)));
+    bgView.valid = true;
+
+    std::vector<glm::ivec2> baseCells;
+    baseCells.reserve(m_bases.size());
+    for (const auto& b : m_bases) {
+        baseCells.emplace_back(b.x, b.y);
+    }
+
+    // 1.1. СЛОЙ 1: Подложка фона и базовые клетки матрицы / outerCells
+    BackgroundRenderer::renderSubstrate(
         m_renderer.get(),
         m_whiteTexture,
         m_background,
         m_grid.get(),
         static_cast<float>(m_width),
-        static_cast<float>(m_height)
+        static_cast<float>(m_height),
+        bgView
     );
-
-    // 2. Игровая сетка (отцентрирована строго между верхним и нижним барами)
     if (m_grid) {
-        m_grid->draw(m_renderer.get(), m_whiteTexture, glm::vec3(1.0f), m_background);
+        m_grid->drawBaseCells(m_renderer.get(), m_whiteTexture, glm::vec3(1.0f), m_background);
     }
 
-    // 2.1. Верхний слой фона (2.5D забор, козырек копра поверх клеток земли двора)
+    // 1.2. СЛОЙ 2: Окружение фона (стена шахты, нижний слой тоннеля, пустошь, трубы)
+    BackgroundRenderer::renderEnvironment(
+        m_renderer.get(),
+        m_whiteTexture,
+        m_background,
+        m_grid.get(),
+        static_cast<float>(m_width),
+        static_cast<float>(m_height),
+        bgView,
+        &baseCells
+    );
+
+    // 2. Препятствия и редакторские оверлеи сетки
+    if (m_grid) {
+        m_grid->drawObstacleCells(m_renderer.get(), m_whiteTexture, glm::vec3(1.0f), m_background);
+        m_grid->drawEditorGridLines(m_renderer.get(), m_whiteTexture);
+        m_grid->drawOuterNoBuildOverlay(m_renderer.get(), m_whiteTexture);
+    }
+
+    // 2.1. СЛОЙ 3: Верхний слой фона (2.5D забор, козырек и перекрытие портала шахты)
     BackgroundRenderer::renderForeground(
         m_renderer.get(),
         m_whiteTexture,
         m_background,
         m_grid.get(),
         static_cast<float>(m_width),
-        static_cast<float>(m_height)
+        static_cast<float>(m_height),
+        bgView,
+        &baseCells
     );
 
     // 3. Стрелочки путей в реальном времени с цветом, соответствующим целевой базе!

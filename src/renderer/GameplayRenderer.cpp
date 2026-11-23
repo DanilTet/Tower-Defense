@@ -15,6 +15,7 @@
 #include "../game/ui/UICommon.h"
 #include "../game/entities/Tower.h"
 #include <glm/gtc/matrix_transform.hpp>
+#include <vector>
 
 static std::string getPistonDirectionName(float angle) {
     if (std::abs(angle - 270.0f) < 5.0f || std::abs(angle - (-90.0f)) < 5.0f) return "ВВЕРХ";
@@ -91,6 +92,17 @@ void GameplayRenderer::renderFrame(
     if (m_textRenderer) m_textRenderer->updateProjection(worldProj);
     m_renderer->beginBatch();
 
+    BackgroundViewRect bgView;
+    bgView.min = world.screenToWorld(glm::vec2(0.0f, 0.0f), windowWidth, windowHeight);
+    bgView.max = world.screenToWorld(glm::vec2(static_cast<float>(windowWidth), static_cast<float>(windowHeight)), windowWidth, windowHeight);
+    bgView.valid = true;
+
+    std::vector<glm::ivec2> baseCells;
+    baseCells.reserve(world.bases.size());
+    for (const auto& b : world.bases) {
+        baseCells.emplace_back(b.x, b.y);
+    }
+
     // СЛОЙ 1: Подложка под фон (базовая земля / трава) и базовые клетки матрицы / outerCells
     if (m_whiteTexture) {
         BackgroundRenderer::renderSubstrate(
@@ -99,7 +111,8 @@ void GameplayRenderer::renderFrame(
             world.currentBackground,
             world.grid.get(),
             static_cast<float>(windowWidth),
-            static_cast<float>(windowHeight)
+            static_cast<float>(windowHeight),
+            bgView
         );
     }
     if (world.grid && m_whiteTexture) {
@@ -114,7 +127,9 @@ void GameplayRenderer::renderFrame(
             world.currentBackground,
             world.grid.get(),
             static_cast<float>(windowWidth),
-            static_cast<float>(windowHeight)
+            static_cast<float>(windowHeight),
+            bgView,
+            &baseCells
         );
     }
 
@@ -134,12 +149,15 @@ void GameplayRenderer::renderFrame(
                 m_renderer->drawSprite(m_whiteTexture, pPos + glm::vec2(5.0f), glm::vec2(cellSize - 10.0f), 0.0f, spColor * 0.85f);
             }
         }
-        for (const auto& b : world.bases) {
-            if (b.visibleInGame) {
-                glm::vec2 pPos = world.grid->gridToPixel(b.x, b.y);
-                glm::vec3 bCol = glm::vec3(0.25f, 0.70f, 0.85f);
-                m_renderer->drawSprite(m_whiteTexture, pPos + glm::vec2(2.0f), glm::vec2(cellSize - 4.0f), 0.0f, bCol);
-                m_renderer->drawSprite(m_whiteTexture, pPos + glm::vec2(5.0f), glm::vec2(cellSize - 10.0f), 0.0f, bCol * 0.85f);
+        const bool isMineEntrance = (world.currentBackground == "mine_entrance" || world.currentBackground == "mine");
+        if (!isMineEntrance) {
+            for (const auto& b : world.bases) {
+                if (b.visibleInGame) {
+                    glm::vec2 pPos = world.grid->gridToPixel(b.x, b.y);
+                    glm::vec3 bCol = glm::vec3(0.25f, 0.70f, 0.85f);
+                    m_renderer->drawSprite(m_whiteTexture, pPos + glm::vec2(2.0f), glm::vec2(cellSize - 4.0f), 0.0f, bCol);
+                    m_renderer->drawSprite(m_whiteTexture, pPos + glm::vec2(5.0f), glm::vec2(cellSize - 10.0f), 0.0f, bCol * 0.85f);
+                }
             }
         }
     }
@@ -197,7 +215,9 @@ void GameplayRenderer::renderFrame(
             world.currentBackground,
             world.grid.get(),
             static_cast<float>(windowWidth),
-            static_cast<float>(windowHeight)
+            static_cast<float>(windowHeight),
+            bgView,
+            &baseCells
         );
     }
 

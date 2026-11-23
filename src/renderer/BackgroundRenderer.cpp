@@ -4,6 +4,141 @@
 #include "../game/world/Grid.h"
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
+
+void BackgroundRenderer::computeCulledBounds(
+    const Grid* grid,
+    float screenWidth,
+    float screenHeight,
+    const BackgroundViewRect& viewRect,
+    float paddingCells,
+    float& outMinX,
+    float& outMinY,
+    float& outMaxX,
+    float& outMaxY
+) {
+    float cellSize = 64.0f;
+    if (grid != nullptr) {
+        cellSize = grid->getCellSize();
+    }
+    float pad = cellSize * paddingCells;
+
+    if (viewRect.valid) {
+        outMinX = std::min(viewRect.min.x, viewRect.max.x) - pad;
+        outMaxX = std::max(viewRect.min.x, viewRect.max.x) + pad;
+        outMinY = std::min(viewRect.min.y, viewRect.max.y) - pad;
+        outMaxY = std::max(viewRect.min.y, viewRect.max.y) + pad;
+    } else {
+        glm::vec2 gridOffset(0.0f);
+        float gridW = screenWidth;
+        float gridH = screenHeight;
+        if (grid != nullptr) {
+            gridOffset = grid->getOffset();
+            gridW = static_cast<float>(grid->getWidth()) * cellSize;
+            gridH = static_cast<float>(grid->getHeight()) * cellSize;
+        }
+        float marginX = std::max(1600.0f, screenWidth * 2.5f);
+        float marginY = std::max(1200.0f, screenHeight * 2.0f);
+        outMinX = gridOffset.x - marginX;
+        outMaxX = gridOffset.x + gridW + marginX;
+        outMinY = gridOffset.y - marginY;
+        outMaxY = gridOffset.y + gridH + marginY;
+    }
+}
+
+bool BackgroundRenderer::isRectVisible(
+    float x,
+    float y,
+    float w,
+    float h,
+    float cullMinX,
+    float cullMinY,
+    float cullMaxX,
+    float cullMaxY
+) {
+    if (x + w < cullMinX) {
+        return false;
+    }
+    if (x > cullMaxX) {
+        return false;
+    }
+    if (y + h < cullMinY) {
+        return false;
+    }
+    if (y > cullMaxY) {
+        return false;
+    }
+    return true;
+}
+
+std::vector<BackgroundRenderer::MinePortalGeom> BackgroundRenderer::collectMinePortals(
+    const Grid* grid,
+    const std::vector<glm::ivec2>* baseCells
+) {
+    std::vector<MinePortalGeom> portals;
+    if (grid == nullptr) {
+        return portals;
+    }
+
+    glm::vec2 gridOffset = grid->getOffset();
+    float cellSize = grid->getCellSize();
+    float gridW = static_cast<float>(grid->getWidth()) * cellSize;
+    float gridH = static_cast<float>(grid->getHeight()) * cellSize;
+    float yardX = gridOffset.x;
+    float yardY = gridOffset.y;
+    float bldgX = yardX + gridW;
+
+    if (baseCells != nullptr && !baseCells->empty()) {
+        std::vector<glm::ivec2> sorted = *baseCells;
+        std::sort(sorted.begin(), sorted.end(), [](const glm::ivec2& a, const glm::ivec2& b) {
+            if (a.x != b.x) {
+                return a.x < b.x;
+            }
+            return a.y < b.y;
+        });
+
+        size_t i = 0;
+        while (i < sorted.size()) {
+            int bx = sorted[i].x;
+            int minY = sorted[i].y;
+            int maxY = sorted[i].y;
+            size_t j = i + 1;
+            while (j < sorted.size() && sorted[j].x == bx && sorted[j].y <= maxY + 1) {
+                if (sorted[j].y > maxY) {
+                    maxY = sorted[j].y;
+                }
+                ++j;
+            }
+            i = j;
+
+            float basePixelX = yardX + static_cast<float>(bx) * cellSize;
+            float groupTopY = yardY + static_cast<float>(minY) * cellSize;
+            float groupBotY = yardY + static_cast<float>(maxY + 1) * cellSize;
+
+            MinePortalGeom p;
+            p.centerY = (groupTopY + groupBotY) * 0.5f;
+            p.openingH = std::max(cellSize * 2.1f, (groupBotY - groupTopY) + cellSize * 1.1f);
+            p.topY = p.centerY - p.openingH * 0.5f;
+            p.botY = p.centerY + p.openingH * 0.5f;
+            p.mouthX = std::min(bldgX, basePixelX - cellSize * 0.35f);
+            p.coverStartX = std::min(bldgX + cellSize * 0.85f, basePixelX + cellSize * 0.15f);
+            p.endX = std::max(bldgX + cellSize * 3.6f, basePixelX + cellSize * 1.6f);
+            portals.push_back(p);
+        }
+    } else {
+        MinePortalGeom p;
+        p.centerY = yardY + gridH * 0.5f;
+        p.openingH = cellSize * 2.1f;
+        p.topY = p.centerY - p.openingH * 0.5f;
+        p.botY = p.centerY + p.openingH * 0.5f;
+        p.mouthX = bldgX;
+        p.coverStartX = bldgX + cellSize * 0.85f;
+        p.endX = bldgX + cellSize * 3.6f;
+        portals.push_back(p);
+    }
+
+    return portals;
+}
 
 void BackgroundRenderer::renderSubstrate(
     SpriteRenderer* renderer,
@@ -11,26 +146,25 @@ void BackgroundRenderer::renderSubstrate(
     const std::string& backgroundType,
     const Grid* grid,
     float screenWidth,
-    float screenHeight
+    float screenHeight,
+    const BackgroundViewRect& viewRect
 ) {
     if (!renderer || !whiteTexture) return;
 
     if (backgroundType == "pipes_canal" || backgroundType == "channel") {
-        renderPipesCanalSubstrate(renderer, whiteTexture, grid, screenWidth, screenHeight);
+        renderPipesCanalSubstrate(renderer, whiteTexture, grid, screenWidth, screenHeight, viewRect);
     } else if (backgroundType == "mine_entrance" || backgroundType == "mine") {
-        renderMineEntranceSubstrate(renderer, whiteTexture, grid, screenWidth, screenHeight);
+        renderMineEntranceSubstrate(renderer, whiteTexture, grid, screenWidth, screenHeight, viewRect);
     } else {
-        // Стандартная минималистичная темная подложка (с широким охватом для зума и панорамирования)
-        glm::vec2 gridOffset = grid ? grid->getOffset() : glm::vec2(0.0f);
-        float cellSize = grid ? grid->getCellSize() : 64.0f;
-        float gridW = grid ? static_cast<float>(grid->getWidth()) * cellSize : screenWidth;
-        float gridH = grid ? static_cast<float>(grid->getHeight()) * cellSize : screenHeight;
-        float marginX = std::max(1600.0f, screenWidth * 2.5f);
-        float marginY = std::max(1200.0f, screenHeight * 2.0f);
+        float cullMinX = 0.0f;
+        float cullMinY = 0.0f;
+        float cullMaxX = 0.0f;
+        float cullMaxY = 0.0f;
+        computeCulledBounds(grid, screenWidth, screenHeight, viewRect, 1.5f, cullMinX, cullMinY, cullMaxX, cullMaxY);
         renderer->drawSprite(
             whiteTexture,
-            glm::vec2(gridOffset.x - marginX, gridOffset.y - marginY),
-            glm::vec2(gridW + marginX * 2.0f, gridH + marginY * 2.0f),
+            glm::vec2(cullMinX, cullMinY),
+            glm::vec2(cullMaxX - cullMinX, cullMaxY - cullMinY),
             0.0f,
             glm::vec3(0.12f, 0.13f, 0.16f)
         );
@@ -43,14 +177,16 @@ void BackgroundRenderer::renderEnvironment(
     const std::string& backgroundType,
     const Grid* grid,
     float screenWidth,
-    float screenHeight
+    float screenHeight,
+    const BackgroundViewRect& viewRect,
+    const std::vector<glm::ivec2>* baseCells
 ) {
     if (!renderer || !whiteTexture) return;
 
     if (backgroundType == "pipes_canal" || backgroundType == "channel") {
-        renderPipesCanalEnvironment(renderer, whiteTexture, grid, screenWidth, screenHeight);
+        renderPipesCanalEnvironment(renderer, whiteTexture, grid, screenWidth, screenHeight, viewRect);
     } else if (backgroundType == "mine_entrance" || backgroundType == "mine") {
-        renderMineEntranceEnvironment(renderer, whiteTexture, grid, screenWidth, screenHeight);
+        renderMineEntranceEnvironment(renderer, whiteTexture, grid, screenWidth, screenHeight, viewRect, baseCells);
     }
 }
 
@@ -60,12 +196,14 @@ void BackgroundRenderer::renderForeground(
     const std::string& backgroundType,
     const Grid* grid,
     float screenWidth,
-    float screenHeight
+    float screenHeight,
+    const BackgroundViewRect& viewRect,
+    const std::vector<glm::ivec2>* baseCells
 ) {
     if (!renderer || !whiteTexture) return;
 
     if (backgroundType == "mine_entrance" || backgroundType == "mine") {
-        renderMineEntranceForeground(renderer, whiteTexture, grid, screenWidth, screenHeight);
+        renderMineEntranceForeground(renderer, whiteTexture, grid, screenWidth, screenHeight, viewRect, baseCells);
     }
 }
 
@@ -75,10 +213,12 @@ void BackgroundRenderer::render(
     const std::string& backgroundType,
     const Grid* grid,
     float screenWidth,
-    float screenHeight
+    float screenHeight,
+    const BackgroundViewRect& viewRect,
+    const std::vector<glm::ivec2>* baseCells
 ) {
-    renderSubstrate(renderer, whiteTexture, backgroundType, grid, screenWidth, screenHeight);
-    renderEnvironment(renderer, whiteTexture, backgroundType, grid, screenWidth, screenHeight);
+    renderSubstrate(renderer, whiteTexture, backgroundType, grid, screenWidth, screenHeight, viewRect);
+    renderEnvironment(renderer, whiteTexture, backgroundType, grid, screenWidth, screenHeight, viewRect, baseCells);
 }
 
 void BackgroundRenderer::renderPipesCanalSubstrate(
@@ -86,40 +226,42 @@ void BackgroundRenderer::renderPipesCanalSubstrate(
     const Texture2D* whiteTexture,
     const Grid* grid,
     float screenWidth,
-    float screenHeight
+    float screenHeight,
+    const BackgroundViewRect& viewRect
 ) {
-    // Параметры мира и сетки
-    glm::vec2 gridOffset = grid ? grid->getOffset() : glm::vec2(0.0f);
-    float cellSize = grid ? grid->getCellSize() : 64.0f;
-    float gridW = grid ? static_cast<float>(grid->getWidth()) * cellSize : screenWidth;
-    float gridH = grid ? static_cast<float>(grid->getHeight()) * cellSize : screenHeight;
+    glm::vec2 gridOffset(0.0f);
+    float cellSize = 64.0f;
+    if (grid != nullptr) {
+        gridOffset = grid->getOffset();
+        cellSize = grid->getCellSize();
+    }
 
-    // В координатах мира: широкий охват вокруг сетки для зума и панорамирования
-    float marginX = std::max(1600.0f, screenWidth * 2.5f);
-    float marginY = std::max(1200.0f, screenHeight * 2.0f);
-    float startX = gridOffset.x - marginX;
-    float endX = gridOffset.x + gridW + marginX;
-    float totalW = endX - startX;
+    float cullMinX = 0.0f;
+    float cullMinY = 0.0f;
+    float cullMaxX = 0.0f;
+    float cullMaxY = 0.0f;
+    computeCulledBounds(grid, screenWidth, screenHeight, viewRect, 1.5f, cullMinX, cullMinY, cullMaxX, cullMaxY);
 
-    float startY = gridOffset.y - marginY;
-    float endY = gridOffset.y + gridH + marginY;
-    float totalH = endY - startY;
+    float totalW = cullMaxX - cullMinX;
+    float totalH = cullMaxY - cullMinY;
 
     // 1. Базовый сочно-зеленый склон холма / трава
     renderer->drawSprite(
         whiteTexture,
-        glm::vec2(startX, startY),
+        glm::vec2(cullMinX, cullMinY),
         glm::vec2(totalW, totalH),
         0.0f,
         glm::vec3(0.18f, 0.40f, 0.16f)
     );
 
-    // Плавные горизонтальные градиентные полосы травяного склона
+    // Плавные горизонтальные градиентные полосы травяного склона (привязаны к gridOffset.y)
     float slopeBandH = std::max(36.0f, cellSize * 0.75f);
-    int slopeBands = static_cast<int>(totalH / slopeBandH) + 1;
-    for (int i = 0; i < slopeBands; ++i) {
-        float bY = startY + static_cast<float>(i) * slopeBandH;
-        float factor = static_cast<float>(i % 12) / 12.0f;
+    int bandStart = static_cast<int>(std::floor((cullMinY - gridOffset.y) / slopeBandH));
+    int bandEnd = static_cast<int>(std::ceil((cullMaxY - gridOffset.y) / slopeBandH));
+    for (int i = bandStart; i <= bandEnd; ++i) {
+        float bY = gridOffset.y + static_cast<float>(i) * slopeBandH;
+        int modIdx = ((i % 12) + 12) % 12;
+        float factor = static_cast<float>(modIdx) / 12.0f;
         float wave = std::sin(factor * 3.14159f * 2.0f) * 0.03f;
         glm::vec3 bandCol = glm::vec3(
             0.17f + 0.04f * factor + wave,
@@ -128,7 +270,7 @@ void BackgroundRenderer::renderPipesCanalSubstrate(
         );
         renderer->drawSprite(
             whiteTexture,
-            glm::vec2(startX, bY),
+            glm::vec2(cullMinX, bY),
             glm::vec2(totalW, slopeBandH + 1.0f),
             0.0f,
             bandCol
@@ -141,30 +283,34 @@ void BackgroundRenderer::renderPipesCanalEnvironment(
     const Texture2D* whiteTexture,
     const Grid* grid,
     float screenWidth,
-    float screenHeight
+    float screenHeight,
+    const BackgroundViewRect& viewRect
 ) {
     if (!grid) return;
 
     glm::vec2 gridOffset = grid->getOffset();
     float cellSize = grid->getCellSize();
-    float gridW = static_cast<float>(grid->getWidth()) * cellSize;
     float gridH = static_cast<float>(grid->getHeight()) * cellSize;
 
-    float marginX = std::max(1600.0f, screenWidth * 2.5f);
-    float startX = gridOffset.x - marginX;
-    float endX = gridOffset.x + gridW + marginX;
+    float cullMinX = 0.0f;
+    float cullMinY = 0.0f;
+    float cullMaxX = 0.0f;
+    float cullMaxY = 0.0f;
+    computeCulledBounds(grid, screenWidth, screenHeight, viewRect, 4.0f, cullMinX, cullMinY, cullMaxX, cullMaxY);
 
     // 2. Монументальные трубы дюкеров вдоль верхней и нижней границ поля
-    // Толщина трубы и зазор строго пропорциональны cellSize, чтобы координаты тайлов декора и эмиттеров
-    // оставались строго совмещены с геометрией труб при любом изменении размера сетки
     float pipeThickness = 1.15f * cellSize;
     float pipeGap = 0.15f * cellSize;
 
     float topPipeY = gridOffset.y - pipeThickness - pipeGap;
     float botPipeY = gridOffset.y + gridH + pipeGap;
 
-    renderPipe(renderer, whiteTexture, startX, endX, topPipeY, pipeThickness, cellSize, gridOffset.x);
-    renderPipe(renderer, whiteTexture, startX, endX, botPipeY, pipeThickness, cellSize, gridOffset.x);
+    if (isRectVisible(cullMinX, topPipeY - pipeThickness * 0.5f, cullMaxX - cullMinX, pipeThickness * 2.0f, cullMinX, cullMinY, cullMaxX, cullMaxY)) {
+        renderPipe(renderer, whiteTexture, cullMinX, cullMaxX, topPipeY, pipeThickness, cellSize, gridOffset.x);
+    }
+    if (isRectVisible(cullMinX, botPipeY - pipeThickness * 0.5f, cullMaxX - cullMinX, pipeThickness * 2.0f, cullMinX, cullMinY, cullMaxX, cullMaxY)) {
+        renderPipe(renderer, whiteTexture, cullMinX, cullMaxX, botPipeY, pipeThickness, cellSize, gridOffset.x);
+    }
 }
 
 void BackgroundRenderer::renderPipe(
@@ -376,53 +522,54 @@ void BackgroundRenderer::renderMineEntranceSubstrate(
     const Texture2D* whiteTexture,
     const Grid* grid,
     float screenWidth,
-    float screenHeight
+    float screenHeight,
+    const BackgroundViewRect& viewRect
 ) {
     if (!renderer || !whiteTexture) return;
 
-    // Параметры мира и сетки
-    glm::vec2 gridOffset = grid ? grid->getOffset() : glm::vec2(0.0f);
-    float cellSize = grid ? grid->getCellSize() : 64.0f;
-    int gridW_tiles = grid ? grid->getWidth() : 10;
-    int gridH_tiles = grid ? grid->getHeight() : 7;
-    float gridW = static_cast<float>(gridW_tiles) * cellSize;
-    float gridH = static_cast<float>(gridH_tiles) * cellSize;
+    glm::vec2 gridOffset(0.0f);
+    float cellSize = 64.0f;
+    if (grid != nullptr) {
+        gridOffset = grid->getOffset();
+        cellSize = grid->getCellSize();
+    }
 
-    // В координатах мира: широкий охват вокруг сетки для свободного панорамирования и зума
-    float marginX = std::max(1600.0f, screenWidth * 2.5f);
-    float marginY = std::max(1200.0f, screenHeight * 2.0f);
-    float startX = gridOffset.x - marginX;
-    float endX = gridOffset.x + gridW + marginX;
-    float totalW = endX - startX;
+    float cullMinX = 0.0f;
+    float cullMinY = 0.0f;
+    float cullMaxX = 0.0f;
+    float cullMaxY = 0.0f;
+    computeCulledBounds(grid, screenWidth, screenHeight, viewRect, 1.5f, cullMinX, cullMinY, cullMaxX, cullMaxY);
 
-    float startY = gridOffset.y - marginY;
-    float endY = gridOffset.y + gridH + marginY;
-    float totalH = endY - startY;
+    float totalW = cullMaxX - cullMinX;
+    float totalH = cullMaxY - cullMinY;
+    float yardY = gridOffset.y;
 
-    // 1. БАЗОВАЯ ЗЕМЛЯ ОКРУЖЕНИЯ: вытоптанный темно-рыжий каменистый грунт рудника
+    // 1. БАЗОВАЯ ЗЕМЛЯ ОКРУЖЕНИЯ: теплый приглушенный уличный грунт / сухая глина
     renderer->drawSprite(
         whiteTexture,
-        glm::vec2(startX, startY),
+        glm::vec2(cullMinX, cullMinY),
         glm::vec2(totalW, totalH),
         0.0f,
-        glm::vec3(0.22f, 0.15f, 0.10f)
+        glm::vec3(0.35f, 0.25f, 0.17f)
     );
 
-    // Плавные полосы горизонтальных пластов породы и высохшей глины
-    float bandH = std::max(40.0f, cellSize * 0.8f);
-    int numBands = static_cast<int>(totalH / bandH) + 1;
-    for (int i = 0; i < numBands; ++i) {
-        float bY = startY + static_cast<float>(i) * bandH;
-        float factor = static_cast<float>(i % 10) / 10.0f;
-        float wave = std::sin(factor * 3.14159f * 2.0f) * 0.02f;
+    // 2. Широкие мягкие пласты теплого грунта (минимальный контраст, привязаны к yardY)
+    float bandH = std::max(96.0f, cellSize * 2.2f);
+    int bandStart = static_cast<int>(std::floor((cullMinY - yardY) / bandH));
+    int bandEnd = static_cast<int>(std::ceil((cullMaxY - yardY) / bandH));
+    for (int i = bandStart; i <= bandEnd; ++i) {
+        float bY = yardY + static_cast<float>(i) * bandH;
+        int modIdx = ((i % 8) + 8) % 8;
+        float factor = static_cast<float>(modIdx) / 8.0f;
+        float wave = std::sin(factor * 3.14159f * 2.0f) * 0.008f;
         glm::vec3 bandCol = glm::vec3(
-            0.20f + 0.035f * factor + wave,
-            0.13f + 0.025f * factor + wave * 0.8f,
-            0.09f + 0.020f * factor + wave * 0.6f
+            0.335f + 0.018f * factor + wave,
+            0.240f + 0.014f * factor + wave * 0.85f,
+            0.165f + 0.010f * factor + wave * 0.70f
         );
         renderer->drawSprite(
             whiteTexture,
-            glm::vec2(startX, bY),
+            glm::vec2(cullMinX, bY),
             glm::vec2(totalW, bandH + 1.0f),
             0.0f,
             bandCol
@@ -435,11 +582,12 @@ void BackgroundRenderer::renderMineEntranceEnvironment(
     const Texture2D* whiteTexture,
     const Grid* grid,
     float screenWidth,
-    float screenHeight
+    float screenHeight,
+    const BackgroundViewRect& viewRect,
+    const std::vector<glm::ivec2>* baseCells
 ) {
     if (!renderer || !whiteTexture || !grid) return;
 
-    // Параметры мира и сетки
     glm::vec2 gridOffset = grid->getOffset();
     float cellSize = grid->getCellSize();
     int gridW_tiles = grid->getWidth();
@@ -447,22 +595,18 @@ void BackgroundRenderer::renderMineEntranceEnvironment(
     float gridW = static_cast<float>(gridW_tiles) * cellSize;
     float gridH = static_cast<float>(gridH_tiles) * cellSize;
 
-    float marginX = std::max(1600.0f, screenWidth * 2.5f);
-    float marginY = std::max(1200.0f, screenHeight * 2.0f);
-    float startX = gridOffset.x - marginX;
-    float endX = gridOffset.x + gridW + marginX;
-    float totalW = endX - startX;
-
-    float startY = gridOffset.y - marginY;
-    float endY = gridOffset.y + gridH + marginY;
-    float totalH = endY - startY;
-
     float yardX = gridOffset.x;
     float yardY = gridOffset.y;
     float yardW = gridW;
     float yardH = gridH;
+    float bldgX = yardX + yardW;
 
-    // Вспомогательный детерминированный генератор псевдослучайных чисел
+    float cullMinX = 0.0f;
+    float cullMinY = 0.0f;
+    float cullMaxX = 0.0f;
+    float cullMaxY = 0.0f;
+    computeCulledBounds(grid, screenWidth, screenHeight, viewRect, 1.5f, cullMinX, cullMinY, cullMaxX, cullMaxY);
+
     auto hash2D = [](int x, int y, uint32_t seed) -> uint32_t {
         uint32_t h = seed ^ (static_cast<uint32_t>(x) * 374761393u) ^ (static_cast<uint32_t>(y) * 668265263u);
         h = (h ^ (h >> 13)) * 1274126177u;
@@ -470,7 +614,7 @@ void BackgroundRenderer::renderMineEntranceEnvironment(
     };
 
     auto rand01 = [](uint32_t val) -> float {
-        return static_cast<float>(val & 0xFFFF) / 65535.0f;
+        return static_cast<float>(val & 0xFFFFu) / 65535.0f;
     };
 
     const auto& outerCells = grid->getOuterCells();
@@ -478,365 +622,666 @@ void BackgroundRenderer::renderMineEntranceEnvironment(
         return outerCells.find({tx, ty}) != outerCells.end();
     };
 
+    float wastelandMaxX = std::min(cullMaxX, bldgX + cellSize * 0.25f);
+
     // =========================================================================
-    // 1. ДЕТАЛИЗИРОВАННАЯ УЛИЦА: РАЗНОРОДНАЯ ТЕКСТУРА ПОЧВЫ ЗА ПРЕДЕЛАМИ СЕТКИ
-    // (естественные мягкие пятна суглинка, выжженной бурой земли, пыли и сланца)
+    // 1. УЛИЧНЫЙ ГРУНТ: КРУПНЫЕ ПРИГЛУШЕННЫЕ ПЯТНА ГЛИНЫ, ЗЕМЛИ И ЖУХЛОЙ ТРАВЫ
     // =========================================================================
-    float patchStep = cellSize * 1.5f;
-    for (float py = startY; py < endY; py += patchStep) {
-        for (float px = startX; px < endX; px += patchStep) {
-            int tx = static_cast<int>(std::floor((px - yardX) / cellSize));
-            int ty = static_cast<int>(std::floor((py - yardY) / cellSize));
+    if (wastelandMaxX > cullMinX) {
+        float patchStep = cellSize * 4.0f;
+        int ixStart = static_cast<int>(std::floor((cullMinX - yardX) / patchStep)) - 1;
+        int ixEnd = static_cast<int>(std::ceil((wastelandMaxX - yardX) / patchStep));
+        int iyStart = static_cast<int>(std::floor((cullMinY - yardY) / patchStep)) - 1;
+        int iyEnd = static_cast<int>(std::ceil((cullMaxY - yardY) / patchStep));
 
-            // Не рисуем пятна поверх клеток двора и внешних клеток
-            if (tx >= 0 && tx < gridW_tiles && ty >= 0 && ty < gridH_tiles) continue;
-            if (isOuterTile(tx, ty)) continue;
+        for (int iy = iyStart; iy <= iyEnd; ++iy) {
+            for (int ix = ixStart; ix <= ixEnd; ++ix) {
+                uint32_t h = hash2D(ix, iy, 908209u);
+                if ((h % 100u) >= 45u) {
+                    continue;
+                }
 
-            uint32_t h = hash2D(tx, ty, 908209u);
-            float rType = rand01(h);
-            float rShiftX = (rand01(hash2D(tx, ty, 1103515245u)) - 0.5f) * patchStep * 0.4f;
-            float rShiftY = (rand01(hash2D(tx, ty, 123456789u)) - 0.5f) * patchStep * 0.4f;
-            float pW = patchStep * (0.85f + 0.50f * rand01(h >> 3));
-            float pH = patchStep * (0.80f + 0.45f * rand01(h >> 7));
+                float rShiftX = (rand01(hash2D(ix, iy, 1103515245u)) - 0.5f) * patchStep * 0.45f;
+                float rShiftY = (rand01(hash2D(ix, iy, 123456789u)) - 0.5f) * patchStep * 0.45f;
+                float px = yardX + static_cast<float>(ix) * patchStep + rShiftX;
+                float py = yardY + static_cast<float>(iy) * patchStep + rShiftY;
+                float pW = patchStep * (0.75f + 0.40f * rand01(h >> 3));
+                float pH = patchStep * (0.65f + 0.40f * rand01(h >> 7));
 
-            glm::vec4 col(0.0f);
-            if (rType < 0.28f) {
-                // Суглинок (warm loam / глинистая охра)
-                col = glm::vec4(0.36f, 0.24f, 0.15f, 0.40f);
-            } else if (rType < 0.55f) {
-                // Выжженная бурая земля (scorched brown earth)
-                col = glm::vec4(0.17f, 0.11f, 0.08f, 0.38f);
-            } else if (rType < 0.78f) {
-                // Каменистая пыль (stone dust / супесь)
-                col = glm::vec4(0.40f, 0.36f, 0.30f, 0.30f);
-            } else {
-                // Вкрапления темного сланца (dark shale / порода)
-                col = glm::vec4(0.18f, 0.19f, 0.21f, 0.35f);
+                float centerPx = px + pW * 0.5f;
+                float centerPy = py + pH * 0.5f;
+                int tx = static_cast<int>(std::floor((centerPx - yardX) / cellSize));
+                int ty = static_cast<int>(std::floor((centerPy - yardY) / cellSize));
+
+                if (centerPx >= yardX - cellSize * 0.2f && centerPx <= bldgX && centerPy >= yardY && centerPy <= yardY + yardH) {
+                    continue;
+                }
+                if (centerPx >= bldgX) {
+                    continue;
+                }
+                if (isOuterTile(tx, ty)) {
+                    continue;
+                }
+                if (!isRectVisible(px, py, pW, pH, cullMinX, cullMinY, wastelandMaxX, cullMaxY)) {
+                    continue;
+                }
+
+                float rType = rand01(h >> 12);
+                glm::vec4 col(0.0f);
+                if (rType < 0.34f) {
+                    // Выгоревшая пыльная глина
+                    col = glm::vec4(0.44f, 0.33f, 0.22f, 0.17f);
+                } else if (rType < 0.64f) {
+                    // Утоптанный темный суглинок / сырая земля
+                    col = glm::vec4(0.24f, 0.17f, 0.11f, 0.19f);
+                } else if (rType < 0.84f) {
+                    // Тусклая сухая пожухлая трава
+                    col = glm::vec4(0.33f, 0.30f, 0.17f, 0.18f);
+                } else {
+                    // Спокойная пыльная охра
+                    col = glm::vec4(0.40f, 0.23f, 0.15f, 0.15f);
+                }
+
+                renderer->drawSpriteRGBA(whiteTexture, glm::vec2(px, py), glm::vec2(pW, pH), 0.0f, col);
             }
-
-            glm::vec2 pos(px + rShiftX, py + rShiftY);
-            renderer->drawSpriteRGBA(whiteTexture, pos, glm::vec2(pW, pH), 0.0f, col);
-            renderer->drawSpriteRGBA(whiteTexture, pos - glm::vec2(pW * 0.1f, pH * 0.1f), glm::vec2(pW * 1.2f, pH * 1.2f), 0.0f, glm::vec4(col.r, col.g, col.b, col.a * 0.45f));
         }
     }
 
     // =========================================================================
-    // 2. ПРОЦЕДУРНЫЕ ДЕТАЛИ: КАМУШКИ С 2.5D ОБЪЕМОМ И СУХОЙ БУРЬЯН
+    // 2. РЕДКИЕ ДЕТАЛИ УЛИЦЫ: ТРЕЩИНЫ, ПЛОСКИЕ КАМНИ, ПОЖУХЛАЯ ТРАВА
     // =========================================================================
-    float detailStep = cellSize * 0.85f;
-    for (float py = startY; py < endY; py += detailStep) {
-        for (float px = startX; px < endX; px += detailStep) {
-            int tx = static_cast<int>(std::floor((px - yardX) / cellSize));
-            int ty = static_cast<int>(std::floor((py - yardY) / cellSize));
+    if (wastelandMaxX > cullMinX) {
+        float featureStep = cellSize * 3.0f;
+        int fxStart = static_cast<int>(std::floor((cullMinX - yardX) / featureStep)) - 1;
+        int fxEnd = static_cast<int>(std::ceil((wastelandMaxX - yardX) / featureStep));
+        int fyStart = static_cast<int>(std::floor((cullMinY - yardY) / featureStep)) - 1;
+        int fyEnd = static_cast<int>(std::ceil((cullMaxY - yardY) / featureStep));
 
-            if (tx >= 0 && tx < gridW_tiles && ty >= 0 && ty < gridH_tiles) continue;
-            if (isOuterTile(tx, ty)) continue;
+        for (int iy = fyStart; iy <= fyEnd; ++iy) {
+            for (int ix = fxStart; ix <= fxEnd; ++ix) {
+                uint32_t hDet = hash2D(ix, iy, 521471u);
+                uint32_t detType = hDet % 100u;
+                if (detType >= 32u) {
+                    continue;
+                }
 
-            uint32_t hDet = hash2D(tx, ty, 521471u);
-            uint32_t detType = hDet % 100;
+                float fx = yardX + (static_cast<float>(ix) + 0.18f + 0.60f * rand01(hDet)) * featureStep;
+                float fy = yardY + (static_cast<float>(iy) + 0.18f + 0.60f * rand01(hDet >> 5)) * featureStep;
 
-            // Мелкие камушки с объемом (светлая грань сверху, теневая подсечка снизу)
-            if (detType < 40) {
-                float kx = px + rand01(hDet) * detailStep * 0.7f;
-                float ky = py + rand01(hDet >> 4) * detailStep * 0.7f;
-                float kw = std::max(4.0f, (cellSize / 64.0f) * (4.0f + 5.0f * rand01(hDet >> 8)));
-                float kh = std::max(3.0f, kw * (0.60f + 0.25f * rand01(hDet >> 12)));
+                if (fx >= bldgX - cellSize * 0.35f) {
+                    continue;
+                }
+                if (fx >= yardX - cellSize * 0.25f && fx <= bldgX && fy >= yardY - cellSize * 0.25f && fy <= yardY + yardH + cellSize * 0.25f) {
+                    continue;
+                }
 
-                glm::vec3 stoneCol = (detType % 2 == 0)
-                    ? glm::vec3(0.33f, 0.31f, 0.29f)
-                    : glm::vec3(0.24f, 0.25f, 0.27f);
+                int tx = static_cast<int>(std::floor((fx - yardX) / cellSize));
+                int ty = static_cast<int>(std::floor((fy - yardY) / cellSize));
+                if (isOuterTile(tx, ty)) {
+                    continue;
+                }
 
-                // Падающая тень на землю снизу
-                renderer->drawSpriteRGBA(whiteTexture, glm::vec2(kx - 1.0f, ky + kh * 0.7f), glm::vec2(kw + 2.0f, kh * 0.6f), 0.0f, glm::vec4(0.0f, 0.0f, 0.0f, 0.40f));
-                // Тело камня
-                renderer->drawSprite(whiteTexture, glm::vec2(kx, ky), glm::vec2(kw, kh), 0.0f, stoneCol);
-                // Светлая грань сверху (освещенная фаска)
-                renderer->drawSprite(whiteTexture, glm::vec2(kx, ky), glm::vec2(kw, std::max(1.0f, kh * 0.35f)), 0.0f, stoneCol + glm::vec3(0.18f, 0.17f, 0.15f));
-                // Теневой низ камня
-                renderer->drawSprite(whiteTexture, glm::vec2(kx, ky + kh - std::max(1.0f, kh * 0.28f)), glm::vec2(kw, std::max(1.0f, kh * 0.28f)), 0.0f, stoneCol * 0.60f);
-            }
-            // Редкие пучки сухой жухлой травы/бурьяна по краям локации
-            else if (detType >= 82 && detType < 94) {
-                float distToYard = std::min(
-                    std::min(std::abs(px - yardX), std::abs(px - (yardX + yardW))),
-                    std::min(std::abs(py - yardY), std::abs(py - (yardY + yardH)))
-                );
-                if (distToYard > cellSize * 0.5f) {
-                    float gx = px + rand01(hDet) * detailStep * 0.7f;
-                    float gy = py + rand01(hDet >> 3) * detailStep * 0.7f;
-                    float sc = cellSize / 64.0f;
+                float featExtent = cellSize * 0.9f;
+                if (!isRectVisible(fx - featExtent * 0.5f, fy - featExtent * 0.5f, featExtent, featExtent, cullMinX, cullMinY, wastelandMaxX, cullMaxY)) {
+                    continue;
+                }
 
-                    // Тень у корней травы
-                    renderer->drawSpriteRGBA(whiteTexture, glm::vec2(gx - 2.0f * sc, gy + 8.0f * sc), glm::vec2(12.0f * sc, 3.0f * sc), 0.0f, glm::vec4(0.0f, 0.0f, 0.0f, 0.30f));
-                    // Темное основание бурьяна
-                    renderer->drawSprite(whiteTexture, glm::vec2(gx + 1.0f * sc, gy + 5.0f * sc), glm::vec2(6.0f * sc, 4.0f * sc), 0.0f, glm::vec3(0.24f, 0.20f, 0.11f));
-                    // Стебли жухлой травы
-                    glm::vec3 strawCol(0.46f, 0.40f, 0.20f);
-                    renderer->drawSprite(whiteTexture, glm::vec2(gx - 1.0f * sc, gy), glm::vec2(std::max(1.5f, 2.0f * sc), 8.0f * sc), 0.0f, strawCol * 0.90f);
-                    renderer->drawSprite(whiteTexture, glm::vec2(gx + 2.5f * sc, gy - 3.0f * sc), glm::vec2(std::max(1.5f, 2.0f * sc), 11.0f * sc), 0.0f, strawCol * 1.10f);
-                    renderer->drawSprite(whiteTexture, glm::vec2(gx + 5.5f * sc, gy + 1.0f * sc), glm::vec2(std::max(1.5f, 2.0f * sc), 7.0f * sc), 0.0f, strawCol * 0.85f);
+                if (detType < 13u) {
+                    // Трещина в сухой вытоптанной глине
+                    float segLen = cellSize * (0.24f + 0.16f * rand01(hDet >> 9));
+                    float thickness = std::max(2.0f, cellSize * 0.032f);
+                    bool horizontal = ((hDet >> 13) % 2u) == 0u;
+                    glm::vec4 crackCol(0.18f, 0.12f, 0.08f, 0.48f);
+                    glm::vec4 rimCol(0.48f, 0.38f, 0.26f, 0.20f);
+
+                    if (horizontal) {
+                        renderer->drawSpriteRGBA(whiteTexture, glm::vec2(fx, fy), glm::vec2(segLen, thickness), 0.0f, crackCol);
+                        renderer->drawSpriteRGBA(whiteTexture, glm::vec2(fx + segLen * 0.85f, fy + thickness * 0.8f), glm::vec2(segLen * 0.65f, thickness * 0.85f), 0.0f, crackCol);
+                        renderer->drawSpriteRGBA(whiteTexture, glm::vec2(fx + 2.0f, fy - 1.5f), glm::vec2(segLen * 0.8f, 1.5f), 0.0f, rimCol);
+                    } else {
+                        renderer->drawSpriteRGBA(whiteTexture, glm::vec2(fx, fy), glm::vec2(thickness, segLen), 0.0f, crackCol);
+                        renderer->drawSpriteRGBA(whiteTexture, glm::vec2(fx + thickness * 0.8f, fy + segLen * 0.85f), glm::vec2(thickness * 0.85f, segLen * 0.65f), 0.0f, crackCol);
+                        renderer->drawSpriteRGBA(whiteTexture, glm::vec2(fx - 1.5f, fy + 2.0f), glm::vec2(1.5f, segLen * 0.8f), 0.0f, rimCol);
+                    }
+                } else if (detType < 23u) {
+                    // Крупный плоский пыльный камень / обломок породы
+                    float pw = cellSize * (0.28f + 0.18f * rand01(hDet >> 8));
+                    float ph = pw * (0.55f + 0.20f * rand01(hDet >> 12));
+                    glm::vec3 slabCol(0.37f, 0.33f, 0.28f);
+                    if ((detType % 2u) == 0u) {
+                        slabCol = glm::vec3(0.32f, 0.29f, 0.26f);
+                    }
+                    renderer->drawSpriteRGBA(whiteTexture, glm::vec2(fx - 1.5f, fy + ph * 0.65f), glm::vec2(pw + 3.0f, ph * 0.45f), 0.0f, glm::vec4(0.12f, 0.08f, 0.05f, 0.28f));
+                    renderer->drawSprite(whiteTexture, glm::vec2(fx, fy), glm::vec2(pw, ph), 0.0f, slabCol);
+                    renderer->drawSprite(whiteTexture, glm::vec2(fx, fy), glm::vec2(pw, std::max(2.0f, ph * 0.22f)), 0.0f, slabCol + glm::vec3(0.08f, 0.07f, 0.06f));
+                } else if (detType < 28u) {
+                    // Редкие тусклые пятна сухой пожухлой травы
+                    float gw = cellSize * (0.28f + 0.16f * rand01(hDet >> 7));
+                    float gh = gw * 0.50f;
+                    renderer->drawSpriteRGBA(whiteTexture, glm::vec2(fx, fy + gh * 0.25f), glm::vec2(gw, gh * 0.75f), 0.0f, glm::vec4(0.22f, 0.17f, 0.10f, 0.30f));
+                    renderer->drawSpriteRGBA(whiteTexture, glm::vec2(fx + gw * 0.12f, fy), glm::vec2(gw * 0.74f, gh * 0.68f), 0.0f, glm::vec4(0.38f, 0.34f, 0.19f, 0.46f));
+                    renderer->drawSpriteRGBA(whiteTexture, glm::vec2(fx + gw * 0.28f, fy + gh * 0.12f), glm::vec2(gw * 0.42f, std::max(2.5f, gh * 0.35f)), 0.0f, glm::vec4(0.47f, 0.42f, 0.24f, 0.40f));
+                } else {
+                    // Редкое минеральное вкрапление вдали от границы двора
+                    float distToYardX = std::min(std::abs(fx - yardX), std::abs(fx - bldgX));
+                    float distToYardY = std::min(std::abs(fy - yardY), std::abs(fy - (yardY + yardH)));
+                    float distToYard = std::min(distToYardX, distToYardY);
+                    if (distToYard > cellSize * 0.7f) {
+                        float mw = cellSize * (0.24f + 0.16f * rand01(hDet >> 10));
+                        float mh = mw * 0.52f;
+                        renderer->drawSpriteRGBA(whiteTexture, glm::vec2(fx - 2.0f, fy - 1.5f), glm::vec2(mw + 4.0f, mh + 3.0f), 0.0f, glm::vec4(0.16f, 0.12f, 0.10f, 0.36f));
+                        if ((hDet & 1u) == 0u) {
+                            renderer->drawSpriteRGBA(whiteTexture, glm::vec2(fx, fy), glm::vec2(mw, mh), 0.0f, glm::vec4(0.44f, 0.50f, 0.50f, 0.38f));
+                        } else {
+                            renderer->drawSpriteRGBA(whiteTexture, glm::vec2(fx, fy), glm::vec2(mw, mh), 0.0f, glm::vec4(0.42f, 0.18f, 0.13f, 0.36f));
+                        }
+                    }
                 }
             }
         }
     }
 
     // =========================================================================
-    // 3. ПЛАВНЫЙ ПЕРЕХОД ВЫТОПТАННОГО ГРУНТА ВОКРУГ ДВОРА (КРОМКА, КОЛЕИ, САПОГИ)
+    // 3. ЕСТЕСТВЕННЫЙ ПЕРЕХОД ПО ОТКРЫТОМУ КОНТУРУ ИГРОВОЙ ЗОНЫ И ОБОЧИНА
     // =========================================================================
-    auto drawTrampledRimVertical = [&](float edgeX, bool isLeftEdge) {
-        float segH = cellSize * 0.45f;
-        int numSegs = static_cast<int>(yardH / segH) + 1;
-        for (int s = 0; s < numSegs; ++s) {
-            float sy = yardY + static_cast<float>(s) * segH;
-            uint32_t hRim = hash2D(static_cast<int>(edgeX), s, 442117u);
-            float rimThickness = cellSize * (0.20f + 0.22f * rand01(hRim));
-            float rx = isLeftEdge ? (edgeX - rimThickness * 0.75f) : (edgeX - rimThickness * 0.25f);
-
-            glm::vec4 rimCol(0.24f, 0.16f, 0.10f, 0.40f + 0.12f * rand01(hRim >> 4));
-            renderer->drawSpriteRGBA(whiteTexture, glm::vec2(rx, sy), glm::vec2(rimThickness, segH + 1.0f), 0.0f, rimCol);
-
-            float edgeLineX = isLeftEdge ? edgeX - 2.0f : edgeX;
-            renderer->drawSpriteRGBA(whiteTexture, glm::vec2(edgeLineX, sy), glm::vec2(3.0f, segH + 1.0f), 0.0f, glm::vec4(0.14f, 0.09f, 0.06f, 0.38f));
+    auto isPlayableOutdoorCell = [&](int tx, int ty) -> bool {
+        if (tx >= gridW_tiles) {
+            return false;
         }
+        if (tx >= 0 && tx < gridW_tiles && ty >= 0 && ty < gridH_tiles) {
+            return grid->getCellType(tx, ty) != CellType::Empty;
+        }
+        auto it = outerCells.find({tx, ty});
+        if (it != outerCells.end() && it->second != CellType::Empty) {
+            return true;
+        }
+        return false;
     };
-    drawTrampledRimVertical(yardX, true);
-    drawTrampledRimVertical(yardX + yardW, false);
 
-    // Следы колес и сапог через боковые границы двора
-    auto drawWheelRuts = [&](float startRutX, float rutY, float rutLen) {
-        float trackGap = cellSize * 0.42f;
-        float rutWidth = std::max(3.0f, cellSize * 0.06f);
-
-        for (int track = 0; track < 2; ++track) {
-            float ty = rutY + static_cast<float>(track) * trackGap;
-            renderer->drawSpriteRGBA(whiteTexture, glm::vec2(startRutX, ty), glm::vec2(rutLen, rutWidth), 0.0f, glm::vec4(0.11f, 0.08f, 0.05f, 0.50f));
-            renderer->drawSpriteRGBA(whiteTexture, glm::vec2(startRutX, ty - 1.0f), glm::vec2(rutLen, 1.0f), 0.0f, glm::vec4(0.44f, 0.38f, 0.30f, 0.35f));
-            renderer->drawSpriteRGBA(whiteTexture, glm::vec2(startRutX, ty + rutWidth), glm::vec2(rutLen, 1.0f), 0.0f, glm::vec4(0.44f, 0.38f, 0.30f, 0.30f));
-        }
-
-        int numFootprints = static_cast<int>(rutLen / (cellSize * 0.35f));
-        for (int fp = 0; fp < numFootprints; ++fp) {
-            float fx = startRutX + static_cast<float>(fp) * (cellSize * 0.35f) + 6.0f;
-            float fy = rutY + trackGap * 0.5f + ((fp % 2 == 0) ? -4.0f : 4.0f);
-            renderer->drawSpriteRGBA(whiteTexture, glm::vec2(fx, fy), glm::vec2(std::max(3.0f, cellSize * 0.05f), std::max(2.0f, cellSize * 0.035f)), 0.0f, glm::vec4(0.14f, 0.10f, 0.07f, 0.40f));
+    auto drawEdgeStrip = [&](int dir, float cellX, float cellY, float extA, float extB, float inward, float outward, const glm::vec4& col) {
+        float thickness = inward + outward;
+        float tanLen = cellSize + extA + extB;
+        if (dir == 0) {
+            renderer->drawSpriteRGBA(whiteTexture, glm::vec2(cellX - outward, cellY - extA), glm::vec2(thickness, tanLen), 0.0f, col);
+        } else if (dir == 1) {
+            renderer->drawSpriteRGBA(whiteTexture, glm::vec2(cellX + cellSize - inward, cellY - extA), glm::vec2(thickness, tanLen), 0.0f, col);
+        } else if (dir == 2) {
+            renderer->drawSpriteRGBA(whiteTexture, glm::vec2(cellX - extA, cellY - outward), glm::vec2(tanLen, thickness), 0.0f, col);
+        } else {
+            renderer->drawSpriteRGBA(whiteTexture, glm::vec2(cellX - extA, cellY + cellSize - inward), glm::vec2(tanLen, thickness), 0.0f, col);
         }
     };
 
-    float midYardY = yardY + yardH * 0.5f - cellSize * 0.25f;
-    drawWheelRuts(yardX - cellSize * 1.8f, midYardY, cellSize * 2.2f);
-    drawWheelRuts(yardX + yardW - cellSize * 0.4f, midYardY, cellSize * 2.2f);
+    auto drawEdgeRect = [&](int dir, float cellX, float cellY, float tanPos, float tanLen, float outStart, float crossThick, const glm::vec4& col) {
+        if (dir == 0) {
+            renderer->drawSpriteRGBA(whiteTexture, glm::vec2(cellX - outStart - crossThick, cellY + tanPos), glm::vec2(crossThick, tanLen), 0.0f, col);
+        } else if (dir == 1) {
+            renderer->drawSpriteRGBA(whiteTexture, glm::vec2(cellX + cellSize + outStart, cellY + tanPos), glm::vec2(crossThick, tanLen), 0.0f, col);
+        } else if (dir == 2) {
+            renderer->drawSpriteRGBA(whiteTexture, glm::vec2(cellX + tanPos, cellY - outStart - crossThick), glm::vec2(tanLen, crossThick), 0.0f, col);
+        } else {
+            renderer->drawSpriteRGBA(whiteTexture, glm::vec2(cellX + tanPos, cellY + cellSize + outStart), glm::vec2(tanLen, crossThick), 0.0f, col);
+        }
+    };
 
+    auto drawOpenEdge = [&](int tx, int ty, int dir, bool extNeg, bool extPos) {
+        float cellX = yardX + static_cast<float>(tx) * cellSize;
+        float cellY = yardY + static_cast<float>(ty) * cellSize;
+        float extA = 0.0f;
+        if (extNeg) {
+            extA = cellSize * 0.14f;
+        }
+        float extB = 0.0f;
+        if (extPos) {
+            extB = cellSize * 0.14f;
+        }
 
-    // =========================================================================
-    // 4. СОВЕТСКИЙ БЕТОННЫЙ ШАХТНЫЙ КОПЁР СПРАВА (ФОНОВЫЙ КОРПУС И ПОРТАЛ)
-    // =========================================================================
-    float bldgX = yardX + yardW;
-    float bldgW = std::max(1800.0f, marginX + cellSize * 2.0f);
-    float bldgTopY = startY;
-    float bldgBotY = endY;
-    float bldgH = bldgBotY - bldgTopY;
+        // Многослойная мягкая обочина / насыпь из 3 полупрозрачных полос
+        drawEdgeStrip(dir, cellX, cellY, extA, extB, cellSize * 0.08f, cellSize * 0.14f, glm::vec4(0.41f, 0.27f, 0.17f, 0.56f));
+        drawEdgeStrip(dir, cellX, cellY, extA, extB, -cellSize * 0.05f, cellSize * 0.29f, glm::vec4(0.37f, 0.255f, 0.168f, 0.34f));
+        drawEdgeStrip(dir, cellX, cellY, extA, extB, -cellSize * 0.18f, cellSize * 0.46f, glm::vec4(0.335f, 0.235f, 0.158f, 0.17f));
 
-    // 4.1. Монолитная бетонная стена копра (основной массив серого бетона)
-    renderer->drawSprite(
-        whiteTexture,
-        glm::vec2(bldgX, bldgTopY),
-        glm::vec2(bldgW, bldgH),
-        0.0f,
-        glm::vec3(0.42f, 0.44f, 0.46f)
-    );
+        // Детерминированные пятна грязи, пыли и мелкого щебня для разбивки прямой линии
+        uint32_t h = hash2D(tx, ty, 614203u + static_cast<uint32_t>(dir) * 9187u);
+        if ((h % 100u) < 72u) {
+            float outStart = (-0.08f + 0.22f * rand01(h >> 4)) * cellSize;
+            float tanLen = cellSize * (0.36f + 0.34f * rand01(h >> 8));
+            float crossThick = cellSize * (0.16f + 0.16f * rand01(h >> 12));
+            float tanPos = (cellSize - tanLen) * rand01(h >> 2);
 
-    // Падающая мягкая тень от гигантского копра на рабочий двор влево
-    float castShadowW = std::max(40.0f, cellSize * 0.80f);
-    renderer->drawSpriteRGBA(
-        whiteTexture,
-        glm::vec2(bldgX - castShadowW, bldgTopY),
-        glm::vec2(castShadowW, bldgH),
-        0.0f,
-        glm::vec4(0.08f, 0.09f, 0.10f, 0.38f)
-    );
-    renderer->drawSpriteRGBA(
-        whiteTexture,
-        glm::vec2(bldgX - castShadowW * 0.4f, bldgTopY),
-        glm::vec2(castShadowW * 0.4f, bldgH),
-        0.0f,
-        glm::vec4(0.05f, 0.06f, 0.07f, 0.32f)
-    );
+            glm::vec4 blotchCol(0.39f, 0.28f, 0.18f, 0.28f);
+            if ((h % 3u) == 0u) {
+                blotchCol = glm::vec4(0.28f, 0.19f, 0.12f, 0.34f);
+            } else if ((h % 3u) == 1u) {
+                blotchCol = glm::vec4(0.45f, 0.31f, 0.19f, 0.32f);
+            }
+            drawEdgeRect(dir, cellX, cellY, tanPos, tanLen, outStart, crossThick, blotchCol);
+        }
 
-    // 4.2. Горизонтальные швы между монолитными бетонными блоками
-    float blockH = cellSize * 1.30f;
-    for (float by = bldgTopY; by <= bldgBotY; by += blockH) {
-        renderer->drawSprite(
-            whiteTexture,
-            glm::vec2(bldgX, by - 1.5f),
-            glm::vec2(bldgW, 3.0f),
-            0.0f,
-            glm::vec3(0.24f, 0.25f, 0.27f)
-        );
-        renderer->drawSprite(
-            whiteTexture,
-            glm::vec2(bldgX, by + 1.5f),
-            glm::vec2(bldgW, 1.5f),
-            0.0f,
-            glm::vec3(0.55f, 0.57f, 0.60f)
-        );
-    }
+        if (((h >> 3) % 100u) < 32u) {
+            float outStart2 = (0.04f + 0.20f * rand01(h >> 5)) * cellSize;
+            float tanLen2 = cellSize * (0.24f + 0.20f * rand01(h >> 6));
+            float crossThick2 = cellSize * (0.12f + 0.12f * rand01(h >> 10));
+            float tanPos2 = (cellSize - tanLen2) * (1.0f - rand01(h >> 2));
+            drawEdgeRect(dir, cellX, cellY, tanPos2, tanLen2, outStart2, crossThick2, glm::vec4(0.31f, 0.21f, 0.14f, 0.26f));
+        }
 
-    // Вертикальные швы панелей (шахматная перевязка)
-    float blockW = cellSize * 2.6f;
-    int rowIdx = 0;
-    for (float by = bldgTopY; by <= bldgBotY; by += blockH, ++rowIdx) {
-        float xShift = (rowIdx % 2 == 1) ? (blockW * 0.5f) : 0.0f;
-        for (float bx = bldgX + xShift; bx < bldgX + bldgW; bx += blockW) {
-            renderer->drawSprite(
-                whiteTexture,
-                glm::vec2(bx, by),
-                glm::vec2(2.5f, blockH),
-                0.0f,
-                glm::vec3(0.25f, 0.26f, 0.28f)
-            );
-            renderer->drawSprite(
-                whiteTexture,
-                glm::vec2(bx + 2.5f, by),
-                glm::vec2(1.0f, blockH),
-                0.0f,
-                glm::vec3(0.52f, 0.54f, 0.56f)
-            );
+        if (((h >> 7) % 100u) < 42u) {
+            float stoneSize = std::max(3.5f, cellSize * (0.045f + 0.035f * rand01(h >> 11)));
+            float stoneOut = (0.04f + 0.20f * rand01(h >> 14)) * cellSize;
+            float stoneTan = cellSize * (0.15f + 0.65f * rand01(h >> 9));
+            drawEdgeRect(dir, cellX, cellY, stoneTan, stoneSize * 1.25f, stoneOut, stoneSize, glm::vec4(0.33f, 0.29f, 0.25f, 0.62f));
+            if ((h & 1u) == 0u) {
+                float stoneSize2 = std::max(3.0f, stoneSize * 0.78f);
+                drawEdgeRect(dir, cellX, cellY, stoneTan + stoneSize * 1.6f, stoneSize2 * 1.15f, stoneOut + stoneSize * 0.45f, stoneSize2, glm::vec4(0.24f, 0.18f, 0.13f, 0.52f));
+            }
+        }
+    };
+
+    auto processPlayableCellEdges = [&](int tx, int ty) {
+        float cx = yardX + static_cast<float>(tx) * cellSize;
+        float cy = yardY + static_cast<float>(ty) * cellSize;
+        if (!isRectVisible(cx - cellSize * 0.5f, cy - cellSize * 0.5f, cellSize * 2.0f, cellSize * 2.0f, cullMinX, cullMinY, cullMaxX, cullMaxY)) {
+            return;
+        }
+
+        bool openLeft = !isPlayableOutdoorCell(tx - 1, ty);
+        bool openRight = (tx + 1 < gridW_tiles) && !isPlayableOutdoorCell(tx + 1, ty);
+        bool openTop = !isPlayableOutdoorCell(tx, ty - 1);
+        bool openBot = !isPlayableOutdoorCell(tx, ty + 1);
+
+        if (openLeft) {
+            drawOpenEdge(tx, ty, 0, openTop, openBot);
+        }
+        if (openRight) {
+            drawOpenEdge(tx, ty, 1, openTop, openBot);
+        }
+        if (openTop) {
+            drawOpenEdge(tx, ty, 2, openLeft, openRight);
+        }
+        if (openBot) {
+            drawOpenEdge(tx, ty, 3, openLeft, openRight);
+        }
+    };
+
+    int visMinX = static_cast<int>(std::floor((cullMinX - yardX) / cellSize)) - 1;
+    int visMaxX = std::min(gridW_tiles - 1, static_cast<int>(std::ceil((cullMaxX - yardX) / cellSize)) + 1);
+    int visMinY = static_cast<int>(std::floor((cullMinY - yardY) / cellSize)) - 1;
+    int visMaxY = static_cast<int>(std::ceil((cullMaxY - yardY) / cellSize)) + 1;
+
+    int mainStartY = std::max(0, visMinY);
+    int mainEndY = std::min(gridH_tiles - 1, visMaxY);
+    int mainStartX = std::max(0, visMinX);
+    int mainEndX = std::min(gridW_tiles - 1, visMaxX);
+
+    for (int ty = mainStartY; ty <= mainEndY; ++ty) {
+        for (int tx = mainStartX; tx <= mainEndX; ++tx) {
+            if (grid->getCellType(tx, ty) != CellType::Empty) {
+                processPlayableCellEdges(tx, ty);
+            }
         }
     }
 
-    // 4.3. Массивные вертикальные пилоны / ребра жесткости (несущие колонны)
-    float pylonSpacing = cellSize * 3.4f;
-    float pylonW = std::max(22.0f, cellSize * 0.45f);
-    for (float px = bldgX; px < bldgX + bldgW; px += pylonSpacing) {
-        renderer->drawSprite(
+    for (const auto& [pos, type] : outerCells) {
+        if (type == CellType::Empty) {
+            continue;
+        }
+        if (pos.first >= gridW_tiles) {
+            continue;
+        }
+        if (pos.first < visMinX || pos.first > visMaxX || pos.second < visMinY || pos.second > visMaxY) {
+            continue;
+        }
+        processPlayableCellEdges(pos.first, pos.second);
+    }
+
+    // Собираем порталы заранее, чтобы не рисовать пятна сырости и передние ребра жесткости поверх проемов
+    std::vector<MinePortalGeom> portals = collectMinePortals(grid, baseCells);
+    std::sort(portals.begin(), portals.end(), [](const MinePortalGeom& a, const MinePortalGeom& b) {
+        return a.topY < b.topY;
+    });
+
+    // =========================================================================
+    // 4. ГЛУХОЙ ПРОМЫШЛЕННЫЙ БЕТОННЫЙ МОНОЛИТ ШАХТЫ СПРАВА (БЕЗ ОКОН)
+    // =========================================================================
+    float castShadowW = std::max(44.0f, cellSize * 0.80f);
+    if (cullMaxX >= bldgX - castShadowW) {
+        float wallTopY = cullMinY;
+        float wallBotY = cullMaxY;
+        float wallH = wallBotY - wallTopY;
+        float wallRightX = std::max(bldgX, cullMaxX);
+        float wallVisW = wallRightX - bldgX;
+
+        // 4.1. Падающая и контактная тень от бетонного массива на рабочий двор влево
+        renderer->drawSpriteRGBA(
             whiteTexture,
-            glm::vec2(px, bldgTopY),
-            glm::vec2(pylonW, bldgH),
+            glm::vec2(bldgX - castShadowW, wallTopY),
+            glm::vec2(castShadowW, wallH),
             0.0f,
-            glm::vec3(0.48f, 0.50f, 0.52f)
-        );
-        renderer->drawSprite(
-            whiteTexture,
-            glm::vec2(px, bldgTopY),
-            glm::vec2(2.5f, bldgH),
-            0.0f,
-            glm::vec3(0.62f, 0.64f, 0.66f)
-        );
-        renderer->drawSprite(
-            whiteTexture,
-            glm::vec2(px + pylonW - 3.5f, bldgTopY),
-            glm::vec2(3.5f, bldgH),
-            0.0f,
-            glm::vec3(0.30f, 0.32f, 0.34f)
+            glm::vec4(0.07f, 0.06f, 0.05f, 0.22f)
         );
         renderer->drawSpriteRGBA(
             whiteTexture,
-            glm::vec2(px + pylonW, bldgTopY),
-            glm::vec2(cellSize * 0.28f, bldgH),
+            glm::vec2(bldgX - castShadowW * 0.42f, wallTopY),
+            glm::vec2(castShadowW * 0.42f, wallH),
             0.0f,
-            glm::vec4(0.12f, 0.13f, 0.15f, 0.35f)
+            glm::vec4(0.05f, 0.045f, 0.04f, 0.28f)
         );
-    }
 
-    // 4.4. Подтеки грязи, ржавчины и потеки копоти
-    for (int s = 0; s < 32; ++s) {
-        uint32_t sh = hash2D(s, 1984, 0x50B137);
-        float sx = bldgX + rand01(sh) * std::min(bldgW, 1100.0f);
-        float sy = yardY - cellSize * 3.5f + rand01(sh >> 8) * (yardH + cellSize * 5.0f);
-        float sLen = std::max(24.0f, rand01(sh >> 16) * cellSize * 3.0f);
-        float sW = 2.0f + (sh % 3);
-        bool isRust = (s % 2 == 0);
-        glm::vec4 streakCol = isRust
-            ? glm::vec4(0.32f, 0.18f, 0.10f, 0.55f)
-            : glm::vec4(0.16f, 0.17f, 0.18f, 0.65f);
-        renderer->drawSpriteRGBA(whiteTexture, glm::vec2(sx, sy), glm::vec2(sW, sLen), 0.0f, streakCol);
-        renderer->drawSpriteRGBA(whiteTexture, glm::vec2(sx + 0.5f, sy + sLen * 0.4f), glm::vec2(sW * 0.6f, sLen * 0.6f), 0.0f, streakCol * glm::vec4(0.8f, 0.8f, 0.8f, 0.8f));
-    }
-
-    // 4.5. Узкие технические окна наверху (промышленное остекление)
-    float winRowY1 = yardY - cellSize * 2.5f;
-    float winRowY2 = yardY - cellSize * 4.4f;
-    auto drawWindowRow = [&](float rowY) {
-        float winW = std::max(16.0f, cellSize * 0.30f);
-        float winH = std::max(38.0f, cellSize * 0.80f);
-        float winSpacing = cellSize * 0.70f;
-        for (float wx = bldgX + cellSize * 0.6f; wx < bldgX + std::min(bldgW, 950.0f); wx += winSpacing) {
-            float pylonRel = std::fmod(wx - bldgX, pylonSpacing);
-            if (pylonRel < pylonW + 8.0f) continue;
-
-            renderer->drawSprite(whiteTexture, glm::vec2(wx - 2.0f, rowY - 2.0f), glm::vec2(winW + 4.0f, winH + 4.0f), 0.0f, glm::vec3(0.20f, 0.21f, 0.23f));
-            renderer->drawSprite(whiteTexture, glm::vec2(wx, rowY), glm::vec2(winW, winH), 0.0f, glm::vec3(0.14f, 0.20f, 0.24f));
-            renderer->drawSprite(whiteTexture, glm::vec2(wx + winW * 0.5f - 0.75f, rowY), glm::vec2(1.5f, winH), 0.0f, glm::vec3(0.10f, 0.11f, 0.12f));
-            renderer->drawSprite(whiteTexture, glm::vec2(wx, rowY + winH * 0.5f - 0.75f), glm::vec2(winW, 1.5f), 0.0f, glm::vec3(0.10f, 0.11f, 0.12f));
-            renderer->drawSpriteRGBA(whiteTexture, glm::vec2(wx + 2.0f, rowY + 3.0f), glm::vec2(winW * 0.4f, winH * 0.35f), 0.0f, glm::vec4(0.40f, 0.55f, 0.60f, 0.25f));
-            renderer->drawSprite(whiteTexture, glm::vec2(wx - 3.0f, rowY + winH), glm::vec2(winW + 6.0f, 3.5f), 0.0f, glm::vec3(0.50f, 0.52f, 0.55f));
-            renderer->drawSpriteRGBA(whiteTexture, glm::vec2(wx + winW * 0.3f, rowY + winH + 3.5f), glm::vec2(2.5f, 15.0f), 0.0f, glm::vec4(0.30f, 0.17f, 0.10f, 0.45f));
+        float contactW = std::max(10.0f, cellSize * 0.16f);
+        float contactTop = std::max(wallTopY, yardY);
+        float contactBot = std::min(wallBotY, yardY + yardH);
+        if (contactBot > contactTop) {
+            float curY = contactTop;
+            for (const auto& p : portals) {
+                if (p.mouthX <= bldgX + 2.0f && p.topY > curY) {
+                    float segEnd = std::min(contactBot, p.topY);
+                    if (segEnd > curY) {
+                        renderer->drawSpriteRGBA(
+                            whiteTexture,
+                            glm::vec2(bldgX - contactW, curY),
+                            glm::vec2(contactW, segEnd - curY),
+                            0.0f,
+                            glm::vec4(0.03f, 0.025f, 0.02f, 0.42f)
+                        );
+                    }
+                }
+                if (p.mouthX <= bldgX + 2.0f && p.botY > curY) {
+                    curY = p.botY;
+                }
+            }
+            if (contactBot > curY) {
+                renderer->drawSpriteRGBA(
+                    whiteTexture,
+                    glm::vec2(bldgX - contactW, curY),
+                    glm::vec2(contactW, contactBot - curY),
+                    0.0f,
+                    glm::vec4(0.03f, 0.025f, 0.02f, 0.42f)
+                );
+            }
         }
-    };
-    drawWindowRow(winRowY1);
-    drawWindowRow(winRowY2);
 
-    // 4.6. Техническая советская маркировка на бетоне ("СТВОЛ №2")
-    float signY = yardY + yardH * 0.5f - cellSize * 2.0f;
-    renderer->drawSprite(whiteTexture, glm::vec2(bldgX + cellSize * 0.4f, signY), glm::vec2(cellSize * 3.0f, cellSize * 0.38f), 0.0f, glm::vec3(0.28f, 0.29f, 0.31f));
-    renderer->drawSprite(whiteTexture, glm::vec2(bldgX + cellSize * 0.45f, signY + 2.0f), glm::vec2(cellSize * 2.9f, cellSize * 0.38f - 4.0f), 0.0f, glm::vec3(0.85f, 0.72f, 0.15f));
-    for (int t = 0; t < 6; ++t) {
-        renderer->drawSprite(whiteTexture, glm::vec2(bldgX + cellSize * 0.55f + static_cast<float>(t) * (cellSize * 0.45f), signY + 4.0f), glm::vec2(cellSize * 0.28f, cellSize * 0.24f), 0.0f, glm::vec3(0.12f, 0.12f, 0.14f));
+        if (wallVisW > 0.0f) {
+            // 4.2. Монолитный массив бетона
+            renderer->drawSprite(
+                whiteTexture,
+                glm::vec2(bldgX, wallTopY),
+                glm::vec2(wallVisW, wallH),
+                0.0f,
+                glm::vec3(0.30f, 0.31f, 0.33f)
+            );
+
+            // 4.3. Крупные бетонные плиты с едва заметными швами (только видимые)
+            float slabW = cellSize * 4.0f;
+            float slabH = cellSize * 2.4f;
+            int rowStart = static_cast<int>(std::floor((wallTopY - yardY) / slabH)) - 1;
+            int rowEnd = static_cast<int>(std::ceil((wallBotY - yardY) / slabH));
+            int colStart = std::max(0, static_cast<int>(std::floor((cullMinX - bldgX) / slabW)) - 1);
+            int colEnd = static_cast<int>(std::ceil((wallRightX - bldgX) / slabW));
+
+            for (int r = rowStart; r <= rowEnd; ++r) {
+                float sy = yardY + static_cast<float>(r) * slabH;
+                float xShift = 0.0f;
+                if (((r % 2) + 2) % 2 == 1) {
+                    xShift = slabW * 0.5f;
+                }
+
+                for (int c = colStart - 1; c <= colEnd; ++c) {
+                    float rawX = bldgX + static_cast<float>(c) * slabW + xShift;
+                    float sx = std::max(bldgX, rawX);
+                    float sRight = std::min(wallRightX, rawX + slabW);
+                    float sw = sRight - sx;
+                    if (sw <= 0.0f) {
+                        continue;
+                    }
+                    if (!isRectVisible(sx, sy, sw, slabH, cullMinX, cullMinY, wallRightX, cullMaxY)) {
+                        continue;
+                    }
+
+                    uint32_t sh = hash2D(c, r, 731921u);
+                    float tone = (rand01(sh) - 0.5f) * 0.028f;
+                    glm::vec3 slabCol(0.30f + tone, 0.31f + tone, 0.33f + tone);
+                    renderer->drawSprite(whiteTexture, glm::vec2(sx, sy), glm::vec2(sw, slabH), 0.0f, slabCol);
+
+                    // Едва заметный горизонтальный шов между плитами
+                    renderer->drawSpriteRGBA(whiteTexture, glm::vec2(sx, sy), glm::vec2(sw, 2.0f), 0.0f, glm::vec4(0.16f, 0.17f, 0.18f, 0.42f));
+                    renderer->drawSpriteRGBA(whiteTexture, glm::vec2(sx, sy + 2.0f), glm::vec2(sw, 1.5f), 0.0f, glm::vec4(0.44f, 0.45f, 0.47f, 0.22f));
+
+                    // Едва заметный вертикальный шов
+                    if (rawX >= bldgX) {
+                        renderer->drawSpriteRGBA(whiteTexture, glm::vec2(rawX, sy), glm::vec2(2.0f, slabH), 0.0f, glm::vec4(0.16f, 0.17f, 0.18f, 0.42f));
+                        renderer->drawSpriteRGBA(whiteTexture, glm::vec2(rawX + 2.0f, sy), glm::vec2(1.5f, slabH), 0.0f, glm::vec4(0.44f, 0.45f, 0.47f, 0.20f));
+                    }
+                }
+            }
+
+            // 4.4. Передний край парапета по границе bldgX (прерывается на устьях порталов)
+            float parapetW = std::max(10.0f, cellSize * 0.18f);
+            if (isRectVisible(bldgX, wallTopY, parapetW, wallH, cullMinX, cullMinY, wallRightX, cullMaxY)) {
+                float curY = wallTopY;
+                for (const auto& p : portals) {
+                    if (p.mouthX <= bldgX + parapetW && p.topY > curY) {
+                        float segEnd = std::min(wallBotY, p.topY);
+                        if (segEnd > curY) {
+                            renderer->drawSprite(whiteTexture, glm::vec2(bldgX, curY), glm::vec2(parapetW, segEnd - curY), 0.0f, glm::vec3(0.35f, 0.36f, 0.38f));
+                            renderer->drawSprite(whiteTexture, glm::vec2(bldgX, curY), glm::vec2(2.5f, segEnd - curY), 0.0f, glm::vec3(0.50f, 0.52f, 0.55f));
+                        }
+                    }
+                    if (p.mouthX <= bldgX + parapetW && p.botY > curY) {
+                        curY = p.botY;
+                    }
+                }
+                if (wallBotY > curY) {
+                    renderer->drawSprite(whiteTexture, glm::vec2(bldgX, curY), glm::vec2(parapetW, wallBotY - curY), 0.0f, glm::vec3(0.35f, 0.36f, 0.38f));
+                    renderer->drawSprite(whiteTexture, glm::vec2(bldgX, curY), glm::vec2(2.5f, wallBotY - curY), 0.0f, glm::vec3(0.50f, 0.52f, 0.55f));
+                }
+            }
+
+            // 4.5. Массивные вертикальные ребра жесткости (несущие контрфорсы)
+            float ribSpacing = cellSize * 4.0f;
+            float ribW = std::max(28.0f, cellSize * 0.52f);
+            float ribShadowW = std::max(18.0f, cellSize * 0.35f);
+            int ribColStart = std::max(0, static_cast<int>(std::floor((cullMinX - bldgX - ribShadowW - ribW) / ribSpacing)));
+            int ribColEnd = static_cast<int>(std::ceil((wallRightX - bldgX) / ribSpacing));
+
+            auto drawVerticalRibSegment = [&](float rx, float segTop, float segBot) {
+                float segH = segBot - segTop;
+                if (segH <= 0.0f) {
+                    return;
+                }
+                renderer->drawSprite(whiteTexture, glm::vec2(rx, segTop), glm::vec2(ribW, segH), 0.0f, glm::vec3(0.37f, 0.38f, 0.40f));
+                renderer->drawSprite(whiteTexture, glm::vec2(rx, segTop), glm::vec2(3.0f, segH), 0.0f, glm::vec3(0.50f, 0.52f, 0.55f));
+                renderer->drawSprite(whiteTexture, glm::vec2(rx + ribW - 4.0f, segTop), glm::vec2(4.0f, segH), 0.0f, glm::vec3(0.19f, 0.20f, 0.22f));
+                renderer->drawSpriteRGBA(whiteTexture, glm::vec2(rx + ribW, segTop), glm::vec2(ribShadowW, segH), 0.0f, glm::vec4(0.06f, 0.07f, 0.08f, 0.36f));
+            };
+
+            for (int col = ribColStart; col <= ribColEnd; ++col) {
+                float rx = bldgX + static_cast<float>(col) * ribSpacing;
+                if (col == 0) {
+                    rx = bldgX + parapetW;
+                }
+                if (!isRectVisible(rx, wallTopY, ribW + ribShadowW, wallH, cullMinX, cullMinY, wallRightX, cullMaxY)) {
+                    continue;
+                }
+
+                float curY = wallTopY;
+                for (const auto& p : portals) {
+                    bool hitsPortalX = (rx + ribW >= p.mouthX - 4.0f && rx <= p.endX + 4.0f);
+                    if (hitsPortalX) {
+                        float cutoutTop = p.topY - cellSize * 0.38f;
+                        float cutoutBot = p.botY + cellSize * 0.38f;
+                        if (cutoutTop > curY) {
+                            drawVerticalRibSegment(rx, curY, std::min(wallBotY, cutoutTop));
+                        }
+                        if (cutoutBot > curY) {
+                            curY = cutoutBot;
+                        }
+                    }
+                }
+                if (wallBotY > curY) {
+                    drawVerticalRibSegment(rx, curY, wallBotY);
+                }
+            }
+
+            // 4.6. Легкие потеки и пятна сырости / ржавчины на глухом бетоне (без окон)
+            float weatherStepX = cellSize * 3.2f;
+            float weatherStepY = cellSize * 3.0f;
+            float weatherOriginX = bldgX + parapetW;
+            int wxColStart = std::max(0, static_cast<int>(std::floor((cullMinX - weatherOriginX) / weatherStepX)) - 1);
+            int wxColEnd = static_cast<int>(std::ceil((wallRightX - weatherOriginX) / weatherStepX));
+            int wyRowStart = static_cast<int>(std::floor((wallTopY - yardY) / weatherStepY)) - 1;
+            int wyRowEnd = static_cast<int>(std::ceil((wallBotY - yardY) / weatherStepY));
+
+            for (int wyRow = wyRowStart; wyRow <= wyRowEnd; ++wyRow) {
+                for (int wxCol = wxColStart; wxCol <= wxColEnd; ++wxCol) {
+                    uint32_t wh = hash2D(wxCol, wyRow, 0x50B137u);
+                    uint32_t wType = wh % 100u;
+                    if (wType >= 45u) {
+                        continue;
+                    }
+
+                    float wx = weatherOriginX + (static_cast<float>(wxCol) + 0.15f + 0.65f * rand01(wh >> 3)) * weatherStepX;
+                    float wy = yardY + (static_cast<float>(wyRow) + 0.15f + 0.65f * rand01(wh >> 7)) * weatherStepY;
+
+                    if (wType < 26u) {
+                        float patchW = cellSize * (0.9f + 0.9f * rand01(wh >> 11));
+                        float patchH = cellSize * (0.6f + 0.7f * rand01(wh >> 15));
+                        if (!isRectVisible(wx, wy, patchW, patchH, cullMinX, cullMinY, wallRightX, cullMaxY)) {
+                            continue;
+                        }
+
+                        bool overlapsPortal = false;
+                        for (const auto& p : portals) {
+                            float pad = cellSize * 0.6f;
+                            bool overlapX = (wx + patchW >= p.mouthX - pad && wx <= p.endX + pad);
+                            bool overlapY = (wy + patchH >= p.topY - pad && wy <= p.botY + pad);
+                            if (overlapX && overlapY) {
+                                overlapsPortal = true;
+                                break;
+                            }
+                        }
+                        if (overlapsPortal) {
+                            continue;
+                        }
+
+                        glm::vec4 dampCol(0.16f, 0.17f, 0.18f, 0.16f);
+                        if ((wh & 1u) == 1u) {
+                            dampCol = glm::vec4(0.22f, 0.21f, 0.19f, 0.13f);
+                        }
+                        renderer->drawSpriteRGBA(whiteTexture, glm::vec2(wx, wy), glm::vec2(patchW, patchH), 0.0f, dampCol);
+                    } else {
+                        float streakW = 3.0f + static_cast<float>((wh >> 12) % 5u);
+                        float streakH = cellSize * (0.8f + 1.2f * rand01(wh >> 16));
+                        if (!isRectVisible(wx, wy, streakW, streakH, cullMinX, cullMinY, wallRightX, cullMaxY)) {
+                            continue;
+                        }
+
+                        bool overlapsPortal = false;
+                        for (const auto& p : portals) {
+                            float pad = cellSize * 0.6f;
+                            bool overlapX = (wx + streakW >= p.mouthX - pad && wx <= p.endX + pad);
+                            bool overlapY = (wy + streakH >= p.topY - pad && wy <= p.botY + pad);
+                            if (overlapX && overlapY) {
+                                overlapsPortal = true;
+                                break;
+                            }
+                        }
+                        if (overlapsPortal) {
+                            continue;
+                        }
+
+                        glm::vec4 streakCol(0.14f, 0.15f, 0.16f, 0.24f);
+                        if ((wh & 1u) == 0u) {
+                            streakCol = glm::vec4(0.32f, 0.19f, 0.12f, 0.22f);
+                        }
+                        renderer->drawSpriteRGBA(whiteTexture, glm::vec2(wx, wy), glm::vec2(streakW, streakH), 0.0f, streakCol);
+                        renderer->drawSpriteRGBA(
+                            whiteTexture,
+                            glm::vec2(wx + 0.5f, wy + streakH * 0.45f),
+                            glm::vec2(std::max(1.5f, streakW * 0.55f), streakH * 0.55f),
+                            0.0f,
+                            glm::vec4(streakCol.r, streakCol.g, streakCol.b, streakCol.a * 0.55f)
+                        );
+                    }
+                }
+            }
+        }
     }
 
-    // 4.7. Проём ворот шахты в основании (вход в ствол)
-    float portalCenterY = yardY + yardH * 0.5f;
-    float portalH = std::max(150.0f, cellSize * 2.6f);
-    float portalTopY = portalCenterY - portalH * 0.5f;
-    float portalW = std::max(150.0f, cellSize * 2.5f);
-    float portalX = bldgX;
+    // =========================================================================
+    // 5. НИЖНИЙ СЛОЙ ПОРТАЛА ВХОДА В ШАХТУ (ПОД ВРАГАМИ)
+    // =========================================================================
+    for (const auto& p : portals) {
+        float visPad = cellSize * 1.2f;
+        if (!isRectVisible(p.mouthX - visPad, p.topY - visPad, (p.endX - p.mouthX) + visPad * 2.0f, p.openingH + visPad * 2.0f, cullMinX, cullMinY, cullMaxX, cullMaxY)) {
+            continue;
+        }
 
-    // Внутреннее пространство ствола шахты: абсолютно черное
-    renderer->drawSpriteRGBA(
-        whiteTexture,
-        glm::vec2(portalX, portalTopY),
-        glm::vec2(portalW, portalH),
-        0.0f,
-        glm::vec4(0.01f, 0.01f, 0.01f, 1.0f)
-    );
+        float tunnelW = p.endX - p.mouthX;
 
-    // Глубокий градиент бездны ствола
-    renderer->drawSpriteRGBA(
-        whiteTexture,
-        glm::vec2(portalX + portalW * 0.20f, portalTopY + 3.0f),
-        glm::vec2(portalW * 0.80f, portalH - 6.0f),
-        0.0f,
-        glm::vec4(0.005f, 0.005f, 0.005f, 1.0f)
-    );
+        // 5.1. Бетонный подъездной пандус / порог перед проемом
+        float apronX = p.mouthX - cellSize * 0.55f;
+        float apronW = cellSize * 0.70f;
+        float apronPadY = cellSize * 0.15f;
+        renderer->drawSprite(whiteTexture, glm::vec2(apronX, p.topY - apronPadY), glm::vec2(apronW, p.openingH + apronPadY * 2.0f), 0.0f, glm::vec3(0.25f, 0.26f, 0.27f));
+        renderer->drawSprite(whiteTexture, glm::vec2(apronX, p.topY - apronPadY), glm::vec2(2.5f, p.openingH + apronPadY * 2.0f), 0.0f, glm::vec3(0.38f, 0.40f, 0.42f));
 
-    // Боковые косяки портала
-    float jambW = std::max(14.0f, cellSize * 0.24f);
-    renderer->drawSprite(whiteTexture, glm::vec2(portalX - jambW * 0.3f, portalTopY), glm::vec2(jambW, portalH), 0.0f, glm::vec3(0.35f, 0.36f, 0.38f));
-    renderer->drawSprite(whiteTexture, glm::vec2(portalX - jambW * 0.3f, portalTopY), glm::vec2(2.5f, portalH), 0.0f, glm::vec3(0.55f, 0.57f, 0.60f));
-    renderer->drawSprite(whiteTexture, glm::vec2(portalX + portalW - jambW * 0.8f, portalTopY), glm::vec2(jambW, portalH), 0.0f, glm::vec3(0.20f, 0.21f, 0.22f));
+        // 5.2. Глубокий темный тоннель с плавным уходом пола в кромешную тьму
+        renderer->drawSprite(whiteTexture, glm::vec2(p.mouthX, p.topY), glm::vec2(tunnelW, p.openingH), 0.0f, glm::vec3(0.14f, 0.145f, 0.155f));
+        renderer->drawSpriteRGBA(whiteTexture, glm::vec2(p.mouthX + tunnelW * 0.12f, p.topY), glm::vec2(tunnelW * 0.88f, p.openingH), 0.0f, glm::vec4(0.05f, 0.052f, 0.058f, 0.62f));
+        renderer->drawSpriteRGBA(whiteTexture, glm::vec2(p.mouthX + tunnelW * 0.26f, p.topY), glm::vec2(tunnelW * 0.74f, p.openingH), 0.0f, glm::vec4(0.02f, 0.02f, 0.025f, 0.80f));
+        renderer->drawSpriteRGBA(whiteTexture, glm::vec2(p.mouthX + tunnelW * 0.42f, p.topY), glm::vec2(tunnelW * 0.58f, p.openingH), 0.0f, glm::vec4(0.01f, 0.01f, 0.012f, 0.96f));
 
-    // Рельсовый путь, уходящий во тьму шахты
-    float railTrackY = portalCenterY;
-    float railGauge = std::max(24.0f, cellSize * 0.42f);
-    float railStartY = railTrackY - railGauge * 0.5f;
-    float railLen = portalW * 0.85f;
-    float sleeperSpacing = std::max(14.0f, cellSize * 0.25f);
-    for (float slx = portalX; slx < portalX + railLen; slx += sleeperSpacing) {
-        float depthFade = 1.0f - ((slx - portalX) / railLen);
-        glm::vec4 slCol = glm::vec4(0.18f, 0.15f, 0.12f, depthFade * 0.9f);
-        renderer->drawSpriteRGBA(whiteTexture, glm::vec2(slx, railStartY - 4.0f), glm::vec2(4.5f, railGauge + 8.0f), 0.0f, slCol);
+        // Внутренние теневые откосы стен тоннеля сверху и снизу
+        float wallEdgeH = std::max(6.0f, cellSize * 0.14f);
+        renderer->drawSpriteRGBA(whiteTexture, glm::vec2(p.mouthX, p.topY), glm::vec2(tunnelW, wallEdgeH), 0.0f, glm::vec4(0.01f, 0.01f, 0.015f, 0.72f));
+        renderer->drawSpriteRGBA(whiteTexture, glm::vec2(p.mouthX, p.botY - wallEdgeH), glm::vec2(tunnelW, wallEdgeH), 0.0f, glm::vec4(0.01f, 0.01f, 0.015f, 0.72f));
+
+        // 5.3. Шахтные рельсы и шпалы, уходящие в темноту ствола
+        float railGauge = std::max(22.0f, cellSize * 0.42f);
+        float railTopY = p.centerY - railGauge * 0.5f;
+        float railStartX = p.mouthX - cellSize * 0.45f;
+        float railEndX = std::min(p.endX - cellSize * 0.25f, p.coverStartX + cellSize * 0.75f);
+        float railLen = std::max(cellSize, railEndX - railStartX);
+
+        float sleeperSpacing = std::max(16.0f, cellSize * 0.32f);
+        float sleeperW = std::max(4.5f, cellSize * 0.08f);
+        for (float sx = railStartX; sx < railStartX + railLen; sx += sleeperSpacing) {
+            float t = std::clamp((sx - railStartX) / railLen, 0.0f, 1.0f);
+            float fade = 1.0f - t * 0.92f;
+            renderer->drawSpriteRGBA(
+                whiteTexture,
+                glm::vec2(sx, railTopY - 4.0f),
+                glm::vec2(sleeperW, railGauge + 8.0f),
+                0.0f,
+                glm::vec4(0.18f, 0.15f, 0.12f, fade * 0.85f)
+            );
+        }
+
+        const int railSegments = 5;
+        float segLen = railLen / static_cast<float>(railSegments);
+        float railThickness = std::max(3.0f, cellSize * 0.055f);
+        for (int s = 0; s < railSegments; ++s) {
+            float sx = railStartX + static_cast<float>(s) * segLen;
+            float t = (static_cast<float>(s) + 0.5f) / static_cast<float>(railSegments);
+            float fade = std::max(0.05f, 1.0f - t * 0.92f);
+            glm::vec4 railCol(0.55f, 0.58f, 0.62f, fade * 0.90f);
+            renderer->drawSpriteRGBA(whiteTexture, glm::vec2(sx, railTopY), glm::vec2(segLen + 0.5f, railThickness), 0.0f, railCol);
+            renderer->drawSpriteRGBA(whiteTexture, glm::vec2(sx, railTopY + railGauge), glm::vec2(segLen + 0.5f, railThickness), 0.0f, railCol);
+        }
+
+        // 5.4. Капитальные бетонные боковые устои портала (фланкируют тоннель сверху и снизу)
+        float pierH = std::max(22.0f, cellSize * 0.42f);
+        float pierW = tunnelW + cellSize * 0.25f;
+        float pierX = p.mouthX - cellSize * 0.15f;
+        renderer->drawSprite(whiteTexture, glm::vec2(pierX, p.topY - pierH), glm::vec2(pierW, pierH), 0.0f, glm::vec3(0.36f, 0.37f, 0.39f));
+        renderer->drawSprite(whiteTexture, glm::vec2(pierX, p.topY - pierH), glm::vec2(pierW, 2.5f), 0.0f, glm::vec3(0.52f, 0.54f, 0.57f));
+        renderer->drawSprite(whiteTexture, glm::vec2(pierX, p.topY - 3.0f), glm::vec2(pierW, 3.0f), 0.0f, glm::vec3(0.18f, 0.19f, 0.21f));
+
+        renderer->drawSprite(whiteTexture, glm::vec2(pierX, p.botY), glm::vec2(pierW, pierH), 0.0f, glm::vec3(0.36f, 0.37f, 0.39f));
+        renderer->drawSprite(whiteTexture, glm::vec2(pierX, p.botY), glm::vec2(pierW, 3.0f), 0.0f, glm::vec3(0.48f, 0.50f, 0.53f));
+        renderer->drawSprite(whiteTexture, glm::vec2(pierX, p.botY + pierH - 3.0f), glm::vec2(pierW, 3.0f), 0.0f, glm::vec3(0.18f, 0.19f, 0.21f));
     }
-    for (float slx = portalX; slx < portalX + railLen; slx += 6.0f) {
-        float depthFade = std::max(0.02f, 1.0f - ((slx - portalX) / railLen));
-        glm::vec4 railCol = glm::vec4(0.60f, 0.62f, 0.65f, depthFade * 0.9f);
-        renderer->drawSpriteRGBA(whiteTexture, glm::vec2(slx, railStartY), glm::vec2(6.0f, 3.0f), 0.0f, railCol);
-        renderer->drawSpriteRGBA(whiteTexture, glm::vec2(slx, railStartY + railGauge), glm::vec2(6.0f, 3.0f), 0.0f, railCol);
-    }
-
-    // Бетонный порог / пандус у основания входа
-    float threshH = std::max(10.0f, cellSize * 0.18f);
-    renderer->drawSprite(whiteTexture, glm::vec2(portalX - cellSize * 0.35f, portalTopY + portalH - threshH), glm::vec2(portalW * 0.65f, threshH), 0.0f, glm::vec3(0.32f, 0.33f, 0.35f));
-    renderer->drawSprite(whiteTexture, glm::vec2(portalX - cellSize * 0.35f, portalTopY + portalH - threshH), glm::vec2(portalW * 0.65f, 2.5f), 0.0f, glm::vec3(0.50f, 0.52f, 0.55f));
 }
 
 void BackgroundRenderer::renderMineEntranceForeground(
@@ -844,7 +1289,9 @@ void BackgroundRenderer::renderMineEntranceForeground(
     const Texture2D* whiteTexture,
     const Grid* grid,
     float screenWidth,
-    float screenHeight
+    float screenHeight,
+    const BackgroundViewRect& viewRect,
+    const std::vector<glm::ivec2>* baseCells
 ) {
     if (!renderer || !whiteTexture || !grid) return;
 
@@ -860,10 +1307,16 @@ void BackgroundRenderer::renderMineEntranceForeground(
     float yardW = gridW;
     float yardH = gridH;
 
+    float cullMinX = 0.0f;
+    float cullMinY = 0.0f;
+    float cullMaxX = 0.0f;
+    float cullMaxY = 0.0f;
+    computeCulledBounds(grid, screenWidth, screenHeight, viewRect, 1.5f, cullMinX, cullMinY, cullMaxX, cullMaxY);
+
     // =========================================================================
-    // 1. ОБЪЕМНЫЙ 2.5D ЗАБОР (ПОВЕРХ ЗЕМЛИ ДВОРА)
+    // 1. ОПТИМИЗИРОВАННЫЙ 2.5D ЗАБОР (С ОТСЕЧЕНИЕМ ПО КАМЕРЕ И КОНТАКТНОЙ ТЕНЬЮ)
     // =========================================================================
-    auto drawFence25D = [&](float groundY, bool isTop) {
+    auto drawFence25D = [&](float groundY, bool isTopFence) {
         float fenceH = cellSize * 0.46f;
         float postSpacing = cellSize * 2.0f;
         float postW = std::max(11.0f, cellSize * 0.20f);
@@ -872,24 +1325,50 @@ void BackgroundRenderer::renderMineEntranceForeground(
 
         float fenceStartX = yardX;
         float fenceEndX = yardX + yardW;
-        float fenceLen = yardW;
         float facadeTopY = groundY - fenceH;
+        float softH = std::max(16.0f, cellSize * 0.28f);
+        float contactH = std::max(5.0f, cellSize * 0.08f);
+        float fullTopY = groundY - postH - postCapH;
+        float fullBotY = groundY + softH;
 
-        // Падающая тень на земле
-        float shadowH = std::max(10.0f, cellSize * 0.20f);
+        if (fullBotY < cullMinY || fullTopY > cullMaxY) {
+            return;
+        }
+        if (fenceEndX + 12.0f < cullMinX || fenceStartX - 12.0f > cullMaxX) {
+            return;
+        }
+
+        float visStartX = std::max(fenceStartX, cullMinX);
+        float visEndX = std::min(fenceEndX, cullMaxX);
+        float visLen = visEndX - visStartX;
+        if (visLen <= 0.0f) {
+            return;
+        }
+
+        // Контактная и мягкая падающая тень у основания забора
+        if (!isTopFence) {
+            float backShadowY = yardY + yardH - cellSize * 0.10f;
+            renderer->drawSpriteRGBA(
+                whiteTexture,
+                glm::vec2(visStartX, backShadowY),
+                glm::vec2(visLen, std::max(6.0f, cellSize * 0.14f)),
+                0.0f,
+                glm::vec4(0.06f, 0.05f, 0.035f, 0.20f)
+            );
+        }
         renderer->drawSpriteRGBA(
             whiteTexture,
-            glm::vec2(fenceStartX - 10.0f, groundY - shadowH * 0.25f),
-            glm::vec2(fenceLen + 20.0f, shadowH),
+            glm::vec2(visStartX, groundY),
+            glm::vec2(visLen, softH),
             0.0f,
-            glm::vec4(0.08f, 0.07f, 0.05f, 0.38f)
+            glm::vec4(0.06f, 0.05f, 0.035f, 0.22f)
         );
         renderer->drawSpriteRGBA(
             whiteTexture,
-            glm::vec2(fenceStartX - 5.0f, groundY - shadowH * 0.1f),
-            glm::vec2(fenceLen + 10.0f, shadowH * 0.5f),
+            glm::vec2(visStartX, groundY - contactH * 0.35f),
+            glm::vec2(visLen, contactH),
             0.0f,
-            glm::vec4(0.05f, 0.04f, 0.03f, 0.25f)
+            glm::vec4(0.05f, 0.04f, 0.03f, 0.42f)
         );
 
         // Горизонтальные лаги (ригели)
@@ -898,151 +1377,183 @@ void BackgroundRenderer::renderMineEntranceForeground(
         float botRailY = facadeTopY + fenceH * 0.72f;
 
         auto drawHorizontalRail = [&](float ry) {
-            renderer->drawSprite(whiteTexture, glm::vec2(fenceStartX, ry), glm::vec2(fenceLen, railH), 0.0f, glm::vec3(0.25f, 0.27f, 0.29f));
-            renderer->drawSprite(whiteTexture, glm::vec2(fenceStartX, ry), glm::vec2(fenceLen, 1.5f), 0.0f, glm::vec3(0.55f, 0.58f, 0.62f));
-            renderer->drawSprite(whiteTexture, glm::vec2(fenceStartX, ry + railH - 1.5f), glm::vec2(fenceLen, 1.5f), 0.0f, glm::vec3(0.12f, 0.13f, 0.14f));
+            renderer->drawSprite(whiteTexture, glm::vec2(visStartX, ry), glm::vec2(visLen, railH), 0.0f, glm::vec3(0.25f, 0.27f, 0.29f));
+            renderer->drawSprite(whiteTexture, glm::vec2(visStartX, ry), glm::vec2(visLen, 1.5f), 0.0f, glm::vec3(0.55f, 0.58f, 0.62f));
+            renderer->drawSprite(whiteTexture, glm::vec2(visStartX, ry + railH - 1.5f), glm::vec2(visLen, 1.5f), 0.0f, glm::vec3(0.12f, 0.13f, 0.14f));
         };
         drawHorizontalRail(topRailY);
         drawHorizontalRail(botRailY);
 
-        // Вертикальные секции профлиста/сетки рабицы
-        int numIntervals = static_cast<int>(std::ceil(fenceLen / postSpacing));
-        for (int i = 0; i < numIntervals; ++i) {
+        // Вертикальные секции профлиста с редкими ребрами жесткости
+        int numIntervals = static_cast<int>(std::ceil(yardW / postSpacing));
+        int iStart = std::max(0, static_cast<int>(std::floor((cullMinX - fenceStartX) / postSpacing)));
+        int iEnd = std::min(numIntervals - 1, static_cast<int>(std::ceil((cullMaxX - fenceStartX) / postSpacing)));
+
+        float ribStep = std::max(14.0f, cellSize * 0.28f);
+        for (int i = iStart; i <= iEnd; ++i) {
             float secX = fenceStartX + static_cast<float>(i) * postSpacing + postW;
             float nextPostX = fenceStartX + static_cast<float>(i + 1) * postSpacing;
-            if (nextPostX > fenceEndX) nextPostX = fenceEndX;
+            if (nextPostX > fenceEndX) {
+                nextPostX = fenceEndX;
+            }
             float secW = nextPostX - secX;
-            if (secW <= 0.0f) continue;
+            if (secW <= 0.0f) {
+                continue;
+            }
 
             float panelTop = topRailY - 2.0f;
             float panelH = (botRailY + railH + 2.0f) - panelTop;
+            renderer->drawSpriteRGBA(whiteTexture, glm::vec2(secX, panelTop), glm::vec2(secW, panelH), 0.0f, glm::vec4(0.18f, 0.20f, 0.22f, 0.34f));
 
-            renderer->drawSpriteRGBA(whiteTexture, glm::vec2(secX, panelTop), glm::vec2(secW, panelH), 0.0f, glm::vec4(0.18f, 0.20f, 0.22f, 0.35f));
-
-            float meshStep = std::max(6.0f, cellSize * 0.12f);
-            for (float mx = secX; mx < secX + secW; mx += meshStep) {
-                renderer->drawSpriteRGBA(whiteTexture, glm::vec2(mx, panelTop), glm::vec2(1.5f, panelH), 0.0f, glm::vec4(0.40f, 0.43f, 0.47f, 0.60f));
+            for (float mx = secX + ribStep * 0.5f; mx < secX + secW; mx += ribStep) {
+                renderer->drawSpriteRGBA(whiteTexture, glm::vec2(mx, panelTop), glm::vec2(1.8f, panelH), 0.0f, glm::vec4(0.40f, 0.43f, 0.47f, 0.52f));
             }
         }
 
-        // Вертикальные опорные железобетонные столбы
-        auto drawSinglePost = [&](float postX) {
+        // Вертикальные опорные железобетонные столбы (только видимые)
+        int pStart = std::max(0, static_cast<int>(std::floor((cullMinX - fenceStartX - postW) / postSpacing)));
+        int pEnd = std::min(numIntervals, static_cast<int>(std::ceil((cullMaxX - fenceStartX) / postSpacing)));
+
+        for (int p = pStart; p <= pEnd; ++p) {
+            float postX = fenceStartX + static_cast<float>(p) * postSpacing;
+            if (postX > fenceEndX) {
+                postX = fenceEndX;
+            }
             float py = groundY - postH;
-            renderer->drawSprite(whiteTexture, glm::vec2(postX, py), glm::vec2(postW, postH), 0.0f, glm::vec3(0.46f, 0.48f, 0.50f));
-            renderer->drawSprite(whiteTexture, glm::vec2(postX, py), glm::vec2(2.5f, postH), 0.0f, glm::vec3(0.68f, 0.70f, 0.74f));
-            renderer->drawSprite(whiteTexture, glm::vec2(postX + postW - 3.0f, py), glm::vec2(3.0f, postH), 0.0f, glm::vec3(0.24f, 0.25f, 0.26f));
+            renderer->drawSprite(whiteTexture, glm::vec2(postX, py), glm::vec2(postW, postH), 0.0f, glm::vec3(0.44f, 0.46f, 0.48f));
+            renderer->drawSprite(whiteTexture, glm::vec2(postX, py), glm::vec2(2.5f, postH), 0.0f, glm::vec3(0.65f, 0.67f, 0.70f));
+            renderer->drawSprite(whiteTexture, glm::vec2(postX + postW - 3.0f, py), glm::vec2(3.0f, postH), 0.0f, glm::vec3(0.22f, 0.23f, 0.24f));
 
             float capW = postW + 4.0f;
             float capX = postX - 2.0f;
             float capY = py - postCapH + 1.0f;
-            renderer->drawSprite(whiteTexture, glm::vec2(capX, capY), glm::vec2(capW, postCapH), 0.0f, glm::vec3(0.52f, 0.54f, 0.56f));
-            renderer->drawSprite(whiteTexture, glm::vec2(capX, capY), glm::vec2(capW, 1.5f), 0.0f, glm::vec3(0.75f, 0.78f, 0.82f));
-            renderer->drawSprite(whiteTexture, glm::vec2(capX, capY + postCapH - 1.5f), glm::vec2(capW, 1.5f), 0.0f, glm::vec3(0.26f, 0.25f, 0.24f));
+            renderer->drawSprite(whiteTexture, glm::vec2(capX, capY), glm::vec2(capW, postCapH), 0.0f, glm::vec3(0.50f, 0.52f, 0.54f));
+            renderer->drawSprite(whiteTexture, glm::vec2(capX, capY), glm::vec2(capW, 1.5f), 0.0f, glm::vec3(0.72f, 0.75f, 0.78f));
 
-            auto drawRivetPlate = [&](float ry) {
-                float plateW = std::max(6.0f, postW * 0.42f);
-                float plateH = railH + 2.0f;
-                renderer->drawSprite(whiteTexture, glm::vec2(postX - plateW * 0.5f, ry - 1.0f), glm::vec2(plateW, plateH), 0.0f, glm::vec3(0.28f, 0.30f, 0.32f));
-                renderer->drawSprite(whiteTexture, glm::vec2(postX - plateW * 0.5f + 1.5f, ry + 1.5f), glm::vec2(2.5f, 2.5f), 0.0f, glm::vec3(0.82f, 0.84f, 0.88f));
-                renderer->drawSprite(whiteTexture, glm::vec2(postX + postW - plateW * 0.5f, ry - 1.0f), glm::vec2(plateW, plateH), 0.0f, glm::vec3(0.26f, 0.27f, 0.29f));
-                renderer->drawSprite(whiteTexture, glm::vec2(postX + postW - plateW * 0.5f + 1.5f, ry + 1.5f), glm::vec2(2.5f, 2.5f), 0.0f, glm::vec3(0.80f, 0.82f, 0.85f));
-            };
-            drawRivetPlate(topRailY);
-            drawRivetPlate(botRailY);
-        };
-
-        for (int p = 0; p <= numIntervals; ++p) {
-            float px = fenceStartX + static_cast<float>(p) * postSpacing;
-            if (px > fenceEndX) px = fenceEndX;
-            drawSinglePost(px);
-            if (px >= fenceEndX) break;
+            if (postX >= fenceEndX) {
+                break;
+            }
         }
     };
 
-    // Верхний забор на границе двора (Y = yardY)
     drawFence25D(yardY, true);
-    // Нижний забор под границей двора (Y = yardY + yardH + fenceH)
     drawFence25D(yardY + yardH + cellSize * 0.46f, false);
 
     // =========================================================================
-    // 2. ВЕРХНЯЯ ЧАСТЬ ПРОЁМА И КОЗЫРЁК КОПРА (МАСКИРУЮТ МОБОВ ПРИ ВХОДЕ В СТВОЛ)
+    // 2. ВЕРХНИЙ СЛОЙ ПОРТАЛА (ПОВЕРХ ВРАГОВ): КОЗЫРЕК И БЕТОННОЕ ПЕРЕКРЫТИЕ
     // =========================================================================
-    float bldgX = yardX + yardW;
-    float portalCenterY = yardY + yardH * 0.5f;
-    float portalH = std::max(150.0f, cellSize * 2.6f);
-    float portalTopY = portalCenterY - portalH * 0.5f;
-    float portalW = std::max(150.0f, cellSize * 2.5f);
+    std::vector<MinePortalGeom> portals = collectMinePortals(grid, baseCells);
+    for (const auto& p : portals) {
+        float canopyPadY = std::max(22.0f, cellSize * 0.42f);
+        float roofTopY = p.topY - canopyPadY;
+        float roofBotY = p.botY + canopyPadY;
+        float roofH = roofBotY - roofTopY;
 
-    // 2.1. Массивная балка-перемычка над головой (капитальная железобетонная окантовка)
-    float beamW = portalW + cellSize * 0.8f;
-    float beamH = std::max(30.0f, cellSize * 0.52f);
-    float beamX = bldgX - cellSize * 0.35f;
-    float beamY = portalTopY - beamH * 0.45f;
+        if (!isRectVisible(p.mouthX - cellSize, roofTopY - cellSize * 0.5f, (p.endX - p.mouthX) + cellSize * 1.5f, roofH + cellSize, cullMinX, cullMinY, cullMaxX, cullMaxY)) {
+            continue;
+        }
 
-    // Тень под балкой на проём
-    renderer->drawSpriteRGBA(whiteTexture, glm::vec2(beamX, beamY + beamH), glm::vec2(beamW, 14.0f), 0.0f, glm::vec4(0.02f, 0.02f, 0.02f, 0.75f));
+        // 2.1. Затемняющая завеса устья тоннеля (враг темнеет, заходя под козырек)
+        float throatStartX = p.mouthX + cellSize * 0.12f;
+        float throatW = std::max(0.0f, p.coverStartX - throatStartX);
+        if (throatW > 2.0f) {
+            float stripW = throatW / 3.0f;
+            renderer->drawSpriteRGBA(whiteTexture, glm::vec2(throatStartX, p.topY), glm::vec2(stripW + 0.5f, p.openingH), 0.0f, glm::vec4(0.015f, 0.015f, 0.02f, 0.22f));
+            renderer->drawSpriteRGBA(whiteTexture, glm::vec2(throatStartX + stripW, p.topY), glm::vec2(stripW + 0.5f, p.openingH), 0.0f, glm::vec4(0.015f, 0.015f, 0.02f, 0.48f));
+            renderer->drawSpriteRGBA(whiteTexture, glm::vec2(throatStartX + stripW * 2.0f, p.topY), glm::vec2(stripW + 0.5f, p.openingH), 0.0f, glm::vec4(0.01f, 0.01f, 0.015f, 0.78f));
+        }
 
-    // Массив бетона перемычки
-    renderer->drawSprite(whiteTexture, glm::vec2(beamX, beamY), glm::vec2(beamW, beamH), 0.0f, glm::vec3(0.44f, 0.46f, 0.48f));
-    // Верхняя световая грань балки
-    renderer->drawSprite(whiteTexture, glm::vec2(beamX, beamY), glm::vec2(beamW, 2.5f), 0.0f, glm::vec3(0.66f, 0.68f, 0.72f));
-    // Нижний темный срез балки
-    renderer->drawSprite(whiteTexture, glm::vec2(beamX, beamY + beamH - 3.5f), glm::vec2(beamW, 3.5f), 0.0f, glm::vec3(0.20f, 0.22f, 0.24f));
+        // 2.2. Передние обрамляющие боковые перемычки над и под проемом у входа
+        float frontPierX = p.mouthX - cellSize * 0.15f;
+        float frontPierW = std::max(0.0f, p.coverStartX - frontPierX);
+        if (frontPierW > 1.0f) {
+            renderer->drawSprite(whiteTexture, glm::vec2(frontPierX, roofTopY), glm::vec2(frontPierW, canopyPadY), 0.0f, glm::vec3(0.36f, 0.37f, 0.39f));
+            renderer->drawSprite(whiteTexture, glm::vec2(frontPierX, roofTopY), glm::vec2(frontPierW, 2.5f), 0.0f, glm::vec3(0.54f, 0.56f, 0.59f));
+            renderer->drawSprite(whiteTexture, glm::vec2(frontPierX, p.topY - 3.0f), glm::vec2(frontPierW, 3.0f), 0.0f, glm::vec3(0.18f, 0.19f, 0.20f));
 
-    // Сигнальная черно-желтая разметка опасности (ГОСТ полосы по нижнему канту балки)
-    float stripeBarH = std::max(9.0f, cellSize * 0.16f);
-    float stripeBarY = beamY + beamH - stripeBarH - 3.5f;
-    float stripeStep = std::max(16.0f, cellSize * 0.28f);
-    for (float sx = beamX + 4.0f; sx < beamX + beamW - 4.0f; sx += stripeStep) {
-        renderer->drawSprite(whiteTexture, glm::vec2(sx, stripeBarY), glm::vec2(stripeStep * 0.55f, stripeBarH), 0.0f, glm::vec3(0.88f, 0.76f, 0.12f));
-        renderer->drawSprite(whiteTexture, glm::vec2(sx + stripeStep * 0.55f, stripeBarY), glm::vec2(stripeStep * 0.45f, stripeBarH), 0.0f, glm::vec3(0.12f, 0.12f, 0.14f));
+            renderer->drawSprite(whiteTexture, glm::vec2(frontPierX, p.botY), glm::vec2(frontPierW, canopyPadY), 0.0f, glm::vec3(0.36f, 0.37f, 0.39f));
+            renderer->drawSprite(whiteTexture, glm::vec2(frontPierX, p.botY), glm::vec2(frontPierW, 2.5f), 0.0f, glm::vec3(0.50f, 0.52f, 0.55f));
+            renderer->drawSprite(whiteTexture, glm::vec2(frontPierX, roofBotY - 3.0f), glm::vec2(frontPierW, 3.0f), 0.0f, glm::vec3(0.18f, 0.19f, 0.20f));
+        }
+
+        // 2.3. Массивный непрозрачный бетонный козырек и перекрытие портала (ПОЛНОСТЬЮ СКРЫВАЕТ ВРАГОВ И БАЗУ)
+        float coverW = p.endX - p.coverStartX;
+        float fasciaW = std::min(coverW * 0.35f, std::max(24.0f, cellSize * 0.42f));
+
+        // Глубокая падающая тень от нависающего козырька влево на проем
+        float canopyShadowW = std::max(14.0f, cellSize * 0.28f);
+        renderer->drawSpriteRGBA(
+            whiteTexture,
+            glm::vec2(p.coverStartX - canopyShadowW, p.topY),
+            glm::vec2(canopyShadowW, p.openingH),
+            0.0f,
+            glm::vec4(0.01f, 0.01f, 0.015f, 0.65f)
+        );
+
+        // Передняя несущая балка-козырек (фасция портала)
+        renderer->drawSprite(whiteTexture, glm::vec2(p.coverStartX, roofTopY), glm::vec2(fasciaW, roofH), 0.0f, glm::vec3(0.38f, 0.40f, 0.42f));
+        renderer->drawSprite(whiteTexture, glm::vec2(p.coverStartX, roofTopY), glm::vec2(3.0f, roofH), 0.0f, glm::vec3(0.56f, 0.58f, 0.61f));
+        renderer->drawSprite(whiteTexture, glm::vec2(p.coverStartX + fasciaW - 3.0f, roofTopY), glm::vec2(3.0f, roofH), 0.0f, glm::vec3(0.18f, 0.19f, 0.21f));
+
+        // Сигнальная черно-желтая предупреждающая полоса по кромке козырька над проемом
+        float stripeW = std::max(8.0f, fasciaW * 0.40f);
+        float stripeX = p.coverStartX + fasciaW * 0.24f;
+        float stripeStep = std::max(14.0f, cellSize * 0.26f);
+        for (float sy = p.topY + 4.0f; sy < p.botY - 4.0f; sy += stripeStep) {
+            float rem = (p.botY - 4.0f) - sy;
+            float yellowH = std::min(stripeStep * 0.54f, rem);
+            if (yellowH > 1.0f) {
+                renderer->drawSprite(whiteTexture, glm::vec2(stripeX, sy), glm::vec2(stripeW, yellowH), 0.0f, glm::vec3(0.82f, 0.66f, 0.14f));
+            }
+            float blackStart = sy + yellowH;
+            float blackH = std::min(stripeStep * 0.46f, (p.botY - 4.0f) - blackStart);
+            if (blackH > 1.0f) {
+                renderer->drawSprite(whiteTexture, glm::vec2(stripeX, blackStart), glm::vec2(stripeW, blackH), 0.0f, glm::vec3(0.11f, 0.11f, 0.12f));
+            }
+        }
+
+        // Непрозрачная железобетонная плита крыши портала (перекрывает тоннель и клетку Base)
+        float deckX = p.coverStartX + fasciaW;
+        float deckW = std::max(0.0f, p.endX - deckX);
+        if (deckW > 0.0f) {
+            renderer->drawSprite(whiteTexture, glm::vec2(deckX, roofTopY), glm::vec2(deckW, roofH), 0.0f, glm::vec3(0.32f, 0.33f, 0.35f));
+
+            // Поперечные ребра жесткости сверху и снизу крыши портала
+            float beamH = canopyPadY;
+            renderer->drawSprite(whiteTexture, glm::vec2(deckX, roofTopY), glm::vec2(deckW, beamH), 0.0f, glm::vec3(0.39f, 0.41f, 0.43f));
+            renderer->drawSprite(whiteTexture, glm::vec2(deckX, roofTopY), glm::vec2(deckW, 2.5f), 0.0f, glm::vec3(0.55f, 0.57f, 0.60f));
+            renderer->drawSpriteRGBA(whiteTexture, glm::vec2(deckX, p.topY), glm::vec2(deckW, 8.0f), 0.0f, glm::vec4(0.05f, 0.06f, 0.07f, 0.45f));
+
+            renderer->drawSprite(whiteTexture, glm::vec2(deckX, p.botY), glm::vec2(deckW, beamH), 0.0f, glm::vec3(0.39f, 0.41f, 0.43f));
+            renderer->drawSprite(whiteTexture, glm::vec2(deckX, p.botY), glm::vec2(deckW, 2.5f), 0.0f, glm::vec3(0.52f, 0.54f, 0.57f));
+            renderer->drawSprite(whiteTexture, glm::vec2(deckX, roofBotY - 3.0f), glm::vec2(deckW, 3.0f), 0.0f, glm::vec3(0.18f, 0.19f, 0.21f));
+
+            // Продольный деформационный шов посередине плиты перекрытия
+            renderer->drawSprite(whiteTexture, glm::vec2(deckX, p.centerY - 1.5f), glm::vec2(deckW, 3.0f), 0.0f, glm::vec3(0.20f, 0.21f, 0.23f));
+            renderer->drawSprite(whiteTexture, glm::vec2(deckX, p.centerY + 1.5f), glm::vec2(deckW, 1.5f), 0.0f, glm::vec3(0.43f, 0.45f, 0.47f));
+
+            // Вентиляционный короб / технический люк на крыше портала
+            if (deckW > cellSize * 1.1f) {
+                float ventW = std::min(deckW * 0.45f, cellSize * 0.90f);
+                float ventH = std::min(p.openingH * 0.42f, cellSize * 0.72f);
+                float ventX = deckX + cellSize * 0.45f;
+                float ventY = p.centerY - ventH * 0.5f;
+                renderer->drawSpriteRGBA(whiteTexture, glm::vec2(ventX + 4.0f, ventY + 4.0f), glm::vec2(ventW, ventH), 0.0f, glm::vec4(0.05f, 0.06f, 0.07f, 0.45f));
+                renderer->drawSprite(whiteTexture, glm::vec2(ventX, ventY), glm::vec2(ventW, ventH), 0.0f, glm::vec3(0.26f, 0.27f, 0.29f));
+                renderer->drawSprite(whiteTexture, glm::vec2(ventX, ventY), glm::vec2(ventW, 2.0f), 0.0f, glm::vec3(0.48f, 0.50f, 0.53f));
+                for (int louver = 0; louver < 3; ++louver) {
+                    float ly = ventY + ventH * (0.24f + static_cast<float>(louver) * 0.24f);
+                    renderer->drawSprite(whiteTexture, glm::vec2(ventX + 5.0f, ly), glm::vec2(ventW - 10.0f, 3.0f), 0.0f, glm::vec3(0.11f, 0.12f, 0.13f));
+                }
+            }
+        }
+
+        // 2.4. Взрывозащищенный рудничный светильник на кромке козырька
+        float lampX = p.coverStartX - 5.0f;
+        float lampY = p.topY + cellSize * 0.18f;
+        renderer->drawSprite(whiteTexture, glm::vec2(lampX - 4.0f, lampY), glm::vec2(10.0f, 12.0f), 0.0f, glm::vec3(0.24f, 0.26f, 0.28f));
+        renderer->drawSprite(whiteTexture, glm::vec2(lampX - 5.0f, lampY + 3.0f), glm::vec2(6.0f, 6.0f), 0.0f, glm::vec3(1.0f, 0.80f, 0.34f));
+        renderer->drawSpriteRGBA(whiteTexture, glm::vec2(lampX - 42.0f, lampY - 18.0f), glm::vec2(48.0f, 52.0f), 0.0f, glm::vec4(1.0f, 0.78f, 0.30f, 0.11f));
     }
-
-    // Монтажные стальные анкерные пластины на балке с болтами
-    auto drawBeamBolts = [&](float bx) {
-        renderer->drawSprite(whiteTexture, glm::vec2(bx, beamY + 4.0f), glm::vec2(12.0f, beamH - 8.0f), 0.0f, glm::vec3(0.28f, 0.30f, 0.32f));
-        renderer->drawSprite(whiteTexture, glm::vec2(bx + 4.0f, beamY + 8.0f), glm::vec2(4.0f, 4.0f), 0.0f, glm::vec3(0.75f, 0.78f, 0.82f));
-        renderer->drawSprite(whiteTexture, glm::vec2(bx + 4.0f, beamY + beamH - 16.0f), glm::vec2(4.0f, 4.0f), 0.0f, glm::vec3(0.75f, 0.78f, 0.82f));
-    };
-    drawBeamBolts(beamX + 6.0f);
-    drawBeamBolts(beamX + beamW * 0.45f);
-    drawBeamBolts(beamX + beamW - 18.0f);
-
-    // 2.2. Защитный нависающий козырек над входом (вынос влево на рабочий двор)
-    float canopyReach = std::max(56.0f, cellSize * 0.95f);
-    float canopyX = bldgX - canopyReach;
-    float canopyW = canopyReach + cellSize * 0.6f;
-    float canopyH = std::max(18.0f, cellSize * 0.30f);
-    float canopyY = beamY - canopyH + 4.0f;
-
-    // Падающая тень от козырька на стену и балку
-    renderer->drawSpriteRGBA(whiteTexture, glm::vec2(canopyX, beamY), glm::vec2(canopyW, 10.0f), 0.0f, glm::vec4(0.04f, 0.04f, 0.05f, 0.50f));
-
-    // Профнастил / металлический скат козырька
-    renderer->drawSprite(whiteTexture, glm::vec2(canopyX, canopyY), glm::vec2(canopyW, canopyH), 0.0f, glm::vec3(0.32f, 0.34f, 0.37f));
-    renderer->drawSprite(whiteTexture, glm::vec2(canopyX, canopyY), glm::vec2(canopyW, 2.5f), 0.0f, glm::vec3(0.60f, 0.64f, 0.68f));
-    renderer->drawSprite(whiteTexture, glm::vec2(canopyX, canopyY + canopyH - 2.0f), glm::vec2(canopyW, 2.0f), 0.0f, glm::vec3(0.18f, 0.19f, 0.20f));
-
-    // Ребра гофрированного листа
-    float ribStep = std::max(10.0f, cellSize * 0.18f);
-    for (float rx = canopyX + 6.0f; rx < canopyX + canopyW - 6.0f; rx += ribStep) {
-        renderer->drawSprite(whiteTexture, glm::vec2(rx, canopyY), glm::vec2(2.0f, canopyH), 0.0f, glm::vec3(0.22f, 0.23f, 0.25f));
-        renderer->drawSprite(whiteTexture, glm::vec2(rx + 2.0f, canopyY), glm::vec2(1.0f, canopyH), 0.0f, glm::vec3(0.48f, 0.52f, 0.56f));
-    }
-
-    // Диагональные стальные подкосы (несущие кронштейны козырька к бетону)
-    auto drawStrut = [&](float sx, float sy) {
-        renderer->drawSprite(whiteTexture, glm::vec2(sx, sy), glm::vec2(4.0f, std::max(24.0f, cellSize * 0.40f)), -28.0f, glm::vec3(0.24f, 0.26f, 0.28f));
-        renderer->drawSprite(whiteTexture, glm::vec2(sx + 1.0f, sy), glm::vec2(1.5f, std::max(24.0f, cellSize * 0.40f)), -28.0f, glm::vec3(0.55f, 0.58f, 0.62f));
-    };
-    drawStrut(canopyX + 8.0f, canopyY + canopyH);
-    drawStrut(canopyX + canopyReach * 0.6f, canopyY + canopyH);
-
-    // 2.3. Рудничный светильник над входом (ВЗГ во взрывозащищенном корпусе)
-    float lampX = canopyX + canopyReach * 0.45f;
-    float lampY = beamY - 4.0f;
-    renderer->drawSprite(whiteTexture, glm::vec2(lampX - 6.0f, lampY), glm::vec2(12.0f, 10.0f), 0.0f, glm::vec3(0.26f, 0.28f, 0.30f));
-    renderer->drawSprite(whiteTexture, glm::vec2(lampX - 4.0f, lampY + 4.0f), glm::vec2(8.0f, 8.0f), 0.0f, glm::vec3(1.0f, 0.85f, 0.40f));
-    renderer->drawSpriteRGBA(whiteTexture, glm::vec2(lampX - 35.0f, lampY + 12.0f), glm::vec2(70.0f, 50.0f), 0.0f, glm::vec4(1.0f, 0.82f, 0.35f, 0.16f));
 }
 
