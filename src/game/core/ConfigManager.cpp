@@ -195,6 +195,7 @@ bool ConfigManager::loadConfigs(const std::string& towerPath, const std::string&
 			stats.splitChildType = eData.value("splitChildType", "");
 			stats.splitCount = eData.value("splitCount", 0);
 			stats.splitScatterRadius = eData.value("splitScatterRadius", 14.0f);
+			stats.mercuryImmune = eData.value("mercuryImmune", false);
 
 			if (eData.contains("splitOnDeath") && eData["splitOnDeath"].is_object()) {
 				const auto& sData = eData["splitOnDeath"];

@@ -112,7 +112,8 @@ static const std::unordered_map<std::string, std::string> s_dictRu = {
     { "EDITOR_EXIT_SUB", "Несохранённые изменения будут потеряны." },
     { "EDITOR_EXIT_SAVE_AND_EXIT", "Сохранить и выйти" },
     { "EDITOR_EXIT_DISCARD", "Выйти без сохранения" },
-    { "EDITOR_EXIT_CANCEL", "Отмена" }
+    { "EDITOR_EXIT_CANCEL", "Отмена" },
+    { "HUD_AUTO_WAVE", "Авто" }
 };
 
 static const std::unordered_map<std::string, std::string> s_dictUa = {
@@ -222,7 +223,8 @@ static const std::unordered_map<std::string, std::string> s_dictUa = {
     { "EDITOR_EXIT_SUB", "Незбережені зміни буде втрачено." },
     { "EDITOR_EXIT_SAVE_AND_EXIT", "Зберегти і вийти" },
     { "EDITOR_EXIT_DISCARD", "Вийти без збереження" },
-    { "EDITOR_EXIT_CANCEL", "Скасувати" }
+    { "EDITOR_EXIT_CANCEL", "Скасувати" },
+    { "HUD_AUTO_WAVE", "Авто" }
 };
 
 static const std::unordered_map<std::string, std::string> s_dictEn = {
@@ -332,7 +334,8 @@ static const std::unordered_map<std::string, std::string> s_dictEn = {
     { "EDITOR_EXIT_SUB", "Unsaved changes will be lost." },
     { "EDITOR_EXIT_SAVE_AND_EXIT", "Save & Exit" },
     { "EDITOR_EXIT_DISCARD", "Exit without saving" },
-    { "EDITOR_EXIT_CANCEL", "Cancel" }
+    { "EDITOR_EXIT_CANCEL", "Cancel" },
+    { "HUD_AUTO_WAVE", "AUTO" }
 };
 
 void LocalizationManager::init() {

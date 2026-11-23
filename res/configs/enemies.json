@@ -200,10 +200,10 @@
     }
   },
   "Mercury_Large": {
-    "speed": 0.3,
-    "Maxhealth": 250,
+    "speed": 0.32,
+    "Maxhealth": 65,
     "sizeScale": 0.92,
-    "reward": 20,
+    "reward": 3,
     "textureId": "mercury_drop",
     "color": [
       1.0,
@@ -211,16 +211,17 @@
       1.0
     ],
     "deathSound": "res/sounds/enemy_death.wav",
-    "deathParticle": "BloodSplatter",
+    "deathParticle": "MercurySplatter",
     "splitChildType": "Mercury_Medium",
     "splitCount": 2,
-    "splitScatterRadius": 18.0
+    "splitScatterRadius": 18.0,
+    "mercuryImmune": true
   },
   "Mercury_Medium": {
     "speed": 0.5,
-    "Maxhealth": 120,
+    "Maxhealth": 28,
     "sizeScale": 0.66,
-    "reward": 10,
+    "reward": 2,
     "textureId": "mercury_drop",
     "color": [
       1.0,
@@ -228,16 +229,17 @@
       1.0
     ],
     "deathSound": "res/sounds/enemy_death.wav",
-    "deathParticle": "BloodSplatter",
+    "deathParticle": "MercurySplatter",
     "splitChildType": "Mercury_Small",
     "splitCount": 2,
-    "splitScatterRadius": 14.0
+    "splitScatterRadius": 14.0,
+    "mercuryImmune": true
   },
   "Mercury_Small": {
-    "speed": 0.7,
-    "Maxhealth": 50,
+    "speed": 0.72,
+    "Maxhealth": 12,
     "sizeScale": 0.44,
-    "reward": 5,
+    "reward": 1,
     "textureId": "mercury_drop",
     "color": [
       1.0,
@@ -245,9 +247,10 @@
       1.0
     ],
     "deathSound": "res/sounds/enemy_death.wav",
-    "deathParticle": "BloodSplatter",
+    "deathParticle": "MercurySplatter",
     "splitChildType": "",
     "splitCount": 0,
-    "splitScatterRadius": 0.0
+    "splitScatterRadius": 0.0,
+    "mercuryImmune": true
   }
 }

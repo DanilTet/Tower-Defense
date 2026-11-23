@@ -35,6 +35,7 @@ void Enemy::initFromStats(const EnemyStats& stats) {
     m_isSpark = (m_type == "Spark");
     m_isCoal = (m_type == "Coal");
     m_isMercury = (m_type == "Mercury_Large" || m_type == "Mercury_Medium" || m_type == "Mercury_Small" || m_type.rfind("Mercury", 0) == 0);
+    m_mercuryImmune = stats.mercuryImmune;
 
     if (!m_textureId.empty() && ResourceManager::hasTexture(m_textureId)) {
         m_cachedTexture = ResourceManager::getTexture(m_textureId);
@@ -888,6 +889,9 @@ void Enemy::applySlow(float duration, float slowPercent) {
 }
 
 void Enemy::applyPoison(float duration, float tickInterval, int damagePerTick) {
+    if (m_mercuryImmune) {
+        return;
+    }
     for (auto& effect : m_statusEffects) {
         if (effect.type == StatusType::Poison) {
             effect.duration = std::max(effect.duration, duration);

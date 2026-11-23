@@ -28,6 +28,7 @@ struct EnemyStats {
 	std::string splitChildType = "";
 	int splitCount = 0;
 	float splitScatterRadius = 14.0f;
+	bool mercuryImmune = false; // иммунитет к урону, замедлению и яду Ртутной башни
 };
 
 enum class StatusType {
@@ -84,6 +85,7 @@ private:
 	bool m_isSpark = false;
 	bool m_isCoal = false;
 	bool m_isMercury = false;
+	bool m_mercuryImmune = false;
 	ParticleEmitterProps m_deathParticleProps;
 	ParticleEmitterProps m_sparkTrailProps;
 
@@ -194,6 +196,7 @@ public:
 	bool isSpark() const { return m_isSpark; }
 	bool isCoal() const { return m_isCoal; }
 	bool isMercury() const { return m_isMercury; }
+	bool isMercuryImmune() const { return m_mercuryImmune; }
 	int getId() const { return m_id; } // геттер для получения айди врага
 
 	float getDistanceTraveled() const { return m_distanceTraveled; } // геттер для того щоб отримати пройдений шлях ворога

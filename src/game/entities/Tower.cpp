@@ -249,7 +249,8 @@ void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies,
 
 	// Для остальных башен (Basic, Mercury) — классический поиск цели и плавное наведение
 	float currentPixelRange = m_range * cellSize;
-	Enemy* bestTarget = TowerTargetingSystem::selectTarget(towerCenter, currentPixelRange, m_targetMode, enemies, grid);
+	const bool isMercuryTower = (m_type == "Mercury");
+	Enemy* bestTarget = TowerTargetingSystem::selectTarget(towerCenter, currentPixelRange, m_targetMode, enemies, grid, isMercuryTower);
 
 	if (bestTarget != nullptr) {
 		glm::vec2 enemyCenter = bestTarget->getCollider(grid).center;
@@ -263,6 +264,7 @@ void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies,
 					freeProj->setVisuals(m_cachedBulletUV, m_bulletBaseSize);
 					freeProj->init(towerCenter, m_angle, m_bulletSpeed, m_damage, bestTarget->getId(), m_splashRadius, currentPixelRange);
 					freeProj->setStatusEffects(m_slowDuration, m_slowPercent, m_poisonDuration, m_poisonInterval, m_poisonDamagePerTick);
+					freeProj->setMercuryDamage(isMercuryTower);
 				}
 
 				if (m_hasMuzzleParticle) {
