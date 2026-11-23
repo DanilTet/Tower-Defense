@@ -3,8 +3,31 @@
 #include "../textures/Texture2D.h"
 #include "../world/Grid.h"
 #include <algorithm>
-#include <numeric>
 #include <cmath>
+
+int EditorEmitterRenderer::sortByZIndex(std::vector<ParticleEmitterConfig>& emitters, int selectedIndex) {
+    if (emitters.size() <= 1) {
+        return selectedIndex;
+    }
+
+    if (selectedIndex >= 0 && selectedIndex < static_cast<int>(emitters.size())) {
+        int idx = selectedIndex;
+        while (idx > 0 && emitters[idx].zIndex < emitters[idx - 1].zIndex) {
+            std::swap(emitters[idx], emitters[idx - 1]);
+            --idx;
+        }
+        while (idx + 1 < static_cast<int>(emitters.size()) && emitters[idx].zIndex > emitters[idx + 1].zIndex) {
+            std::swap(emitters[idx], emitters[idx + 1]);
+            ++idx;
+        }
+        return idx;
+    }
+
+    std::stable_sort(emitters.begin(), emitters.end(), [](const ParticleEmitterConfig& a, const ParticleEmitterConfig& b) {
+        return a.zIndex < b.zIndex;
+    });
+    return selectedIndex;
+}
 
 void EditorEmitterRenderer::render(
     SpriteRenderer* renderer,
@@ -17,13 +40,7 @@ void EditorEmitterRenderer::render(
 
     float cellSize = grid->getCellSize();
 
-    std::vector<size_t> order(emitters.size());
-    std::iota(order.begin(), order.end(), 0);
-    std::stable_sort(order.begin(), order.end(), [&emitters](size_t a, size_t b) {
-        return emitters[a].zIndex < emitters[b].zIndex;
-    });
-
-    for (size_t i : order) {
+    for (size_t i = 0; i < emitters.size(); ++i) {
         const auto& em = emitters[i];
         bool isSelected = (static_cast<int>(i) == selectedEmitterIndex);
         glm::vec2 center = grid->getOffset() + em.tilePos * cellSize;

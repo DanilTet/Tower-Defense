@@ -160,22 +160,109 @@ DijkstraMap Pathfinder::generateDijkstraMap(const Grid& grid, const std::vector<
     return dmap;
 }
 
-std::vector<glm::ivec2> Pathfinder::tracePath(const DijkstraMap& dmap, const Grid& grid, glm::ivec2 startPos) const {
+std::vector<glm::ivec2> Pathfinder::tracePath(
+    const DijkstraMap& dmap,
+    const Grid& grid,
+    glm::ivec2 startPos,
+    glm::ivec2 preferredDir
+) const {
     std::vector<glm::ivec2> path;
     if (!dmap.isReachable(startPos.x, startPos.y)) {
         return path;
     }
 
+    // Фиксированный детерминированный порядок: сначала 4 прямых (ортогональных) шага,
+    // затем 4 диагональных — гарантирует слияние путей от разных спавнеров без скрещивания.
+    const int dx[8] = { 1, 0, -1,  0,  1,  1, -1, -1 };
+    const int dy[8] = { 0, 1,  0, -1,  1, -1,  1, -1 };
+    const int stepCosts[8] = { 10, 10, 10, 10, 14, 14, 14, 14 };
+
     int totalCells = dmap.width * dmap.height;
     glm::ivec2 curr = startPos;
     int steps = 0;
 
+    // Переданный preferredDir применяем только на первых 1–2 шагах (пока путь совпадает с ним),
+    // не перезаписывая его последующими шагами трассировки.
+    int preferredStepsRemaining = 0;
+    if (preferredDir.x != 0 || preferredDir.y != 0) {
+        preferredStepsRemaining = 2;
+    }
+
     while (dmap.getDistance(curr.x, curr.y) > 0 && steps < totalCells) {
-        glm::ivec2 next = dmap.getNext(curr.x, curr.y);
-        if (next.x == -1 && next.y == -1) break;
-        if (next == curr) break;
-        path.push_back(next);
-        curr = next;
+        int currDist = dmap.getDistance(curr.x, curr.y);
+        int bestTotalCost = 999999;
+        int bestPriority = -1000;
+        bool foundNext = false;
+        glm::ivec2 bestNextCell(-1, -1);
+        glm::ivec2 bestStepDir(0, 0);
+
+        for (int i = 0; i < 8; ++i) {
+            glm::ivec2 candidate(curr.x + dx[i], curr.y + dy[i]);
+            if (!dmap.isReachable(candidate.x, candidate.y)) {
+                continue;
+            }
+
+            int candDist = dmap.getDistance(candidate.x, candidate.y);
+            if (candDist >= currDist) {
+                continue;
+            }
+
+            if (!canMove(grid, curr, candidate)) {
+                continue;
+            }
+
+            int totalCost = candDist + stepCosts[i];
+            if (totalCost > bestTotalCost) {
+                continue;
+            }
+
+            // Единый детерминированный приоритет: прямые шаги выше диагональных в фиксированном порядке
+            int priority = 0;
+            if (i < 4) {
+                priority = 100 - i;
+            } else {
+                priority = 50 - i;
+            }
+
+            // На стартовых 1–2 шагах отдаём приоритет исходному направлению движения врага
+            if (preferredStepsRemaining > 0 && dx[i] == preferredDir.x && dy[i] == preferredDir.y) {
+                priority = 1000;
+            }
+
+            if (!foundNext || totalCost < bestTotalCost || (totalCost == bestTotalCost && priority > bestPriority)) {
+                bestTotalCost = totalCost;
+                bestPriority = priority;
+                bestNextCell = candidate;
+                bestStepDir = glm::ivec2(dx[i], dy[i]);
+                foundNext = true;
+            }
+        }
+
+        if (!foundNext) {
+            glm::ivec2 fallbackNext = dmap.getNext(curr.x, curr.y);
+            if (fallbackNext.x == -1 && fallbackNext.y == -1) {
+                break;
+            }
+            if (fallbackNext == curr) {
+                break;
+            }
+            if (dmap.getDistance(fallbackNext.x, fallbackNext.y) >= currDist) {
+                break;
+            }
+            bestNextCell = fallbackNext;
+            bestStepDir = fallbackNext - curr;
+        }
+
+        if (preferredStepsRemaining > 0) {
+            if (bestStepDir == preferredDir) {
+                preferredStepsRemaining--;
+            } else {
+                preferredStepsRemaining = 0;
+            }
+        }
+
+        path.push_back(bestNextCell);
+        curr = bestNextCell;
         steps++;
     }
 

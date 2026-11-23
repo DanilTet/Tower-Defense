@@ -292,7 +292,7 @@ bool Tower::upgrade(int& playerMoney) {
 
 	// увеличиваем лвл
 	int nextLevel = m_currentLevel + 1;
-	TowerStats nextStats = ConfigManager::getTowerStats(m_type, nextLevel);
+	const TowerStats& nextStats = ConfigManager::getTowerStats(m_type, nextLevel);
 	if (nextStats.cost <= 0 && nextStats.damage <= 0 && nextStats.range <= 0.0f) {
 		return false; // защита от невалидных статов следующего уровня
 	}
@@ -323,7 +323,7 @@ int Tower::getUpgradeCost() const {
 void Tower::forceLevel(int level) {
 	if (level < 1 || level > m_maxLevel) return;
 	m_currentLevel = level;
-	TowerStats stats = ConfigManager::getTowerStats(m_type, level);// получаем статы для этого типа
+	const TowerStats& stats = ConfigManager::getTowerStats(m_type, level);// получаем статы для этого типа
 
 	applyStats(stats);
 }

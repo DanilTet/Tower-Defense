@@ -5,6 +5,7 @@
 #include <map>
 #include <set>
 #include <utility>
+#include <cstdint>
 #include <glm/glm.hpp>
 
 enum class CellType {
@@ -40,6 +41,7 @@ private:
 	std::map<std::pair<int, int>, CellType> m_outerCells;
 	std::map<std::pair<int, int>, CellType> m_originalOuterCells;
 	std::set<std::pair<int, int>> m_outerNoBuild;
+	uint64_t m_version = 0;
 
 	void renderCellVisual(SpriteRenderer* renderer,
 		const Texture2D* whiteTexture,
@@ -57,7 +59,8 @@ public:
 	glm::ivec2 pixelToGrid(glm::vec2 pixelPos) const; // получаем кординаты мыши и возращаем индекс клетки в масиве
 
 	bool canBuildAt(int gridX, int gridY) const; // проверяем можно ли построить башню на этой клетке
-	void setCellType(int gridX, int gridY, CellType type); // устанавливаем тип клетки
+	void setCellType(int gridX, int gridY, CellType type, bool bumpVersion = true); // устанавливаем тип клетки
+	uint64_t getVersion() const { return m_version; }
 
 	// СЛОЙ 1: Базовые клетки матрицы и внешние клетки (Ground, Path, Platform, Chasm, Rail)
 	void drawBaseCells(SpriteRenderer* renderer,

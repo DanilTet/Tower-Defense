@@ -20,6 +20,27 @@ WaveManager::WaveManager()
 	
 }
 
+bool WaveManager::loadWaves(const std::vector<WaveConfig>& waves) {
+	// все очищаем перед загрузкой
+	m_waves.clear();
+	m_currentPartIndex = 0;
+	m_enemiesSpawnedInCurrentPart = 0;
+	m_spawnTimer = 0.0f;
+	m_isWaveActive = false;
+	m_gameStarted = false;
+	m_waveCountdown = 0.0f;
+	m_currentWaveIndex = 0;
+	m_currentSpawnerIndex = 0;
+
+	m_waves = waves;
+	for (auto& wave : m_waves) {
+		for (auto& part : wave.parts) {
+			part.spawnInterwal = std::max(0.05f, part.spawnInterwal);
+		}
+	}
+	return !m_waves.empty();
+}
+
 bool WaveManager::loadLevel(const std::string& filepath) {
 	// все очищаем перед загрузкой
 	m_waves.clear();

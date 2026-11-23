@@ -913,6 +913,7 @@ void MapEditorState::applyBrush(int gridX, int gridY, EditorBrush brush) {
             cfg.periodMax = pMax;
             cfg.burstDuration = bDur;
             m_emitters.push_back(cfg);
+            EditorEmitterRenderer::sortByZIndex(m_emitters, static_cast<int>(m_emitters.size()) - 1);
             m_envParticleManager.setEmitters(m_emitters);
         }
 
@@ -2335,11 +2336,13 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
         bool keyLayerDown = (glfwGetKey(window, GLFW_KEY_PAGE_DOWN) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_LEFT_BRACKET) == GLFW_PRESS);
         if (keyLayerUp && !m_keyLayerUpLastFrame) {
             m_decorations[m_selectedDecorationIndex].zIndex = std::clamp(m_decorations[m_selectedDecorationIndex].zIndex + 1, -10, 10);
+            m_selectedDecorationIndex = DecorationRenderer::sortByZIndex(m_decorations, m_selectedDecorationIndex);
             m_isDirty = true;
             showToast("Слой декора (zIndex): " + std::to_string(m_decorations[m_selectedDecorationIndex].zIndex), glm::vec4(0.4f, 0.85f, 1.0f, 1.0f));
         }
         if (keyLayerDown && !m_keyLayerDownLastFrame) {
             m_decorations[m_selectedDecorationIndex].zIndex = std::clamp(m_decorations[m_selectedDecorationIndex].zIndex - 1, -10, 10);
+            m_selectedDecorationIndex = DecorationRenderer::sortByZIndex(m_decorations, m_selectedDecorationIndex);
             m_isDirty = true;
             showToast("Слой декора (zIndex): " + std::to_string(m_decorations[m_selectedDecorationIndex].zIndex), glm::vec4(0.4f, 0.85f, 1.0f, 1.0f));
         }
@@ -2410,12 +2413,14 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
         bool keyLayerDown = (glfwGetKey(window, GLFW_KEY_PAGE_DOWN) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_LEFT_BRACKET) == GLFW_PRESS);
         if (keyLayerUp && !m_keyLayerUpLastFrame) {
             m_emitters[m_selectedEmitterIndex].zIndex = std::clamp(m_emitters[m_selectedEmitterIndex].zIndex + 1, -10, 10);
+            m_selectedEmitterIndex = EditorEmitterRenderer::sortByZIndex(m_emitters, m_selectedEmitterIndex);
             m_envParticleManager.setEmitters(m_emitters);
             m_isDirty = true;
             showToast("Слой эмиттера (zIndex): " + std::to_string(m_emitters[m_selectedEmitterIndex].zIndex), glm::vec4(0.4f, 0.85f, 1.0f, 1.0f));
         }
         if (keyLayerDown && !m_keyLayerDownLastFrame) {
             m_emitters[m_selectedEmitterIndex].zIndex = std::clamp(m_emitters[m_selectedEmitterIndex].zIndex - 1, -10, 10);
+            m_selectedEmitterIndex = EditorEmitterRenderer::sortByZIndex(m_emitters, m_selectedEmitterIndex);
             m_envParticleManager.setEmitters(m_emitters);
             m_isDirty = true;
             showToast("Слой эмиттера (zIndex): " + std::to_string(m_emitters[m_selectedEmitterIndex].zIndex), glm::vec4(0.4f, 0.85f, 1.0f, 1.0f));
@@ -2595,6 +2600,7 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
             static_cast<float>(m_width), static_cast<float>(m_height),
             getTopBarHeight(), getBottomDockHeight(),
             /* onChanged */ [this]() {
+                m_selectedEmitterIndex = EditorEmitterRenderer::sortByZIndex(m_emitters, m_selectedEmitterIndex);
                 m_envParticleManager.setEmitters(m_emitters);
                 m_envParticleManager.triggerBurstAt(m_selectedEmitterIndex);
                 m_isDirty = true;
@@ -2638,6 +2644,7 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
             static_cast<float>(m_width), static_cast<float>(m_height),
             getTopBarHeight(), getBottomDockHeight(),
             /* onChanged */ [this]() {
+                m_selectedDecorationIndex = DecorationRenderer::sortByZIndex(m_decorations, m_selectedDecorationIndex);
                 m_isDirty = true;
             },
             /* onDelete */ [this]() {
@@ -3024,8 +3031,8 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
                         cfg.burstDuration = bDur;
 
                         m_emitters.push_back(cfg);
+                        m_selectedEmitterIndex = EditorEmitterRenderer::sortByZIndex(m_emitters, static_cast<int>(m_emitters.size()) - 1);
                         m_envParticleManager.setEmitters(m_emitters);
-                        m_selectedEmitterIndex = static_cast<int>(m_emitters.size()) - 1;
                         m_envParticleManager.triggerBurstAt(m_selectedEmitterIndex);
                         m_isDraggingEmitter = false;
                         m_emitterDragOffset = glm::vec2(0.0f);
@@ -3184,7 +3191,7 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
                             }
 
                             m_decorations.push_back(cfg);
-                            m_selectedDecorationIndex = static_cast<int>(m_decorations.size()) - 1;
+                            m_selectedDecorationIndex = DecorationRenderer::sortByZIndex(m_decorations, static_cast<int>(m_decorations.size()) - 1);
                             m_isDraggingDecoration = false;
                             m_decorationDragOffset = glm::vec2(0.0f);
                             m_isDirty = true;

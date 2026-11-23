@@ -66,7 +66,13 @@ public:
     DijkstraMap generateDijkstraMap(const Grid& grid, const std::vector<glm::ivec2>& targetBases) const;
 
     // Восстановление маршрута из карты расстояний (градиентный спуск за O(L))
-    std::vector<glm::ivec2> tracePath(const DijkstraMap& dmap, const Grid& grid, glm::ivec2 startPos) const;
+    // preferredDir — предпочтительное направление движения (для сохранения прямой линии среди равнозначных соседей)
+    std::vector<glm::ivec2> tracePath(
+        const DijkstraMap& dmap,
+        const Grid& grid,
+        glm::ivec2 startPos,
+        glm::ivec2 preferredDir = glm::ivec2(0, 0)
+    ) const;
 
     // Высокопроизводительный A* к одной цели (обратная совместимость)
     std::vector<glm::ivec2> findPath(const Grid& grid, glm::ivec2 startPos, glm::ivec2 targetPos, int& outTotalCost);

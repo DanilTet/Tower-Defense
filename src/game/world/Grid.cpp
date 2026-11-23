@@ -74,15 +74,28 @@ bool Grid::canBuildAt(int gridX, int gridY) const {
 }
 
 // Принудительно меняем тип конкретной ячейки
-void Grid::setCellType(int gridX, int gridY, CellType type) {
+void Grid::setCellType(int gridX, int gridY, CellType type, bool bumpVersion) {
+	bool changed = false;
 	if (gridX >= 0 && gridX < m_width && gridY >= 0 && gridY < m_height) {
-		m_grid[gridY][gridX] = type;
+		if (m_grid[gridY][gridX] != type) {
+			m_grid[gridY][gridX] = type;
+			changed = true;
+		}
 	} else if (m_hasSidePockets) {
 		if (type == CellType::Empty) {
-			m_outerCells.erase({gridX, gridY});
+			if (m_outerCells.erase({gridX, gridY}) > 0) {
+				changed = true;
+			}
 		} else {
-			m_outerCells[{gridX, gridY}] = type;
+			auto it = m_outerCells.find({gridX, gridY});
+			if (it == m_outerCells.end() || it->second != type) {
+				m_outerCells[{gridX, gridY}] = type;
+				changed = true;
+			}
 		}
+	}
+	if (changed && bumpVersion) {
+		m_version++;
 	}
 }
 

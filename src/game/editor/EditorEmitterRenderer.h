@@ -10,6 +10,8 @@ class Grid;
 
 class EditorEmitterRenderer {
 public:
+    static int sortByZIndex(std::vector<ParticleEmitterConfig>& emitters, int selectedIndex = -1);
+
     static void render(
         SpriteRenderer* renderer,
         const Texture2D* texture,

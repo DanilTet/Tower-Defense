@@ -299,21 +299,30 @@ bool ConfigManager::loadConfigs(const std::string& towerPath, const std::string&
 	}
 }
 
-TowerStats ConfigManager::getTowerStats(const std::string& type, int level) {
+const TowerStats& ConfigManager::getTowerStats(const std::string& type, int level) {
+	static const TowerStats s_emptyTowerStats{};
 	auto it = s_towerStats.find(type);
 	if (it != s_towerStats.end() && !it->second.empty()) {
 		// защита от выхода за границы вектора уровней
 		int idx = level - 1;
-		if (idx >= (int)it->second.size()) {
+		if (idx < 0) {
+			idx = 0;
+		}
+		if (idx >= static_cast<int>(it->second.size())) {
 			return it->second.back(); // если запросили уровень выше максимального то возвращаем последний
 		}
 		return it->second[idx];
 	}
-	return TowerStats{}; // возвращаем пустую структуру в случае ошибки
+	return s_emptyTowerStats; // возвращаем пустую структуру в случае ошибки
 }
 
-EnemyStats ConfigManager::getEnemyStats(const std::string& type) {
-	return s_enemyStats[type];
+const EnemyStats& ConfigManager::getEnemyStats(const std::string& type) {
+	static const EnemyStats s_emptyEnemyStats{};
+	auto it = s_enemyStats.find(type);
+	if (it != s_enemyStats.end()) {
+		return it->second;
+	}
+	return s_emptyEnemyStats;
 }
 
 std::vector<std::string> ConfigManager::getAllTowerTypes() {

@@ -147,7 +147,7 @@ bool PathService::isPlacementValid(
 
     // --- 2. ПРОВЕРКА С ПОСТАНОВКОЙ БАШНИ ЧЕРЕЗ БЫСТРЫЙ FLOW FIELD ---
     CellType oldCellType = grid.getCellType(gridX, gridY);
-    grid.setCellType(gridX, gridY, CellType::Tower);
+    grid.setCellType(gridX, gridY, CellType::Tower, false);
 
     outNewPaths.clear();
     outNewPaths.resize(spawners.size());
@@ -226,13 +226,13 @@ bool PathService::isPlacementValid(
     }
 
     if (isPathBlocked) {
-        grid.setCellType(gridX, gridY, oldCellType);
+        grid.setCellType(gridX, gridY, oldCellType, false);
         outNewPaths.clear();
         return false;
     }
 
     // Предикат не должен мутировать сетку — возвращаем исходный тип клетки
-    grid.setCellType(gridX, gridY, oldCellType);
+    grid.setCellType(gridX, gridY, oldCellType, false);
     return true;
 }
 

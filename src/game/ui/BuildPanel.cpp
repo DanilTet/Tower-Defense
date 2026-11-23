@@ -88,8 +88,8 @@ void Buildpanel::BuildRenderUI(
 
     // Отрисовка карточек каждой башни
     for (size_t i = 0; i < m_cachedTowers.size(); ++i) {
-        std::string currentType = m_cachedTowers[i];
-        TowerStats towerstats = ConfigManager::getTowerStats(currentType);
+        const std::string& currentType = m_cachedTowers[i];
+        const TowerStats& towerstats = ConfigManager::getTowerStats(currentType);
 
         float cardX = panelPos.x + (DOCK_PADDING * scale) + i * ((CARD_WIDTH + DOCK_GAP) * scale);
         float cardY = panelPos.y + (DOCK_PADDING * scale);
@@ -135,8 +135,8 @@ void Buildpanel::BuildRenderUI(
 
     // Текстовый слой карточек
     for (size_t i = 0; i < m_cachedTowers.size(); ++i) {
-        std::string currentType = m_cachedTowers[i];
-        TowerStats towerstats = ConfigManager::getTowerStats(currentType);
+        const std::string& currentType = m_cachedTowers[i];
+        const TowerStats& towerstats = ConfigManager::getTowerStats(currentType);
 
         float cardX = panelPos.x + (DOCK_PADDING * scale) + i * ((CARD_WIDTH + DOCK_GAP) * scale);
         float cardY = panelPos.y + (DOCK_PADDING * scale);

@@ -714,6 +714,21 @@ CircleCollider Enemy::getCollider(const Grid& grid) const {
 }
 bool Enemy::isPathIntersecting(glm::ivec2 cell) const {
     if (m_path.empty()) return false;
+
+    // Проверяем диагональный срез угла на текущем сегменте (от предыдущей клетки к целевой)
+    if (m_currentWayPoint > 0 && m_currentWayPoint < m_path.size()) {
+        glm::ivec2 prev = m_path[m_currentWayPoint - 1];
+        glm::ivec2 next = m_path[m_currentWayPoint];
+        int dx = next.x - prev.x;
+        int dy = next.y - prev.y;
+        if (std::abs(dx) == 1 && std::abs(dy) == 1) {
+            if ((cell.x == prev.x + dx && cell.y == prev.y) ||
+                (cell.x == prev.x && cell.y == prev.y + dy)) {
+                return true;
+            }
+        }
+    }
+
     for (size_t i = m_currentWayPoint; i < m_path.size(); ++i) {
         if (m_path[i] == cell) {
             return true;
@@ -733,13 +748,97 @@ bool Enemy::isPathIntersecting(glm::ivec2 cell) const {
     return false;
 }
 
-// функция для нахождения нового пути
+// функция для нахождения нового пути по предрасчитанной карте расстояний DijkstraMap
+void Enemy::recalculatePath(const DijkstraMap& dmap, const Pathfinder& pathfinder, const Grid& grid, const std::vector<BaseData>& bases) {
+    if (bases.empty()) return;
+
+    // Определяем текущее направление движения для сохранения прямой линии при трассировке
+    glm::ivec2 preferredDir(0, 0);
+    if (!m_path.empty()) {
+        glm::ivec2 delta(0, 0);
+        if (m_currentWayPoint > 0 && m_currentWayPoint < m_path.size()) {
+            delta = m_path[m_currentWayPoint] - m_path[m_currentWayPoint - 1];
+        } else if (m_path.size() > 1) {
+            delta = m_path[1] - m_path[0];
+        }
+
+        if (delta.x > 0) {
+            preferredDir.x = 1;
+        } else if (delta.x < 0) {
+            preferredDir.x = -1;
+        }
+
+        if (delta.y > 0) {
+            preferredDir.y = 1;
+        } else if (delta.y < 0) {
+            preferredDir.y = -1;
+        }
+    }
+
+    // Определяем стартовую клетку по центру врага с безопасным откатом к доступной клетке
+    glm::vec2 enemyCenter = m_pixelPos + glm::vec2(grid.getCellSize() * 0.5f);
+    glm::ivec2 startCell = grid.pixelToGrid(enemyCenter);
+    if (!dmap.isReachable(startCell.x, startCell.y)) {
+        glm::ivec2 fallbackCell = grid.pixelToGrid(m_pixelPos);
+        if (dmap.isReachable(fallbackCell.x, fallbackCell.y)) {
+            startCell = fallbackCell;
+        } else if (m_currentWayPoint > 0 && m_currentWayPoint <= m_path.size()) {
+            glm::ivec2 prevCell = m_path[m_currentWayPoint - 1];
+            if (dmap.isReachable(prevCell.x, prevCell.y)) {
+                startCell = prevCell;
+            }
+        }
+    }
+
+    if (!dmap.isReachable(startCell.x, startCell.y)) {
+        // Тупик: пути нет. Очищаем маршрут, чтобы моб не шел сквозь башни!
+        m_path.clear();
+        m_currentWayPoint = 0;
+        return;
+    }
+
+    std::vector<glm::ivec2> tracedPath = pathfinder.tracePath(dmap, grid, startCell, preferredDir);
+    if (tracedPath.empty() && dmap.getDistance(startCell.x, startCell.y) > 0) {
+        m_path.clear();
+        m_currentWayPoint = 0;
+        return;
+    }
+
+    std::vector<glm::ivec2> newPath;
+    newPath.reserve(tracedPath.size() + 1);
+    newPath.push_back(startCell);
+    newPath.insert(newPath.end(), tracedPath.begin(), tracedPath.end());
+
+    m_path = std::move(newPath);
+    m_currentWayPoint = 0;
+
+    // Если враг уже находится в центре стартовой клетки или прошёл её в сторону следующей точки —
+    // не заставляем его возвращаться назад в центр m_path[0], сразу направляем к m_path[1].
+    if (m_path.size() > 1) {
+        glm::vec2 startPixel = grid.gridToPixel(m_path[0].x, m_path[0].y);
+        glm::vec2 nextPixel = grid.gridToPixel(m_path[1].x, m_path[1].y);
+        glm::vec2 toNext = nextPixel - startPixel;
+        glm::vec2 fromStart = m_pixelPos - startPixel;
+        float distToStartSq = glm::dot(fromStart, fromStart);
+        float progressAlongSeg = glm::dot(fromStart, toNext);
+
+        if (distToStartSq <= 1.0f || progressAlongSeg > 0.0f) {
+            m_currentWayPoint = 1;
+        }
+    }
+
+    glm::ivec2 endPos = m_path.back();
+    for (const auto& b : bases) {
+        if (b.x == endPos.x && b.y == endPos.y) {
+            m_enableFadeOut = b.enableFadeOut;
+            break;
+        }
+    }
+}
+
+// функция для нахождения нового пути (обёртка обратной совместимости)
 void Enemy::recalculatePath(Pathfinder* pathfinder, const Grid& grid, const std::vector<BaseData>& bases) {
     if (!pathfinder || bases.empty()) return;
-
-    glm::ivec2 currentGridPos = grid.pixelToGrid(m_pixelPos);
-    std::vector<glm::ivec2> bestPath;
-    int dummyCost = 0;
 
     std::vector<glm::ivec2> targetPositions;
     if (m_targetBaseIndex >= 0) {
@@ -756,23 +855,8 @@ void Enemy::recalculatePath(Pathfinder* pathfinder, const Grid& grid, const std:
         }
     }
 
-    bestPath = pathfinder->findPathToAny(grid, currentGridPos, targetPositions, dummyCost);
-
-    if (!bestPath.empty()) {
-        m_path = bestPath;
-        m_currentWayPoint = 0;
-        glm::ivec2 endPos = m_path.back();
-        for (const auto& b : bases) {
-            if (b.x == endPos.x && b.y == endPos.y) {
-                m_enableFadeOut = b.enableFadeOut;
-                break;
-            }
-        }
-    } else {
-        // Тупик: пути нет. Очищаем маршрут, чтобы моб не шел сквозь башни!
-        m_path.clear();
-        m_currentWayPoint = 0;
-    }
+    DijkstraMap dmap = pathfinder->generateDijkstraMap(grid, targetPositions);
+    recalculatePath(dmap, *pathfinder, grid, bases);
 }
 
 void Enemy::applySlow(float duration, float slowPercent) {

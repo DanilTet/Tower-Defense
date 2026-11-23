@@ -22,6 +22,7 @@ public:
 	WaveManager();
 
 	bool loadLevel(const std::string& filepath); // считываем левел с файла
+	bool loadWaves(const std::vector<WaveConfig>& waves); // загрузка уже распарсенных волн из LevelMapData
 
 	void startNextWave(); // начинаем новую волну
 	std::vector<SpawnRequest> update(float dt, const std::vector<SpawnerData>& spawners); // обновляем менеджер врагов по логическим ID

@@ -840,6 +840,31 @@ void DecorationRenderer::renderDecoration(
     renderDecorationImpl(renderer, whiteTexture, nullptr, decCopy, isSelected, alpha, cellSize);
 }
 
+int DecorationRenderer::sortByZIndex(std::vector<DecorationConfig>& decorations, int selectedIndex) {
+    if (decorations.size() <= 1) {
+        return selectedIndex;
+    }
+
+    // Быстрое стабильное переупорядочивание одного изменённого элемента без аллокаций
+    if (selectedIndex >= 0 && selectedIndex < static_cast<int>(decorations.size())) {
+        int idx = selectedIndex;
+        while (idx > 0 && decorations[idx].zIndex < decorations[idx - 1].zIndex) {
+            std::swap(decorations[idx], decorations[idx - 1]);
+            --idx;
+        }
+        while (idx + 1 < static_cast<int>(decorations.size()) && decorations[idx].zIndex > decorations[idx + 1].zIndex) {
+            std::swap(decorations[idx], decorations[idx + 1]);
+            ++idx;
+        }
+        return idx;
+    }
+
+    std::stable_sort(decorations.begin(), decorations.end(), [](const DecorationConfig& a, const DecorationConfig& b) {
+        return a.zIndex < b.zIndex;
+    });
+    return selectedIndex;
+}
+
 void DecorationRenderer::renderDecorations(
     SpriteRenderer* renderer,
     const Texture2D* whiteTexture,
@@ -855,13 +880,7 @@ void DecorationRenderer::renderDecorations(
         particleTexture = resolveParticleTexture();
     }
 
-    std::vector<size_t> order(decorations.size());
-    std::iota(order.begin(), order.end(), 0);
-    std::stable_sort(order.begin(), order.end(), [&decorations](size_t a, size_t b) {
-        return decorations[a].zIndex < decorations[b].zIndex;
-    });
-
-    for (size_t i : order) {
+    for (size_t i = 0; i < decorations.size(); ++i) {
         bool isFog = (decorations[i].type == "fog" || decorations[i].type == "darkness");
         if (onlyFog != isFog) continue;
         bool isSel = (static_cast<int>(i) == selectedIndex);
@@ -885,13 +904,7 @@ void DecorationRenderer::renderDecorations(
         particleTexture = resolveParticleTexture();
     }
 
-    std::vector<size_t> order(decorations.size());
-    std::iota(order.begin(), order.end(), 0);
-    std::stable_sort(order.begin(), order.end(), [&decorations](size_t a, size_t b) {
-        return decorations[a].zIndex < decorations[b].zIndex;
-    });
-
-    for (size_t i : order) {
+    for (size_t i = 0; i < decorations.size(); ++i) {
         bool isFog = (decorations[i].type == "fog" || decorations[i].type == "darkness");
         if (onlyFog != isFog) continue;
         bool isSel = (static_cast<int>(i) == selectedIndex);

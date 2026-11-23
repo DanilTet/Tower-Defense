@@ -4,6 +4,7 @@
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <memory>
+#include <cstdint>
 #include "entities/Tower.h"
 #include "core/LevelManager.h"
 #include <vector>
@@ -25,8 +26,18 @@ struct PlacementPathContext {
 
 class PlacementUI {
 private:
+    glm::ivec2 m_cachedGridPos = glm::ivec2(-9999, -9999);
+    const Grid* m_cachedGridPtr = nullptr;
+    uint64_t m_cachedGridVersion = 0;
+    bool m_cachedBlocksPath = false;
+    bool m_hasCachedPlacement = false;
+    bool m_cachedHadEnemies = false;
+    double m_lastValidationTime = 0.0;
+    static constexpr double VALIDATION_REFRESH_INTERVAL = 0.15;
 
 public:
+    void invalidateCache();
+
     void renderHologram(
         SpriteRenderer* renderer,
         const Texture2D* mainAtlas,// текстурка башни

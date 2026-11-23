@@ -5,6 +5,7 @@
 #include "../audio/AudioManager.h"
 #include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
+#include <unordered_map>
 
 GameWorld::GameWorld() {
 }
@@ -88,7 +89,7 @@ bool GameWorld::loadLevel(const std::string& levelPath, int windowWidth, int win
 
     pathfinder = std::make_unique<Pathfinder>(levelData.gridWidth, levelData.gridHeight);
     waveManager = std::make_unique<WaveManager>();
-    waveManager->loadLevel(currentLevelPath);
+    waveManager->loadWaves(levelData.waves);
     waveManager->setBountyRules(levelData.enemyBountyRules);
     entityManager = std::make_unique<EntityManager>();
 
@@ -121,7 +122,13 @@ void GameWorld::recalculateAllPaths() {
 }
 
 void GameWorld::notifyEnemiesPathChanged(glm::ivec2 blockedCell) {
+    if (!pathfinder || !grid || !entityManager || bases.empty()) {
+        return;
+    }
+
     bool filterByCell = (blockedCell.x >= 0 && blockedCell.y >= 0);
+    std::unordered_map<int, DijkstraMap> dmapCache;
+
     for (auto& enemy : entityManager->getEnemies()) {
         if (!enemy || enemy->isDead() || enemy->isReachedEnd()) continue;
 
@@ -130,7 +137,30 @@ void GameWorld::notifyEnemiesPathChanged(glm::ivec2 blockedCell) {
             continue; // Путь врага не затронут постройкой башни!
         }
 
-        enemy->recalculatePath(pathfinder.get(), *grid, bases);
+        int targetId = enemy->getTargetBaseIndex();
+        bool hasExactBase = false;
+        if (targetId >= 0) {
+            for (const auto& b : bases) {
+                if (b.id == targetId) {
+                    hasExactBase = true;
+                    break;
+                }
+            }
+        }
+
+        int cacheKey = -1;
+        if (hasExactBase) {
+            cacheKey = targetId;
+        }
+
+        auto it = dmapCache.find(cacheKey);
+        if (it == dmapCache.end()) {
+            std::vector<glm::ivec2> targetPositions = PathService::getTargetBasePositions(bases, targetId);
+            auto inserted = dmapCache.emplace(cacheKey, pathfinder->generateDijkstraMap(*grid, targetPositions));
+            it = inserted.first;
+        }
+
+        enemy->recalculatePath(it->second, *pathfinder, *grid, bases);
     }
 }
 

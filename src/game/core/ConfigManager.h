@@ -26,8 +26,8 @@ public:
     static void preloadAllSounds();
 
     // получение готовых стат
-    static TowerStats getTowerStats(const std::string& type, int level = 1);
-    static EnemyStats getEnemyStats(const std::string& type);
+    static const TowerStats& getTowerStats(const std::string& type, int level = 1);
+    static const EnemyStats& getEnemyStats(const std::string& type);
     // метод для получения всех загруженых имен
     static std::vector<std::string> getAllTowerTypes();
     // геттер конфига партиклов

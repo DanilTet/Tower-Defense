@@ -80,6 +80,8 @@ public:
         bool onlyFog = false
     );
 
+    static int sortByZIndex(std::vector<DecorationConfig>& decorations, int selectedIndex = -1);
+
     static void renderPreview(
         SpriteRenderer* renderer,
         const Texture2D* whiteTexture,
