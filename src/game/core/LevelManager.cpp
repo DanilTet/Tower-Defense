@@ -49,7 +49,7 @@ LevelMapData LevelManager::loadLevelMap(const std::string& filepath) {
             data.hasSidePockets = j["map"].value("hasSidePockets", false);
         }
         std::string fname = fs::path(filepath).filename().string();
-        bool defaultCampaign = (fname == "level_1.json" || fname == "level_2.json");
+        bool defaultCampaign = (fname == "kanal.json" || fname == "rtutnaya_shchakhta.json");
         data.isCampaign = j.value("isCampaign", defaultCampaign);
 
         if (j.contains("tags") && j["tags"].is_array()) {
@@ -989,7 +989,7 @@ std::vector<LevelInfo> LevelManager::getAvailableLevels() {
     std::vector<LevelInfo> levels;
     std::unordered_set<std::string> seen;
 
-    std::vector<std::string> builtIns = { "level_1.json", "level_2.json" };
+    std::vector<std::string> builtIns = { "kanal.json", "rtutnaya_shchakhta.json" };
     auto dirs = getLevelDirectories();
 
     for (const auto& bi : builtIns) {
@@ -1003,7 +1003,7 @@ std::vector<LevelInfo> LevelManager::getAvailableLevels() {
                 if (!mapData.name.empty()) {
                     info.name = mapData.name;
                 } else {
-                    info.name = (bi == "level_1.json") ? "LEVEL 1" : "LEVEL 2";
+                    info.name = (bi == "kanal.json") ? "Канал" : "Вход в ртутную шахту";
                 }
                 info.fullPath = "res/levels/" + bi;
                 info.isCampaign = mapData.isCampaign;
