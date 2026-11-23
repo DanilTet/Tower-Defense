@@ -19,7 +19,8 @@ void EditorLevelSettingsModal::open(int currentMoney, int currentHealth,
                                     const std::vector<std::string>& allowedTowers,
                                     const std::unordered_map<std::string, int>& towerMaxTiers,
                                     const std::map<std::string, std::vector<EnemyWaveBountyRule>>& bountyRules,
-                                    int totalWaves, bool hasSidePockets)
+                                    int totalWaves, bool hasSidePockets,
+                                    const std::map<std::string, std::vector<EnemyHpRule>>& hpRules)
 {
     m_isOpen = true;
     m_justOpened = true;
@@ -28,11 +29,19 @@ void EditorLevelSettingsModal::open(int currentMoney, int currentHealth,
     m_focused = { FocusedType::None, "", -1 };
     m_cursorBlinkTimer = 0.0f;
     m_scrollOffset = 0.0f;
-    m_totalWaves = totalWaves > 0 ? totalWaves : 15;
+    if (totalWaves > 0) {
+        m_totalWaves = totalWaves;
+    } else {
+        m_totalWaves = 15;
+    }
 
     m_moneyStr = std::to_string(std::max(0, currentMoney));
     m_healthStr = std::to_string(std::max(1, currentHealth));
-    m_allowedTowers = allowedTowers.empty() ? std::vector<std::string>{"Basic", "Mercury", "Piston"} : allowedTowers;
+    if (allowedTowers.empty()) {
+        m_allowedTowers = std::vector<std::string>{"Basic", "Mercury", "Piston"};
+    } else {
+        m_allowedTowers = allowedTowers;
+    }
     m_towerMaxTiers = { { "Basic", 3 }, { "Mercury", 3 }, { "Piston", 3 } };
     for (const auto& kv : towerMaxTiers) {
         m_towerMaxTiers[kv.first] = std::clamp(kv.second, 1, 3);
@@ -56,8 +65,27 @@ void EditorLevelSettingsModal::open(int currentMoney, int currentHealth,
             er.fromWaveStr = "1";
             er.toWaveStr = "99";
             er.rewardStr = "1";
-            er.rewardStepStr = (key == "Coal") ? "2" : "1";
+            if (key == "Coal") {
+                er.rewardStepStr = "2";
+            } else {
+                er.rewardStepStr = "1";
+            }
             m_mobRules[key].push_back(er);
+        }
+    }
+
+    m_mobHpRules.clear();
+    for (const auto& mob : m_mobTypes) {
+        const std::string& key = mob.first;
+        auto it = hpRules.find(key);
+        if (it != hpRules.end() && !it->second.empty()) {
+            for (const auto& r : it->second) {
+                EditableHpRule er;
+                er.fromWaveStr = std::to_string(std::max(1, r.fromWave));
+                er.toWaveStr = std::to_string(std::max(1, r.toWave));
+                er.hpStr = std::to_string(std::max(1, r.hp));
+                m_mobHpRules[key].push_back(er);
+            }
         }
     }
 }
@@ -84,12 +112,13 @@ void EditorLevelSettingsModal::toggle(int currentMoney, int currentHealth,
                                       const std::vector<std::string>& allowedTowers,
                                       const std::unordered_map<std::string, int>& towerMaxTiers,
                                       const std::map<std::string, std::vector<EnemyWaveBountyRule>>& bountyRules,
-                                      int totalWaves, bool hasSidePockets)
+                                      int totalWaves, bool hasSidePockets,
+                                      const std::map<std::string, std::vector<EnemyHpRule>>& hpRules)
 {
     if (m_isOpen) {
         close();
     } else {
-        open(currentMoney, currentHealth, allowedTowers, towerMaxTiers, bountyRules, totalWaves, hasSidePockets);
+        open(currentMoney, currentHealth, allowedTowers, towerMaxTiers, bountyRules, totalWaves, hasSidePockets, hpRules);
     }
 }
 
@@ -145,12 +174,30 @@ bool EditorLevelSettingsModal::checkKeyRepeat(GLFWwindow* window, int key, float
 }
 
 float EditorLevelSettingsModal::calculateTotalEconHeight(float scale) const {
-    float h = 24.0f * scale; // Заголовок секции
+    float h = 24.0f * scale; // Заголовок секции экономики
     for (const auto& mob : m_mobTypes) {
         h += 24.0f * scale; // Заголовок моба и кнопка "+ Добавить волны"
         h += 4.0f * scale;  // отступ
         auto it = m_mobRules.find(mob.first);
-        size_t count = (it != m_mobRules.end()) ? it->second.size() : 1;
+        size_t count = 1;
+        if (it != m_mobRules.end()) {
+            count = it->second.size();
+        }
+        h += static_cast<float>(count) * (24.0f * scale + 4.0f * scale);
+        h += 8.0f * scale;  // разделитель между мобами
+    }
+
+    // Секция прогрессии здоровья (HP) врагов по волнам
+    h += 12.0f * scale; // разделитель между секциями
+    h += 24.0f * scale; // Заголовок секции HP
+    for (const auto& mob : m_mobTypes) {
+        h += 24.0f * scale; // Заголовок моба и кнопка "+ Добавить волны"
+        h += 4.0f * scale;  // отступ
+        auto it = m_mobHpRules.find(mob.first);
+        size_t count = 0;
+        if (it != m_mobHpRules.end()) {
+            count = it->second.size();
+        }
         h += static_cast<float>(count) * (24.0f * scale + 4.0f * scale);
         h += 8.0f * scale;  // разделитель между мобами
     }
@@ -167,6 +214,7 @@ bool EditorLevelSettingsModal::handleInput(GLFWwindow* window, glm::vec2 mousePo
                                           std::unordered_map<std::string, int>& outTowerMaxTiers,
                                           int& outMaxUpgradeTier,
                                           std::map<std::string, std::vector<EnemyWaveBountyRule>>& outEnemyBountyRules,
+                                          std::map<std::string, std::vector<EnemyHpRule>>& outEnemyHpRules,
                                           bool& outHasSidePockets,
                                           bool& outDirty)
 {
@@ -296,6 +344,16 @@ bool EditorLevelSettingsModal::handleInput(GLFWwindow* window, glm::vec2 mousePo
                 }
             }
         }
+        for (const auto& mob : m_mobTypes) {
+            auto it = m_mobHpRules.find(mob.first);
+            if (it != m_mobHpRules.end()) {
+                for (int i = 0; i < static_cast<int>(it->second.size()); ++i) {
+                    targets.push_back({ FocusedType::HpRuleFrom, mob.first, i });
+                    targets.push_back({ FocusedType::HpRuleTo, mob.first, i });
+                    targets.push_back({ FocusedType::HpRuleValue, mob.first, i });
+                }
+            }
+        }
 
         int curIdx = -1;
         for (size_t i = 0; i < targets.size(); ++i) {
@@ -351,6 +409,48 @@ bool EditorLevelSettingsModal::handleInput(GLFWwindow* window, glm::vec2 mousePo
             outEnemyBountyRules[mob.first] = rules;
         }
 
+        outEnemyHpRules.clear();
+        for (const auto& mob : m_mobTypes) {
+            std::vector<EnemyHpRule> hpRules;
+            auto it = m_mobHpRules.find(mob.first);
+            if (it != m_mobHpRules.end()) {
+                for (const auto& er : it->second) {
+                    EnemyHpRule r;
+                    try {
+                        if (er.fromWaveStr.empty()) {
+                            r.fromWave = 1;
+                        } else {
+                            r.fromWave = std::max(1, std::stoi(er.fromWaveStr));
+                        }
+                    } catch (...) {
+                        r.fromWave = 1;
+                    }
+                    try {
+                        if (er.toWaveStr.empty()) {
+                            r.toWave = 99;
+                        } else {
+                            r.toWave = std::max(r.fromWave, std::stoi(er.toWaveStr));
+                        }
+                    } catch (...) {
+                        r.toWave = 99;
+                    }
+                    try {
+                        if (er.hpStr.empty()) {
+                            r.hp = 1;
+                        } else {
+                            r.hp = std::max(1, std::stoi(er.hpStr));
+                        }
+                    } catch (...) {
+                        r.hp = 1;
+                    }
+                    hpRules.push_back(r);
+                }
+            }
+            if (!hpRules.empty()) {
+                outEnemyHpRules[mob.first] = hpRules;
+            }
+        }
+
         outHasSidePockets = m_hasSidePockets;
         outDirty = true;
         close();
@@ -392,6 +492,24 @@ bool EditorLevelSettingsModal::handleInput(GLFWwindow* window, glm::vec2 mousePo
                 if (m_mobRules.count(m_focused.mobKey) && m_focused.ruleIndex < static_cast<int>(m_mobRules[m_focused.mobKey].size())) {
                     targetStr = &m_mobRules[m_focused.mobKey][m_focused.ruleIndex].rewardStepStr;
                     maxLen = 3;
+                }
+                break;
+            case FocusedType::HpRuleFrom:
+                if (m_mobHpRules.count(m_focused.mobKey) && m_focused.ruleIndex < static_cast<int>(m_mobHpRules[m_focused.mobKey].size())) {
+                    targetStr = &m_mobHpRules[m_focused.mobKey][m_focused.ruleIndex].fromWaveStr;
+                    maxLen = 3;
+                }
+                break;
+            case FocusedType::HpRuleTo:
+                if (m_mobHpRules.count(m_focused.mobKey) && m_focused.ruleIndex < static_cast<int>(m_mobHpRules[m_focused.mobKey].size())) {
+                    targetStr = &m_mobHpRules[m_focused.mobKey][m_focused.ruleIndex].toWaveStr;
+                    maxLen = 3;
+                }
+                break;
+            case FocusedType::HpRuleValue:
+                if (m_mobHpRules.count(m_focused.mobKey) && m_focused.ruleIndex < static_cast<int>(m_mobHpRules[m_focused.mobKey].size())) {
+                    targetStr = &m_mobHpRules[m_focused.mobKey][m_focused.ruleIndex].hpStr;
+                    maxLen = 5;
                 }
                 break;
             default: break;
@@ -627,6 +745,122 @@ bool EditorLevelSettingsModal::handleInput(GLFWwindow* window, glm::vec2 mousePo
             curY += 8.0f * scale;
         }
 
+        // Секция прогрессии здоровья врагов (HP) по волнам
+        curY += 12.0f * scale + 24.0f * scale;
+
+        for (const auto& mob : m_mobTypes) {
+            const std::string& key = mob.first;
+            float headerRowY = curY;
+
+            // Кнопка [+ Добавить волны]
+            glm::vec2 addBtnPos(contentLeft + 150.0f * scale, headerRowY);
+            glm::vec2 addBtnSize(135.0f * scale, 22.0f * scale);
+
+            if (isPointInRect(mousePos, addBtnPos, addBtnSize)) {
+                auto& hpRules = m_mobHpRules[key];
+                int prevTo = 0;
+                std::string defaultHpStr = "18";
+                if (key == "Spark") {
+                    defaultHpStr = "6";
+                } else if (key == "Mercury") {
+                    defaultHpStr = "40";
+                }
+                if (!hpRules.empty()) {
+                    try { prevTo = std::stoi(hpRules.back().toWaveStr); } catch (...) { prevTo = 1; }
+                    if (!hpRules.back().hpStr.empty()) {
+                        defaultHpStr = hpRules.back().hpStr;
+                    }
+                }
+                int newFrom = prevTo + 1;
+                int waveLimit = 15;
+                if (m_totalWaves > 0) {
+                    waveLimit = m_totalWaves;
+                }
+                int newTo = std::max(newFrom, waveLimit);
+                hpRules.push_back({
+                    std::to_string(newFrom),
+                    std::to_string(newTo),
+                    defaultHpStr
+                });
+                m_focused = { FocusedType::HpRuleFrom, key, static_cast<int>(hpRules.size() - 1) };
+                m_cursorBlinkTimer = 0.0f;
+
+                float newTotalH = calculateTotalEconHeight(scale);
+                float newMaxScroll = std::max(0.0f, newTotalH - econAreaH);
+                m_scrollOffset = newMaxScroll;
+                return true;
+            }
+
+            curY += 24.0f * scale + 4.0f * scale;
+
+            auto& hpRules = m_mobHpRules[key];
+            float ruleRowH = 24.0f * scale;
+            float boxH = 22.0f * scale;
+
+            for (int rIdx = 0; rIdx < static_cast<int>(hpRules.size()); ++rIdx) {
+                float rowY = curY;
+                float boxY = rowY + (ruleRowH - boxH) * 0.5f;
+
+                float startX = contentLeft + 10.0f * scale;
+                // Волны с: [input]
+                float fromBoxX = startX + 62.0f * scale;
+                glm::vec2 fromBoxPos(fromBoxX, boxY);
+                glm::vec2 fromBoxSize(38.0f * scale, boxH);
+
+                // по: [input]
+                float toBoxX = fromBoxPos.x + fromBoxSize.x + 30.0f * scale;
+                glm::vec2 toBoxPos(toBoxX, boxY);
+                glm::vec2 toBoxSize(38.0f * scale, boxH);
+
+                // HP: [input]
+                float hpBoxX = toBoxPos.x + toBoxSize.x + 38.0f * scale;
+                glm::vec2 hpBoxPos(hpBoxX, boxY);
+                glm::vec2 hpBoxSize(56.0f * scale, boxH);
+
+                // [X]
+                float delBoxX = hpBoxPos.x + hpBoxSize.x + 12.0f * scale;
+                glm::vec2 delBoxPos(delBoxX, boxY);
+                glm::vec2 delBoxSize(22.0f * scale, boxH);
+
+                if (isPointInRect(mousePos, fromBoxPos, fromBoxSize)) {
+                    m_focused = { FocusedType::HpRuleFrom, key, rIdx };
+                    m_cursorBlinkTimer = 0.0f;
+                    return true;
+                }
+                if (isPointInRect(mousePos, toBoxPos, toBoxSize)) {
+                    m_focused = { FocusedType::HpRuleTo, key, rIdx };
+                    m_cursorBlinkTimer = 0.0f;
+                    return true;
+                }
+                if (isPointInRect(mousePos, hpBoxPos, hpBoxSize)) {
+                    m_focused = { FocusedType::HpRuleValue, key, rIdx };
+                    m_cursorBlinkTimer = 0.0f;
+                    return true;
+                }
+                if (isPointInRect(mousePos, delBoxPos, delBoxSize)) {
+                    hpRules.erase(hpRules.begin() + rIdx);
+                    bool isHpFocus = (m_focused.type == FocusedType::HpRuleFrom ||
+                                      m_focused.type == FocusedType::HpRuleTo ||
+                                      m_focused.type == FocusedType::HpRuleValue);
+                    if (isHpFocus && m_focused.mobKey == key) {
+                        if (m_focused.ruleIndex == rIdx) {
+                            m_focused = { FocusedType::None, "", -1 };
+                        } else if (m_focused.ruleIndex > rIdx) {
+                            m_focused.ruleIndex--;
+                        }
+                    }
+                    float newTotalH = calculateTotalEconHeight(scale);
+                    float newMaxScroll = std::max(0.0f, newTotalH - econAreaH);
+                    m_scrollOffset = std::clamp(m_scrollOffset, 0.0f, newMaxScroll);
+                    return true;
+                }
+
+                curY += ruleRowH + 4.0f * scale;
+            }
+
+            curY += 8.0f * scale;
+        }
+
         m_focused = { FocusedType::None, "", -1 };
         return true;
     }
@@ -640,6 +874,24 @@ bool EditorLevelSettingsModal::handleInput(GLFWwindow* window, glm::vec2 mousePo
     // Клик вне окна закрывает его
     close();
     return true;
+}
+
+bool EditorLevelSettingsModal::handleInput(GLFWwindow* window, glm::vec2 mousePos, bool leftDown,
+                                          bool leftReleased, bool isEscJustPressed, float dt,
+                                          int screenWidth, int screenHeight,
+                                          int& outMoney, int& outHealth,
+                                          std::vector<std::string>& outAllowedTowers,
+                                          std::unordered_map<std::string, int>& outTowerMaxTiers,
+                                          int& outMaxUpgradeTier,
+                                          std::map<std::string, std::vector<EnemyWaveBountyRule>>& outEnemyBountyRules,
+                                          bool& outHasSidePockets,
+                                          bool& outDirty)
+{
+    std::map<std::string, std::vector<EnemyHpRule>> dummyHpRules;
+    return handleInput(window, mousePos, leftDown, leftReleased, isEscJustPressed, dt,
+                       screenWidth, screenHeight, outMoney, outHealth, outAllowedTowers,
+                       outTowerMaxTiers, outMaxUpgradeTier, outEnemyBountyRules, dummyHpRules,
+                       outHasSidePockets, outDirty);
 }
 
 bool EditorLevelSettingsModal::handleInput(GLFWwindow* window, glm::vec2 mousePos, bool leftDown,
@@ -929,6 +1181,83 @@ void EditorLevelSettingsModal::render(SpriteRenderer* renderer, TextRenderer* te
         curY += 8.0f * scale;
     }
 
+    // Разделитель и секция прогрессии здоровья (HP) врагов по волнам
+    renderer->drawSprite(whiteTexture, glm::vec2(contentLeft, curY + 4.0f * scale), glm::vec2(contentW - 10.0f * scale, 1.5f * scale), 0.0f, glm::vec3(0.28f, 0.34f, 0.44f));
+    curY += 12.0f * scale + 24.0f * scale;
+
+    for (const auto& mob : m_mobTypes) {
+        const std::string& key = mob.first;
+        float headerRowY = curY;
+
+        // Кнопка [+ Добавить волны]
+        glm::vec2 addBtnPos(contentLeft + 150.0f * scale, headerRowY);
+        glm::vec2 addBtnSize(135.0f * scale, 22.0f * scale);
+        bool addHover = isPointInRect(mousePos, addBtnPos, addBtnSize) && isPointInRect(mousePos, econAreaPos, econAreaSize);
+
+        glm::vec3 addBorderColor(0.25f, 0.75f, 0.35f);
+        glm::vec3 addFillColor(0.12f, 0.32f, 0.16f);
+        if (addHover) {
+            addBorderColor = glm::vec3(0.40f, 0.95f, 0.50f);
+            addFillColor = glm::vec3(0.18f, 0.45f, 0.24f);
+        }
+        renderer->drawSprite(whiteTexture, addBtnPos, addBtnSize, 0.0f, addBorderColor);
+        renderer->drawSprite(whiteTexture, addBtnPos + glm::vec2(1.5f), addBtnSize - glm::vec2(3.0f), 0.0f, addFillColor);
+
+        curY += 24.0f * scale + 4.0f * scale;
+
+        auto it = m_mobHpRules.find(key);
+        if (it != m_mobHpRules.end()) {
+            float ruleRowH = 24.0f * scale;
+            float boxH = 22.0f * scale;
+            size_t ruleCount = it->second.size();
+
+            for (size_t rIdx = 0; rIdx < ruleCount; ++rIdx) {
+                float rowY = curY;
+                float boxY = rowY + (ruleRowH - boxH) * 0.5f;
+                float startX = contentLeft + 10.0f * scale;
+
+                // fromBox
+                float fromBoxX = startX + 62.0f * scale;
+                glm::vec2 fromBoxPos(fromBoxX, boxY);
+                glm::vec2 fromBoxSize(38.0f * scale, boxH);
+                bool fromFoc = (m_focused.type == FocusedType::HpRuleFrom && m_focused.mobKey == key && m_focused.ruleIndex == static_cast<int>(rIdx));
+                renderInputBox(fromBoxPos, fromBoxSize, fromFoc);
+
+                // toBox
+                float toBoxX = fromBoxPos.x + fromBoxSize.x + 30.0f * scale;
+                glm::vec2 toBoxPos(toBoxX, boxY);
+                glm::vec2 toBoxSize(38.0f * scale, boxH);
+                bool toFoc = (m_focused.type == FocusedType::HpRuleTo && m_focused.mobKey == key && m_focused.ruleIndex == static_cast<int>(rIdx));
+                renderInputBox(toBoxPos, toBoxSize, toFoc);
+
+                // hpBox
+                float hpBoxX = toBoxPos.x + toBoxSize.x + 38.0f * scale;
+                glm::vec2 hpBoxPos(hpBoxX, boxY);
+                glm::vec2 hpBoxSize(56.0f * scale, boxH);
+                bool hpFoc = (m_focused.type == FocusedType::HpRuleValue && m_focused.mobKey == key && m_focused.ruleIndex == static_cast<int>(rIdx));
+                renderInputBox(hpBoxPos, hpBoxSize, hpFoc);
+
+                // Кнопка [X]
+                float delBoxX = hpBoxPos.x + hpBoxSize.x + 12.0f * scale;
+                glm::vec2 delBoxPos(delBoxX, boxY);
+                glm::vec2 delBoxSize(22.0f * scale, boxH);
+                bool delHover = isPointInRect(mousePos, delBoxPos, delBoxSize) && isPointInRect(mousePos, econAreaPos, econAreaSize);
+
+                glm::vec3 delBorderColor(0.65f, 0.22f, 0.22f);
+                glm::vec3 delFillColor(0.25f, 0.08f, 0.08f);
+                if (delHover) {
+                    delBorderColor = glm::vec3(0.95f, 0.35f, 0.35f);
+                    delFillColor = glm::vec3(0.45f, 0.14f, 0.14f);
+                }
+                renderer->drawSprite(whiteTexture, delBoxPos, delBoxSize, 0.0f, delBorderColor);
+                renderer->drawSprite(whiteTexture, delBoxPos + glm::vec2(1.5f), delBoxSize - glm::vec2(3.0f), 0.0f, delFillColor);
+
+                curY += ruleRowH + 4.0f * scale;
+            }
+        }
+        curY += 8.0f * scale;
+    }
+
     // Полоса прокрутки (scrollbar)
     if (maxScroll > 0.0f) {
         float trackX = contentLeft + contentW - 5.0f * scale;
@@ -1045,6 +1374,101 @@ void EditorLevelSettingsModal::render(SpriteRenderer* renderer, TextRenderer* te
                 glm::vec2 delBoxSize(22.0f * scale, boxH);
                 float xW = textRenderer->CalculateTextWidth("X", 0.38f * scale);
                 textRenderer->RenderText("X", delBoxPos.x + (delBoxSize.x - xW) * 0.5f, delBoxPos.y + 3.5f * scale, 0.38f * scale, ruleCount > 1 ? glm::vec3(1.0f, 0.85f, 0.85f) : glm::vec3(0.70f, 0.70f, 0.75f));
+
+                textCurY += ruleRowH + 4.0f * scale;
+            }
+        }
+        textCurY += 8.0f * scale;
+    }
+
+    // Тексты секции прогрессии здоровья (HP) врагов по волнам
+    textCurY += 12.0f * scale;
+    textRenderer->RenderText("Здоровье врагов по волнам (HP):", contentLeft, textCurY + 4.0f * scale, labelScale, glm::vec3(1.0f, 0.86f, 0.35f));
+    textCurY += 24.0f * scale;
+
+    for (const auto& mob : m_mobTypes) {
+        const std::string& key = mob.first;
+        float headerRowY = textCurY;
+
+        // Название моба
+        textRenderer->RenderText(mob.second, contentLeft + 4.0f * scale, headerRowY + 4.0f * scale, 0.42f * scale, glm::vec3(0.92f, 0.95f, 1.0f));
+
+        // Кнопка [+ Добавить волны]
+        glm::vec2 addBtnPos(contentLeft + 150.0f * scale, headerRowY);
+        glm::vec2 addBtnSize(135.0f * scale, 22.0f * scale);
+        std::string addText = "+ Добавить волны";
+        float addTextW = textRenderer->CalculateTextWidth(addText, 0.38f * scale);
+        textRenderer->RenderText(addText, addBtnPos.x + (addBtnSize.x - addTextW) * 0.5f, addBtnPos.y + 4.0f * scale, 0.38f * scale, glm::vec3(0.92f, 1.0f, 0.92f));
+
+        textCurY += 24.0f * scale + 4.0f * scale;
+
+        auto it = m_mobHpRules.find(key);
+        if (it != m_mobHpRules.end()) {
+            float ruleRowH = 24.0f * scale;
+            float boxH = 22.0f * scale;
+            size_t ruleCount = it->second.size();
+
+            for (size_t rIdx = 0; rIdx < ruleCount; ++rIdx) {
+                const auto& er = it->second[rIdx];
+                float rowY = textCurY;
+                float boxY = rowY + (ruleRowH - boxH) * 0.5f;
+                float textY = rowY + 4.0f * scale;
+
+                float startX = contentLeft + 10.0f * scale;
+
+                // "Волны с:"
+                textRenderer->RenderText("Волны с:", startX, textY, 0.38f * scale, glm::vec3(0.80f, 0.85f, 0.90f));
+
+                // fromBox
+                float fromBoxX = startX + 62.0f * scale;
+                glm::vec2 fromBoxPos(fromBoxX, boxY);
+                glm::vec2 fromBoxSize(38.0f * scale, boxH);
+                bool fromFoc = (m_focused.type == FocusedType::HpRuleFrom && m_focused.mobKey == key && m_focused.ruleIndex == static_cast<int>(rIdx));
+                std::string fromDisp = er.fromWaveStr;
+                if (fromFoc && showCursor) {
+                    fromDisp += "|";
+                }
+                float fW = textRenderer->CalculateTextWidth(fromDisp, 0.40f * scale);
+                textRenderer->RenderText(fromDisp, fromBoxPos.x + (fromBoxSize.x - fW) * 0.5f, fromBoxPos.y + 3.5f * scale, 0.40f * scale, glm::vec3(0.90f, 0.95f, 1.0f));
+
+                // "по:"
+                float toLabelX = fromBoxPos.x + fromBoxSize.x + 8.0f * scale;
+                textRenderer->RenderText("по:", toLabelX, textY, 0.38f * scale, glm::vec3(0.80f, 0.85f, 0.90f));
+
+                // toBox
+                float toBoxX = toLabelX + 22.0f * scale;
+                glm::vec2 toBoxPos(toBoxX, boxY);
+                glm::vec2 toBoxSize(38.0f * scale, boxH);
+                bool toFoc = (m_focused.type == FocusedType::HpRuleTo && m_focused.mobKey == key && m_focused.ruleIndex == static_cast<int>(rIdx));
+                std::string toDisp = er.toWaveStr;
+                if (toFoc && showCursor) {
+                    toDisp += "|";
+                }
+                float tW = textRenderer->CalculateTextWidth(toDisp, 0.40f * scale);
+                textRenderer->RenderText(toDisp, toBoxPos.x + (toBoxSize.x - tW) * 0.5f, toBoxPos.y + 3.5f * scale, 0.40f * scale, glm::vec3(0.90f, 0.95f, 1.0f));
+
+                // "HP:"
+                float hpLabelX = toBoxPos.x + toBoxSize.x + 10.0f * scale;
+                textRenderer->RenderText("HP:", hpLabelX, textY, 0.38f * scale, glm::vec3(0.80f, 0.85f, 0.90f));
+
+                // hpBox
+                float hpBoxX = hpLabelX + 28.0f * scale;
+                glm::vec2 hpBoxPos(hpBoxX, boxY);
+                glm::vec2 hpBoxSize(56.0f * scale, boxH);
+                bool hpFoc = (m_focused.type == FocusedType::HpRuleValue && m_focused.mobKey == key && m_focused.ruleIndex == static_cast<int>(rIdx));
+                std::string hpDisp = er.hpStr;
+                if (hpFoc && showCursor) {
+                    hpDisp += "|";
+                }
+                float hpW = textRenderer->CalculateTextWidth(hpDisp, 0.40f * scale);
+                textRenderer->RenderText(hpDisp, hpBoxPos.x + (hpBoxSize.x - hpW) * 0.5f, hpBoxPos.y + 3.5f * scale, 0.40f * scale, glm::vec3(0.55f, 0.98f, 0.60f));
+
+                // Кнопка [X]
+                float delBoxX = hpBoxPos.x + hpBoxSize.x + 12.0f * scale;
+                glm::vec2 delBoxPos(delBoxX, boxY);
+                glm::vec2 delBoxSize(22.0f * scale, boxH);
+                float xW = textRenderer->CalculateTextWidth("X", 0.38f * scale);
+                textRenderer->RenderText("X", delBoxPos.x + (delBoxSize.x - xW) * 0.5f, delBoxPos.y + 3.5f * scale, 0.38f * scale, glm::vec3(1.0f, 0.85f, 0.85f));
 
                 textCurY += ruleRowH + 4.0f * scale;
             }

@@ -1,4 +1,5 @@
 #include "WaveManager.h"
+#include <algorithm>
 #include <iostream>
 #include <fstream>
 #include <cmath>
@@ -55,7 +56,13 @@ bool WaveManager::loadLevel(const std::string& filepath) {
 			for (const auto& partJson : waveJson["parts"]) {
 				WavePart part;
 				part.count = partJson.value("count", 10); // присваевем количество врагов из текущей пачки
-				part.spawnInterwal = partJson.contains("interval") ? partJson["interval"].get<float>() : (partJson.contains("spawnInterwal") ? partJson["spawnInterwal"].get<float>() : 0.8f); // интервал между спавном
+				float rawSpawnInterval = 0.8f;
+				if (partJson.contains("interval")) {
+					rawSpawnInterval = partJson["interval"].get<float>();
+				} else if (partJson.contains("spawnInterwal")) {
+					rawSpawnInterval = partJson["spawnInterwal"].get<float>();
+				}
+				part.spawnInterwal = std::max(0.05f, rawSpawnInterval); // интервал между спавном
 				part.delayAfter = partJson.value("delayAfter", 2.0f); // интервал между пачками
 
 				part.type = partJson.value("type", "Basic");
@@ -116,13 +123,8 @@ bool WaveManager::canCallEarlyWave() const {
 	if (!m_gameStarted && !m_isWaveActive) {
 		return true;
 	}
-	// Во время межволновой паузы
+	// Во время межволновой паузы (после полной зачистки предыдущей волны)
 	if (!m_isWaveActive) {
-		return true;
-	}
-	// Волна формально активна, но все спавн-реквесты текущей волны завершены
-	const WaveConfig& currentWave = m_waves[m_currentWaveIndex];
-	if (m_currentPartIndex >= currentWave.parts.size()) {
 		return true;
 	}
 	return false;
@@ -149,10 +151,42 @@ void WaveManager::triggerEarlyWave(PlayerStats* player) {
 }
 
 void WaveManager::setCurrentWaveIndex(int index) {
+	if (index < 0) {
+		index = 0;
+	}
 	m_currentWaveIndex = index;
 	m_gameStarted = (index > 0);
 	m_isWaveActive = false;
+	m_currentPartIndex = 0;
+	m_enemiesSpawnedInCurrentPart = 0;
+	m_spawnTimer = 0.0f;
 	m_waveCountdown = 0.0f;
+}
+
+void WaveManager::setGameStarted(bool started) {
+	m_gameStarted = started;
+}
+
+void WaveManager::onEnemiesUpdated(bool noActiveEnemies) {
+	if (!m_isWaveActive || !noActiveEnemies) {
+		return;
+	}
+	if (m_currentWaveIndex < 0 || m_currentWaveIndex >= static_cast<int>(m_waves.size())) {
+		return;
+	}
+	const WaveConfig& currentWave = m_waves[m_currentWaveIndex];
+	if (m_currentPartIndex < currentWave.parts.size()) {
+		return;
+	}
+
+	m_isWaveActive = false;
+	m_currentWaveIndex++;
+	if (m_currentWaveIndex < static_cast<int>(m_waves.size())) {
+		m_waveCountdown = m_timeBetweenWaves;
+	} else {
+		m_waveCountdown = 0.0f;
+	}
+	std::cout << "Wave " << m_currentWaveIndex << " cleared! Intermission countdown: " << m_waveCountdown << std::endl;
 }
 
 std::vector<SpawnRequest> WaveManager::update(float dt, const std::vector<SpawnerData>& spawners) {
@@ -178,11 +212,20 @@ std::vector<SpawnRequest> WaveManager::update(float dt, const std::vector<Spawne
 	}
 	// берем конфиг текущей волны
 	const WaveConfig& currentWave = m_waves[m_currentWaveIndex];
+	if (m_currentPartIndex >= currentWave.parts.size()) {
+		// Все враги волны уже заспавнены; ждём полной зачистки в onEnemiesUpdated()
+		return spawnRequests;
+	}
 
 	m_spawnTimer -= dt;
 	if (m_spawnTimer <= 0.0f) {
 		// берем конфиг текущей пачки
 		const WavePart& currentPart = currentWave.parts[m_currentPartIndex];
+		if (currentPart.count <= 0) {
+			m_currentPartIndex++;
+			m_enemiesSpawnedInCurrentPart = 0;
+			return spawnRequests;
+		}
 
 		// выбор спавнера по логическому ID / Round-Robin
 		int targetSpawnerIdx = 0;
@@ -215,7 +258,7 @@ std::vector<SpawnRequest> WaveManager::update(float dt, const std::vector<Spawne
 		int finalReward = bounty.first;
 		int finalRewardStep = bounty.second;
 
-		spawnRequests.push_back({currentPart.type, targetSpawnerIdx, finalReward, finalRewardStep});
+		spawnRequests.push_back({currentPart.type, targetSpawnerIdx, finalReward, finalRewardStep, m_currentWaveIndex});
 		m_enemiesSpawnedInCurrentPart++;
 
 		// закончилась ли текущая пачка???
@@ -226,14 +269,7 @@ std::vector<SpawnRequest> WaveManager::update(float dt, const std::vector<Spawne
 
 			// закончились ли все пачки в этой волне???
 			if (m_currentPartIndex >= currentWave.parts.size()) {
-				m_isWaveActive = false;
-				m_currentWaveIndex++;
-				if (m_currentWaveIndex < static_cast<int>(m_waves.size())) {
-					m_waveCountdown = m_timeBetweenWaves;
-				} else {
-					m_waveCountdown = 0.0f;
-				}
-				std::cout << "All enemies in wave spawned! Intermission countdown: " << m_waveCountdown << std::endl;
+				std::cout << "All enemies in wave " << (m_currentWaveIndex + 1) << " spawned! Waiting for wave clear..." << std::endl;
 			}
 			else {
 				m_spawnTimer = currentPart.delayAfter;

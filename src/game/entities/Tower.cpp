@@ -24,6 +24,9 @@ Tower::Tower(int gridX, int gridY, const std::string& type, float angle)
 	m_currentLevel(1), // бам бам с первого уровня
 	m_maxLevel(3) // макс левел башни
 {
+	m_isPiston = (m_type == "Piston");
+	m_pistonHitBuffer.reserve(16);
+
 	// считываем статистику
 	TowerStats stats = Tower::getStatsfromTowerType(type);
 	applyStats(stats);
@@ -58,26 +61,29 @@ void Tower::render(SpriteRenderer* renderer, const Texture2D* atlasTexture, cons
 	if (m_currentLevel == 2) color += glm::vec3(0.2f, 0.2f, 0.2f);
 	if (m_currentLevel == 3) color += glm::vec3(0.4f, 0.4f, 0.4f);
 
-	// режем башню
-	std::string regionName = "tower_basic";
-	if (m_type == "Mercury") regionName = "tower_mercury";
-	else if (m_type == "Piston") regionName = "tower_piston";
-	SpriteUV towerUV = ConfigManager::getUV("main_atlas", regionName);
-
 	// Если поршень бьёт — анимируем выдвижение бойка вперед
 	glm::vec2 drawPos = pixelPos;
-	if (m_type == "Piston" && m_punchAnimTimer > 0.0f) {
+	if (m_isPiston && m_punchAnimTimer > 0.0f) {
 		glm::vec2 punchDir = glm::vec2(getPistonTargetCell() - glm::ivec2(m_gridX, m_gridY));
-		float progress = (m_punchAnimTimer > 0.10f) ? (0.20f - m_punchAnimTimer) / 0.10f : (m_punchAnimTimer / 0.10f);
+		float progress = 0.0f;
+		if (m_punchAnimTimer > 0.10f) {
+			progress = (0.20f - m_punchAnimTimer) / 0.10f;
+		}
+		else {
+			progress = m_punchAnimTimer / 0.10f;
+		}
 		drawPos += punchDir * (cellSize * 0.28f * progress);
 	}
 
 	// рисуем (добавляем 90 градусов, чтобы выровнять текстуру дула/бойка с направлением)
-	renderer->drawSprite(atlasTexture, drawPos, size, m_angle + 90.0f, color, towerUV);
+	renderer->drawSprite(atlasTexture, drawPos, size, m_angle + 90.0f, color, m_cachedTowerUV);
 
 	// Для T3 Поршня ("Шипованный боёк") отрисовываем стальные шипы на передней кромке ударной плиты
-	if (m_type == "Piston" && m_currentLevel >= 3) {
-		const Texture2D* whiteTex = ResourceManager::getWhiteTexture();
+	if (m_isPiston && m_currentLevel >= 3) {
+		const Texture2D* whiteTex = m_cachedWhiteTex;
+		if (!whiteTex) {
+			whiteTex = ResourceManager::getWhiteTexture();
+		}
 		if (whiteTex) {
 			glm::vec2 currentCenter = drawPos + size * 0.5f;
 			float angleRad = glm::radians(m_angle);
@@ -158,7 +164,7 @@ void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies,
 	float cellSize = grid.getCellSize();
 	glm::vec2 towerCenter = grid.gridToPixel(m_gridX, m_gridY) + glm::vec2(cellSize / 2.0f);
 
-	if (m_type == "Piston") {
+	if (m_isPiston) {
 		// Поршень не крутится за врагами! Он строго контролирует 1 целевую клетку прямо перед собой
 		glm::ivec2 targetCell = getPistonTargetCell();
 		if (targetCell.x < 0 || targetCell.x >= grid.getWidth() || targetCell.y < 0 || targetCell.y >= grid.getHeight()) {
@@ -167,23 +173,25 @@ void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies,
 
 		glm::vec2 targetCenter = grid.gridToPixel(targetCell.x, targetCell.y) + glm::vec2(cellSize * 0.5f);
 		float triggerRadius = cellSize * 0.55f;
+		float triggerRadiusSq = triggerRadius * triggerRadius;
 
 		if (m_shotTimer <= 0.0f) {
-			std::vector<Enemy*> hitEnemies;
+			m_pistonHitBuffer.clear();
 			for (const auto& enemy : enemies) {
 				if (!enemy || enemy->isDead() || enemy->isReachedEnd() || enemy->isKnockedBack() || enemy->isStunned() || enemy->isFalling()) continue;
 				if (enemy->isImmuneToPiston(glm::ivec2(m_gridX, m_gridY))) continue; // Защита от бесконечного зацикливания именно этим поршнем!
-				float dist = glm::distance(enemy->getCollider(grid).center, targetCenter);
-				if (dist <= triggerRadius) {
-					hitEnemies.push_back(enemy.get());
+				glm::vec2 diff = enemy->getCollider(grid).center - targetCenter;
+				float distSq = diff.x * diff.x + diff.y * diff.y;
+				if (distSq <= triggerRadiusSq) {
+					m_pistonHitBuffer.push_back(enemy.get());
 				}
 			}
 
-			if (!hitEnemies.empty()) {
+			if (!m_pistonHitBuffer.empty()) {
 				m_punchAnimTimer = 0.20f;
 				glm::ivec2 punchDir = targetCell - glm::ivec2(m_gridX, m_gridY);
 
-				for (Enemy* victim : hitEnemies) {
+				for (Enemy* victim : m_pistonHitBuffer) {
 					float pushDist = m_pistonStats.pushDistance;
 					if (m_pistonStats.heavyPushDistance >= 0.0f) {
 						const std::string& type = victim->getType();
@@ -210,22 +218,22 @@ void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies,
 				}
 
 				// Базовые частицы удара бойка в точке удара
-				if (!m_impactParticle.empty()) {
-					ParticleEmitterProps impact = ConfigManager::getParticleProps(m_impactParticle);
+				if (m_hasImpactParticle) {
+					ParticleEmitterProps impact = m_impactProps;
 					impact.position = targetCenter;
-					particleSystem.emit(impact, impact.spawnCount);
+					particleSystem.emit(impact, impact.spawnCount, false);
 				}
 
 				// Визуальный отклик T3: брызги и искры шипов в точке удара бойка
 				if (m_currentLevel >= 3) {
-					ParticleEmitterProps sparks = ConfigManager::getParticleProps("SparkImpact");
+					ParticleEmitterProps sparks = m_pistonSparkProps;
 					sparks.position = targetCenter;
 					sparks.velocityVariation = 160.0f;
-					particleSystem.emit(sparks, sparks.spawnCount);
+					particleSystem.emit(sparks, sparks.spawnCount, false);
 
-					ParticleEmitterProps blood = ConfigManager::getParticleProps("BloodSplatter");
+					ParticleEmitterProps blood = m_pistonBloodProps;
 					blood.position = targetCenter;
-					particleSystem.emit(blood, blood.spawnCount);
+					particleSystem.emit(blood, blood.spawnCount, false);
 				}
 
 				Event e;
@@ -248,24 +256,23 @@ void Tower::update(float dt, const std::vector<std::unique_ptr<Enemy>>& enemies,
 		bool isAimed = TowerTargetingSystem::updateAim(m_angle, towerCenter, enemyCenter, m_rotationSpeed, dt);
 
 		if (isAimed) {
-			float currentSplash = ConfigManager::getTowerStats(m_type, m_currentLevel).splashRadius;
-
 			if (m_shotTimer <= 0.0f) {
 				Projectile* freeProj = entityManager.getFreeProjectile();
 				if (freeProj) {
-					freeProj->setParticleEffects(m_trailParticle, m_impactParticle);
-					freeProj->setVisuals(m_bulletTextureId, m_bulletBaseSize);
+					freeProj->setParticleEffects(m_hasTrailParticle, m_trailProps, m_hasImpactParticle, m_impactProps);
+					freeProj->setVisuals(m_cachedBulletUV, m_bulletBaseSize);
 					freeProj->init(towerCenter, m_angle, m_bulletSpeed, m_damage, bestTarget->getId(), m_splashRadius, currentPixelRange);
 					freeProj->setStatusEffects(m_slowDuration, m_slowPercent, m_poisonDuration, m_poisonInterval, m_poisonDamagePerTick);
 				}
 
-				if (!m_muzzleParticle.empty()) {
-					ParticleEmitterProps muzzle = ConfigManager::getParticleProps(m_muzzleParticle);
-					glm::vec2 shootDirection = glm::vec2(cos(glm::radians(m_angle)), sin(glm::radians(m_angle)));
+				if (m_hasMuzzleParticle) {
+					ParticleEmitterProps muzzle = m_muzzleProps;
+					float angleRad = glm::radians(m_angle);
+					glm::vec2 shootDirection = glm::vec2(std::cos(angleRad), std::sin(angleRad));
 					muzzle.position = towerCenter + shootDirection * (cellSize * 0.4f);
 					float force = glm::length(muzzle.velocityDir);
 					muzzle.velocityDir = shootDirection * force;
-					particleSystem.emit(muzzle, muzzle.spawnCount);
+					particleSystem.emit(muzzle, muzzle.spawnCount, false);
 				}
 
 				Event e;
@@ -343,4 +350,47 @@ void Tower::applyStats(const TowerStats& stats) {
 	m_poisonInterval = stats.poisonInterval;
 	m_poisonDamagePerTick = stats.poisonDamagePerTick;
 	m_pistonStats = stats.piston;
+
+	// Предвычисление UV и свойств частиц, чтобы не искать их каждый кадр
+	std::string towerRegion = "tower_basic";
+	if (m_type == "Mercury") {
+		towerRegion = "tower_mercury";
+	}
+	else if (m_isPiston) {
+		towerRegion = "tower_piston";
+	}
+	m_cachedTowerUV = ConfigManager::getUV("main_atlas", towerRegion);
+
+	std::string bulletRegion = m_bulletTextureId;
+	if (bulletRegion == "bulletBasic") {
+		bulletRegion = "bullet_basic";
+	}
+	else if (bulletRegion == "bulletSniper") {
+		bulletRegion = "bullet_sniper";
+	}
+	else if (bulletRegion == "bulletCannon") {
+		bulletRegion = "bullet_cannon";
+	}
+	else if (bulletRegion == "bulletMinigun") {
+		bulletRegion = "bullet_minigun";
+	}
+	m_cachedBulletUV = ConfigManager::getUV("main_atlas", bulletRegion);
+	m_cachedWhiteTex = ResourceManager::getWhiteTexture();
+
+	m_hasMuzzleParticle = !m_muzzleParticle.empty();
+	if (m_hasMuzzleParticle) {
+		m_muzzleProps = ConfigManager::getParticleProps(m_muzzleParticle);
+	}
+	m_hasTrailParticle = !m_trailParticle.empty();
+	if (m_hasTrailParticle) {
+		m_trailProps = ConfigManager::getParticleProps(m_trailParticle);
+	}
+	m_hasImpactParticle = !m_impactParticle.empty();
+	if (m_hasImpactParticle) {
+		m_impactProps = ConfigManager::getParticleProps(m_impactParticle);
+	}
+	if (m_isPiston) {
+		m_pistonSparkProps = ConfigManager::getParticleProps("SparkImpact");
+		m_pistonBloodProps = ConfigManager::getParticleProps("BloodSplatter");
+	}
 }

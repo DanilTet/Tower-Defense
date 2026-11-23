@@ -97,14 +97,9 @@ void GameplayState::setupEventListeners() {
             addedMoney = rule.reward;
             this->m_world->playerStats.addMoney(rule.reward);
         }
+        (void)addedMoney;
+        (void)displayWave;
         this->m_world->playerStats.score += e.value2;
-
-        std::cout << "[BOUNTY] Wave: " << displayWave 
-                  << " | Enemy: " << type 
-                  << " | KillCount: " << this->enemyKillCounts[type] 
-                  << " | Step: " << rule.rewardStep 
-                  << " | Added: $" << addedMoney 
-                  << std::endl;
     });
 
     EventBus::subscribe(EventType::EnemyReachedBase, [this](const Event& e) {
@@ -122,6 +117,7 @@ void GameplayState::setupEventListeners() {
 void GameplayState::init() {
     ConfigManager::loadConfigs("res/configs/towers.json", "res/configs/enemies.json", "res/configs/particles.json");
     ConfigManager::loadTextureConfig("res/levels/textures.json");
+    ConfigManager::preloadAllSounds();
 
     m_gameplayRenderer = std::make_unique<GameplayRenderer>(m_renderer, m_textRenderer);
     m_inputHandler = std::make_unique<GameplayInputHandler>();
@@ -236,7 +232,7 @@ void GameplayState::update(float dt) {
             m_pathVisualizer->update(step, m_world->grid->getCellSize());
         }
 
-        m_world->update(step);
+        m_world->update(step, m_timeScale);
         remainingDt -= step;
     }
 
@@ -382,8 +378,13 @@ void GameplayState::resize(int windowWidth, int windowHeight) {
 void GameplayState::saveGame(const std::string& saveName) {
     if (!m_world || !m_world->waveManager || !m_world->entityManager) return;
 
+    if (m_world->waveManager->isWaveActive() || !m_world->entityManager->getEnemies().empty()) {
+        std::cout << "[GameplayState] Сохранение запрещено во время активной волны." << std::endl;
+        return;
+    }
+
     SaveManager saveManager;
-    saveManager.writeSave(saveName, m_currentLevelPath, m_world->playerStats, *m_world->waveManager, *m_world->entityManager);
+    saveManager.writeSave(saveName, m_currentLevelPath, m_world->playerStats, *m_world->waveManager, *m_world->entityManager, enemyKillCounts);
     std::cout << "[GameplayState] Игра сохранена в слот: " << saveName << std::endl;
 }
 
@@ -392,9 +393,11 @@ bool GameplayState::loadSavedGame(const std::string& saveName) {
     std::string loadedLevelPath;
     PlayerStats loadedStats;
     int loadedWaveIndex = 0;
+    bool loadedGameStarted = false;
+    std::map<std::string, int> loadedEnemyKillCounts;
     nlohmann::json restoredTowers;
 
-    if (!saveManager.readSave(saveName, loadedLevelPath, loadedStats, loadedWaveIndex, restoredTowers)) {
+    if (!saveManager.readSave(saveName, loadedLevelPath, loadedStats, loadedWaveIndex, loadedGameStarted, loadedEnemyKillCounts, restoredTowers)) {
         std::cout << "[LoadGame] Не удалось загрузить файл: " << saveName << std::endl;
         return false;
     }
@@ -411,10 +414,14 @@ bool GameplayState::loadSavedGame(const std::string& saveName) {
     m_world->loadLevel(m_currentLevelPath, this->width, this->height);
 
     m_world->playerStats = loadedStats;
-    m_world->waveManager->setCurrentWaveIndex(loadedWaveIndex);
+    if (m_world->waveManager) {
+        m_world->waveManager->setCurrentWaveIndex(loadedWaveIndex);
+        m_world->waveManager->setGameStarted(loadedGameStarted);
+    }
 
     setupUI();
     setupEventListeners();
+    enemyKillCounts = loadedEnemyKillCounts;
     AudioEventSystem::playThemeMusic("res/sounds/background.mp3");
 
     for (const auto& tData : restoredTowers) {

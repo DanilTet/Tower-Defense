@@ -6,6 +6,8 @@
 #include <string>
 #include "../core/Animator.h"
 #include "../core/LevelManager.h"
+#include "../../particles/ParticleSystem.h"
+#include "../../renderer/SpriteRenderer.h"
 
 // Структура для хранения характеристик врага
 struct EnemyStats {
@@ -56,6 +58,7 @@ class Enemy
 private:
 	std::string m_type; // тип характеристик врага
 	int m_health; // здоровье врага
+	int m_maxHealth = 1; // максимальное здоровье врага
 	float m_speed; // скорость врага
 	int m_reward = 1; // награда за убийство врага
 	int m_rewardStep = 1; // шаг выплаты награды
@@ -75,6 +78,24 @@ private:
 	bool m_reachedEnd; // флаг дошел ли враг до конца
 
 	float m_radiusMultiplier; // соотношение врага отностительно клетки
+	float m_sizeScale = 0.5f;
+	std::string m_textureId;
+	const Texture2D* m_cachedTexture = nullptr;
+	bool m_isSpark = false;
+	bool m_isCoal = false;
+	ParticleEmitterProps m_deathParticleProps;
+	ParticleEmitterProps m_sparkTrailProps;
+
+	struct RenderGeometry {
+		glm::vec2 drawPos;
+		glm::vec2 cellCenter;
+		glm::vec2 size;
+		float baseEnemyDim;
+		float currentEnemyDim;
+		float drawAngle;
+		glm::vec3 renderColor;
+		SpriteUV uv;
+	};
 
 	static int s_nextId; // счетчик врагов общий
 	int m_id; // личный номер врага
@@ -111,6 +132,8 @@ private:
 	float m_fallTimer = 0.0f;
 	const float FALL_DURATION = 0.45f;
 
+	void initFromStats(const EnemyStats& stats);
+	RenderGeometry computeRenderGeometry(const Grid& grid) const;
 	void applyPostKnockbackPath(glm::ivec2 destCell, glm::ivec2 fromCell, const Grid& grid);
 	void updateVisibilityAlpha(const Grid& grid);
 
@@ -130,9 +153,15 @@ public:
 
 	Enemy(const std::vector<glm::ivec2>& gridPath, const Grid& grid, const std::string& type, int targetBaseIndex, bool enableFadeIn = true, bool enableFadeOut = true);
 	Enemy(const std::vector<glm::ivec2>& gridPath, const Grid& grid, const std::string& type, int targetBaseIndex, size_t currentWaypoint, glm::vec2 spawnPixelPos, bool enableFadeIn = true, bool enableFadeOut = true);
-	void update(float dt, const Grid& grid, ParticleSystem* particleSystem = nullptr);
+	void update(float dt, const Grid& grid, ParticleSystem* particleSystem = nullptr, float timeScale = 1.0f, int activeSparkCount = 0);
 
 	void render(SpriteRenderer* renderer, const Texture2D* texture, const Texture2D* radiusTex, glm::vec2 offset, const Grid& grid);
+	const Texture2D* getBodyTexture() const;
+	void renderBody(SpriteRenderer* renderer, const Grid& grid) const;
+	void renderCoalGlow(SpriteRenderer* renderer, const Texture2D* coalGlowTex, const Grid& grid) const;
+	void renderStunStars(SpriteRenderer* renderer, const Texture2D* starTex, const Grid& grid) const;
+	void renderHealthBar(SpriteRenderer* renderer, const Texture2D* barTex, const Grid& grid) const;
+	void renderDebugHitbox(SpriteRenderer* renderer, const Texture2D* radiusTex, const Grid& grid) const;
 	glm::vec2 getPixelPos() const { return m_pixelPos; }
 	bool isReachedEnd() const { return m_reachedEnd; }
 	void takeDamage(int damage) {
@@ -156,9 +185,12 @@ public:
 	void setRewardStep(int step) { m_rewardStep = std::max(1, step); }
 	int getWaveIndex() const { return m_waveIndex; }
 	void setWaveIndex(int wave) { m_waveIndex = wave; }
-	std::string getDeathSound() const { return m_deathSound; }
+	const std::string& getDeathSound() const { return m_deathSound; }
 	CircleCollider getCollider(const Grid& grid) const; // генераттор хитбокса
-	std::string getDeathParticle() const { return m_deathParticle; } // геттер партиклов
+	const std::string& getDeathParticle() const { return m_deathParticle; } // геттер партиклов
+	const ParticleEmitterProps& getDeathParticleProps() const { return m_deathParticleProps; }
+	bool isSpark() const { return m_isSpark; }
+	bool isCoal() const { return m_isCoal; }
 	int getId() const { return m_id; } // геттер для получения айди врага
 
 	float getDistanceTraveled() const { return m_distanceTraveled; } // геттер для того щоб отримати пройдений шлях ворога
@@ -176,6 +208,19 @@ public:
 	float getSplitScatterRadius() const { return m_splitScatterRadius; }
 
 	int getHealth() const { return m_health; } // получить хп
+	int getMaxHealth() const { return m_maxHealth; }
+	void setMaxHealth(int maxHp) {
+		if (maxHp < 1) {
+			maxHp = 1;
+		}
+		m_maxHealth = maxHp;
+	}
+	void setHealth(int hp) {
+		if (hp < 1) {
+			hp = 1;
+		}
+		m_health = hp;
+	}
 
 	// Статус-эффекты
 	void applySlow(float duration, float slowPercent);

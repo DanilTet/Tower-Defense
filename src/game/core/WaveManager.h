@@ -11,6 +11,7 @@ struct SpawnRequest {
 	int spawnerIndex;
 	int reward = 1;
 	int rewardStep = 1;
+	int waveIndex = 0;
 };
 
 struct PlayerStats;
@@ -25,6 +26,7 @@ public:
 	void startNextWave(); // начинаем новую волну
 	std::vector<SpawnRequest> update(float dt, const std::vector<SpawnerData>& spawners); // обновляем менеджер врагов по логическим ID
 	std::vector<SpawnRequest> update(float dt, int totalSpawners); // совместимость
+	void onEnemiesUpdated(bool noActiveEnemies); // завершение волны только после полной зачистки врагов
 
 	// Ранний вызов волны (Фаза 4.2)
 	bool canCallEarlyWave() const;
@@ -70,8 +72,9 @@ public:
 		return s_types;
 	}
 
-	// сеттер волны
+	// сеттеры состояния волны (для загрузки сохранения)
 	void setCurrentWaveIndex(int index);
+	void setGameStarted(bool started);
 
 private:
 	std::vector<WaveConfig> m_waves;

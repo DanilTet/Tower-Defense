@@ -104,7 +104,7 @@ void VictoryState::processInput(GLFWwindow* window, float dt) {
         if (m_btnNext.state == 2) {
             if (m_isEditorTest) {
                 std::cout << "[VictoryState] Returning to MapEditor..." << std::endl;
-                m_stateManager.returnToMapEditor("", m_width, m_height, m_renderer, m_textRenderer);
+                m_stateManager.returnToMapEditor(m_levelPath, m_width, m_height, m_renderer, m_textRenderer);
             } else if (m_origin == GameplayOrigin::Campaign) {
                 std::string nextFile = CampaignManager::getNextMissionFile(m_levelPath);
                 if (!nextFile.empty()) {
@@ -124,7 +124,7 @@ void VictoryState::processInput(GLFWwindow* window, float dt) {
         else if (m_btnMenu.state == 2) {
             if (m_isEditorTest) {
                 std::cout << "[VictoryState] Returning to MapEditor..." << std::endl;
-                m_stateManager.returnToMapEditor("", m_width, m_height, m_renderer, m_textRenderer);
+                m_stateManager.returnToMapEditor(m_levelPath, m_width, m_height, m_renderer, m_textRenderer);
             } else if (m_origin == GameplayOrigin::Custom) {
                 std::cout << "[VictoryState] Returning to Custom LevelSelect..." << std::endl;
                 m_stateManager.setState(std::make_unique<LevelSelectState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer, LevelTab::Custom));

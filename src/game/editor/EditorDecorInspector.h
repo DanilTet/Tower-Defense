@@ -87,9 +87,20 @@ class EditorDecorInspector {
 public:
     EditorDecorInspector() = default;
 
-    void resetPosition() { m_panelPos = glm::vec2(-1.0f); m_lastDecorIdx = -1; }
-    void setPosition(glm::vec2 pos) { m_panelPos = pos; }
+    void resetPosition() {
+        m_panelPos = glm::vec2(-1.0f);
+        m_customPosition = glm::vec2(0.0f);
+        m_hasCustomPosition = false;
+        m_lastDecorIdx = -1;
+        m_isDragging = false;
+    }
+    void setPosition(glm::vec2 pos) {
+        m_panelPos = pos;
+        m_customPosition = pos;
+        m_hasCustomPosition = true;
+    }
     glm::vec2 getPosition() const { return m_panelPos; }
+    bool hasCustomPosition() const { return m_hasCustomPosition; }
     bool isDragging() const { return m_isDragging; }
 
     DecorInspectorLayout getLayout(const DecorationConfig& config, int decorIndex,
@@ -118,8 +129,13 @@ public:
 
 private:
     static bool isPointInRect(glm::vec2 point, glm::vec2 rectPos, glm::vec2 rectSize);
+    static glm::vec2 clampPanelPosition(glm::vec2 pos, glm::vec2 panelSize,
+                                        float screenW, float screenH,
+                                        float topBarH, float bottomDockH, float uiScale);
 
     mutable glm::vec2 m_panelPos{-1.0f, -1.0f};
+    glm::vec2 m_customPosition{0.0f, 0.0f};
+    bool m_hasCustomPosition = false;
     mutable int m_lastDecorIdx = -1;
     bool m_isDragging = false;
     glm::vec2 m_dragOffset{0.0f, 0.0f};

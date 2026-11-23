@@ -21,7 +21,9 @@ void MinecartManager::init(const LevelMapData& levelData, float cellSize, glm::v
     m_railGridCells.clear();
     m_waypoints.clear();
     m_particles.clear();
+    m_particles.reserve(64);
     m_floatingTexts.clear();
+    m_floatingTexts.reserve(8);
     m_particleSpawnTimer = 0.0f;
     m_popupCooldown = 0.0f;
     m_cellSize = cellSize;
@@ -206,25 +208,44 @@ void MinecartManager::updateParticles(float dt) {
         m_popupCooldown -= dt;
     }
 
-    for (auto& p : m_particles) {
+    size_t pIdx = 0;
+    while (pIdx < m_particles.size()) {
+        CartParticle& p = m_particles[pIdx];
         p.pos += p.vel * dt;
         if (p.type == CartParticleType::Spark) {
             p.vel *= 0.88f;
-        } else {
+        }
+        else {
             p.vel *= 0.94f;
         }
         p.life -= dt;
+        if (p.life <= 0.0f) {
+            if (pIdx + 1 < m_particles.size()) {
+                m_particles[pIdx] = m_particles.back();
+            }
+            m_particles.pop_back();
+        }
+        else {
+            ++pIdx;
+        }
     }
-    m_particles.erase(std::remove_if(m_particles.begin(), m_particles.end(),
-        [](const CartParticle& p) { return p.life <= 0.0f; }), m_particles.end());
 
-    for (auto& ft : m_floatingTexts) {
+    size_t ftIdx = 0;
+    while (ftIdx < m_floatingTexts.size()) {
+        FloatingTextEffect& ft = m_floatingTexts[ftIdx];
         ft.pos += ft.vel * dt;
         ft.vel.y += dt * (m_cellSize * 0.6f); // плавное замедление подъема
         ft.life -= dt;
+        if (ft.life <= 0.0f) {
+            if (ftIdx + 1 < m_floatingTexts.size()) {
+                m_floatingTexts[ftIdx] = std::move(m_floatingTexts.back());
+            }
+            m_floatingTexts.pop_back();
+        }
+        else {
+            ++ftIdx;
+        }
     }
-    m_floatingTexts.erase(std::remove_if(m_floatingTexts.begin(), m_floatingTexts.end(),
-        [](const FloatingTextEffect& ft) { return ft.life <= 0.0f; }), m_floatingTexts.end());
 }
 
 template <typename TEnemyPtr>

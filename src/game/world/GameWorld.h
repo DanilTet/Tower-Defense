@@ -49,10 +49,10 @@ struct GameWorld {
     bool loadLevel(const std::string& levelPath, int windowWidth, int windowHeight);
     void recalculateAllPaths();
     void notifyEnemiesPathChanged(glm::ivec2 blockedCell = glm::ivec2(-1, -1));
-    void update(float dt);
+    void update(float dt, float timeScale = 1.0f);
     void render(SpriteRenderer* renderer, const Texture2D* whiteTexture);
     void resize(int windowWidth, int windowHeight);
-    void spawnEnemy(const std::string& type, int spawnerIndex = 0, int reward = 1, int rewardStep = 1);
+    void spawnEnemy(const std::string& type, int spawnerIndex = 0, int reward = 1, int rewardStep = 1, int waveIndex = -1);
     void demolishDecorationsInCell(int gridX, int gridY);
 
     // Ранний вызов волны (Фаза 4.2)

@@ -165,6 +165,7 @@ private:
     int m_maxUpgradeTier = 3;
     std::unordered_map<std::string, int> m_towerMaxTiers = { { "Basic", 3 }, { "Mercury", 3 }, { "Piston", 3 } };
     std::map<std::string, std::vector<EnemyWaveBountyRule>> m_enemyBountyRules;
+    std::map<std::string, std::vector<EnemyHpRule>> m_enemyHpRules;
     std::map<std::string, GlobalBountyConfig> m_enemyGlobalBounties;
     std::vector<ParticleEmitterConfig> m_emitters;
     EnvironmentParticleManager m_envParticleManager;

@@ -332,22 +332,21 @@ void drawCrack(SpriteRenderer* renderer, const Texture2D* tex, const DecorationC
     drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 14.0f, 1.0f }, { 14.0f, 1.5f }, 45.0f, glm::vec4(0.50f, 0.52f, 0.56f, 0.35f * crackAlpha));
 }
 
-void drawFog(SpriteRenderer* renderer, const Texture2D* whiteTexture, const DecorationConfig& d, float a) {
+const Texture2D* resolveParticleTexture() {
+    if (ResourceManager::hasTexture("particleTexture")) {
+        return ResourceManager::getTexture("particleTexture");
+    }
+    return ResourceManager::loadTexture("particleTexture", "res/textures/particle.png");
+}
+
+void drawFog(SpriteRenderer* renderer, const Texture2D* whiteTexture, const Texture2D* particleTexture, const DecorationConfig& d, float a) {
     glm::vec2 sVec(d.scale * d.scaleX, d.scale * d.scaleY);
     float op = std::clamp(d.opacity, 0.05f, 1.0f);
     float finalAlpha = op * a;
 
-    static Texture2D* rawPartTex = nullptr;
-    if (!rawPartTex) {
-        if (ResourceManager::hasTexture("particleTexture")) {
-            rawPartTex = ResourceManager::getTexture("particleTexture");
-        } else {
-            rawPartTex = ResourceManager::loadTexture("particleTexture", "res/textures/particle.png");
-        }
-    }
     const Texture2D* partTex = whiteTexture;
-    if (rawPartTex) {
-        partTex = rawPartTex;
+    if (particleTexture) {
+        partTex = particleTexture;
     }
 
     // Мягкий объемный туман / облако дыма: несколько смещенных перекрывающихся слоев
@@ -750,9 +749,10 @@ void drawOreDebris(SpriteRenderer* renderer, const Texture2D* tex, const Decorat
     drawPart(renderer, tex, d.worldPos, d.rotation, sVec, { 21.0f, 8.0f }, { 5.5f, 4.0f }, 30.0f, glm::vec4(0.30f, 0.32f, 0.34f, a));
 }
 
-void DecorationRenderer::renderDecoration(
+static void renderDecorationImpl(
     SpriteRenderer* renderer,
     const Texture2D* whiteTexture,
+    const Texture2D* particleTexture,
     const DecorationConfig& decor,
     bool isSelected,
     float alpha,
@@ -761,7 +761,10 @@ void DecorationRenderer::renderDecoration(
     if (!renderer || !whiteTexture) return;
 
     const float kTileRef = 64.0f;
-    float cellScaleFactor = (cellSize > 0.001f) ? (cellSize / kTileRef) : 1.0f;
+    float cellScaleFactor = 1.0f;
+    if (cellSize > 0.001f) {
+        cellScaleFactor = cellSize / kTileRef;
+    }
 
     DecorationConfig d = decor;
     d.scale *= cellScaleFactor;
@@ -785,7 +788,11 @@ void DecorationRenderer::renderDecoration(
     } else if (d.type == "crack") {
         drawCrack(renderer, whiteTexture, d, alpha);
     } else if (d.type == "fog") {
-        drawFog(renderer, whiteTexture, d, alpha);
+        const Texture2D* fogTex = particleTexture;
+        if (!fogTex) {
+            fogTex = resolveParticleTexture();
+        }
+        drawFog(renderer, whiteTexture, fogTex, d, alpha);
     } else if (d.type == "wooden_crate") {
         drawWoodenCrate(renderer, whiteTexture, d, alpha);
     } else if (d.type == "broken_mercury_cart") {
@@ -811,6 +818,17 @@ void DecorationRenderer::renderDecoration(
 void DecorationRenderer::renderDecoration(
     SpriteRenderer* renderer,
     const Texture2D* whiteTexture,
+    const DecorationConfig& decor,
+    bool isSelected,
+    float alpha,
+    float cellSize
+) {
+    renderDecorationImpl(renderer, whiteTexture, nullptr, decor, isSelected, alpha, cellSize);
+}
+
+void DecorationRenderer::renderDecoration(
+    SpriteRenderer* renderer,
+    const Texture2D* whiteTexture,
     glm::vec2 renderPos,
     const DecorationConfig& decor,
     bool isSelected,
@@ -819,7 +837,7 @@ void DecorationRenderer::renderDecoration(
 ) {
     DecorationConfig decCopy = decor;
     decCopy.worldPos = renderPos;
-    renderDecoration(renderer, whiteTexture, decCopy, isSelected, alpha, cellSize);
+    renderDecorationImpl(renderer, whiteTexture, nullptr, decCopy, isSelected, alpha, cellSize);
 }
 
 void DecorationRenderer::renderDecorations(
@@ -832,6 +850,11 @@ void DecorationRenderer::renderDecorations(
 ) {
     if (!renderer || !whiteTexture || decorations.empty()) return;
 
+    const Texture2D* particleTexture = nullptr;
+    if (onlyFog) {
+        particleTexture = resolveParticleTexture();
+    }
+
     std::vector<size_t> order(decorations.size());
     std::iota(order.begin(), order.end(), 0);
     std::stable_sort(order.begin(), order.end(), [&decorations](size_t a, size_t b) {
@@ -842,7 +865,7 @@ void DecorationRenderer::renderDecorations(
         bool isFog = (decorations[i].type == "fog" || decorations[i].type == "darkness");
         if (onlyFog != isFog) continue;
         bool isSel = (static_cast<int>(i) == selectedIndex);
-        renderDecoration(renderer, whiteTexture, decorations[i], isSel, 1.0f, cellSize);
+        renderDecorationImpl(renderer, whiteTexture, particleTexture, decorations[i], isSel, 1.0f, cellSize);
     }
 }
 
@@ -857,6 +880,11 @@ void DecorationRenderer::renderDecorations(
 ) {
     if (!renderer || !whiteTexture || decorations.empty()) return;
 
+    const Texture2D* particleTexture = nullptr;
+    if (onlyFog) {
+        particleTexture = resolveParticleTexture();
+    }
+
     std::vector<size_t> order(decorations.size());
     std::iota(order.begin(), order.end(), 0);
     std::stable_sort(order.begin(), order.end(), [&decorations](size_t a, size_t b) {
@@ -867,8 +895,9 @@ void DecorationRenderer::renderDecorations(
         bool isFog = (decorations[i].type == "fog" || decorations[i].type == "darkness");
         if (onlyFog != isFog) continue;
         bool isSel = (static_cast<int>(i) == selectedIndex);
-        glm::vec2 renderPos = gridOffset + decorations[i].tilePos * cellSize;
-        renderDecoration(renderer, whiteTexture, renderPos, decorations[i], isSel, 1.0f, cellSize);
+        DecorationConfig decCopy = decorations[i];
+        decCopy.worldPos = gridOffset + decorations[i].tilePos * cellSize;
+        renderDecorationImpl(renderer, whiteTexture, particleTexture, decCopy, isSel, 1.0f, cellSize);
     }
 }
 

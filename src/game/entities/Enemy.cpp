@@ -17,6 +17,60 @@ EnemyStats Enemy::getStatsfromEnemyType(const std::string& type) {
     return ConfigManager::getEnemyStats(type);
 }
 
+void Enemy::initFromStats(const EnemyStats& stats) {
+    m_speed = stats.speed;
+    m_maxHealth = stats.Maxhealth;
+    m_health = stats.Maxhealth;
+    m_reward = stats.reward;
+    m_color = stats.color;
+    m_deathSound = stats.deathSound;
+    m_deathParticle = stats.deathParticle;
+    m_splitChildType = stats.splitChildType;
+    m_splitCount = stats.splitCount;
+    m_splitScatterRadius = stats.splitScatterRadius;
+    m_sizeScale = stats.sizeScale;
+    m_textureId = stats.textureId;
+    m_radiusMultiplier = stats.sizeScale / 2.0f;
+
+    m_isSpark = (m_type == "Spark");
+    m_isCoal = (m_type == "Coal");
+
+    if (!m_textureId.empty() && ResourceManager::hasTexture(m_textureId)) {
+        m_cachedTexture = ResourceManager::getTexture(m_textureId);
+    }
+    else if (ResourceManager::hasTexture("towerTexture")) {
+        m_cachedTexture = ResourceManager::getTexture("towerTexture");
+    }
+    else {
+        m_cachedTexture = nullptr;
+    }
+
+    if (m_deathParticle.empty()) {
+        m_deathParticleProps = ConfigManager::getParticleProps("BloodSplatter");
+    }
+    else {
+        m_deathParticleProps = ConfigManager::getParticleProps(m_deathParticle);
+    }
+
+    if (m_isSpark) {
+        m_sparkTrailProps = ConfigManager::getParticleProps("SparkTrail");
+        if (m_sparkTrailProps.lifeTime <= 0.0f) {
+            m_sparkTrailProps.velocityVariation = 40.0f;
+            m_sparkTrailProps.startColor = glm::vec3(1.0f, 0.90f, 0.35f);
+            m_sparkTrailProps.endColor = glm::vec3(0.95f, 0.25f, 0.02f);
+            m_sparkTrailProps.startSize = 7.0f;
+            m_sparkTrailProps.endSize = 1.0f;
+            m_sparkTrailProps.lifeTime = 0.35f;
+            m_sparkTrailProps.spawnCount = 1;
+        }
+    }
+
+    for (const auto& pair : stats.animations) {
+        m_animator.addAnimation(pair.first, pair.second);
+    }
+    m_animator.play("Walk");
+}
+
 // конструктор который вызывается при спавне крипа
 Enemy::Enemy(const std::vector<glm::ivec2>& gridPath, const Grid& grid, const std::string& type, int targetBaseIndex, bool enableFadeIn, bool enableFadeOut)
     : m_path(gridPath), // сохраняем ссылку на маршрут врага по клеткам сетки
@@ -31,28 +85,13 @@ Enemy::Enemy(const std::vector<glm::ivec2>& gridPath, const Grid& grid, const st
 {
     m_id = s_nextId++; // выдаем уникальный айди
 
-    EnemyStats stats = Enemy::getStatsfromEnemyType(type); // Получаем характеристики врага в зависимости от его типа
-    m_speed = stats.speed; // сохраняем скорость врага
-	m_health = stats.Maxhealth; // сохраняем здоровье врага
-    m_reward = stats.reward; // сохраняем награду за убийство врага
-    m_color = stats.color;
-    m_deathSound = stats.deathSound;
-    m_deathParticle = stats.deathParticle;
-    m_splitChildType = stats.splitChildType;
-    m_splitCount = stats.splitCount;
-    m_splitScatterRadius = stats.splitScatterRadius;
+    EnemyStats stats = Enemy::getStatsfromEnemyType(type);
+    initFromStats(stats);
 
-    m_radiusMultiplier = stats.sizeScale / 2.0f; // хитбокс
-	// Если маршрут не пустой, то устанавливаем начальную позицию врага в пикселях на основе первой контрольной точки маршрута
     if (!m_path.empty()) {
-        // Берем индексы x и y первой ячейки [0], переводим в экранные пиксели и сохраняем в m_pixelPos
         m_pixelPos = grid.gridToPixel(m_path[0].x, m_path[0].y);
     }
 
-    for(const auto& pair : stats.animations) {
-        m_animator.addAnimation(pair.first, pair.second);
-    }
-    m_animator.play("Walk");
     m_visibilityAlpha = m_enableFadeIn ? 0.0f : 1.0f;
     updateVisibilityAlpha(grid);
 }
@@ -72,26 +111,11 @@ Enemy::Enemy(const std::vector<glm::ivec2>& gridPath, const Grid& grid, const st
     m_id = s_nextId++;
 
     EnemyStats stats = Enemy::getStatsfromEnemyType(type);
-    m_speed = stats.speed;
-	m_health = stats.Maxhealth;
-    m_reward = stats.reward;
-    m_color = stats.color;
-    m_deathSound = stats.deathSound;
-    m_deathParticle = stats.deathParticle;
-    m_splitChildType = stats.splitChildType;
-    m_splitCount = stats.splitCount;
-    m_splitScatterRadius = stats.splitScatterRadius;
-
-    m_radiusMultiplier = stats.sizeScale / 2.0f;
+    initFromStats(stats);
 
     if (m_currentWayPoint >= m_path.size()) {
         m_currentWayPoint = m_path.empty() ? 0 : m_path.size() - 1;
     }
-
-    for(const auto& pair : stats.animations) {
-        m_animator.addAnimation(pair.first, pair.second);
-    }
-    m_animator.play("Walk");
 
     m_distanceTraveled = 0.0f;
     for (size_t i = 1; i <= m_currentWayPoint && i < m_path.size(); ++i) {
@@ -113,32 +137,46 @@ void Enemy::updateVisibilityAlpha(const Grid& grid) {
     float fadeDist = 1.5f * cellSize;
 
     // 1. При спавне: alpha плавно растет от 0.0f до 1.0f на первых 1.5 тайлах пройденного пути
-    float spawnAlpha = m_enableFadeIn ? std::clamp(m_distanceTraveled / fadeDist, 0.0f, 1.0f) : 1.0f;
+    float spawnAlpha = 1.0f;
+    if (m_enableFadeIn) {
+        spawnAlpha = std::clamp(m_distanceTraveled / fadeDist, 0.0f, 1.0f);
+    }
 
-    // 2. При подходе к базе: если оставшаяся дистанция до конца пути меньше 1.5 тайлов, alpha плавно спадает от 1.0f до 0.0f
-    float remainingDist = 0.0f;
-    if (m_reachedEnd) {
-        remainingDist = 0.0f;
-    } else if (m_currentWayPoint < m_path.size()) {
-        glm::vec2 targetPixelPos = grid.gridToPixel(m_path[m_currentWayPoint].x, m_path[m_currentWayPoint].y);
-        remainingDist = glm::distance(m_pixelPos, targetPixelPos);
-        for (size_t i = m_currentWayPoint; i + 1 < m_path.size(); ++i) {
-            remainingDist += glm::distance(
-                grid.gridToPixel(m_path[i].x, m_path[i].y),
-                grid.gridToPixel(m_path[i + 1].x, m_path[i + 1].y)
-            );
+    // 2. При подходе к базе: быстрый выход, если до конца пути больше 3 клеток
+    float baseAlpha = 1.0f;
+    if (m_enableFadeOut) {
+        if (m_reachedEnd) {
+            baseAlpha = 0.0f;
+        }
+        else if (m_currentWayPoint + 3 < m_path.size()) {
+            baseAlpha = 1.0f;
+        }
+        else if (m_currentWayPoint < m_path.size()) {
+            glm::vec2 targetPixelPos = grid.gridToPixel(m_path[m_currentWayPoint].x, m_path[m_currentWayPoint].y);
+            float remainingDist = glm::distance(m_pixelPos, targetPixelPos);
+            for (size_t i = m_currentWayPoint; i + 1 < m_path.size(); ++i) {
+                if (remainingDist >= fadeDist) {
+                    break;
+                }
+                remainingDist += glm::distance(
+                    grid.gridToPixel(m_path[i].x, m_path[i].y),
+                    grid.gridToPixel(m_path[i + 1].x, m_path[i + 1].y)
+                );
+            }
+            baseAlpha = std::clamp(remainingDist / fadeDist, 0.0f, 1.0f);
+        }
+        else {
+            baseAlpha = 0.0f;
         }
     }
 
-    float baseAlpha = m_enableFadeOut ? std::clamp(remainingDist / fadeDist, 0.0f, 1.0f) : 1.0f;
     m_visibilityAlpha = std::clamp(std::min(spawnAlpha, baseAlpha), 0.0f, 1.0f);
 }
 
 // Обновление логики и расчет движения
-void Enemy::update(float dt, const Grid& grid, ParticleSystem* particleSystem) {
+void Enemy::update(float dt, const Grid& grid, ParticleSystem* particleSystem, float timeScale, int activeSparkCount) {
     if (m_reachedEnd) return;
     m_aliveTime += dt;
-    updateVisibilityAlpha(grid);
 
     // 0. Состояние падения в шурф / обрыв (CellType::Chasm)
     if (m_isFalling) {
@@ -155,8 +193,12 @@ void Enemy::update(float dt, const Grid& grid, ParticleSystem* particleSystem) {
 
     // --- ОБРАБОТКА СТАТУС-ЭФФЕКТОВ (Замедление и Яд) ---
     float maxSlow = 0.0f;
+    bool anyEffectExpired = false;
     for (auto& effect : m_statusEffects) {
         effect.duration -= dt;
+        if (effect.duration <= 0.0f) {
+            anyEffectExpired = true;
+        }
         if (effect.type == StatusType::Slow) {
             if (effect.intensity > maxSlow) {
                 maxSlow = effect.intensity;
@@ -186,24 +228,38 @@ void Enemy::update(float dt, const Grid& grid, ParticleSystem* particleSystem) {
         }
     }
 
-    // Удаляем истекшие эффекты
-    m_statusEffects.erase(
-        std::remove_if(m_statusEffects.begin(), m_statusEffects.end(),
-            [](const StatusEffect& e) { return e.duration <= 0.0f; }),
-        m_statusEffects.end()
-    );
+    // Удаляем истекшие эффекты через swap-and-pop
+    if (anyEffectExpired) {
+        size_t idx = 0;
+        while (idx < m_statusEffects.size()) {
+            if (m_statusEffects[idx].duration <= 0.0f) {
+                if (idx + 1 < m_statusEffects.size()) {
+                    m_statusEffects[idx] = m_statusEffects.back();
+                }
+                m_statusEffects.pop_back();
+            }
+            else {
+                ++idx;
+            }
+        }
+    }
 
     // Кап замедления (макс 80%, чтобы мобы не застревали намертво)
     if (maxSlow > 0.8f) maxSlow = 0.8f;
     m_speedModifier = 1.0f - maxSlow;
 
-    // Таймеры кулдауна для конкретных поршней (защита от локального зацикливания)
-    for (auto it = m_pistonCooldowns.begin(); it != m_pistonCooldowns.end(); ) {
-        it->second -= dt;
-        if (it->second <= 0.0f) {
-            it = m_pistonCooldowns.erase(it);
-        } else {
-            ++it;
+    // Таймеры кулдауна для конкретных поршней (swap-and-pop без сдвига массива)
+    size_t cdIdx = 0;
+    while (cdIdx < m_pistonCooldowns.size()) {
+        m_pistonCooldowns[cdIdx].second -= dt;
+        if (m_pistonCooldowns[cdIdx].second <= 0.0f) {
+            if (cdIdx + 1 < m_pistonCooldowns.size()) {
+                m_pistonCooldowns[cdIdx] = m_pistonCooldowns.back();
+            }
+            m_pistonCooldowns.pop_back();
+        }
+        else {
+            ++cdIdx;
         }
     }
 
@@ -265,6 +321,7 @@ void Enemy::update(float dt, const Grid& grid, ParticleSystem* particleSystem) {
             m_pixelPos = glm::mix(m_knockbackStartPos, m_knockbackTargetPos, easeOut);
         }
 
+        updateVisibilityAlpha(grid);
         // Во время отталкивания стандартное движение по маршруту заблокировано
         return;
     }
@@ -313,13 +370,11 @@ void Enemy::update(float dt, const Grid& grid, ParticleSystem* particleSystem) {
 
 	// Считаем вектор от текущей позиции врага до контрольной точки
     glm::vec2 toTarget = targetPixelPos - m_pixelPos;
+    float distance = glm::length(toTarget);
 
-    if (glm::length(toTarget) > 0.001f) {
+    if (distance > 0.001f) {
         m_angle = glm::degrees(atan2(toTarget.y, toTarget.x));
     }
-
-	// Считаем расстояние до контрольной точки
-    float distance = glm::length(toTarget);
     
     // перевод скорости в пиксели в секунду с учетом замедления
     float currentPixelSpeed = m_speed * m_speedModifier * grid.getCellSize();
@@ -336,212 +391,272 @@ void Enemy::update(float dt, const Grid& grid, ParticleSystem* particleSystem) {
         // если индекс новой цели превысил размер массива маршрута — чекпоинты закончились
         if (m_currentWayPoint >= m_path.size()) {
             m_reachedEnd = true; // Выставляем флаг, что враг успешно закончил свой путь
-            std::cout << "enemy came to base!" << std::endl; // Сигнализируем в консоль
         }
     }
     // если до контрольной точк далеко
     else {
 		// Нормализуем вектор до контрольной точки, чтобы получить направление движения
-        glm::vec2 direction = glm::normalize(toTarget);
+        glm::vec2 direction = toTarget / distance;
 		// Двигаем врага в направлении контрольной точки на расстояние, которое он может пройти за этот кадр
         m_pixelPos += direction * moveDistance;
         m_distanceTraveled += moveDistance; // плюсуем пройденое расстояние за кадр
     }
 
 
-    // Эффект движения (Шлейф искр) для типа "Spark"
-    if (m_type == "Spark" && particleSystem && !m_reachedEnd && !m_isFalling && m_health > 0 && distance > 0.001f && m_speedModifier > 0.01f) {
+    // Эффект движения (Шлейф искр) для типа "Spark" с адаптивным троттлингом под 2x-4x и толпу
+    if (m_isSpark && particleSystem != nullptr && !m_reachedEnd && !m_isFalling && m_health > 0 && distance > 0.001f && m_speedModifier > 0.01f) {
         m_sparkTrailTimer += dt;
-        const float SPAWN_INTERVAL = 0.022f; // Высокая частота спавна для динамичного огненного хвоста
-        glm::vec2 moveDir = toTarget / distance;
-        glm::vec2 enemyCenter = m_pixelPos + glm::vec2(grid.getCellSize() * 0.5f);
 
-        if (m_sparkTrailTimer > 0.1f) m_sparkTrailTimer = 0.1f;
-        while (m_sparkTrailTimer >= SPAWN_INTERVAL) {
-            m_sparkTrailTimer -= SPAWN_INTERVAL;
+        float effectiveTimeScale = 1.0f;
+        if (timeScale > 1.0f) {
+            effectiveTimeScale = timeScale;
+        }
+        float spawnInterval = 0.040f * effectiveTimeScale;
 
-            ParticleEmitterProps props = ConfigManager::getParticleProps("SparkTrail");
-            if (props.lifeTime <= 0.0f) {
-                props.velocityVariation = 40.0f;
-                props.startColor = glm::vec3(1.0f, 0.90f, 0.35f);
-                props.endColor = glm::vec3(0.95f, 0.25f, 0.02f);
-                props.startSize = 7.0f;
-                props.endSize = 1.0f;
-                props.lifeTime = 0.35f;
-                props.spawnCount = 1;
+        if (activeSparkCount > 15) {
+            float crowdFactor = static_cast<float>(activeSparkCount) / 15.0f;
+            if (crowdFactor > 4.0f) {
+                crowdFactor = 4.0f;
+            }
+            spawnInterval *= crowdFactor;
+        }
+
+        size_t activeParticles = particleSystem->getActiveCount();
+        size_t trailCap = particleSystem->getTrailSoftCap();
+        if (activeParticles < trailCap) {
+            if (activeParticles > trailCap / 2) {
+                spawnInterval *= 1.75f;
             }
 
-            props.position = enemyCenter;
-            // Искры с небольшим разбросом вылетают против вектора движения и быстро затухают
-            props.velocityDir = -moveDir * 65.0f;
-            particleSystem->emit(props, props.spawnCount);
+            if (m_sparkTrailTimer >= spawnInterval) {
+                m_sparkTrailTimer = 0.0f;
+                glm::vec2 moveDir = toTarget / distance;
+                glm::vec2 enemyCenter = m_pixelPos + glm::vec2(grid.getCellSize() * 0.5f);
+
+                ParticleEmitterProps props = m_sparkTrailProps;
+                props.position = enemyCenter;
+                props.velocityDir = -moveDir * 65.0f;
+                particleSystem->emit(props, props.spawnCount, true);
+            }
+        }
+        else if (m_sparkTrailTimer > spawnInterval) {
+            m_sparkTrailTimer = spawnInterval;
         }
     }
     updateVisibilityAlpha(grid);
 }
 
-// отрисовка врага на экране
-void Enemy::render(SpriteRenderer* renderer, const Texture2D* texture, const Texture2D* radiusTex, glm::vec2 gridOffset, const Grid& grid) {
-	if (m_reachedEnd) return; // если враг достиг конца пути, то не рисуем его
+const Texture2D* Enemy::getBodyTexture() const {
+    if (m_cachedTexture != nullptr) {
+        return m_cachedTexture;
+    }
+    if (!m_textureId.empty() && ResourceManager::hasTexture(m_textureId)) {
+        return ResourceManager::getTexture(m_textureId);
+    }
+    if (ResourceManager::hasTexture("towerTexture")) {
+        return ResourceManager::getTexture("towerTexture");
+    }
+    return nullptr;
+}
 
-	// Получаем характеристики врага в зависимости от его типа, чтобы использовать их для отрисовки (например, размер спрайта)
-    EnemyStats stats = Enemy::getStatsfromEnemyType(m_type);
+Enemy::RenderGeometry Enemy::computeRenderGeometry(const Grid& grid) const {
+    RenderGeometry geom{};
     float cellSize = grid.getCellSize();
 
-	// Базовый размер спрайта врага в пикселях
-    float baseEnemyDim = cellSize * stats.sizeScale;
-    float currentEnemyDim = baseEnemyDim;
-    float drawAngle = m_angle;
-    glm::vec3 renderColor = m_color;
+    geom.baseEnemyDim = cellSize * m_sizeScale;
+    geom.currentEnemyDim = geom.baseEnemyDim;
+    geom.drawAngle = m_angle;
+    geom.renderColor = m_color;
 
     if (m_isFalling) {
         float progress = std::clamp(m_fallTimer / FALL_DURATION, 0.0f, 1.0f);
-
-        // 1. Уменьшение масштаба спрайта к центру клетки (1.0 -> 0.0)
         float scale = 1.0f - progress;
-        currentEnemyDim = baseEnemyDim * scale;
-
-        // 2. Вращение: закручивание в бездну обрыва (720 градусов)
-        drawAngle = m_angle + progress * 720.0f;
-
-        // 3. Затенение: погружение в глубокую темноту бездны
+        geom.currentEnemyDim = geom.baseEnemyDim * scale;
+        geom.drawAngle = m_angle + progress * 720.0f;
         float shade = (1.0f - progress * 0.90f);
-        renderColor = glm::mix(m_color, glm::vec3(0.02f, 0.02f, 0.04f), progress) * shade;
+        geom.renderColor = glm::mix(m_color, glm::vec3(0.02f, 0.02f, 0.04f), progress) * shade;
     }
-    else {
-        if (m_stunTimer > 0.0f) {
-            renderColor = glm::vec3(1.0f, 0.85f, 0.25f); // Золотисто-желтый оттенок оглушения
+    else if (m_stunTimer > 0.0f) {
+        geom.renderColor = glm::vec3(1.0f, 0.85f, 0.25f);
+    }
+    else if (!m_statusEffects.empty()) {
+        bool poisoned = false;
+        bool slowed = false;
+        bool bleedingOrVulnerable = false;
+        for (const auto& e : m_statusEffects) {
+            if (e.duration <= 0.0f) {
+                continue;
+            }
+            if (e.type == StatusType::Poison) {
+                poisoned = true;
+            }
+            else if (e.type == StatusType::Slow) {
+                slowed = true;
+            }
+            else if (e.type == StatusType::Bleed || e.type == StatusType::Vulnerable) {
+                bleedingOrVulnerable = true;
+            }
         }
-        else if (isBleeding() || isVulnerable()) {
-            renderColor = glm::vec3(1.0f, 0.35f, 0.35f); // Кроваво-багровый оттенок шипов/кровотечения
+
+        if (bleedingOrVulnerable) {
+            geom.renderColor = glm::vec3(1.0f, 0.35f, 0.35f);
         }
-        else if (isPoisoned() && isSlowed()) {
-            renderColor = glm::vec3(0.3f, 0.95f, 0.75f); // Ядовито-ртутный бирюзовый оттенок
+        else if (poisoned && slowed) {
+            geom.renderColor = glm::vec3(0.3f, 0.95f, 0.75f);
         }
-        else if (isPoisoned()) {
-            renderColor = glm::vec3(0.35f, 1.0f, 0.35f); // Токсично-зеленый оттенок
+        else if (poisoned) {
+            geom.renderColor = glm::vec3(0.35f, 1.0f, 0.35f);
         }
-        else if (isSlowed()) {
-            renderColor = glm::vec3(0.45f, 0.75f, 1.0f); // Замедленно-синий оттенок
+        else if (slowed) {
+            geom.renderColor = glm::vec3(0.45f, 0.75f, 1.0f);
         }
     }
 
-    glm::vec2 size(currentEnemyDim, currentEnemyDim);
+    geom.size = glm::vec2(geom.currentEnemyDim, geom.currentEnemyDim);
+    geom.cellCenter = m_pixelPos + glm::vec2(cellSize * 0.5f);
+    geom.drawPos = geom.cellCenter - geom.size * 0.5f + m_wallImpactOffset;
+    geom.uv = m_animator.getCurrentUV();
+    return geom;
+}
 
-    // Центрируем спрайт относительно клетки
-    glm::vec2 cellCenter = m_pixelPos + glm::vec2(cellSize * 0.5f);
-    glm::vec2 drawPos = cellCenter - size * 0.5f + m_wallImpactOffset;
-
-    // Отправляем команду в SpriteRenderer
-    Texture2D* enemyTex = ResourceManager::getTexture(stats.textureId);
-    if (!enemyTex) {
-        enemyTex = ResourceManager::getTexture("towerTexture");
-    }
-    const Texture2D* enemyTexPtr = enemyTex;
-
-    SpriteUV currentFrameUV = m_animator.getCurrentUV();
-
-    // Скрываем врага, если он полностью растворен в тумане
-    if (m_visibilityAlpha <= 0.001f) {
+void Enemy::renderBody(SpriteRenderer* renderer, const Grid& grid) const {
+    if (m_reachedEnd || m_visibilityAlpha <= 0.001f) {
         return;
     }
 
-    if (currentEnemyDim > 0.5f) {
-        if (m_type == "Spark") {
-            // Быстрая высокочастотная пульсация свечения (вибрация пламени)
-            float phase = static_cast<float>(m_id) * 2.391f;
-            float vib1 = std::sin(m_aliveTime * 22.0f + phase);
-            float vib2 = std::sin(m_aliveTime * 37.0f + phase * 1.618f);
-            float vib3 = std::cos(m_aliveTime * 53.0f + phase * 2.718f);
-            float flamePulse = 0.5f + 0.30f * vib1 + 0.12f * vib2 + 0.08f * vib3; // быстрая вибрация пламени 0..1
-
-            // 1. Внешний огненно-оранжевый контур / ореол пламени с вибрацией размера и яркости
-            float haloScale = 1.30f + 0.22f * flamePulse;
-            glm::vec2 haloSize = size * haloScale;
-            glm::vec2 haloPos = cellCenter - haloSize * 0.5f + m_wallImpactOffset;
-            glm::vec3 flameOrange = glm::vec3(1.0f, 0.40f, 0.05f) * renderColor;
-            float haloAlpha = std::clamp((0.50f + 0.45f * flamePulse) * m_visibilityAlpha, 0.0f, 1.0f);
-            renderer->drawSpriteRGBA(enemyTexPtr, haloPos, haloSize, drawAngle, glm::vec4(flameOrange, haloAlpha), currentFrameUV);
-
-            // 2. Основное тело искры (базовый спрайт)
-            renderer->drawSpriteRGBA(enemyTexPtr, drawPos, size, drawAngle, glm::vec4(renderColor, m_visibilityAlpha), currentFrameUV);
-
-            // 3. Яркое раскаленное ядро (бело-желтый вибрирующий центр высокой яркости)
-            float coreScale = 0.70f + 0.12f * vib1;
-            glm::vec2 coreSize = size * coreScale;
-            glm::vec2 corePos = cellCenter - coreSize * 0.5f + m_wallImpactOffset;
-            glm::vec3 coreGlow = glm::mix(glm::vec3(1.0f, 0.90f, 0.40f), glm::vec3(1.22f, 1.18f, 0.96f), flamePulse) * renderColor;
-            float coreAlpha = std::clamp((0.80f + 0.20f * flamePulse) * m_visibilityAlpha, 0.0f, 1.0f);
-            renderer->drawSpriteRGBA(enemyTexPtr, corePos, coreSize, drawAngle, glm::vec4(coreGlow, coreAlpha), currentFrameUV);
-        }
-        else {
-            renderer->drawSpriteRGBA(enemyTexPtr, drawPos, size, drawAngle, glm::vec4(renderColor, m_visibilityAlpha), currentFrameUV);
-
-            // Процедурный визуал для врага "Coal" (Уголёк):
-            // Пульсация раскаленных красно-оранжевых прожилок/трещин и пары огненных глаз
-            if (m_type == "Coal") {
-                Texture2D* glowTex = ResourceManager::getTexture("enemy_coal_glow");
-                if (glowTex) {
-                    const Texture2D* glowTexPtr = glowTex;
-
-                    // Индивидуальный сдвиг фазы на основе m_id, чтобы пачка из 30 угольков не мигала синхронно
-                    float phase = static_cast<float>(m_id) * 1.731f;
-                    float p1 = 0.5f + 0.5f * std::sin(m_aliveTime * 3.4f + phase);
-                    float p2 = 0.5f + 0.5f * std::sin(m_aliveTime * 5.8f + phase * 1.37f);
-                    float pulse = p1 * 0.75f + p2 * 0.25f; // органическое двухфазное "дыхание" пламени
-
-                    // Раскаленный красно-оранжевый цвет с переходом к ярко-желтому в пике пульсации
-                    glm::vec3 coreGlow = glm::mix(glm::vec3(1.0f, 0.45f, 0.12f), glm::vec3(1.18f, 0.92f, 0.38f), pulse);
-                    glm::vec3 finalGlowColor = renderColor * coreGlow;
-
-                    // Оверлей трещин строго в габаритах самого камня (1:1 со спрайтом, без ореола расширения)
-                    glm::vec2 coreSize = size;
-                    glm::vec2 corePos = drawPos;
-
-                    // Обязательно учитываем m_visibilityAlpha, чтобы Уголёк плавно проявлялся и исчезал в тумане
-                    float glowAlpha = std::clamp((0.45f + 0.55f * pulse) * m_visibilityAlpha, 0.0f, 1.0f);
-
-                    renderer->drawSpriteRGBA(glowTexPtr, corePos, coreSize, drawAngle, glm::vec4(finalGlowColor, glowAlpha), currentFrameUV);
-                }
-            }
-        }
+    RenderGeometry geom = computeRenderGeometry(grid);
+    if (geom.currentEnemyDim <= 0.5f) {
+        return;
     }
 
-    // Если враг падает в бездну, скрываем звездочки стана, полоску здоровья и хитбокс
+    const Texture2D* enemyTexPtr = getBodyTexture();
+    if (m_isSpark) {
+        float phase = static_cast<float>(m_id) * 2.391f;
+        float vib1 = std::sin(m_aliveTime * 22.0f + phase);
+        float vib2 = std::sin(m_aliveTime * 37.0f + phase * 1.618f);
+        float vib3 = std::cos(m_aliveTime * 53.0f + phase * 2.718f);
+        float flamePulse = 0.5f + 0.30f * vib1 + 0.12f * vib2 + 0.08f * vib3;
+
+        // 1. Внешний огненно-оранжевый ореол
+        float haloScale = 1.30f + 0.22f * flamePulse;
+        glm::vec2 haloSize = geom.size * haloScale;
+        glm::vec2 haloPos = geom.cellCenter - haloSize * 0.5f + m_wallImpactOffset;
+        glm::vec3 flameOrange = glm::vec3(1.0f, 0.40f, 0.05f) * geom.renderColor;
+        float haloAlpha = std::clamp((0.50f + 0.45f * flamePulse) * m_visibilityAlpha, 0.0f, 1.0f);
+        renderer->drawSpriteRGBA(enemyTexPtr, haloPos, haloSize, geom.drawAngle, glm::vec4(flameOrange, haloAlpha), geom.uv);
+
+        // 2. Основное тело искры
+        renderer->drawSpriteRGBA(enemyTexPtr, geom.drawPos, geom.size, geom.drawAngle, glm::vec4(geom.renderColor, m_visibilityAlpha), geom.uv);
+
+        // 3. Яркое раскаленное ядро
+        float coreScale = 0.70f + 0.12f * vib1;
+        glm::vec2 coreSize = geom.size * coreScale;
+        glm::vec2 corePos = geom.cellCenter - coreSize * 0.5f + m_wallImpactOffset;
+        glm::vec3 coreGlow = glm::mix(glm::vec3(1.0f, 0.90f, 0.40f), glm::vec3(1.22f, 1.18f, 0.96f), flamePulse) * geom.renderColor;
+        float coreAlpha = std::clamp((0.80f + 0.20f * flamePulse) * m_visibilityAlpha, 0.0f, 1.0f);
+        renderer->drawSpriteRGBA(enemyTexPtr, corePos, coreSize, geom.drawAngle, glm::vec4(coreGlow, coreAlpha), geom.uv);
+    }
+    else {
+        renderer->drawSpriteRGBA(enemyTexPtr, geom.drawPos, geom.size, geom.drawAngle, glm::vec4(geom.renderColor, m_visibilityAlpha), geom.uv);
+    }
+}
+
+void Enemy::renderCoalGlow(SpriteRenderer* renderer, const Texture2D* coalGlowTex, const Grid& grid) const {
+    if (!m_isCoal || m_reachedEnd || m_visibilityAlpha <= 0.001f || !coalGlowTex) {
+        return;
+    }
+
+    RenderGeometry geom = computeRenderGeometry(grid);
+    if (geom.currentEnemyDim <= 0.5f) {
+        return;
+    }
+
+    float phase = static_cast<float>(m_id) * 1.731f;
+    float p1 = 0.5f + 0.5f * std::sin(m_aliveTime * 3.4f + phase);
+    float p2 = 0.5f + 0.5f * std::sin(m_aliveTime * 5.8f + phase * 1.37f);
+    float pulse = p1 * 0.75f + p2 * 0.25f;
+
+    glm::vec3 coreGlow = glm::mix(glm::vec3(1.0f, 0.45f, 0.12f), glm::vec3(1.18f, 0.92f, 0.38f), pulse);
+    glm::vec3 finalGlowColor = geom.renderColor * coreGlow;
+    float glowAlpha = std::clamp((0.45f + 0.55f * pulse) * m_visibilityAlpha, 0.0f, 1.0f);
+
+    renderer->drawSpriteRGBA(coalGlowTex, geom.drawPos, geom.size, geom.drawAngle, glm::vec4(finalGlowColor, glowAlpha), geom.uv);
+}
+
+void Enemy::renderStunStars(SpriteRenderer* renderer, const Texture2D* starTex, const Grid& grid) const {
+    if (m_reachedEnd || m_isFalling || m_stunTimer <= 0.0f || m_visibilityAlpha <= 0.001f || !starTex) {
+        return;
+    }
+
+    float cellSize = grid.getCellSize();
+    float enemyDim = cellSize * m_sizeScale;
+    glm::vec2 size(enemyDim, enemyDim);
+    glm::vec2 cellCenter = m_pixelPos + glm::vec2(cellSize * 0.5f);
+    glm::vec2 drawPos = cellCenter - size * 0.5f + m_wallImpactOffset;
+
+    glm::vec2 headCenter = drawPos + glm::vec2(size.x * 0.5f, -size.y * 0.05f);
+    float rx = size.x * 0.42f;
+    float ry = size.y * 0.16f;
+    glm::vec2 starSize(size.x * 0.22f, size.x * 0.22f);
+
+    for (int i = 0; i < 3; ++i) {
+        float starAngle = m_stunAnimAngle + i * (2.0f * 3.14159265f / 3.0f);
+        glm::vec2 starPos = headCenter + glm::vec2(std::cos(starAngle) * rx, std::sin(starAngle) * ry);
+        float starRot = glm::degrees(starAngle * 2.5f);
+        glm::vec2 starDrawPos = starPos - starSize * 0.5f;
+        renderer->drawSpriteRGBA(starTex, starDrawPos, starSize, starRot, glm::vec4(1.0f, 0.95f, 0.25f, m_visibilityAlpha));
+    }
+}
+
+void Enemy::renderHealthBar(SpriteRenderer* renderer, const Texture2D* barTex, const Grid& grid) const {
+    if (m_reachedEnd || m_isFalling || m_visibilityAlpha < 0.2f || !barTex) {
+        return;
+    }
+
+    float cellSize = grid.getCellSize();
+    float baseEnemyDim = cellSize * m_sizeScale;
+    glm::vec2 cellCenter = m_pixelPos + glm::vec2(cellSize * 0.5f);
+    glm::vec2 drawPos = cellCenter - glm::vec2(baseEnemyDim * 0.5f) + m_wallImpactOffset;
+
+    HealthBarRenderer::draw(renderer, barTex, drawPos, baseEnemyDim, m_health, m_maxHealth, -10.0f, 6.0f, m_visibilityAlpha);
+}
+
+void Enemy::renderDebugHitbox(SpriteRenderer* renderer, const Texture2D* radiusTex, const Grid& grid) const {
+    if (m_reachedEnd || m_isFalling || m_isCoal || m_isSpark || m_visibilityAlpha <= 0.001f || !radiusTex) {
+        return;
+    }
+
+    CircleCollider collider = getCollider(grid);
+    glm::vec2 hitboxSize(collider.radius * 2.0f, collider.radius * 2.0f);
+    glm::vec2 hitboxPos = (collider.center + m_wallImpactOffset) - glm::vec2(collider.radius, collider.radius);
+    renderer->drawSpriteRGBA(radiusTex, hitboxPos, hitboxSize, 0.0f, glm::vec4(1.0f, 0.0f, 0.0f, m_visibilityAlpha));
+}
+
+// отрисовка врага на экране
+void Enemy::render(SpriteRenderer* renderer, const Texture2D* texture, const Texture2D* radiusTex, glm::vec2 gridOffset, const Grid& grid) {
+    (void)gridOffset;
+    if (m_reachedEnd || m_visibilityAlpha <= 0.001f) return;
+
+    renderBody(renderer, grid);
+
+    if (m_isCoal && ResourceManager::hasTexture("enemy_coal_glow")) {
+        renderCoalGlow(renderer, ResourceManager::getTexture("enemy_coal_glow"), grid);
+    }
+
     if (!m_isFalling) {
-        // --- ОТРИСОВКА ВРАЩАЮЩИХСЯ ЗВЕЗДОЧЕК СТАНА НАД ГОЛОВОЙ ВРАГА ---
         if (m_stunTimer > 0.0f) {
-            const Texture2D* starTex = ResourceManager::getTexture("particleTexture");
-            if (!starTex) starTex = radiusTex;
-            const Texture2D* starTexPtr = starTex;
-
-            glm::vec2 headCenter = drawPos + glm::vec2(size.x * 0.5f, -size.y * 0.05f);
-            float rx = size.x * 0.42f;
-            float ry = size.y * 0.16f;
-            glm::vec2 starSize(size.x * 0.22f, size.x * 0.22f);
-
-            for (int i = 0; i < 3; ++i) {
-                float starAngle = m_stunAnimAngle + i * (2.0f * 3.14159265f / 3.0f);
-                glm::vec2 starPos = headCenter + glm::vec2(std::cos(starAngle) * rx, std::sin(starAngle) * ry);
-                float starRot = glm::degrees(starAngle * 2.5f);
-                glm::vec2 starDrawPos = starPos - starSize * 0.5f;
-                renderer->drawSpriteRGBA(starTexPtr, starDrawPos, starSize, starRot, glm::vec4(1.0f, 0.95f, 0.25f, m_visibilityAlpha));
+            const Texture2D* starTex = nullptr;
+            if (ResourceManager::hasTexture("particleTexture")) {
+                starTex = ResourceManager::getTexture("particleTexture");
             }
+            if (!starTex) {
+                starTex = radiusTex;
+            }
+            renderStunStars(renderer, starTex, grid);
         }
 
-        // --- ОТРИСОВКА ПОЛОСКИ ЗДОРОВЬЯ (HEALTH BAR) ЧЕРЕЗ HealthBarRenderer ---
-        if (m_visibilityAlpha >= 0.2f) {
-            HealthBarRenderer::draw(renderer, texture, drawPos, baseEnemyDim, m_health, stats.Maxhealth, -10.0f, 6.0f, m_visibilityAlpha);
-        }
-
-        // --- ОТРИСОВКА ХИТБОКСА (ДЕБАГ) ---
-        // Для врага "Coal" внешний круг хитбокса/ауры полностью исключен
-        if (m_type != "Coal" && m_type != "Spark") {
-            CircleCollider collider = getCollider(grid);
-            glm::vec2 hitboxSize(collider.radius * 2.0f, collider.radius * 2.0f);
-            glm::vec2 hitboxPos = (collider.center + m_wallImpactOffset) - glm::vec2(collider.radius, collider.radius);
-            renderer->drawSpriteRGBA(radiusTex, hitboxPos, hitboxSize, 0.0f, glm::vec4(1.0f, 0.0f, 0.0f, m_visibilityAlpha));
-        }
+        renderHealthBar(renderer, texture, grid);
+        renderDebugHitbox(renderer, radiusTex, grid);
     }
 }
 

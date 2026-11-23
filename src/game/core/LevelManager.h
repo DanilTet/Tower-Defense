@@ -97,6 +97,12 @@ struct EnemyWaveBountyRule {
     int rewardStep = 1; // каждый N-й убитый (1 = каждый, 2 = каждый 2-й, 3 = каждый 3-й и т.д.)
 };
 
+struct EnemyHpRule {
+    int fromWave = 1;   // с какой волны (включительно, нумерация с 1)
+    int toWave = 99;    // по какую волну (включительно)
+    int hp = 10;        // переопределённое здоровье (HP) врага
+};
+
 // Для обратной совместимости
 struct GlobalBountyConfig {
     int reward = 1;     // сколько $ давать
@@ -163,6 +169,52 @@ inline std::pair<int, int> getEnemyBountyForWave(const std::map<std::string, std
     return { 1, 1 };
 }
 
+// Возвращает переопределённое HP из enemyHpRules, либо -1 если правило не задано (используется базовое из enemies.json)
+inline int getEnemyHpForWave(const std::map<std::string, std::vector<EnemyHpRule>>& rulesMap,
+                             const std::string& enemyType, int currentWaveIndex)
+{
+    int displayWave = 1;
+    if (currentWaveIndex >= 0) {
+        displayWave = currentWaveIndex + 1;
+    }
+
+    std::string normType = normalizeEnemyType(enemyType);
+
+    auto findRule = [&](const std::string& key) -> const EnemyHpRule* {
+        auto it = rulesMap.find(key);
+        if (it != rulesMap.end()) {
+            for (const auto& r : it->second) {
+                if (displayWave >= r.fromWave && displayWave <= r.toWave) {
+                    return &r;
+                }
+            }
+        }
+        for (const auto& [k, rules] : rulesMap) {
+            if (normalizeEnemyType(k) == key) {
+                for (const auto& r : rules) {
+                    if (displayWave >= r.fromWave && displayWave <= r.toWave) {
+                        return &r;
+                    }
+                }
+            }
+        }
+        return nullptr;
+    };
+
+    const EnemyHpRule* rule = findRule(normType);
+
+    if (!rule) {
+        if (normType == "Mercury_Large" || normType == "Mercury_Medium" || normType == "Mercury_Small" || normType.rfind("Mercury", 0) == 0) {
+            rule = findRule("Mercury");
+        }
+    }
+
+    if (rule && rule->hp > 0) {
+        return rule->hp;
+    }
+    return -1;
+}
+
 // четенькая структура где храниться структура левела
 struct LevelMapData {
     std::string name = "";          // Отображаемое имя (UTF-8, RU/UA/EN)
@@ -216,6 +268,7 @@ struct LevelMapData {
         { "Spark", { 1, 1 } },
         { "Mercury", { 1, 1 } }
     };
+    std::map<std::string, std::vector<EnemyHpRule>> enemyHpRules;
 
     int getMaxTierForTower(const std::string& towerType) const {
         auto it = towerMaxTiers.find(towerType);

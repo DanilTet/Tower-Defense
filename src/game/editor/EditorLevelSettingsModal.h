@@ -22,7 +22,10 @@ public:
         RuleFrom,
         RuleTo,
         RuleReward,
-        RuleStep
+        RuleStep,
+        HpRuleFrom,
+        HpRuleTo,
+        HpRuleValue
     };
 
     struct FocusedFieldInfo {
@@ -45,6 +48,12 @@ public:
         std::string rewardStepStr = "1";
     };
 
+    struct EditableHpRule {
+        std::string fromWaveStr = "1";
+        std::string toWaveStr = "99";
+        std::string hpStr = "18";
+    };
+
     struct KeyState {
         bool isDown = false;
         float holdTimer = 0.0f;
@@ -58,7 +67,8 @@ public:
               const std::unordered_map<std::string, int>& towerMaxTiers,
               const std::map<std::string, std::vector<EnemyWaveBountyRule>>& bountyRules = {},
               int totalWaves = 15,
-              bool hasSidePockets = false);
+              bool hasSidePockets = false,
+              const std::map<std::string, std::vector<EnemyHpRule>>& hpRules = {});
 
     // Обратная совместимость со старым API open
     void open(int currentMoney, int currentHealth,
@@ -72,7 +82,8 @@ public:
                 const std::vector<std::string>& allowedTowers,
                 const std::unordered_map<std::string, int>& towerMaxTiers,
                 const std::map<std::string, std::vector<EnemyWaveBountyRule>>& bountyRules = {},
-                int totalWaves = 15, bool hasSidePockets = false);
+                int totalWaves = 15, bool hasSidePockets = false,
+                const std::map<std::string, std::vector<EnemyHpRule>>& hpRules = {});
 
     void toggle(int currentMoney, int currentHealth,
                 const std::vector<std::string>& allowedTowers,
@@ -82,6 +93,18 @@ public:
     bool isOpen() const { return m_isOpen; }
 
     void update(float dt);
+
+    bool handleInput(GLFWwindow* window, glm::vec2 mousePos, bool leftDown,
+                     bool leftReleased, bool isEscJustPressed, float dt,
+                     int screenWidth, int screenHeight,
+                     int& outMoney, int& outHealth,
+                     std::vector<std::string>& outAllowedTowers,
+                     std::unordered_map<std::string, int>& outTowerMaxTiers,
+                     int& outMaxUpgradeTier,
+                     std::map<std::string, std::vector<EnemyWaveBountyRule>>& outEnemyBountyRules,
+                     std::map<std::string, std::vector<EnemyHpRule>>& outEnemyHpRules,
+                     bool& outHasSidePockets,
+                     bool& outDirty);
 
     bool handleInput(GLFWwindow* window, glm::vec2 mousePos, bool leftDown,
                      bool leftReleased, bool isEscJustPressed, float dt,
@@ -141,6 +164,7 @@ private:
         { "Mercury", "Ртуть (Mercury)" }
     };
     std::map<std::string, std::vector<EditableRule>> m_mobRules;
+    std::map<std::string, std::vector<EditableHpRule>> m_mobHpRules;
 
     FocusedFieldInfo m_focused;
     float m_cursorBlinkTimer = 0.0f;

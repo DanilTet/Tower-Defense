@@ -147,6 +147,7 @@ bool TextRenderer::Load(const std::string& fontPath, unsigned int fontSize) {
     loadRange(8470, 8470);
 
     glBindTexture(GL_TEXTURE_2D, 0);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
     FT_Done_Face(face);
     FT_Done_FreeType(ft);
 

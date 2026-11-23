@@ -134,15 +134,18 @@ void GameWorld::notifyEnemiesPathChanged(glm::ivec2 blockedCell) {
     }
 }
 
-void GameWorld::update(float dt) {
+void GameWorld::update(float dt, float timeScale) {
     if (waveManager) {
         auto requests = waveManager->update(dt, spawners);
         for (const auto& req : requests) {
-            spawnEnemy(req.type, req.spawnerIndex, req.reward, req.rewardStep);
+            spawnEnemy(req.type, req.spawnerIndex, req.reward, req.rewardStep, req.waveIndex);
         }
     }
-    entityManager->update(dt, *grid);
+    entityManager->update(dt, *grid, timeScale);
     minecartManager.update(dt, entityManager->getEnemies());
+    if (waveManager && entityManager) {
+        waveManager->onEnemiesUpdated(entityManager->getEnemies().empty());
+    }
     if (grid) {
         envParticleManager.update(dt, *grid);
     }
@@ -182,11 +185,16 @@ void GameWorld::resize(int windowWidth, int windowHeight) {
     }
 }
 
-void GameWorld::spawnEnemy(const std::string& type, int spawnerIndex, int reward, int rewardStep) {
+void GameWorld::spawnEnemy(const std::string& type, int spawnerIndex, int reward, int rewardStep, int waveIndex) {
     if (spawnerIndex >= paths.size() || paths[spawnerIndex].empty()) return;
 
     // Награда ДОЛЖНА БРАТЬСЯ СТРОГО из enemyBountyRules текущей карты (LevelMapData) через getEnemyBountyForWave!
-    int currentWaveIndex = waveManager ? waveManager->getCurrentWaveIndex() : 0;
+    int currentWaveIndex = 0;
+    if (waveIndex >= 0) {
+        currentWaveIndex = waveIndex;
+    } else if (waveManager) {
+        currentWaveIndex = waveManager->getCurrentWaveIndex();
+    }
     auto bounty = getEnemyBountyForWave(levelData.enemyBountyRules, type, currentWaveIndex);
     int finalReward = bounty.first;
     int finalRewardStep = bounty.second;
@@ -208,6 +216,13 @@ void GameWorld::spawnEnemy(const std::string& type, int spawnerIndex, int reward
     newEnemy->setWaveIndex(currentWaveIndex);
     newEnemy->setReward(finalReward);
     newEnemy->setRewardStep(finalRewardStep);
+
+    int customHp = getEnemyHpForWave(levelData.enemyHpRules, type, currentWaveIndex);
+    if (customHp > 0) {
+        newEnemy->setMaxHealth(customHp);
+        newEnemy->setHealth(customHp);
+    }
+
     entityManager->addEnemy(std::move(newEnemy));
 }
 

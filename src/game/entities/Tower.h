@@ -5,6 +5,8 @@
 #include <vector>
 #include "CircleCollider.h"
 #include <string>
+#include "../../particles/ParticleSystem.h"
+#include "../../renderer/SpriteRenderer.h"
 
 class ParticleSystem;
 class EntityManager;
@@ -123,6 +125,21 @@ private:
 	TargetMode m_targetMode = TargetMode::First;
 
 	float m_punchAnimTimer = 0.0f; // анимация выталкивания бойка поршня
+
+	// Кэш для горячих циклов update/render
+	bool m_isPiston = false;
+	SpriteUV m_cachedTowerUV;
+	SpriteUV m_cachedBulletUV;
+	const Texture2D* m_cachedWhiteTex = nullptr;
+	bool m_hasMuzzleParticle = false;
+	bool m_hasTrailParticle = false;
+	bool m_hasImpactParticle = false;
+	ParticleEmitterProps m_muzzleProps{};
+	ParticleEmitterProps m_trailProps{};
+	ParticleEmitterProps m_impactProps{};
+	ParticleEmitterProps m_pistonSparkProps{};
+	ParticleEmitterProps m_pistonBloodProps{};
+	std::vector<Enemy*> m_pistonHitBuffer;
 
 	void applyStats(const TowerStats& stats);
 

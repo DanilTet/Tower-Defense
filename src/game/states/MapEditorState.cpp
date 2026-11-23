@@ -206,6 +206,7 @@ void MapEditorState::loadLevelByName(const std::string& fileName) {
         m_maxUpgradeTier = data.maxUpgradeTier;
         m_towerMaxTiers = data.towerMaxTiers;
         m_enemyBountyRules = data.enemyBountyRules;
+        m_enemyHpRules = data.enemyHpRules;
         m_enemyGlobalBounties = data.enemyGlobalBounties;
         if (!data.name.empty()) {
             m_currentLevelDisplayName = data.name;
@@ -249,6 +250,7 @@ void MapEditorState::loadLevelByName(const std::string& fileName) {
         m_enemyBountyRules["Coal"] = { { 1, 99, 1, 2 } };
         m_enemyBountyRules["Spark"] = { { 1, 99, 1, 1 } };
         m_enemyBountyRules["Mercury"] = { { 1, 99, 1, 1 } };
+        m_enemyHpRules.clear();
         m_enemyGlobalBounties.clear();
         m_enemyGlobalBounties["Coal"] = { 1, 2 };
         m_enemyGlobalBounties["Spark"] = { 1, 1 };
@@ -1361,6 +1363,7 @@ void MapEditorState::saveMap() {
     data.maxUpgradeTier = m_maxUpgradeTier;
     data.towerMaxTiers = m_towerMaxTiers;
     data.enemyBountyRules = m_enemyBountyRules;
+    data.enemyHpRules = m_enemyHpRules;
     data.enemyGlobalBounties = m_enemyGlobalBounties;
 
     bool ok = LevelManager::saveLevel(m_currentLevelFileName, data);
@@ -1394,6 +1397,7 @@ void MapEditorState::clearMap() {
     m_enemyBountyRules["Coal"] = { { 1, 99, 1, 2 } };
     m_enemyBountyRules["Spark"] = { { 1, 99, 1, 1 } };
     m_enemyBountyRules["Mercury"] = { { 1, 99, 1, 1 } };
+    m_enemyHpRules.clear();
     m_enemyGlobalBounties.clear();
     m_enemyGlobalBounties["Coal"] = { 1, 2 };
     m_enemyGlobalBounties["Spark"] = { 1, 1 };
@@ -1879,7 +1883,7 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
                                                        m_width, m_height,
                                                        m_startingMoney, m_startingHealth,
                                                        m_allowedTowers, m_towerMaxTiers,
-                                                       m_maxUpgradeTier, m_enemyBountyRules, m_hasSidePockets, m_isDirty);
+                                                       m_maxUpgradeTier, m_enemyBountyRules, m_enemyHpRules, m_hasSidePockets, m_isDirty);
         if (handled && m_grid) {
             m_grid->setHasSidePockets(m_hasSidePockets || m_background == "mine_entrance");
             recalculatePaths();
@@ -2667,7 +2671,6 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
                 m_decorations.erase(m_decorations.begin() + m_selectedDecorationIndex);
                 m_selectedDecorationIndex = -1;
                 m_isDraggingDecoration = false;
-                m_decorInspector.resetPosition();
                 m_isDirty = true;
                 showToast("Декор удален: " + dName, glm::vec4(1.0f, 0.4f, 0.4f, 1.0f));
             },
@@ -2932,7 +2935,7 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
                 cycleHudPreviewMode();
                 break;
             case EditorActionType::OpenLevelSettingsModal:
-                m_levelSettingsModal.open(m_startingMoney, m_startingHealth, m_allowedTowers, m_towerMaxTiers, m_enemyBountyRules, static_cast<int>(m_waves.size()), m_hasSidePockets);
+                m_levelSettingsModal.open(m_startingMoney, m_startingHealth, m_allowedTowers, m_towerMaxTiers, m_enemyBountyRules, static_cast<int>(m_waves.size()), m_hasSidePockets, m_enemyHpRules);
                 m_suppressClickUntilRelease = true;
                 break;
             case EditorActionType::ModifyStartingMoney:
@@ -3181,6 +3184,11 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
                             DecorationConfig cfg;
                             cfg.id = static_cast<int>(m_decorations.size()) + 1;
                             cfg.type = dType;
+                            cfg.scale = 1.0f;
+                            cfg.scaleX = 1.0f;
+                            cfg.scaleY = 1.0f;
+                            cfg.rotation = m_defaultDecorationRotation;
+                            cfg.destructible = isDestructible;
                             if (dType == "fog") {
                                 cfg.scale = 1.4f;
                                 cfg.opacity = 0.45f;
@@ -3195,12 +3203,11 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
                                 cfg.tilePos = glm::vec2(0.0f);
                                 cfg.worldPos = placedWorld;
                             }
-                            cfg.scale = 1.0f;
-                            cfg.scaleX = 1.0f;
-                            cfg.scaleY = 1.0f;
-                            cfg.rotation = m_defaultDecorationRotation;
-                            cfg.destructible = isDestructible;
-                            cfg.zIndex = (dType == "puddle" || dType == "crack") ? -1 : 0;
+                            if (dType == "puddle" || dType == "crack") {
+                                cfg.zIndex = -1;
+                            } else {
+                                cfg.zIndex = 0;
+                            }
 
                             m_decorations.push_back(cfg);
                             m_selectedDecorationIndex = static_cast<int>(m_decorations.size()) - 1;

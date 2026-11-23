@@ -14,6 +14,18 @@ bool EditorDecorInspector::isPointInRect(glm::vec2 point, glm::vec2 rectPos, glm
            point.y >= rectPos.y && point.y <= rectPos.y + rectSize.y;
 }
 
+glm::vec2 EditorDecorInspector::clampPanelPosition(glm::vec2 pos, glm::vec2 panelSize,
+                                                   float screenW, float screenH,
+                                                   float topBarH, float bottomDockH, float uiScale) {
+    float marginX = 12.0f * uiScale;
+    float marginY = 8.0f * uiScale;
+    float minX = marginX;
+    float maxX = std::max(minX, screenW - panelSize.x - marginX);
+    float minY = topBarH + marginY;
+    float maxY = std::max(minY, screenH - bottomDockH - panelSize.y - marginY);
+    return glm::vec2(std::clamp(pos.x, minX, maxX), std::clamp(pos.y, minY, maxY));
+}
+
 DecorInspectorLayout EditorDecorInspector::getLayout(const DecorationConfig& config, int decorIndex,
                                                      glm::vec2 decorScreenPos,
                                                      float screenW, float screenH,
@@ -25,31 +37,43 @@ DecorInspectorLayout EditorDecorInspector::getLayout(const DecorationConfig& con
 
     float s = GetUIScale(static_cast<int>(screenW), static_cast<int>(screenH));
     float w = 286.0f * s;
-    float h = (isPuddle ? 368.0f : 336.0f) * s;
+    float h = 336.0f * s;
+    if (isPuddle) {
+        h = 368.0f * s;
+    }
     l.panelSize = glm::vec2(w, h);
     l.headerH = 32.0f * s;
     l.fontScale = std::clamp(0.40f * s, 0.32f, 0.60f);
 
-    float minX = 12.0f * s;
-    float maxX = std::max(minX, screenW - w - 12.0f * s);
-    float minY = topBarH + 8.0f * s;
-    float maxY = std::max(minY, screenH - bottomDockH - h - 8.0f * s);
-
     float px = 0.0f;
     float py = 0.0f;
 
-    if (m_panelPos.x >= 0.0f && m_panelPos.y >= 0.0f && m_lastDecorIdx == decorIndex) {
-        px = std::clamp(m_panelPos.x, minX, maxX);
-        py = std::clamp(m_panelPos.y, minY, maxY);
+    if (m_hasCustomPosition) {
+        glm::vec2 clamped = clampPanelPosition(m_customPosition, l.panelSize,
+                                               screenW, screenH, topBarH, bottomDockH, s);
+        px = clamped.x;
+        py = clamped.y;
+        m_panelPos = clamped;
+        m_lastDecorIdx = decorIndex;
+    } else if (m_panelPos.x >= 0.0f && m_panelPos.y >= 0.0f && m_lastDecorIdx == decorIndex) {
+        glm::vec2 clamped = clampPanelPosition(m_panelPos, l.panelSize,
+                                               screenW, screenH, topBarH, bottomDockH, s);
+        px = clamped.x;
+        py = clamped.y;
     } else {
+        float minX = 12.0f * s;
+        float maxX = std::max(minX, screenW - w - 12.0f * s);
         px = decorScreenPos.x + 60.0f * s;
-        if (px > maxX) px = decorScreenPos.x - w - 60.0f * s;
+        if (px > maxX) {
+            px = decorScreenPos.x - w - 60.0f * s;
+        }
         py = decorScreenPos.y - h * 0.5f;
 
-        px = std::clamp(px, minX, maxX);
-        py = std::clamp(py, minY, maxY);
-
-        m_panelPos = glm::vec2(px, py);
+        glm::vec2 clamped = clampPanelPosition(glm::vec2(px, py), l.panelSize,
+                                               screenW, screenH, topBarH, bottomDockH, s);
+        px = clamped.x;
+        py = clamped.y;
+        m_panelPos = clamped;
         m_lastDecorIdx = decorIndex;
     }
     l.panelPos = glm::vec2(px, py);
@@ -164,14 +188,11 @@ bool EditorDecorInspector::handleInput(glm::vec2 mousePos, bool leftDown, bool w
             m_isDragging = false;
         } else {
             float s = GetUIScale(static_cast<int>(screenW), static_cast<int>(screenH));
-            float minX = 12.0f * s;
-            float maxX = std::max(minX, screenW - l.panelSize.x - 12.0f * s);
-            float minY = topBarH + 8.0f * s;
-            float maxY = std::max(minY, screenH - bottomDockH - l.panelSize.y - 8.0f * s);
-            glm::vec2 newPos = mousePos + m_dragOffset;
-            newPos.x = std::clamp(newPos.x, minX, maxX);
-            newPos.y = std::clamp(newPos.y, minY, maxY);
+            glm::vec2 newPos = clampPanelPosition(mousePos + m_dragOffset, l.panelSize,
+                                                  screenW, screenH, topBarH, bottomDockH, s);
             m_panelPos = newPos;
+            m_customPosition = newPos;
+            m_hasCustomPosition = true;
         }
         return true;
     }
@@ -225,25 +246,32 @@ bool EditorDecorInspector::handleInput(glm::vec2 mousePos, bool leftDown, bool w
         return true;
     }
 
-    glm::vec2 headerSz(l.panelSize.x - l.btnCloseCrossSize.x - 12.0f, l.headerH);
+    if (isPointInRect(mousePos, l.btnCloseCrossPos, l.btnCloseCrossSize) ||
+        isPointInRect(mousePos, l.btnClosePos, l.btnCloseSize)) {
+        m_isDragging = false;
+        if (onClose) {
+            onClose();
+        }
+        return true;
+    }
+
+    glm::vec2 headerSz(l.panelSize.x, l.headerH);
     if (isPointInRect(mousePos, l.panelPos, headerSz)) {
         m_isDragging = true;
         m_dragOffset = l.panelPos - mousePos;
         return true;
     }
 
-    if (isPointInRect(mousePos, l.btnCloseCrossPos, l.btnCloseCrossSize) ||
-        isPointInRect(mousePos, l.btnClosePos, l.btnCloseSize)) {
-        m_isDragging = false;
-        if (onClose) onClose();
-        return true;
-    }
-
     if (isPointInRect(mousePos, l.btnDeletePos, l.btnDeleteSize)) {
         m_isDragging = false;
+        m_lastDecorIdx = -1;
         std::string dName = config.type;
-        if (onDelete) onDelete();
-        if (showToast) showToast("Декор удален: " + dName, glm::vec4(1.0f, 0.4f, 0.4f, 1.0f));
+        if (onDelete) {
+            onDelete();
+        }
+        if (showToast) {
+            showToast("Декор удален: " + dName, glm::vec4(1.0f, 0.4f, 0.4f, 1.0f));
+        }
         return true;
     }
 
@@ -424,8 +452,16 @@ void EditorDecorInspector::render(SpriteRenderer* renderer, TextRenderer* textRe
     renderer->drawSpriteRGBA(whiteTexture, l.panelPos + glm::vec2(4.0f * s, 4.0f * s), l.panelSize, 0.0f, glm::vec4(0.0f, 0.0f, 0.0f, 0.45f));
     renderer->drawSpriteRGBA(whiteTexture, l.panelPos, l.panelSize, 0.0f, glm::vec4(0.08f, 0.10f, 0.14f, 0.94f));
 
-    // Шапка панели
-    renderer->drawSpriteRGBA(whiteTexture, l.panelPos, glm::vec2(l.panelSize.x, l.headerH), 0.0f, glm::vec4(0.12f, 0.16f, 0.22f, 0.98f));
+    // Шапка панели (с подсветкой при наведении/перетаскивании)
+    glm::vec2 headerSize(l.panelSize.x, l.headerH);
+    bool headerHovered = isHover(l.panelPos, headerSize) && !isHover(l.btnCloseCrossPos, l.btnCloseCrossSize);
+    glm::vec4 headerBg(0.12f, 0.16f, 0.22f, 0.98f);
+    if (m_isDragging) {
+        headerBg = glm::vec4(0.18f, 0.25f, 0.36f, 0.98f);
+    } else if (headerHovered) {
+        headerBg = glm::vec4(0.15f, 0.21f, 0.30f, 0.98f);
+    }
+    renderer->drawSpriteRGBA(whiteTexture, l.panelPos, headerSize, 0.0f, headerBg);
     // Кайма панели
     float panelBorderT = 1.5f * s;
     glm::vec4 panelBorder(0.28f, 0.40f, 0.58f, 0.90f);

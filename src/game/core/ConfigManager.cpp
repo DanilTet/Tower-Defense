@@ -1,7 +1,9 @@
 #include "ConfigManager.h"
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <nlohmann/json.hpp>
+#include "../../audio/AudioManager.h"
 
 using json = nlohmann::json;
 
@@ -135,7 +137,7 @@ bool ConfigManager::loadConfigs(const std::string& towerPath, const std::string&
 					stats.slowDuration = lvlJson.value("slowDuration", 0.0f);
 					stats.slowPercent = lvlJson.value("slowPercent", 0.0f);
 					stats.poisonDuration = lvlJson.value("poisonDuration", 0.0f);
-					stats.poisonInterval = lvlJson.value("poisonInterval", 0.5f);
+					stats.poisonInterval = std::max(0.05f, lvlJson.value("poisonInterval", 0.5f));
 					stats.poisonDamagePerTick = lvlJson.value("poisonDamagePerTick", 0);
 					stats.knockbackForce = lvlJson.value("knockbackForce", 0.0f);
 
@@ -146,7 +148,7 @@ bool ConfigManager::loadConfigs(const std::string& towerPath, const std::string&
 						stats.piston.heavyPushDistance = pj.value("heavyPushDistance", -1.0f);
 						stats.piston.impactDamage = pj.value("impactDamage", 0);
 						stats.piston.bleedDuration = pj.value("bleedDuration", 0.0f);
-						stats.piston.bleedInterval = pj.value("bleedInterval", 0.5f);
+						stats.piston.bleedInterval = std::max(0.05f, pj.value("bleedInterval", 0.5f));
 						stats.piston.bleedDamagePerTick = pj.value("bleedDamagePerTick", 0);
 						stats.piston.vulnerableDuration = pj.value("vulnerableDuration", 0.0f);
 						stats.piston.vulnerableMultiplier = pj.value("vulnerableMultiplier", 1.0f);
@@ -328,4 +330,22 @@ ParticleEmitterProps ConfigManager::getParticleProps(const std::string& name) {
 		return it->second;
 	}
 	return ParticleEmitterProps{};
+}
+
+void ConfigManager::preloadAllSounds() {
+	for (const auto& pair : s_towerStats) {
+		for (const auto& stats : pair.second) {
+			if (!stats.buildSound.empty()) {
+				AudioManager::preloadSound(stats.buildSound);
+			}
+			if (!stats.attackSound.empty()) {
+				AudioManager::preloadSound(stats.attackSound);
+			}
+		}
+	}
+	for (const auto& pair : s_enemyStats) {
+		if (!pair.second.deathSound.empty()) {
+			AudioManager::preloadSound(pair.second.deathSound);
+		}
+	}
 }

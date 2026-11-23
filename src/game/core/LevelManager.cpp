@@ -218,6 +218,56 @@ LevelMapData LevelManager::loadLevelMap(const std::string& filepath) {
             }
         }
 
+        // Правила прогрессии HP врагов по диапазонам волн (опционально, по умолчанию пусто -> базовое HP из enemies.json)
+        data.enemyHpRules.clear();
+        auto parseHpRules = [&data](const json& hj) {
+            for (auto& [eType, hVal] : hj.items()) {
+                if (hVal.is_array()) {
+                    std::vector<EnemyHpRule> rules;
+                    for (const auto& item : hVal) {
+                        if (!item.is_object()) continue;
+                        EnemyHpRule r;
+                        if (item.contains("fromWave")) {
+                            r.fromWave = item["fromWave"].get<int>();
+                        } else if (item.contains("from_wave")) {
+                            r.fromWave = item["from_wave"].get<int>();
+                        } else if (item.contains("from")) {
+                            r.fromWave = item["from"].get<int>();
+                        } else {
+                            r.fromWave = 1;
+                        }
+
+                        if (item.contains("toWave")) {
+                            r.toWave = item["toWave"].get<int>();
+                        } else if (item.contains("to_wave")) {
+                            r.toWave = item["to_wave"].get<int>();
+                        } else if (item.contains("to")) {
+                            r.toWave = item["to"].get<int>();
+                        } else {
+                            r.toWave = 99;
+                        }
+
+                        r.hp = item.value("hp", 0);
+
+                        if (r.fromWave < 1) r.fromWave = 1;
+                        if (r.toWave < r.fromWave) r.toWave = r.fromWave;
+                        if (r.hp >= 1) {
+                            rules.push_back(r);
+                        }
+                    }
+                    if (!rules.empty()) {
+                        data.enemyHpRules[eType] = rules;
+                    }
+                }
+            }
+        };
+
+        if (j.contains("enemyHpRules") && j["enemyHpRules"].is_object()) {
+            parseHpRules(j["enemyHpRules"]);
+        } else if (j.contains("map") && j["map"].contains("enemyHpRules") && j["map"]["enemyHpRules"].is_object()) {
+            parseHpRules(j["map"]["enemyHpRules"]);
+        }
+
         // Читаем настройки камеры (Camera Viewport)
         bool hadExplicitTileCoord = false;
         auto parseCamera = [&data, &hadExplicitTileCoord](const json& cam) {
@@ -663,6 +713,24 @@ bool LevelManager::saveLevelMap(const std::string& filepath, const LevelMapData&
     j["map"]["enemyBountyRules"] = bountiesJson;
     j["enemyGlobalBounties"] = bountiesJson;
     j["map"]["enemyGlobalBounties"] = bountiesJson;
+
+    json hpRulesJson = json::object();
+    for (const auto& [eType, rules] : data.enemyHpRules) {
+        if (rules.empty()) continue;
+        json arr = json::array();
+        for (const auto& r : rules) {
+            arr.push_back({
+                { "fromWave", r.fromWave },
+                { "toWave", r.toWave },
+                { "hp", r.hp }
+            });
+        }
+        hpRulesJson[eType] = arr;
+    }
+    if (!hpRulesJson.empty()) {
+        j["enemyHpRules"] = hpRulesJson;
+        j["map"]["enemyHpRules"] = hpRulesJson;
+    }
 
     json spawnersJson = json::array();
     for (const auto& spawner : data.spawners) {

@@ -23,6 +23,7 @@ class ConfigManager {
 public:
     // загрузка всех конфигов при старте игры
     static bool loadConfigs(const std::string& towersPath, const std::string& enemiesPath, const std::string& particlesPath);
+    static void preloadAllSounds();
 
     // получение готовых стат
     static TowerStats getTowerStats(const std::string& type, int level = 1);
