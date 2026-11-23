@@ -203,6 +203,7 @@ void EntityManager::update(float dt, Grid& gameGrid, float timeScale) {
 }
 
 void EntityManager::render(SpriteRenderer* renderer, const Texture2D* mainAtlas, const Texture2D* enemyAtlas, const Texture2D* radiusTex, const Texture2D* arrowTex, const Texture2D* particleTex, Grid& gameGrid, Tower* selectedTower) {
+    (void)enemyAtlas;
     for (const auto& tower : m_towers) {
         if (tower) {
             bool isSelected = (tower.get() == selectedTower);
@@ -258,8 +259,13 @@ void EntityManager::render(SpriteRenderer* renderer, const Texture2D* mainAtlas,
         }
 
         // Проход 4: полоски здоровья (1 draw call на всех врагов)
-        for (const Enemy* enemy : m_renderEnemyBuffer) {
-            enemy->renderHealthBar(renderer, enemyAtlas, gameGrid);
+        if (!m_whiteTexture) {
+            m_whiteTexture = ResourceManager::getWhiteTexture();
+        }
+        if (m_whiteTexture) {
+            for (const Enemy* enemy : m_renderEnemyBuffer) {
+                enemy->renderHealthBar(renderer, m_whiteTexture, gameGrid);
+            }
         }
 
         // Проход 5: хитбоксы (кроме Coal и Spark)

@@ -634,6 +634,7 @@ void Enemy::renderDebugHitbox(SpriteRenderer* renderer, const Texture2D* radiusT
 
 // отрисовка врага на экране
 void Enemy::render(SpriteRenderer* renderer, const Texture2D* texture, const Texture2D* radiusTex, glm::vec2 gridOffset, const Grid& grid) {
+    (void)texture;
     (void)gridOffset;
     if (m_reachedEnd || m_visibilityAlpha <= 0.001f) return;
 
@@ -655,7 +656,7 @@ void Enemy::render(SpriteRenderer* renderer, const Texture2D* texture, const Tex
             renderStunStars(renderer, starTex, grid);
         }
 
-        renderHealthBar(renderer, texture, grid);
+        renderHealthBar(renderer, ResourceManager::getWhiteTexture(), grid);
         renderDebugHitbox(renderer, radiusTex, grid);
     }
 }
@@ -887,8 +888,6 @@ void Enemy::pushOneCell(glm::ivec2 fromCell, glm::ivec2 punchDir, const Grid& gr
     if (m_reachedEnd || m_isFalling || isDead()) return;
 
     glm::ivec2 destCell = fromCell + punchDir;
-    glm::ivec2 pistonCell = fromCell - punchDir;
-    addPistonCooldown(pistonCell, 5.0f); // Кулдаун именно для этого поршня, чтобы не забивать в цикл!
 
     // Проверяем, свободна ли клетка назначения (проходимая клетка ИЛИ клетка обрыва/шурфа)
     bool isChasm = false;

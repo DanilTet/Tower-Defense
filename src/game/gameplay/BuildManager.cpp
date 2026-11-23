@@ -37,7 +37,6 @@ void BuildManager::tryBuildOrUpgrade(
 
         std::vector<std::vector<glm::ivec2>> newPaths;
         if (!PathService::isPlacementValid(*world.grid, *world.pathfinder, world.spawners, world.bases, clickedCell.x, clickedCell.y, newPaths, &world.paths, &world.entityManager->getEnemies())) {
-            std::cout << "Path Blocked! Cannot build here." << std::endl;
             return;
         }
 

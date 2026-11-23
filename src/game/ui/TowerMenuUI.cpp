@@ -35,17 +35,10 @@ bool TowerMenuUI::processClick(
         bool isMaxTier = (currentLevel >= maxAllowed) || (currentLevel >= selectedTower->getMaxLevel());
 
         if (isMaxTier) {
-            std::cout << "Upgrade blocked: Tower reached maximum tier " << maxAllowed << std::endl;
             return true;
         }
 
-        int cost = selectedTower->getUpgradeCost();
-        if (selectedTower->upgrade(world.playerStats.money)) {
-            std::cout << "Tower upgraded!" << std::endl;
-        }
-        else {
-            std::cout << "Not enough money for upgrade. Need: $" << cost << std::endl;
-        }
+        selectedTower->upgrade(world.playerStats.money);
         return true; // клик обработан
     }
 
@@ -56,10 +49,10 @@ bool TowerMenuUI::processClick(
         return true; // клик обработан
     }
 
-    // клик по кнопке TARGET MODE?
-    if (mouseX >= targetPos.x && mouseX <= targetPos.x + targetBtnSize.x && mouseY >= targetPos.y && mouseY <= targetPos.y + targetBtnSize.y) {
+    // клик по кнопке TARGET MODE? (для Поршня выбор приоритета цели не применим)
+    bool hasTargetMode = (selectedTower->getType() != "Piston");
+    if (hasTargetMode && mouseX >= targetPos.x && mouseX <= targetPos.x + targetBtnSize.x && mouseY >= targetPos.y && mouseY <= targetPos.y + targetBtnSize.y) {
         selectedTower->toggleTargetMode(); // переключаем режимчик
-        std::cout << "Target mode switched!" << std::endl;
         return true;
     }
 
@@ -92,10 +85,14 @@ void TowerMenuUI::render(
     bool isMaxTier = (currentLevel >= effectiveMaxTier) || (currentLevel >= selectedTower->getMaxLevel());
     glm::vec3 upgColor = isMaxTier ? glm::vec3(0.40f, 0.44f, 0.48f) : glm::vec3(0.2f, 0.8f, 0.2f);
 
+    bool hasTargetMode = (selectedTower->getType() != "Piston");
+
     // рисуем подложки
     renderer->drawSprite(uiTexture, upgPos, btnSize, 0.0f, upgColor);
     renderer->drawSprite(uiTexture, sellPos, btnSize, 0.0f, glm::vec3(0.8f, 0.2f, 0.2f));
-    renderer->drawSprite(uiTexture, targetPos, targetBtnSize, 0.0f, glm::vec3(0.2f, 0.4f, 0.8f));
+    if (hasTargetMode) {
+        renderer->drawSprite(uiTexture, targetPos, targetBtnSize, 0.0f, glm::vec3(0.2f, 0.4f, 0.8f));
+    }
 
     renderer->flush();
 
@@ -120,5 +117,7 @@ void TowerMenuUI::render(
     glm::vec3 upgTextColor = isMaxTier ? glm::vec3(0.75f, 0.80f, 0.85f) : glm::vec3(1.0f);
     drawCenteredText(upgText, upgPos, btnSize, upgTextColor);
     drawCenteredText("SELL", sellPos, btnSize);
-    drawCenteredText(selectedTower->getTargetModeString(), targetPos, targetBtnSize);
+    if (hasTargetMode) {
+        drawCenteredText(selectedTower->getTargetModeString(), targetPos, targetBtnSize);
+    }
 }

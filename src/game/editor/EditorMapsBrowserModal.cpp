@@ -369,7 +369,6 @@ bool EditorMapsBrowserModal::handleInput(GLFWwindow* window, glm::vec2 mousePos,
         MapsModalLayout l = getMapsModalLayout(screenWidth, screenHeight);
 
         if (checkKeyRepeat(window, GLFW_KEY_ESCAPE, dt)) {
-            std::cout << "[MapEditor] Maps modal closed by ESC (processMapsModalInput), m_isInitialModalLaunch=" << m_isInitialModalLaunch << std::endl;
             m_isOpen = false;
             if (m_isInitialModalLaunch && onReturnToOrigin) {
                 onReturnToOrigin();
@@ -403,7 +402,6 @@ bool EditorMapsBrowserModal::handleInput(GLFWwindow* window, glm::vec2 mousePos,
 
         if (leftDown && !m_wasLeftDown) {
             if (isPointInRect(mousePos, l.btnNewPos, l.btnNewSize)) {
-                std::cout << "[MapEditor] Maps modal: clicked + New Map" << std::endl;
                 m_isOpen = false;
                 m_isInitialModalLaunch = false;
                 if (onNewLevel) onNewLevel();
@@ -413,7 +411,6 @@ bool EditorMapsBrowserModal::handleInput(GLFWwindow* window, glm::vec2 mousePos,
 
             if (isPointInRect(mousePos, l.btnClosePos, l.btnCloseSize) ||
                 isPointInRect(mousePos, l.btnCloseCrossPos, l.btnCloseCrossSize)) {
-                std::cout << "[MapEditor] Maps modal closed by Close/Cross button, m_isInitialModalLaunch=" << m_isInitialModalLaunch << std::endl;
                 m_isOpen = false;
                 if (m_isInitialModalLaunch && onReturnToOrigin) {
                     onReturnToOrigin();
@@ -449,7 +446,6 @@ bool EditorMapsBrowserModal::handleInput(GLFWwindow* window, glm::vec2 mousePos,
                 const auto& lvl = card.levelInfo;
 
                 if (isPointInRect(mousePos, card.btnLoadPos, card.btnLoadSize)) {
-                    std::cout << "[MapEditor] Maps modal: clicked Load map (" << lvl.filename << ")" << std::endl;
                     m_isOpen = false;
                     m_isInitialModalLaunch = false;
                     m_currentLevelFileName = lvl.filename;
@@ -479,8 +475,6 @@ bool EditorMapsBrowserModal::handleInput(GLFWwindow* window, glm::vec2 mousePos,
             }
 
             if (!isPointInRect(mousePos, l.modalPos, l.modalSize)) {
-                std::cout << "[MapEditor] Maps modal closed by OUTSIDE CLICK at (" << mousePos.x << "," << mousePos.y 
-                          << "), m_isInitialModalLaunch=" << m_isInitialModalLaunch << std::endl;
                 m_isOpen = false;
                 if (m_isInitialModalLaunch && onReturnToOrigin) {
                     onReturnToOrigin();
@@ -606,14 +600,6 @@ void EditorMapsBrowserModal::renderMapsModal(SpriteRenderer* renderer, TextRende
                                              const Texture2D* whiteTexture,
                                              int screenWidth, int screenHeight, glm::vec2 mousePos) {
     MapsModalLayout l = getMapsModalLayout(screenWidth, screenHeight);
-
-    if (m_diagRenderFrames < 6) {
-        std::cout << "[MapEditor] renderMapsModal() drawing frame " << m_diagRenderFrames
-                  << ": modalPos=(" << l.modalPos.x << "," << l.modalPos.y
-                  << "), modalSize=(" << l.modalSize.x << "," << l.modalSize.y
-                  << "), totalLevels=" << l.totalLevels << ", visibleCards=" << l.visibleCards.size() << std::endl;
-        m_diagRenderFrames++;
-    }
 
     renderer->drawSpriteRGBA(whiteTexture, glm::vec2(0.0f), glm::vec2(screenWidth, screenHeight), 0.0f, glm::vec4(0.04f, 0.05f, 0.07f, 0.78f));
 

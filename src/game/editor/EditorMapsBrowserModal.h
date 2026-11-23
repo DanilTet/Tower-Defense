@@ -138,7 +138,6 @@ private:
     std::string m_renameTargetFileName = "";
     std::string m_renameInputText = "";
     float m_cursorBlinkTimer = 0.0f;
-    int m_diagRenderFrames = 0;
 
     struct KeyRepeatState {
         bool isDown = false;

@@ -94,8 +94,6 @@ bool WaveManager::loadLevel(const std::string& filepath) {
 		std::cerr << "ERROR::WAVEMANAGER: JSON error: " << e.what() << std::endl;
 		return false;
 	}
-	// скачать
-	std::cout << "Level loaded succesfuli! Total waves: " << m_waves.size() << std::endl;
 	return true;
 }
 
@@ -111,8 +109,6 @@ void WaveManager::startNextWave() {
 	m_currentPartIndex = 0; // Начинаем с первой пачки
 	m_enemiesSpawnedInCurrentPart = 0;
 	m_spawnTimer = 0.0f; // Первый враг вылетает моментально
-
-	std::cout << "Wave " << (m_currentWaveIndex + 1) << " started!" << std::endl;
 }
 
 bool WaveManager::canCallEarlyWave() const {
@@ -144,7 +140,6 @@ void WaveManager::triggerEarlyWave(PlayerStats* player) {
 	int bonus = getEarlyCallBonus();
 	if (player && bonus > 0) {
 		player->addMoney(bonus);
-		std::cout << "Early wave called! Bonus awarded: +" << bonus << "$" << std::endl;
 	}
 	m_waveCountdown = 0.0f;
 	startNextWave();
@@ -186,7 +181,6 @@ void WaveManager::onEnemiesUpdated(bool noActiveEnemies) {
 	} else {
 		m_waveCountdown = 0.0f;
 	}
-	std::cout << "Wave " << m_currentWaveIndex << " cleared! Intermission countdown: " << m_waveCountdown << std::endl;
 }
 
 std::vector<SpawnRequest> WaveManager::update(float dt, const std::vector<SpawnerData>& spawners) {
@@ -268,10 +262,7 @@ std::vector<SpawnRequest> WaveManager::update(float dt, const std::vector<Spawne
 			m_enemiesSpawnedInCurrentPart = 0;
 
 			// закончились ли все пачки в этой волне???
-			if (m_currentPartIndex >= currentWave.parts.size()) {
-				std::cout << "All enemies in wave " << (m_currentWaveIndex + 1) << " spawned! Waiting for wave clear..." << std::endl;
-			}
-			else {
+			if (m_currentPartIndex < currentWave.parts.size()) {
 				m_spawnTimer = currentPart.delayAfter;
 			}
 		}

@@ -145,6 +145,11 @@ bool TextRenderer::Load(const std::string& fontPath, unsigned int fontSize) {
     loadRange(8210, 8230);
     // Знак номера № (U+2116)
     loadRange(8470, 8470);
+    // Символы интерфейса: ✕ (U+2715), ★ (U+2605), ✓ (U+2713)
+    const char32_t codepointsToLoad[] = { 0x2715, 0x2605, 0x2713 };
+    for (char32_t cp : codepointsToLoad) {
+        loadRange(cp, cp);
+    }
 
     glBindTexture(GL_TEXTURE_2D, 0);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 4);

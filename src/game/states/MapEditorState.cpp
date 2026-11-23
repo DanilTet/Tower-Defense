@@ -73,20 +73,14 @@ MapEditorState::MapEditorState(GameStateManager& stateManager, int width, int he
     } else {
         m_mapsBrowserModal.open(m_currentLevelFileName, true);
     }
-    std::cout << "[MapEditor] Ctor: levelToLoad='" << levelToLoad << "', currentLevel='" << m_currentLevelFileName
-              << "', m_isMapsModalOpen=" << (m_mapsBrowserModal.isOpen() ? "true" : "false")
-              << ", m_suppressClick=" << (m_suppressClickUntilRelease ? "true" : "false") << std::endl;
 }
 
 void MapEditorState::returnToOrigin() {
     if (m_origin == EditorOrigin::Campaign) {
-        std::cout << "[MapEditor] Returning to Campaign LevelSelect..." << std::endl;
         m_stateManager.setState(std::make_unique<LevelSelectState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer, LevelTab::Campaign));
     } else if (m_origin == EditorOrigin::Custom) {
-        std::cout << "[MapEditor] Returning to Custom LevelSelect..." << std::endl;
         m_stateManager.setState(std::make_unique<LevelSelectState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer, LevelTab::Custom));
     } else {
-        std::cout << "[MapEditor] Returning to MainMenu..." << std::endl;
         m_stateManager.setState(std::make_unique<MainMenuState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer));
     }
 }
@@ -96,9 +90,6 @@ glm::vec3 MapEditorState::getIdColor(int id) const {
 }
 
 void MapEditorState::init() {
-    std::cout << "[MapEditor] init(): resolution=" << m_width << "x" << m_height
-              << ", m_isMapsModalOpen=" << (m_mapsBrowserModal.isOpen() ? "true" : "false")
-              << ", m_suppressClick=" << (m_suppressClickUntilRelease ? "true" : "false") << std::endl;
     ResourceManager::loadTexture("uiBaseTexture", "res/textures/ui_space.png");
     ResourceManager::loadTexture("arrowTexture", "res/textures/pathArrow.png");
     ResourceManager::loadTexture("particleTexture", "res/textures/particle.png");
@@ -128,7 +119,6 @@ void MapEditorState::cleanup() {
     glm::mat4 P_screen = glm::ortho(0.0f, static_cast<float>(m_width), static_cast<float>(m_height), 0.0f, -1.0f, 1.0f);
     if (m_renderer) m_renderer->setProjection(P_screen);
     if (m_textRenderer) m_textRenderer->updateProjection(P_screen);
-    std::cout << "[MapEditor] Cleanup completed" << std::endl;
 }
 
 void MapEditorState::updateCurrentLevelDisplayName() {
@@ -146,7 +136,6 @@ void MapEditorState::updateCurrentLevelDisplayName() {
 
 void MapEditorState::loadLevelByName(const std::string& fileName) {
     m_currentLevelFileName = LevelManager::sanitizeLevelFileName(fileName);
-    std::cout << "[MapEditor] loadLevelByName: requesting '" << fileName << "' -> file='" << m_currentLevelFileName << "'" << std::endl;
     updateCurrentLevelDisplayName();
 
     std::string path = "res/levels/" + m_currentLevelFileName;
@@ -212,7 +201,6 @@ void MapEditorState::loadLevelByName(const std::string& fileName) {
             m_currentLevelDisplayName = data.name;
         }
         m_suppressPlacementUntilRelease = true;
-        std::cout << "[MapEditor] Successfully loaded: " << m_currentLevelFileName << " (\"" << m_currentLevelDisplayName << "\", " << m_gridWidth << "x" << m_gridHeight << ")" << std::endl;
     } else {
         m_gridWidth = 20;
         m_gridHeight = 12;
@@ -256,7 +244,6 @@ void MapEditorState::loadLevelByName(const std::string& fileName) {
         m_enemyGlobalBounties["Spark"] = { 1, 1 };
         m_enemyGlobalBounties["Mercury"] = { 1, 1 };
         m_currentLevelDisplayName = "MY MAP";
-        std::cout << "[MapEditor] In-memory blank template 20x12 initialized (no disk write)" << std::endl;
     }
 
     if (m_minecarts.empty()) {
@@ -1367,7 +1354,6 @@ void MapEditorState::saveMap() {
     data.enemyGlobalBounties = m_enemyGlobalBounties;
 
     bool ok = LevelManager::saveLevel(m_currentLevelFileName, data);
-    std::cout << "[MapEditor] saveMap: file=" << m_currentLevelFileName << ", name=" << m_currentLevelDisplayName << ", size=" << m_gridWidth << "x" << m_gridHeight << ", money=" << m_startingMoney << ", hp=" << m_startingHealth << ", result=" << (ok ? "SUCCESS" : "FAIL") << std::endl;
 
     if (ok) {
         m_isDirty = false;
@@ -1756,7 +1742,6 @@ void MapEditorState::testMap() {
 
     saveMap();
     std::string testPath = "res/levels/" + m_currentLevelFileName;
-    std::cout << "[MapEditor] Launching test gameplay with " << testPath << std::endl;
     m_suppressPlacementUntilRelease = true;
     m_stateManager.pushState(std::make_unique<GameplayState>(m_stateManager, m_width, m_height, m_renderer, m_textRenderer, testPath, /*isEditorTest=*/true, GameplayOrigin::EditorTest));
 }
@@ -1770,20 +1755,9 @@ void MapEditorState::processInput(GLFWwindow* window, float dt) {
     bool leftDown = (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS);
     bool rightDown = (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS);
 
-    if (m_diagInputFrames < 6) {
-        std::cout << "[MapEditor] processInput frame " << m_diagInputFrames
-                  << ": leftDown=" << leftDown << ", rightDown=" << rightDown
-                  << ", m_isLeftMouseDown=" << m_isLeftMouseDown
-                  << ", m_suppressClick=" << m_suppressClickUntilRelease
-                  << ", m_isMapsModalOpen=" << (m_mapsBrowserModal.isOpen() ? "true" : "false")
-                  << ", mousePos=(" << mousePos.x << "," << mousePos.y << ")" << std::endl;
-        m_diagInputFrames++;
-    }
-
     // Подавляем клики от предыдущего состояния до полного отпускания кнопок мыши
     if (m_suppressClickUntilRelease) {
         if (!leftDown && !rightDown) {
-            std::cout << "[MapEditor] Mouse released -> m_suppressClickUntilRelease cleared" << std::endl;
             m_suppressClickUntilRelease = false;
             m_isLeftMouseDown = false;
             m_isRightMouseDown = false;
@@ -4265,18 +4239,15 @@ void MapEditorState::resize(int width, int height) {
 
 void MapEditorState::openExitModal() {
     if (!m_isDirty) {
-        std::cout << "[MapEditor] openExitModal: Map is not dirty (unmodified), exiting directly to origin." << std::endl;
         returnToOrigin();
         return;
     }
-    std::cout << "[MapEditor] openExitModal: exit confirmation dialog opened" << std::endl;
     m_exitModal.open(true);
     m_suppressPlacementUntilRelease = true;
     m_suppressClickUntilRelease = true;
 }
 
 void MapEditorState::closeExitModal() {
-    std::cout << "[MapEditor] closeExitModal: exit dialog closed (staying in editor)" << std::endl;
     m_exitModal.close();
     m_suppressPlacementUntilRelease = true;
     m_keyEscPressedLastFrame = true;

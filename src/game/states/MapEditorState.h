@@ -195,8 +195,6 @@ private:
 
     // Флаг изменений
     bool m_isDirty = false;
-    int m_diagInputFrames = 0;
-    int m_diagRenderFrames = 0;
 
     std::string m_statusMessage = "";
     float m_statusTimer = 0.0f;

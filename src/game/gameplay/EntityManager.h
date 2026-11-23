@@ -28,6 +28,7 @@ private:
 	std::vector<Enemy*> m_renderEnemyBuffer;
 	const Texture2D* m_coalGlowTexture = nullptr;
 	bool m_coalGlowResolved = false;
+	const Texture2D* m_whiteTexture = nullptr;
 
 	void rebuildEnemyLookup();
 	Enemy* findAliveEnemyById(int id) const;
