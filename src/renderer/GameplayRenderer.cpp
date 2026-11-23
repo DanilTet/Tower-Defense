@@ -42,9 +42,7 @@ void GameplayRenderer::loadTextures() {
     ResourceManager::loadTexture("arrowTexture", "res/textures/pathArrow.png");
     ResourceManager::loadTexture("particleTexture", "res/textures/particle.png");
     ResourceManager::loadTexture("uiBaseTexture", "res/textures/ui_space.png");
-    ResourceManager::loadTexture("mercury_slime_large", "res/textures/enemies/mercury_slime_large.png");
-    ResourceManager::loadTexture("mercury_slime_medium", "res/textures/enemies/mercury_slime_medium.png");
-    ResourceManager::loadTexture("mercury_slime_small", "res/textures/enemies/mercury_slime_small.png");
+    ResourceManager::loadTexture("mercury_drop", "res/textures/enemies/mercury_drop.png", GL_NEAREST);
     ResourceManager::loadTexture("enemy_coal", "res/textures/enemies/coal.png");
     ResourceManager::loadTexture("enemy_coal_glow", "res/textures/enemies/coal_glow.png");
     ResourceManager::loadTexture("enemy_spark", "res/textures/enemies/spark.png");

@@ -83,6 +83,7 @@ private:
 	const Texture2D* m_cachedTexture = nullptr;
 	bool m_isSpark = false;
 	bool m_isCoal = false;
+	bool m_isMercury = false;
 	ParticleEmitterProps m_deathParticleProps;
 	ParticleEmitterProps m_sparkTrailProps;
 
@@ -192,6 +193,7 @@ public:
 	const ParticleEmitterProps& getDeathParticleProps() const { return m_deathParticleProps; }
 	bool isSpark() const { return m_isSpark; }
 	bool isCoal() const { return m_isCoal; }
+	bool isMercury() const { return m_isMercury; }
 	int getId() const { return m_id; } // геттер для получения айди врага
 
 	float getDistanceTraveled() const { return m_distanceTraveled; } // геттер для того щоб отримати пройдений шлях ворога

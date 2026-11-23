@@ -202,9 +202,9 @@
   "Mercury_Large": {
     "speed": 0.3,
     "Maxhealth": 250,
-    "sizeScale": 0.85,
+    "sizeScale": 0.92,
     "reward": 20,
-    "textureId": "mercury_slime_large",
+    "textureId": "mercury_drop",
     "color": [
       1.0,
       1.0,
@@ -219,9 +219,9 @@
   "Mercury_Medium": {
     "speed": 0.5,
     "Maxhealth": 120,
-    "sizeScale": 0.6,
+    "sizeScale": 0.66,
     "reward": 10,
-    "textureId": "mercury_slime_medium",
+    "textureId": "mercury_drop",
     "color": [
       1.0,
       1.0,
@@ -236,9 +236,9 @@
   "Mercury_Small": {
     "speed": 0.7,
     "Maxhealth": 50,
-    "sizeScale": 0.38,
+    "sizeScale": 0.44,
     "reward": 5,
-    "textureId": "mercury_slime_small",
+    "textureId": "mercury_drop",
     "color": [
       1.0,
       1.0,
