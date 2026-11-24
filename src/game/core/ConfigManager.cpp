@@ -86,6 +86,8 @@ bool ConfigManager::loadConfigs(const std::string& towerPath, const std::string&
 
 			// cчитываем визуальные настройки из корня башни
 			std::string tex = towerData.value("textureId", "towerTexture");
+			float visScale = towerData.value("visualScale", 1.0f);
+			float baseMuzzleOffset = towerData.value("muzzleOffset", 0.42f);
 			glm::vec3 col = glm::vec3(1.0f); // по умолчанию белый
 
 			if (towerData.contains("color") && towerData["color"].is_array() && towerData["color"].size() >= 3) {
@@ -111,6 +113,8 @@ bool ConfigManager::loadConfigs(const std::string& towerPath, const std::string&
 
 					// присваиваем визуал
 					stats.textureId = tex;
+					stats.visualScale = visScale;
+					stats.muzzleOffset = lvlJson.value("muzzleOffset", baseMuzzleOffset);
 					stats.color = col;
 
 					stats.muzzleParticle = lvlJson.value("muzzleParticle", "");

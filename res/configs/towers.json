@@ -1,6 +1,8 @@
 {
   "Basic": {
-    "textureId": "towerTexture",
+    "textureId": "classic_tower",
+    "visualScale": 1.32,
+    "muzzleOffset": 0.47,
     "color": [
       1.0,
       1.0,
@@ -59,6 +61,7 @@
   },
   "Mercury": {
     "textureId": "towerTexture",
+    "muzzleOffset": 0.42,
     "color": [
       1.0,
       1.0,

@@ -12,6 +12,7 @@ static const std::unordered_map<std::string, std::string> s_dictRu = {
     { "BTN_MAP_EDITOR", "РЕДАКТОР КАРТ" },
     { "BTN_SETTINGS", "НАСТРОЙКИ" },
     { "BTN_EXIT", "ВЫХОД" },
+    { "MENU_ART_CREDIT", "Арт: @porisulkiotisa" },
 
     { "SETTINGS_TITLE", "НАСТРОЙКИ" },
     { "SETTINGS_VOLUME", "Громкость звука:" },
@@ -123,6 +124,7 @@ static const std::unordered_map<std::string, std::string> s_dictUa = {
     { "BTN_MAP_EDITOR", "РЕДАКТОР КАРТ" },
     { "BTN_SETTINGS", "НАЛАШТУВАННЯ" },
     { "BTN_EXIT", "ВИХІД" },
+    { "MENU_ART_CREDIT", "Арт: @porisulkiotisa" },
 
     { "SETTINGS_TITLE", "НАЛАШТУВАННЯ" },
     { "SETTINGS_VOLUME", "Гучність звуку:" },
@@ -234,6 +236,7 @@ static const std::unordered_map<std::string, std::string> s_dictEn = {
     { "BTN_MAP_EDITOR", "MAP EDITOR" },
     { "BTN_SETTINGS", "SETTINGS" },
     { "BTN_EXIT", "EXIT" },
+    { "MENU_ART_CREDIT", "Art: @porisulkiotisa" },
 
     { "SETTINGS_TITLE", "SETTINGS" },
     { "SETTINGS_VOLUME", "Sound volume:" },

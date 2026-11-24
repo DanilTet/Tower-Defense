@@ -11,7 +11,7 @@
 #include "../game/ui/BuildPanel.h"
 #include "../game/ui/PlacementUI.h"
 #include "../game/ui/PathRenderer.h"
-#include "../game/ui/statsPanel.h"
+#include "../game/ui/StatsPanel.h"
 #include "../game/ui/TowerMenuUI.h"
 #include "../game/ui/UICommon.h"
 #include "../game/entities/Tower.h"
@@ -39,6 +39,7 @@ void GameplayRenderer::loadTextures() {
     ResourceManager::loadTexture("enemyAtlas", "res/textures/enemyAtlas.png");
     ResourceManager::loadTexture("transitionsAtlas", "res/textures/Frame 1 (2).png");
     ResourceManager::loadTexture("towerTexture", "res/textures/test_sprite.png");
+    ResourceManager::loadTexture("classic_tower", "res/textures/towers/classic_tower.png", GL_NEAREST);
     ResourceManager::loadTexture("grassTexture", "res/textures/spr_grass_02.png");
     ResourceManager::loadTexture("radiusTexture", "res/textures/radius2.png");
     ResourceManager::loadTexture("arrowTexture", "res/textures/pathArrow.png");
