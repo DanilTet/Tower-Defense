@@ -115,6 +115,7 @@ void MapEditorState::cleanup() {
         glfwSetCursor(currentWindow, nullptr);
     }
     m_gizmoController.destroyCursors();
+    m_cinnabarCache.release();
 
     glm::mat4 P_screen = glm::ortho(0.0f, static_cast<float>(m_width), static_cast<float>(m_height), 0.0f, -1.0f, 1.0f);
     if (m_renderer) m_renderer->setProjection(P_screen);
@@ -3426,35 +3427,58 @@ void MapEditorState::render() {
         baseCells.emplace_back(b.x, b.y);
     }
 
-    // 1.1. СЛОЙ 1: Подложка фона и базовые клетки матрицы / outerCells
-    BackgroundRenderer::renderSubstrate(
-        m_renderer.get(),
-        m_whiteTexture,
-        m_background,
-        m_grid.get(),
-        static_cast<float>(m_width),
-        static_cast<float>(m_height),
-        bgView
-    );
-    if (m_grid) {
-        m_grid->drawBaseCells(m_renderer.get(), m_whiteTexture, glm::vec3(1.0f), m_background);
+    // 1.1..1.3. Для темы cinnabar_mine используем FBO-кэш статических слоев (+ динамические лампы/свечения)
+    bool renderedViaCinnabarCache = false;
+    if (m_grid && m_whiteTexture && BackgroundRenderer::isCinnabarMine(m_background)) {
+        renderedViaCinnabarCache = m_cinnabarCache.renderOrBake(
+            m_renderer.get(),
+            m_whiteTexture,
+            m_background,
+            m_grid.get(),
+            cameraProj,
+            static_cast<float>(m_width),
+            static_cast<float>(m_height),
+            bgView
+        );
+    } else if (m_cinnabarCache.isValid()) {
+        m_cinnabarCache.release();
     }
 
-    // 1.2. СЛОЙ 2: Окружение фона (стена шахты, нижний слой тоннеля, пустошь, трубы)
-    BackgroundRenderer::renderEnvironment(
-        m_renderer.get(),
-        m_whiteTexture,
-        m_background,
-        m_grid.get(),
-        static_cast<float>(m_width),
-        static_cast<float>(m_height),
-        bgView,
-        &baseCells
-    );
+    if (!renderedViaCinnabarCache) {
+        // 1.1. СЛОЙ 1: Подложка фона и базовые клетки матрицы / outerCells
+        BackgroundRenderer::renderSubstrate(
+            m_renderer.get(),
+            m_whiteTexture,
+            m_background,
+            m_grid.get(),
+            static_cast<float>(m_width),
+            static_cast<float>(m_height),
+            bgView
+        );
+        if (m_grid) {
+            m_grid->drawBaseCells(m_renderer.get(), m_whiteTexture, glm::vec3(1.0f), m_background);
+        }
 
-    // 2. Препятствия и редакторские оверлеи сетки
+        // 1.2. СЛОЙ 2: Окружение фона (стена шахты, нижний слой тоннеля, пустошь, трубы)
+        BackgroundRenderer::renderEnvironment(
+            m_renderer.get(),
+            m_whiteTexture,
+            m_background,
+            m_grid.get(),
+            static_cast<float>(m_width),
+            static_cast<float>(m_height),
+            bgView,
+            &baseCells
+        );
+
+        // 2. Препятствия
+        if (m_grid) {
+            m_grid->drawObstacleCells(m_renderer.get(), m_whiteTexture, glm::vec3(1.0f), m_background);
+        }
+    }
+
+    // 2.0. Редакторские оверлеи сетки
     if (m_grid) {
-        m_grid->drawObstacleCells(m_renderer.get(), m_whiteTexture, glm::vec3(1.0f), m_background);
         m_grid->drawEditorGridLines(m_renderer.get(), m_whiteTexture);
         m_grid->drawOuterNoBuildOverlay(m_renderer.get(), m_whiteTexture);
     }

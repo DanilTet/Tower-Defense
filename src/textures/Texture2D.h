@@ -15,6 +15,7 @@ public:
 
 	bool load(const std::string& path, GLint filter = GL_LINEAR);
 	bool loadFromMemory(int width, int height, const unsigned char* data, int channels = 4, GLint filter = GL_NEAREST);
+	bool createEmpty(int width, int height, GLint filter = GL_LINEAR, GLenum internalFormat = GL_RGBA8, GLenum format = GL_RGBA);
 
 	void bind(unsigned int unit = 0) const;
 	void unbind() const;

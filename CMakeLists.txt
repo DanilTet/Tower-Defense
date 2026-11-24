@@ -74,6 +74,8 @@ add_executable(${PROJECT_NAME}
     src/renderer/GameplayRenderer.cpp
     src/renderer/BackgroundRenderer.h
     src/renderer/BackgroundRenderer.cpp
+    src/renderer/CinnabarStaticCache.h
+    src/renderer/CinnabarStaticCache.cpp
     src/renderer/DecorationRenderer.h
     src/renderer/DecorationRenderer.cpp
 

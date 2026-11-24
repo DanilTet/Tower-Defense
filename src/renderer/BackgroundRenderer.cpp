@@ -3,6 +3,7 @@
 #include "../resources/ResourceManager.h"
 #include "../textures/Texture2D.h"
 #include "../game/world/Grid.h"
+#include <GLFW/glfw3.h>
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -1674,13 +1675,83 @@ static uint32_t cinnabarHash(int x, int y) {
     return h ^ (h >> 16);
 }
 
+struct CinnabarPulse {
+    float alphaMult;
+    float radiusMult;
+    float veinBright;
+};
+
+static CinnabarPulse computeCinnabarPulse(uint32_t seed, float time) {
+    constexpr float kTwoPi = 6.2831853f;
+    float phase1 = static_cast<float>((seed >> 3) & 0xFFu) / 255.0f * kTwoPi;
+    float phase2 = static_cast<float>((seed >> 11) & 0xFFu) / 255.0f * kTwoPi;
+    float speedMult = 0.78f + static_cast<float>((seed >> 19) & 0x3Fu) / 63.0f * 0.44f;
+
+    // Медленное дыхание + редкий мягкий отблеск на некратных частотах
+    float breath = 0.5f + 0.5f * std::sin(time * 0.85f * speedMult + phase1);
+    float shimmerWave = 0.5f + 0.5f * std::sin(time * 2.17f * speedMult + phase2);
+    float shimmer = shimmerWave * shimmerWave * (0.4f + 0.6f * shimmerWave);
+
+    float pulse = std::clamp(breath * 0.72f + shimmer * 0.28f, 0.0f, 1.0f);
+    return {
+        0.65f + pulse * 0.55f,
+        0.92f + pulse * 0.18f,
+        0.94f + pulse * 0.13f
+    };
+}
+
+static float computeMineLampFlicker(uint32_t seed, float time) {
+    constexpr float kTwoPi = 6.2831853f;
+
+    // Обычное стабильное горение с едва заметным дыханием (0.97x..1.03x)
+    float breathPhase = static_cast<float>(seed & 0xFFu) / 255.0f * kTwoPi;
+    float breathSpeed = 1.15f + static_cast<float>((seed >> 8) & 0x3Fu) / 63.0f * 0.70f;
+    float baseIntensity = 1.0f + 0.03f * std::sin(time * breathSpeed + breathPhase);
+
+    // Редкое проседание контакта раз в 7..14с длительностью 0.25..0.55с
+    float period = 7.0f + static_cast<float>((seed >> 14) & 0xFFu) / 255.0f * 7.0f;
+    float timeOffset = static_cast<float>((seed >> 22) & 0xFFu) / 255.0f * period;
+    float shiftedTime = time + timeOffset;
+    int cycleIdx = static_cast<int>(std::floor(shiftedTime / period));
+    float localT = shiftedTime - static_cast<float>(cycleIdx) * period;
+
+    uint32_t eventHash = cinnabarHash(static_cast<int>(seed ^ 0x5A3C9E1Du), cycleIdx);
+    float duration = 0.25f + static_cast<float>(eventHash & 0xFFu) / 255.0f * 0.30f;
+    if (localT >= duration) {
+        return baseIntensity;
+    }
+
+    float u = localT / duration;
+    bool doubleDip = ((eventHash >> 8) & 1u) != 0u;
+    float dipDepth = 0.35f + static_cast<float>((eventHash >> 9) & 0xFFu) / 255.0f * 0.20f;
+
+    float dip = 0.0f;
+    if (!doubleDip) {
+        float s = std::sin(u * 3.14159265f);
+        dip = dipDepth * (s * s);
+    } else if (u < 0.48f) {
+        float s = std::sin((u / 0.48f) * 3.14159265f);
+        dip = dipDepth * (s * s);
+    } else if (u > 0.56f) {
+        float s = std::sin(((u - 0.56f) / 0.44f) * 3.14159265f);
+        dip = dipDepth * 0.78f * (s * s);
+    }
+
+    return std::clamp(baseIntensity - dip, 0.45f, 1.03f);
+}
+
 static void drawCinnabarDepositCluster(
     SpriteRenderer* renderer,
     const Texture2D* whiteTexture,
     glm::vec2 center,
     float scale,
-    uint32_t seed
+    uint32_t seed,
+    float veinBright = 1.0f
 ) {
+    auto tintVein = [veinBright](glm::vec3 c) {
+        return glm::clamp(c * veinBright, glm::vec3(0.0f), glm::vec3(1.0f));
+    };
+
     float mainLen = scale * (1.25f + static_cast<float>(seed % 35) * 0.01f);
     float mainThick = std::max(4.0f, scale * 0.14f);
     float mainAngle = ((seed / 7u) % 2u == 0u) ? -22.0f : 26.0f;
@@ -1710,14 +1781,14 @@ static void drawCinnabarDepositCluster(
         center - glm::vec2(mainLen * 0.50f, mainThick * 0.55f),
         glm::vec2(mainLen * 0.62f, mainThick),
         mainAngle - 6.0f,
-        glm::vec3(0.46f, 0.07f, 0.10f)
+        tintVein(glm::vec3(0.46f, 0.07f, 0.10f))
     );
     renderer->drawSprite(
         whiteTexture,
         center + glm::vec2(-mainLen * 0.06f, -mainThick * 0.35f),
         glm::vec2(mainLen * 0.58f, mainThick * 0.92f),
         mainAngle + 9.0f,
-        glm::vec3(0.74f, 0.12f, 0.15f)
+        tintVein(glm::vec3(0.74f, 0.12f, 0.15f))
     );
 
     // 3. Боковые ответвления жилы, уходящие в сланец
@@ -1728,7 +1799,7 @@ static void drawCinnabarDepositCluster(
         center + glm::vec2(-branchLen * 0.25f, mainThick * 0.35f),
         glm::vec2(branchLen, std::max(2.5f, mainThick * 0.60f)),
         branchAngle,
-        glm::vec3(0.54f, 0.09f, 0.12f)
+        tintVein(glm::vec3(0.54f, 0.09f, 0.12f))
     );
     if (((seed / 31u) % 2u) == 0u) {
         renderer->drawSprite(
@@ -1736,7 +1807,7 @@ static void drawCinnabarDepositCluster(
             center + glm::vec2(mainLen * 0.08f, -mainThick * 0.95f),
             glm::vec2(branchLen * 0.72f, std::max(2.0f, mainThick * 0.45f)),
             -branchAngle * 0.85f,
-            glm::vec3(0.62f, 0.11f, 0.14f)
+            tintVein(glm::vec3(0.62f, 0.11f, 0.14f))
         );
     }
 
@@ -1748,21 +1819,21 @@ static void drawCinnabarDepositCluster(
         center - glm::vec2(shardW * 0.55f, shardH * 0.65f),
         glm::vec2(shardW, shardH),
         mainAngle + 14.0f,
-        glm::vec3(0.90f, 0.20f, 0.22f)
+        tintVein(glm::vec3(0.90f, 0.20f, 0.22f))
     );
     renderer->drawSprite(
         whiteTexture,
         center + glm::vec2(-shardW * 0.10f, -shardH * 0.20f),
         glm::vec2(shardW * 0.82f, shardH * 0.78f),
         mainAngle - 16.0f,
-        glm::vec3(0.96f, 0.28f, 0.26f)
+        tintVein(glm::vec3(0.96f, 0.28f, 0.26f))
     );
     renderer->drawSprite(
         whiteTexture,
         center + glm::vec2(-shardW * 0.20f, -shardH * 0.35f),
         glm::vec2(shardW * 0.46f, std::max(2.0f, shardH * 0.44f)),
         mainAngle + 6.0f,
-        glm::vec3(1.00f, 0.44f, 0.38f)
+        tintVein(glm::vec3(1.00f, 0.44f, 0.38f))
     );
 
     // 5. Капли самородной ртути на свежем сколе
@@ -1893,6 +1964,29 @@ void BackgroundRenderer::renderCinnabarMineSubstrate(
     float screenHeight,
     const BackgroundViewRect& viewRect
 ) {
+    renderCinnabarMineSubstrateImpl(renderer, whiteTexture, grid, screenWidth, screenHeight, viewRect, true);
+}
+
+void BackgroundRenderer::renderCinnabarMineSubstrateStatic(
+    SpriteRenderer* renderer,
+    const Texture2D* whiteTexture,
+    const Grid* grid,
+    float screenWidth,
+    float screenHeight,
+    const BackgroundViewRect& viewRect
+) {
+    renderCinnabarMineSubstrateImpl(renderer, whiteTexture, grid, screenWidth, screenHeight, viewRect, false);
+}
+
+void BackgroundRenderer::renderCinnabarMineSubstrateImpl(
+    SpriteRenderer* renderer,
+    const Texture2D* whiteTexture,
+    const Grid* grid,
+    float screenWidth,
+    float screenHeight,
+    const BackgroundViewRect& viewRect,
+    bool includeAnimatedGlow
+) {
     if (!renderer || !whiteTexture) return;
 
     glm::vec2 gridOffset(0.0f);
@@ -1966,8 +2060,11 @@ void BackgroundRenderer::renderCinnabarMineSubstrate(
         float x;
         float y;
         float scale;
+        float alphaMult;
+        float radiusMult;
     };
     std::vector<GlowSpot> veinGlows;
+    const float time = includeAnimatedGlow ? static_cast<float>(glfwGetTime()) : 0.0f;
 
     float sectorW = std::max(280.0f, cellSize * 8.5f);
     float sectorH = std::max(170.0f, cellSize * 4.5f);
@@ -2000,31 +2097,36 @@ void BackgroundRenderer::renderCinnabarMineSubstrate(
                 continue;
             }
 
-            drawCinnabarDepositCluster(renderer, whiteTexture, glm::vec2(centerX, centerY), clusterScale, h);
-            veinGlows.push_back({ centerX, centerY, clusterScale });
+            if (includeAnimatedGlow) {
+                const CinnabarPulse pulse = computeCinnabarPulse(h, time);
+                drawCinnabarDepositCluster(renderer, whiteTexture, glm::vec2(centerX, centerY), clusterScale, h, pulse.veinBright);
+                veinGlows.push_back({ centerX, centerY, clusterScale, pulse.alphaMult, pulse.radiusMult });
+            } else {
+                drawCinnabarDepositCluster(renderer, whiteTexture, glm::vec2(centerX, centerY), clusterScale, h, 1.0f);
+            }
         }
     }
 
-    if (!veinGlows.empty()) {
+    if (includeAnimatedGlow && !veinGlows.empty()) {
         const Texture2D* radialTex = ResourceManager::getSoftRadialTexture();
         if (radialTex != nullptr) {
             renderer->setAdditiveBlending(true);
             for (const auto& g : veinGlows) {
-                float outerR = g.scale * 2.85f;
-                float innerR = g.scale * 1.45f;
+                float outerR = g.scale * 2.85f * g.radiusMult;
+                float innerR = g.scale * 1.45f * g.radiusMult;
                 renderer->drawSpriteRGBA(
                     radialTex,
                     glm::vec2(g.x - outerR, g.y - outerR),
                     glm::vec2(outerR * 2.0f, outerR * 2.0f),
                     0.0f,
-                    glm::vec4(0.75f, 0.11f, 0.13f, 0.15f)
+                    glm::vec4(0.75f, 0.11f, 0.13f, 0.15f * g.alphaMult)
                 );
                 renderer->drawSpriteRGBA(
                     radialTex,
                     glm::vec2(g.x - innerR, g.y - innerR),
                     glm::vec2(innerR * 2.0f, innerR * 2.0f),
                     0.0f,
-                    glm::vec4(0.92f, 0.18f, 0.16f, 0.10f)
+                    glm::vec4(0.92f, 0.18f, 0.16f, 0.10f * g.alphaMult)
                 );
             }
             renderer->setAdditiveBlending(false);
@@ -2040,6 +2142,29 @@ void BackgroundRenderer::renderCinnabarMineEnvironment(
     float screenHeight,
     const BackgroundViewRect& viewRect,
     const std::vector<glm::ivec2>* /*baseCells*/
+) {
+    renderCinnabarMineEnvironmentImpl(renderer, whiteTexture, grid, screenWidth, screenHeight, viewRect, true);
+}
+
+void BackgroundRenderer::renderCinnabarMineEnvironmentStatic(
+    SpriteRenderer* renderer,
+    const Texture2D* whiteTexture,
+    const Grid* grid,
+    float screenWidth,
+    float screenHeight,
+    const BackgroundViewRect& viewRect
+) {
+    renderCinnabarMineEnvironmentImpl(renderer, whiteTexture, grid, screenWidth, screenHeight, viewRect, false);
+}
+
+void BackgroundRenderer::renderCinnabarMineEnvironmentImpl(
+    SpriteRenderer* renderer,
+    const Texture2D* whiteTexture,
+    const Grid* grid,
+    float screenWidth,
+    float screenHeight,
+    const BackgroundViewRect& viewRect,
+    bool includeAnimated
 ) {
     if (!renderer || !whiteTexture || !grid) return;
 
@@ -2071,6 +2196,7 @@ void BackgroundRenderer::renderCinnabarMineEnvironment(
         glm::vec4 color;
     };
     std::vector<WallGlowSpot> wallGlows;
+    const float time = includeAnimated ? static_cast<float>(glfwGetTime()) : 0.0f;
 
     // =========================================================================
     // 1. ВЕРХНИЙ БОРТ ШТРЕКА: слоистая порода, редкие жилы киновари, темная крепь и светильники
@@ -2109,9 +2235,14 @@ void BackgroundRenderer::renderCinnabarMineEnvironment(
             float vy = topWallY + topWallH * (0.28f + static_cast<float>((wh >> 6) & 0x1Fu) * 0.008f);
             float vScale = cellSize * (0.82f + static_cast<float>((wh >> 11) & 0xFu) * 0.02f);
             if (isRectVisible(vx - vScale * 2.0f, vy - vScale * 2.0f, vScale * 4.0f, vScale * 4.0f, cullMinX, cullMinY, cullMaxX, cullMaxY)) {
-                drawCinnabarDepositCluster(renderer, whiteTexture, glm::vec2(vx, vy), vScale, wh);
-                wallGlows.push_back({ vx, vy, vScale * 2.3f, glm::vec4(0.82f, 0.13f, 0.14f, 0.17f) });
-                wallGlows.push_back({ vx, vy, vScale * 1.15f, glm::vec4(0.96f, 0.22f, 0.18f, 0.11f) });
+                if (includeAnimated) {
+                    const CinnabarPulse pulse = computeCinnabarPulse(wh, time);
+                    drawCinnabarDepositCluster(renderer, whiteTexture, glm::vec2(vx, vy), vScale, wh, pulse.veinBright);
+                    wallGlows.push_back({ vx, vy, vScale * 2.3f * pulse.radiusMult, glm::vec4(0.82f, 0.13f, 0.14f, 0.17f * pulse.alphaMult) });
+                    wallGlows.push_back({ vx, vy, vScale * 1.15f * pulse.radiusMult, glm::vec4(0.96f, 0.22f, 0.18f, 0.11f * pulse.alphaMult) });
+                } else {
+                    drawCinnabarDepositCluster(renderer, whiteTexture, glm::vec2(vx, vy), vScale, wh, 1.0f);
+                }
             }
         }
 
@@ -2152,11 +2283,17 @@ void BackgroundRenderer::renderCinnabarMineEnvironment(
 
                 renderer->drawSprite(whiteTexture, glm::vec2(lampX - 2.0f, lampY - 4.0f), glm::vec2(lampW + 4.0f, 5.0f), 0.0f, glm::vec3(0.18f, 0.20f, 0.24f));
                 renderer->drawSprite(whiteTexture, glm::vec2(lampX, lampY), glm::vec2(lampW, lampH), 0.0f, glm::vec3(0.24f, 0.22f, 0.18f));
-                renderer->drawSprite(whiteTexture, glm::vec2(lampX + 2.0f, lampY + 2.0f), glm::vec2(lampW - 4.0f, lampH - 4.0f), 0.0f, glm::vec3(1.0f, 0.85f, 0.42f));
-                renderer->drawSprite(whiteTexture, glm::vec2(lampX + lampW * 0.32f, lampY + lampH * 0.28f), glm::vec2(lampW * 0.36f, lampH * 0.42f), 0.0f, glm::vec3(1.0f, 0.96f, 0.78f));
-                renderer->drawSprite(whiteTexture, glm::vec2(lampX, lampY + lampH * 0.52f), glm::vec2(lampW, 1.5f), 0.0f, glm::vec3(0.20f, 0.20f, 0.24f));
+                if (includeAnimated) {
+                    uint32_t lampSeed = cinnabarHash(pIdx, 1301);
+                    float flicker = computeMineLampFlicker(lampSeed, time);
+                    float glowRadiusMult = 0.76f + 0.24f * flicker;
 
-                wallGlows.push_back({ lampX + lampW * 0.5f, lampY + lampH * 0.5f, cellSize * 1.15f, glm::vec4(1.0f, 0.68f, 0.22f, 0.18f) });
+                    renderer->drawSprite(whiteTexture, glm::vec2(lampX + 2.0f, lampY + 2.0f), glm::vec2(lampW - 4.0f, lampH - 4.0f), 0.0f, glm::clamp(glm::vec3(1.0f, 0.85f, 0.42f) * flicker, glm::vec3(0.0f), glm::vec3(1.0f)));
+                    renderer->drawSprite(whiteTexture, glm::vec2(lampX + lampW * 0.32f, lampY + lampH * 0.28f), glm::vec2(lampW * 0.36f, lampH * 0.42f), 0.0f, glm::clamp(glm::vec3(1.0f, 0.96f, 0.78f) * (0.35f + 0.65f * flicker), glm::vec3(0.0f), glm::vec3(1.0f)));
+                    renderer->drawSprite(whiteTexture, glm::vec2(lampX, lampY + lampH * 0.52f), glm::vec2(lampW, 1.5f), 0.0f, glm::vec3(0.20f, 0.20f, 0.24f));
+
+                    wallGlows.push_back({ lampX + lampW * 0.5f, lampY + lampH * 0.5f, cellSize * 1.15f * glowRadiusMult, glm::vec4(1.0f, 0.68f, 0.22f, 0.18f * flicker) });
+                }
             }
         }
     }
@@ -2188,9 +2325,14 @@ void BackgroundRenderer::renderCinnabarMineEnvironment(
             float vy = botWallY + cellSize * (0.72f + static_cast<float>((bh >> 6) & 0x1Fu) * 0.010f);
             float vScale = cellSize * (0.78f + static_cast<float>((bh >> 11) & 0xFu) * 0.018f);
             if (isRectVisible(vx - vScale * 2.0f, vy - vScale * 2.0f, vScale * 4.0f, vScale * 4.0f, cullMinX, cullMinY, cullMaxX, cullMaxY)) {
-                drawCinnabarDepositCluster(renderer, whiteTexture, glm::vec2(vx, vy), vScale, bh);
-                wallGlows.push_back({ vx, vy, vScale * 2.2f, glm::vec4(0.80f, 0.12f, 0.14f, 0.16f) });
-                wallGlows.push_back({ vx, vy, vScale * 1.1f, glm::vec4(0.95f, 0.20f, 0.18f, 0.10f) });
+                if (includeAnimated) {
+                    const CinnabarPulse pulse = computeCinnabarPulse(bh, time);
+                    drawCinnabarDepositCluster(renderer, whiteTexture, glm::vec2(vx, vy), vScale, bh, pulse.veinBright);
+                    wallGlows.push_back({ vx, vy, vScale * 2.2f * pulse.radiusMult, glm::vec4(0.80f, 0.12f, 0.14f, 0.16f * pulse.alphaMult) });
+                    wallGlows.push_back({ vx, vy, vScale * 1.1f * pulse.radiusMult, glm::vec4(0.95f, 0.20f, 0.18f, 0.10f * pulse.alphaMult) });
+                } else {
+                    drawCinnabarDepositCluster(renderer, whiteTexture, glm::vec2(vx, vy), vScale, bh, 1.0f);
+                }
             }
         }
 
@@ -2228,10 +2370,16 @@ void BackgroundRenderer::renderCinnabarMineEnvironment(
 
                 renderer->drawSprite(whiteTexture, glm::vec2(lampX - 1.5f, lampY + lampH - 1.0f), glm::vec2(lampW + 3.0f, 4.0f), 0.0f, glm::vec3(0.18f, 0.20f, 0.24f));
                 renderer->drawSprite(whiteTexture, glm::vec2(lampX, lampY), glm::vec2(lampW, lampH), 0.0f, glm::vec3(0.24f, 0.22f, 0.18f));
-                renderer->drawSprite(whiteTexture, glm::vec2(lampX + 2.0f, lampY + 2.0f), glm::vec2(lampW - 4.0f, lampH - 4.0f), 0.0f, glm::vec3(1.0f, 0.84f, 0.40f));
-                renderer->drawSprite(whiteTexture, glm::vec2(lampX + lampW * 0.32f, lampY + lampH * 0.28f), glm::vec2(lampW * 0.36f, lampH * 0.40f), 0.0f, glm::vec3(1.0f, 0.96f, 0.78f));
+                if (includeAnimated) {
+                    uint32_t lampSeed = cinnabarHash(pIdx, 2707);
+                    float flicker = computeMineLampFlicker(lampSeed, time);
+                    float glowRadiusMult = 0.76f + 0.24f * flicker;
 
-                wallGlows.push_back({ lampX + lampW * 0.5f, lampY + lampH * 0.5f, cellSize * 1.05f, glm::vec4(1.0f, 0.66f, 0.20f, 0.16f) });
+                    renderer->drawSprite(whiteTexture, glm::vec2(lampX + 2.0f, lampY + 2.0f), glm::vec2(lampW - 4.0f, lampH - 4.0f), 0.0f, glm::clamp(glm::vec3(1.0f, 0.84f, 0.40f) * flicker, glm::vec3(0.0f), glm::vec3(1.0f)));
+                    renderer->drawSprite(whiteTexture, glm::vec2(lampX + lampW * 0.32f, lampY + lampH * 0.28f), glm::vec2(lampW * 0.36f, lampH * 0.40f), 0.0f, glm::clamp(glm::vec3(1.0f, 0.96f, 0.78f) * (0.35f + 0.65f * flicker), glm::vec3(0.0f), glm::vec3(1.0f)));
+
+                    wallGlows.push_back({ lampX + lampW * 0.5f, lampY + lampH * 0.5f, cellSize * 1.05f * glowRadiusMult, glm::vec4(1.0f, 0.66f, 0.20f, 0.16f * flicker) });
+                }
             }
         }
     }
@@ -2304,7 +2452,7 @@ void BackgroundRenderer::renderCinnabarMineEnvironment(
     }
 
     // 4. Мягкое аддитивное свечение жил киновари, топки реторты и отраженный свет на крепях
-    if (!wallGlows.empty()) {
+    if (includeAnimated && !wallGlows.empty()) {
         const Texture2D* radialTex = ResourceManager::getSoftRadialTexture();
         if (radialTex != nullptr) {
             renderer->setAdditiveBlending(true);
@@ -2315,6 +2463,170 @@ void BackgroundRenderer::renderCinnabarMineEnvironment(
                     glm::vec2(wg.radius * 2.0f, wg.radius * 2.0f),
                     0.0f,
                     wg.color
+                );
+            }
+            renderer->setAdditiveBlending(false);
+        }
+    }
+}
+
+void BackgroundRenderer::renderCinnabarMineAnimatedOverlay(
+    SpriteRenderer* renderer,
+    const Texture2D* whiteTexture,
+    const Grid* grid,
+    float screenWidth,
+    float screenHeight,
+    const BackgroundViewRect& viewRect
+) {
+    if (!renderer || !whiteTexture || !grid) return;
+
+    const glm::vec2 gridOffset = grid->getOffset();
+    const float cellSize = grid->getCellSize();
+    const float gridH = static_cast<float>(grid->getHeight()) * cellSize;
+    const float corridorTop = gridOffset.y;
+    const float corridorBot = gridOffset.y + gridH;
+
+    float cullMinX = 0.0f;
+    float cullMinY = 0.0f;
+    float cullMaxX = 0.0f;
+    float cullMaxY = 0.0f;
+    computeCulledBounds(grid, screenWidth, screenHeight, viewRect, 4.0f, cullMinX, cullMinY, cullMaxX, cullMaxY);
+
+    const float spanW = cullMaxX - cullMinX;
+    if (spanW <= 0.0f || cullMaxY <= cullMinY) return;
+
+    const float time = static_cast<float>(glfwGetTime());
+
+    struct AnimatedGlow {
+        float x;
+        float y;
+        float radius;
+        glm::vec4 color;
+    };
+    std::vector<AnimatedGlow> glows;
+
+    // 1. Пульсирующее свечение глубоких жил киновари в породе (из Substrate)
+    const float sectorW = std::max(280.0f, cellSize * 8.5f);
+    const float sectorH = std::max(170.0f, cellSize * 4.5f);
+    const int cxStart = static_cast<int>(std::floor((cullMinX - gridOffset.x) / sectorW)) - 1;
+    const int cxEnd = static_cast<int>(std::ceil((cullMaxX - gridOffset.x) / sectorW)) + 1;
+    const int cyStart = static_cast<int>(std::floor((cullMinY - gridOffset.y) / sectorH)) - 1;
+    const int cyEnd = static_cast<int>(std::ceil((cullMaxY - gridOffset.y) / sectorH)) + 1;
+    const float safeUpperMaxY = corridorTop - cellSize * 1.65f;
+    const float safeLowerMinY = corridorBot + cellSize * 1.45f;
+
+    for (int cy = cyStart; cy <= cyEnd; ++cy) {
+        for (int cx = cxStart; cx <= cxEnd; ++cx) {
+            uint32_t h = cinnabarHash(cx + 17, cy - 31);
+            if ((h % 10u) >= 3u) continue;
+
+            float centerX = gridOffset.x + (static_cast<float>(cx) + 0.24f + static_cast<float>(h & 0x3Fu) / 128.0f) * sectorW;
+            float centerY = gridOffset.y + (static_cast<float>(cy) + 0.25f + static_cast<float>((h >> 6) & 0x3Fu) / 128.0f) * sectorH;
+            if (centerY > safeUpperMaxY && centerY < safeLowerMinY) continue;
+
+            float clusterScale = cellSize * (0.95f + static_cast<float>((h >> 12) & 0x1Fu) * 0.022f);
+            if (!isRectVisible(centerX - clusterScale * 2.5f, centerY - clusterScale * 2.5f, clusterScale * 5.0f, clusterScale * 5.0f, cullMinX, cullMinY, cullMaxX, cullMaxY)) {
+                continue;
+            }
+
+            const CinnabarPulse pulse = computeCinnabarPulse(h, time);
+            glows.push_back({ centerX, centerY, clusterScale * 2.85f * pulse.radiusMult, glm::vec4(0.75f, 0.11f, 0.13f, 0.15f * pulse.alphaMult) });
+            glows.push_back({ centerX, centerY, clusterScale * 1.45f * pulse.radiusMult, glm::vec4(0.92f, 0.18f, 0.16f, 0.10f * pulse.alphaMult) });
+        }
+    }
+
+    // 2. Мерцание ламп (колбы + решетка) и пульсация жил киновари верхнего/нижнего борта
+    const float topWallH = cellSize * 1.45f;
+    const float topWallY = gridOffset.y - topWallH;
+    const float botWallY = gridOffset.y + gridH;
+    const float botWallH = cellSize * 1.30f;
+    const float postSpacing = 3.0f * cellSize;
+    const float firstPostX = gridOffset.x - std::floor((gridOffset.x - cullMinX) / postSpacing) * postSpacing;
+    const float postW = std::max(10.0f, cellSize * 0.24f);
+
+    if (isRectVisible(cullMinX, topWallY - cellSize * 0.4f, spanW, topWallH + cellSize * 0.6f, cullMinX, cullMinY, cullMaxX, cullMaxY)) {
+        const float wallSectorW = std::max(260.0f, cellSize * 7.5f);
+        const int wsStart = static_cast<int>(std::floor((cullMinX - gridOffset.x) / wallSectorW)) - 1;
+        const int wsEnd = static_cast<int>(std::ceil((cullMaxX - gridOffset.x) / wallSectorW)) + 1;
+        for (int ws = wsStart; ws <= wsEnd; ++ws) {
+            uint32_t wh = cinnabarHash(ws, 701);
+            if ((wh % 10u) >= 5u) continue;
+            float vx = gridOffset.x + (static_cast<float>(ws) + 0.25f + static_cast<float>(wh & 0x3Fu) / 128.0f) * wallSectorW;
+            float vy = topWallY + topWallH * (0.28f + static_cast<float>((wh >> 6) & 0x1Fu) * 0.008f);
+            float vScale = cellSize * (0.82f + static_cast<float>((wh >> 11) & 0xFu) * 0.02f);
+            if (isRectVisible(vx - vScale * 2.0f, vy - vScale * 2.0f, vScale * 4.0f, vScale * 4.0f, cullMinX, cullMinY, cullMaxX, cullMaxY)) {
+                const CinnabarPulse pulse = computeCinnabarPulse(wh, time);
+                glows.push_back({ vx, vy, vScale * 2.3f * pulse.radiusMult, glm::vec4(0.82f, 0.13f, 0.14f, 0.17f * pulse.alphaMult) });
+                glows.push_back({ vx, vy, vScale * 1.15f * pulse.radiusMult, glm::vec4(0.96f, 0.22f, 0.18f, 0.11f * pulse.alphaMult) });
+            }
+        }
+
+        const float lampW = std::max(9.0f, cellSize * 0.18f);
+        const float lampH = std::max(11.0f, cellSize * 0.23f);
+        const float lampY = gridOffset.y - cellSize * 0.44f;
+        for (float px = firstPostX; px <= cullMaxX; px += postSpacing) {
+            int pIdx = static_cast<int>(std::round((px - gridOffset.x) / postSpacing));
+            if ((pIdx % 2) != 0) continue;
+
+            float lampX = px + (postW - lampW) * 0.5f;
+            float flicker = computeMineLampFlicker(cinnabarHash(pIdx, 1301), time);
+            float glowRadiusMult = 0.76f + 0.24f * flicker;
+
+            renderer->drawSprite(whiteTexture, glm::vec2(lampX + 2.0f, lampY + 2.0f), glm::vec2(lampW - 4.0f, lampH - 4.0f), 0.0f, glm::clamp(glm::vec3(1.0f, 0.85f, 0.42f) * flicker, glm::vec3(0.0f), glm::vec3(1.0f)));
+            renderer->drawSprite(whiteTexture, glm::vec2(lampX + lampW * 0.32f, lampY + lampH * 0.28f), glm::vec2(lampW * 0.36f, lampH * 0.42f), 0.0f, glm::clamp(glm::vec3(1.0f, 0.96f, 0.78f) * (0.35f + 0.65f * flicker), glm::vec3(0.0f), glm::vec3(1.0f)));
+            renderer->drawSprite(whiteTexture, glm::vec2(lampX, lampY + lampH * 0.52f), glm::vec2(lampW, 1.5f), 0.0f, glm::vec3(0.20f, 0.20f, 0.24f));
+
+            glows.push_back({ lampX + lampW * 0.5f, lampY + lampH * 0.5f, cellSize * 1.15f * glowRadiusMult, glm::vec4(1.0f, 0.68f, 0.22f, 0.18f * flicker) });
+        }
+    }
+
+    if (isRectVisible(cullMinX, botWallY - cellSize * 0.2f, spanW, botWallH + cellSize * 0.5f, cullMinX, cullMinY, cullMaxX, cullMaxY)) {
+        const float botSectorW = std::max(280.0f, cellSize * 8.0f);
+        const int bsStart = static_cast<int>(std::floor((cullMinX - gridOffset.x) / botSectorW)) - 1;
+        const int bsEnd = static_cast<int>(std::ceil((cullMaxX - gridOffset.x) / botSectorW)) + 1;
+        for (int bs = bsStart; bs <= bsEnd; ++bs) {
+            uint32_t bh = cinnabarHash(bs, 919);
+            if ((bh % 10u) >= 4u) continue;
+            float vx = gridOffset.x + (static_cast<float>(bs) + 0.28f + static_cast<float>(bh & 0x3Fu) / 128.0f) * botSectorW;
+            float vy = botWallY + cellSize * (0.72f + static_cast<float>((bh >> 6) & 0x1Fu) * 0.010f);
+            float vScale = cellSize * (0.78f + static_cast<float>((bh >> 11) & 0xFu) * 0.018f);
+            if (isRectVisible(vx - vScale * 2.0f, vy - vScale * 2.0f, vScale * 4.0f, vScale * 4.0f, cullMinX, cullMinY, cullMaxX, cullMaxY)) {
+                const CinnabarPulse pulse = computeCinnabarPulse(bh, time);
+                glows.push_back({ vx, vy, vScale * 2.2f * pulse.radiusMult, glm::vec4(0.80f, 0.12f, 0.14f, 0.16f * pulse.alphaMult) });
+                glows.push_back({ vx, vy, vScale * 1.1f * pulse.radiusMult, glm::vec4(0.95f, 0.20f, 0.18f, 0.10f * pulse.alphaMult) });
+            }
+        }
+
+        const float lampW = std::max(8.0f, cellSize * 0.16f);
+        const float lampH = std::max(10.0f, cellSize * 0.20f);
+        const float lampY = botWallY + cellSize * 0.36f;
+        for (float px = firstPostX; px <= cullMaxX; px += postSpacing) {
+            int pIdx = static_cast<int>(std::round((px - gridOffset.x) / postSpacing));
+            if ((((pIdx % 4) + 4) % 4) != 1) continue;
+
+            float lampX = px + (postW - lampW) * 0.5f;
+            float flicker = computeMineLampFlicker(cinnabarHash(pIdx, 2707), time);
+            float glowRadiusMult = 0.76f + 0.24f * flicker;
+
+            renderer->drawSprite(whiteTexture, glm::vec2(lampX + 2.0f, lampY + 2.0f), glm::vec2(lampW - 4.0f, lampH - 4.0f), 0.0f, glm::clamp(glm::vec3(1.0f, 0.84f, 0.40f) * flicker, glm::vec3(0.0f), glm::vec3(1.0f)));
+            renderer->drawSprite(whiteTexture, glm::vec2(lampX + lampW * 0.32f, lampY + lampH * 0.28f), glm::vec2(lampW * 0.36f, lampH * 0.40f), 0.0f, glm::clamp(glm::vec3(1.0f, 0.96f, 0.78f) * (0.35f + 0.65f * flicker), glm::vec3(0.0f), glm::vec3(1.0f)));
+
+            glows.push_back({ lampX + lampW * 0.5f, lampY + lampH * 0.5f, cellSize * 1.05f * glowRadiusMult, glm::vec4(1.0f, 0.66f, 0.20f, 0.16f * flicker) });
+        }
+    }
+
+    // 3. Единый аддитивный проход для всех ореолов (жилы + лампы)
+    if (!glows.empty()) {
+        const Texture2D* radialTex = ResourceManager::getSoftRadialTexture();
+        if (radialTex != nullptr) {
+            renderer->setAdditiveBlending(true);
+            for (const auto& g : glows) {
+                renderer->drawSpriteRGBA(
+                    radialTex,
+                    glm::vec2(g.x - g.radius, g.y - g.radius),
+                    glm::vec2(g.radius * 2.0f, g.radius * 2.0f),
+                    0.0f,
+                    g.color
                 );
             }
             renderer->setAdditiveBlending(false);
@@ -2356,8 +2668,10 @@ void BackgroundRenderer::renderCinnabarMineForeground(
         float cx;
         float cy;
         bool isUpper;
+        float flicker;
     };
     std::vector<LampMarker> lamps;
+    const float time = static_cast<float>(glfwGetTime());
 
     // 1. Выступающие оголовки верхняков крепи и сбор активных светильников
     for (float px = firstPostX; px <= cullMaxX; px += postSpacing) {
@@ -2373,7 +2687,8 @@ void BackgroundRenderer::renderCinnabarMineForeground(
             float lampCx = px + postW * 0.5f;
             float lampCy = gridOffset.y - cellSize * 0.34f;
             if (isRectVisible(lampCx - cellSize * 1.6f, lampCy - cellSize * 0.5f, cellSize * 3.2f, cellSize * 2.3f, cullMinX, cullMinY, cullMaxX, cullMaxY)) {
-                lamps.push_back({ lampCx, lampCy, true });
+                float flicker = computeMineLampFlicker(cinnabarHash(pIdx, 1301), time);
+                lamps.push_back({ lampCx, lampCy, true, flicker });
             }
         }
 
@@ -2387,7 +2702,8 @@ void BackgroundRenderer::renderCinnabarMineForeground(
             float lampCx = px + postW * 0.5f;
             float lampCy = gridOffset.y + gridH + cellSize * 0.42f;
             if (isRectVisible(lampCx - cellSize * 1.4f, lampCy - cellSize * 1.6f, cellSize * 2.8f, cellSize * 2.0f, cullMinX, cullMinY, cullMaxX, cullMaxY)) {
-                lamps.push_back({ lampCx, lampCy, false });
+                float flicker = computeMineLampFlicker(cinnabarHash(pIdx, 2707), time);
+                lamps.push_back({ lampCx, lampCy, false, flicker });
             }
         }
     }
@@ -2402,44 +2718,45 @@ void BackgroundRenderer::renderCinnabarMineForeground(
 
         if (coneTex != nullptr) {
             for (const auto& lamp : lamps) {
+                float coneScale = 0.82f + 0.18f * lamp.flicker;
                 if (lamp.isUpper) {
-                    float coneW = cellSize * 2.75f;
-                    float coneH = cellSize * 1.65f;
+                    float coneW = cellSize * 2.75f * coneScale;
+                    float coneH = cellSize * 1.65f * coneScale;
                     renderer->drawSpriteRGBA(
                         coneTex,
                         glm::vec2(lamp.cx - coneW * 0.5f, lamp.cy),
                         glm::vec2(coneW, coneH),
                         0.0f,
-                        glm::vec4(1.0f, 0.65f, 0.20f, 0.19f)
+                        glm::vec4(1.0f, 0.65f, 0.20f, 0.19f * lamp.flicker)
                     );
-                    float coreW = cellSize * 1.45f;
-                    float coreH = cellSize * 1.15f;
+                    float coreW = cellSize * 1.45f * coneScale;
+                    float coreH = cellSize * 1.15f * coneScale;
                     renderer->drawSpriteRGBA(
                         coneTex,
                         glm::vec2(lamp.cx - coreW * 0.5f, lamp.cy),
                         glm::vec2(coreW, coreH),
                         0.0f,
-                        glm::vec4(1.0f, 0.82f, 0.38f, 0.12f)
+                        glm::vec4(1.0f, 0.82f, 0.38f, 0.12f * lamp.flicker)
                     );
                 } else {
-                    float coneW = cellSize * 2.35f;
-                    float coneH = cellSize * 1.30f;
+                    float coneW = cellSize * 2.35f * coneScale;
+                    float coneH = cellSize * 1.30f * coneScale;
                     renderer->drawSpriteRGBA(
                         coneTex,
                         glm::vec2(lamp.cx - coneW * 0.5f, lamp.cy - coneH),
                         glm::vec2(coneW, coneH),
                         0.0f,
-                        glm::vec4(1.0f, 0.64f, 0.20f, 0.15f),
+                        glm::vec4(1.0f, 0.64f, 0.20f, 0.15f * lamp.flicker),
                         flippedConeUV
                     );
-                    float coreW = cellSize * 1.25f;
-                    float coreH = cellSize * 0.90f;
+                    float coreW = cellSize * 1.25f * coneScale;
+                    float coreH = cellSize * 0.90f * coneScale;
                     renderer->drawSpriteRGBA(
                         coneTex,
                         glm::vec2(lamp.cx - coreW * 0.5f, lamp.cy - coreH),
                         glm::vec2(coreW, coreH),
                         0.0f,
-                        glm::vec4(1.0f, 0.80f, 0.36f, 0.10f),
+                        glm::vec4(1.0f, 0.80f, 0.36f, 0.10f * lamp.flicker),
                         flippedConeUV
                     );
                 }
@@ -2448,41 +2765,42 @@ void BackgroundRenderer::renderCinnabarMineForeground(
 
         if (radialTex != nullptr) {
             for (const auto& lamp : lamps) {
+                float radScale = 0.76f + 0.24f * lamp.flicker;
                 if (lamp.isUpper) {
-                    float bloomSz = cellSize * 0.85f;
+                    float bloomSz = cellSize * 0.85f * radScale;
                     renderer->drawSpriteRGBA(
                         radialTex,
                         glm::vec2(lamp.cx - bloomSz * 0.5f, lamp.cy - bloomSz * 0.5f),
                         glm::vec2(bloomSz, bloomSz),
                         0.0f,
-                        glm::vec4(1.0f, 0.78f, 0.34f, 0.24f)
+                        glm::vec4(1.0f, 0.78f, 0.34f, 0.24f * lamp.flicker)
                     );
-                    float poolW = cellSize * 2.50f;
-                    float poolH = cellSize * 1.15f;
+                    float poolW = cellSize * 2.50f * radScale;
+                    float poolH = cellSize * 1.15f * radScale;
                     renderer->drawSpriteRGBA(
                         radialTex,
                         glm::vec2(lamp.cx - poolW * 0.5f, gridOffset.y + cellSize * 0.18f - poolH * 0.5f),
                         glm::vec2(poolW, poolH),
                         0.0f,
-                        glm::vec4(1.0f, 0.68f, 0.22f, 0.085f)
+                        glm::vec4(1.0f, 0.68f, 0.22f, 0.085f * lamp.flicker)
                     );
                 } else {
-                    float bloomSz = cellSize * 0.75f;
+                    float bloomSz = cellSize * 0.75f * radScale;
                     renderer->drawSpriteRGBA(
                         radialTex,
                         glm::vec2(lamp.cx - bloomSz * 0.5f, lamp.cy - bloomSz * 0.5f),
                         glm::vec2(bloomSz, bloomSz),
                         0.0f,
-                        glm::vec4(1.0f, 0.76f, 0.32f, 0.20f)
+                        glm::vec4(1.0f, 0.76f, 0.32f, 0.20f * lamp.flicker)
                     );
-                    float poolW = cellSize * 2.15f;
-                    float poolH = cellSize * 0.95f;
+                    float poolW = cellSize * 2.15f * radScale;
+                    float poolH = cellSize * 0.95f * radScale;
                     renderer->drawSpriteRGBA(
                         radialTex,
                         glm::vec2(lamp.cx - poolW * 0.5f, gridOffset.y + gridH - cellSize * 0.14f - poolH * 0.5f),
                         glm::vec2(poolW, poolH),
                         0.0f,
-                        glm::vec4(1.0f, 0.66f, 0.20f, 0.070f)
+                        glm::vec4(1.0f, 0.66f, 0.20f, 0.070f * lamp.flicker)
                     );
                 }
             }

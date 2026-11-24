@@ -41,18 +41,22 @@ private:
 	std::map<std::pair<int, int>, CellType> m_outerCells;
 	std::map<std::pair<int, int>, CellType> m_originalOuterCells;
 	std::set<std::pair<int, int>> m_outerNoBuild;
+	uint64_t m_instanceId = 0;
 	uint64_t m_version = 0;
+	uint64_t m_visualVersion = 0;
 
 	void renderCellVisual(SpriteRenderer* renderer,
 		const Texture2D* whiteTexture,
 		int x, int y, CellType type,
 		glm::vec2 pixelPos, glm::vec3 color,
-		bool isMineTheme, bool isCanalTheme, bool isCinnabarTheme) const;
+		bool isMineTheme, bool isCanalTheme, bool isCinnabarTheme,
+		bool includeAnimatedGlow = true) const;
 
 	void renderCinnabarWallCell(SpriteRenderer* renderer,
 		const Texture2D* whiteTexture,
 		int x, int y, glm::vec2 pixelPos, glm::vec3 color,
-		uint32_t seed, float deltaL, float warmShift) const;
+		uint32_t seed, float deltaL, float warmShift,
+		bool includeAnimatedGlow = true) const;
 
 	void renderCinnabarPlatformCell(SpriteRenderer* renderer,
 		const Texture2D* whiteTexture,
@@ -82,7 +86,9 @@ public:
 
 	bool canBuildAt(int gridX, int gridY) const; // проверяем можно ли построить башню на этой клетке
 	void setCellType(int gridX, int gridY, CellType type, bool bumpVersion = true); // устанавливаем тип клетки
+	uint64_t getInstanceId() const { return m_instanceId; }
 	uint64_t getVersion() const { return m_version; }
+	uint64_t getVisualVersion() const { return m_visualVersion; }
 
 	// СЛОЙ 1: Базовые клетки матрицы и внешние клетки (Ground, Path, Platform, Chasm, Rail)
 	void drawBaseCells(SpriteRenderer* renderer,
@@ -98,7 +104,16 @@ public:
 	void drawObstacleCells(SpriteRenderer* renderer,
 		const Texture2D* whiteTexture,
 		glm::vec3 color = glm::vec3(1.0f, 1.0f, 1.0f),
-		const std::string& backgroundPreset = "default") const;
+		const std::string& backgroundPreset = "default",
+		bool includeAnimatedGlow = true) const;
+
+	// Пульсирующие свечения кристаллов киновари поверх запеченного статического слоя
+	void drawCinnabarObstacleAnimated(SpriteRenderer* renderer,
+		const Texture2D* whiteTexture,
+		glm::vec3 color,
+		glm::vec2 cullMin,
+		glm::vec2 cullMax,
+		bool useCulling = true) const;
 
 	// СЛОЙ 4: Оверлей зон запрета стройки на внешних клетках
 	void drawOuterNoBuildOverlay(SpriteRenderer* renderer,
@@ -122,13 +137,26 @@ public:
 	bool isNoBuildAt(int gridX, int gridY) const { return isNoBuild(gridX, gridY); }
 	void setNoBuildAt(int gridX, int gridY, bool value);
 	void removeNoBuildAt(int gridX, int gridY);
-	void setHasSidePockets(bool val) { m_hasSidePockets = val; }
+	void setHasSidePockets(bool val) {
+		if (m_hasSidePockets != val) {
+			m_hasSidePockets = val;
+			m_visualVersion++;
+		}
+	}
 	bool hasSidePockets() const { return m_hasSidePockets; }
 
 	const std::map<std::pair<int, int>, CellType>& getOuterCells() const { return m_outerCells; }
 	const std::map<std::pair<int, int>, CellType>& getOriginalOuterCells() const { return m_originalOuterCells; }
 	const std::set<std::pair<int, int>>& getOuterNoBuild() const { return m_outerNoBuild; }
-	void setOuterCells(const std::map<std::pair<int, int>, CellType>& cells) { m_outerCells = cells; }
+	void setOuterCells(const std::map<std::pair<int, int>, CellType>& cells) {
+		m_outerCells = cells;
+		m_visualVersion++;
+	}
 	void setOuterNoBuild(const std::set<std::pair<int, int>>& noBuild) { m_outerNoBuild = noBuild; }
-	void clearOuterCells() { m_outerCells.clear(); m_originalOuterCells.clear(); m_outerNoBuild.clear(); }
+	void clearOuterCells() {
+		m_outerCells.clear();
+		m_originalOuterCells.clear();
+		m_outerNoBuild.clear();
+		m_visualVersion++;
+	}
 };

@@ -2,10 +2,59 @@
 #include "renderer/SpriteRenderer.h"
 #include "textures/Texture2D.h"
 #include "resources/ResourceManager.h"
+#include <GLFW/glfw3.h>
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 
 namespace {
+std::atomic<uint64_t> g_nextGridInstanceId{ 1 };
+
+struct CinnabarWallCrystalGeom {
+	bool hasCrystal = false;
+	glm::vec2 center = glm::vec2(0.0f);
+	float cScale = 0.0f;
+	float baseAngle = 0.0f;
+};
+
+CinnabarWallCrystalGeom computeCinnabarWallCrystalGeom(
+	glm::vec2 pixelPos,
+	float cellSize,
+	uint32_t seed,
+	bool wallUp,
+	bool wallDown,
+	bool wallLeft,
+	bool wallRight,
+	float bevel,
+	float botBevel
+) {
+	CinnabarWallCrystalGeom geom;
+	if ((seed % 100u) >= 28u) {
+		return geom;
+	}
+
+	float offX = (static_cast<float>((seed >> 10) % 29u) - 14.0f) * 0.01f * cellSize;
+	float offY = (static_cast<float>((seed >> 17) % 29u) - 14.0f) * 0.01f * cellSize;
+	if (!wallLeft) {
+		offX += bevel * 0.45f;
+	}
+	if (!wallRight) {
+		offX -= bevel * 0.45f;
+	}
+	if (!wallUp) {
+		offY += bevel * 0.45f;
+	}
+	if (!wallDown) {
+		offY -= botBevel * 0.45f;
+	}
+
+	geom.hasCrystal = true;
+	geom.center = pixelPos + glm::vec2(cellSize * 0.5f + offX, cellSize * 0.5f + offY);
+	geom.cScale = cellSize * (0.78f + static_cast<float>((seed >> 9) % 41u) * 0.01f);
+	geom.baseAngle = static_cast<float>(static_cast<int>((seed >> 15) % 120u) - 60);
+	return geom;
+}
+
 struct CinnabarCellParams {
 	uint32_t hash;
 	float deltaL;
@@ -53,6 +102,31 @@ uint32_t hashCinnabarEdge(int x, int y, uint32_t dir) {
 	return mixHash(h);
 }
 
+struct CinnabarPulse {
+	float alphaMult;
+	float radiusMult;
+	float veinBright;
+};
+
+CinnabarPulse computeCinnabarPulse(uint32_t seed, float time) {
+	constexpr float kTwoPi = 6.2831853f;
+	float phase1 = static_cast<float>((seed >> 3) & 0xFFu) / 255.0f * kTwoPi;
+	float phase2 = static_cast<float>((seed >> 11) & 0xFFu) / 255.0f * kTwoPi;
+	float speedMult = 0.78f + static_cast<float>((seed >> 19) & 0x3Fu) / 63.0f * 0.44f;
+
+	// Медленное дыхание + редкий мягкий отблеск на некратных частотах
+	float breath = 0.5f + 0.5f * std::sin(time * 0.85f * speedMult + phase1);
+	float shimmerWave = 0.5f + 0.5f * std::sin(time * 2.17f * speedMult + phase2);
+	float shimmer = shimmerWave * shimmerWave * (0.4f + 0.6f * shimmerWave);
+
+	float pulse = std::clamp(breath * 0.72f + shimmer * 0.28f, 0.0f, 1.0f);
+	return {
+		0.65f + pulse * 0.55f,
+		0.92f + pulse * 0.18f,
+		0.94f + pulse * 0.13f
+	};
+}
+
 float hash01(uint32_t h) {
 	return static_cast<float>(h & 0xFFFFu) / 65535.0f;
 }
@@ -60,6 +134,7 @@ float hash01(uint32_t h) {
 
 // конструктор создает пустую сетку заданого размера
 Grid::Grid(int width, int height, float cellSize, glm::vec2 offset) {
+	m_instanceId = g_nextGridInstanceId.fetch_add(1, std::memory_order_relaxed);
 	m_width = width;
 	m_height = height;
 	m_cellSize = cellSize;
@@ -71,6 +146,7 @@ Grid::Grid(int width, int height, float cellSize, glm::vec2 offset) {
 
 void Grid::saveOriginalGrid() {
 	m_originalGrid = m_grid;
+	m_visualVersion++;
 }
 
 CellType Grid::getOriginalCellType(int gridX, int gridY) const {
@@ -129,18 +205,25 @@ bool Grid::canBuildAt(int gridX, int gridY) const {
 // Принудительно меняем тип конкретной ячейки
 void Grid::setCellType(int gridX, int gridY, CellType type, bool bumpVersion) {
 	bool changed = false;
+	CellType oldType = CellType::Empty;
+	CellType origType = CellType::Ground;
 	if (gridX >= 0 && gridX < m_width && gridY >= 0 && gridY < m_height) {
-		if (m_grid[gridY][gridX] != type) {
+		oldType = m_grid[gridY][gridX];
+		origType = m_originalGrid[gridY][gridX];
+		if (oldType != type) {
 			m_grid[gridY][gridX] = type;
 			changed = true;
 		}
 	} else if (m_hasSidePockets) {
+		auto it = m_outerCells.find({gridX, gridY});
+		oldType = (it != m_outerCells.end()) ? it->second : CellType::Empty;
+		auto origIt = m_originalOuterCells.find({gridX, gridY});
+		origType = (origIt != m_originalOuterCells.end()) ? origIt->second : CellType::Ground;
 		if (type == CellType::Empty) {
 			if (m_outerCells.erase({gridX, gridY}) > 0) {
 				changed = true;
 			}
 		} else {
-			auto it = m_outerCells.find({gridX, gridY});
 			if (it == m_outerCells.end() || it->second != type) {
 				m_outerCells[{gridX, gridY}] = type;
 				changed = true;
@@ -149,6 +232,12 @@ void Grid::setCellType(int gridX, int gridY, CellType type, bool bumpVersion) {
 	}
 	if (changed && bumpVersion) {
 		m_version++;
+		const bool isPureTowerToggle =
+			(type == CellType::Tower && oldType == origType) ||
+			(oldType == CellType::Tower && type == origType);
+		if (!isPureTowerToggle) {
+			m_visualVersion++;
+		}
 	}
 }
 
@@ -157,7 +246,8 @@ void Grid::renderCellVisual(SpriteRenderer* renderer,
 	const Texture2D* whiteTexture,
 	int x, int y, CellType type,
 	glm::vec2 pixelPos, glm::vec3 color,
-	bool isMineTheme, bool isCanalTheme, bool isCinnabarTheme) const
+	bool isMineTheme, bool isCanalTheme, bool isCinnabarTheme,
+	bool includeAnimatedGlow) const
 {
 	glm::vec2 cellSizeVec(m_cellSize, m_cellSize);
 	float borderWidth = std::max(1.0f, std::round(m_cellSize * 0.04f));
@@ -177,7 +267,7 @@ void Grid::renderCellVisual(SpriteRenderer* renderer,
 		cinnabarWarmShift = params.warmShift;
 
 		if (type == CellType::Scenery) {
-			renderCinnabarWallCell(renderer, whiteTexture, x, y, pixelPos, color, cinnabarCellHash, cinnabarDeltaL, cinnabarWarmShift);
+			renderCinnabarWallCell(renderer, whiteTexture, x, y, pixelPos, color, cinnabarCellHash, cinnabarDeltaL, cinnabarWarmShift, includeAnimatedGlow);
 			return;
 		}
 		if (type == CellType::Platform) {
@@ -430,7 +520,8 @@ void Grid::renderCellVisual(SpriteRenderer* renderer,
 void Grid::renderCinnabarWallCell(SpriteRenderer* renderer,
 	const Texture2D* whiteTexture,
 	int x, int y, glm::vec2 pixelPos, glm::vec3 color,
-	uint32_t seed, float deltaL, float warmShift) const
+	uint32_t seed, float deltaL, float warmShift,
+	bool includeAnimatedGlow) const
 {
 	auto isRockWall = [&](int nx, int ny) -> bool {
 		return getCellType(nx, ny) == CellType::Scenery;
@@ -590,31 +681,25 @@ void Grid::renderCinnabarWallCell(SpriteRenderer* renderer,
 	}
 
 	// 4. Редкие вкрапления кристаллов и жил киновари (~28% клеток) с тусклым красным свечением
-	if ((seed % 100u) < 28u) {
-		float offX = (static_cast<float>((seed >> 10) % 29u) - 14.0f) * 0.01f * m_cellSize;
-		float offY = (static_cast<float>((seed >> 17) % 29u) - 14.0f) * 0.01f * m_cellSize;
-		if (!wallLeft) {
-			offX += bevel * 0.45f;
-		}
-		if (!wallRight) {
-			offX -= bevel * 0.45f;
-		}
-		if (!wallUp) {
-			offY += bevel * 0.45f;
-		}
-		if (!wallDown) {
-			offY -= botBevel * 0.45f;
-		}
+	const CinnabarWallCrystalGeom crystal = computeCinnabarWallCrystalGeom(
+		pixelPos, m_cellSize, seed, wallUp, wallDown, wallLeft, wallRight, bevel, botBevel);
+	if (crystal.hasCrystal) {
+		const glm::vec2 crystalCenter = crystal.center;
+		const float cScale = crystal.cScale;
+		const float baseAngle = crystal.baseAngle;
 
-		glm::vec2 crystalCenter = pixelPos + glm::vec2(m_cellSize * 0.5f + offX, m_cellSize * 0.5f + offY);
-		float cScale = m_cellSize * (0.78f + static_cast<float>((seed >> 9) % 41u) * 0.01f);
-		float baseAngle = static_cast<float>(static_cast<int>((seed >> 15) % 120u) - 60);
+		glm::vec3 veinTint = color;
+		if (includeAnimatedGlow) {
+			const float time = static_cast<float>(glfwGetTime());
+			const CinnabarPulse pulse = computeCinnabarPulse(seed, time);
+			veinTint = color * pulse.veinBright;
 
-		// Мягкое тусклое свечение киновари в толще сланца
-		glm::vec2 outerGlowSz(cScale * 0.56f, cScale * 0.42f);
-		glm::vec2 innerGlowSz(cScale * 0.34f, cScale * 0.25f);
-		renderer->drawSpriteRGBA(whiteTexture, crystalCenter - outerGlowSz * 0.5f, outerGlowSz, baseAngle, glm::vec4(0.56f * color.r, 0.08f * color.g, 0.10f * color.b, 0.14f));
-		renderer->drawSpriteRGBA(whiteTexture, crystalCenter - innerGlowSz * 0.5f, innerGlowSz, baseAngle, glm::vec4(0.76f * color.r, 0.13f * color.g, 0.15f * color.b, 0.22f));
+			// Мягкое тусклое свечение киновари в толще сланца
+			glm::vec2 outerGlowSz(cScale * 0.56f * pulse.radiusMult, cScale * 0.42f * pulse.radiusMult);
+			glm::vec2 innerGlowSz(cScale * 0.34f * pulse.radiusMult, cScale * 0.25f * pulse.radiusMult);
+			renderer->drawSpriteRGBA(whiteTexture, crystalCenter - outerGlowSz * 0.5f, outerGlowSz, baseAngle, glm::vec4(0.56f * color.r, 0.08f * color.g, 0.10f * color.b, 0.14f * pulse.alphaMult));
+			renderer->drawSpriteRGBA(whiteTexture, crystalCenter - innerGlowSz * 0.5f, innerGlowSz, baseAngle, glm::vec4(0.76f * color.r, 0.13f * color.g, 0.15f * color.b, 0.22f * pulse.alphaMult));
+		}
 
 		uint32_t variant = (seed >> 7) % 3u;
 		if (variant == 0u) {
@@ -635,11 +720,11 @@ void Grid::renderCinnabarWallCell(SpriteRenderer* renderer,
 
 			glm::vec2 vSz1(len1, thick);
 			glm::vec2 vSz2(len2, std::max(1.8f, thick * 0.85f));
-			renderer->drawSprite(whiteTexture, p1 - vSz1 * 0.5f, vSz1, a1, glm::vec3(0.52f, 0.09f, 0.12f) * color);
-			renderer->drawSprite(whiteTexture, p2 - vSz2 * 0.5f, vSz2, a2, glm::vec3(0.74f, 0.15f, 0.17f) * color);
+			renderer->drawSprite(whiteTexture, p1 - vSz1 * 0.5f, vSz1, a1, glm::vec3(0.52f, 0.09f, 0.12f) * veinTint);
+			renderer->drawSprite(whiteTexture, p2 - vSz2 * 0.5f, vSz2, a2, glm::vec3(0.74f, 0.15f, 0.17f) * veinTint);
 
 			glm::vec2 coreSz(len1 * 0.40f, std::max(1.5f, thick * 0.48f));
-			renderer->drawSprite(whiteTexture, p2 - coreSz * 0.5f, coreSz, a2, glm::vec3(0.90f, 0.27f, 0.27f) * color);
+			renderer->drawSprite(whiteTexture, p2 - coreSz * 0.5f, coreSz, a2, glm::vec3(0.90f, 0.27f, 0.27f) * veinTint);
 		} else if (variant == 1u) {
 			// Вариант 2: друза из 3 угловатых кристаллов
 			glm::vec2 cavSz(cScale * 0.26f, cScale * 0.20f);
@@ -651,12 +736,12 @@ void Grid::renderCinnabarWallCell(SpriteRenderer* renderer,
 			glm::vec2 s3Sz(cScale * 0.11f, cScale * 0.075f);
 			glm::vec2 s1Sz(cScale * 0.18f, cScale * 0.10f);
 
-			renderer->drawSprite(whiteTexture, (crystalCenter + s2Offset) - s2Sz * 0.5f, s2Sz, baseAngle + 48.0f, glm::vec3(0.54f, 0.09f, 0.12f) * color);
-			renderer->drawSprite(whiteTexture, (crystalCenter + s3Offset) - s3Sz * 0.5f, s3Sz, baseAngle - 42.0f, glm::vec3(0.64f, 0.12f, 0.14f) * color);
-			renderer->drawSprite(whiteTexture, crystalCenter - s1Sz * 0.5f, s1Sz, baseAngle, glm::vec3(0.72f, 0.14f, 0.16f) * color);
+			renderer->drawSprite(whiteTexture, (crystalCenter + s2Offset) - s2Sz * 0.5f, s2Sz, baseAngle + 48.0f, glm::vec3(0.54f, 0.09f, 0.12f) * veinTint);
+			renderer->drawSprite(whiteTexture, (crystalCenter + s3Offset) - s3Sz * 0.5f, s3Sz, baseAngle - 42.0f, glm::vec3(0.64f, 0.12f, 0.14f) * veinTint);
+			renderer->drawSprite(whiteTexture, crystalCenter - s1Sz * 0.5f, s1Sz, baseAngle, glm::vec3(0.72f, 0.14f, 0.16f) * veinTint);
 
 			glm::vec2 glintSz(std::max(2.0f, cScale * 0.06f), std::max(1.5f, cScale * 0.04f));
-			renderer->drawSprite(whiteTexture, crystalCenter - glintSz * 0.5f, glintSz, baseAngle, glm::vec3(0.92f, 0.28f, 0.28f) * color);
+			renderer->drawSprite(whiteTexture, crystalCenter - glintSz * 0.5f, glintSz, baseAngle, glm::vec3(0.92f, 0.28f, 0.28f) * veinTint);
 		} else {
 			// Вариант 3: компактный кристалл-вкрапление + осколок + редкая капля ртути
 			float dAngle = 45.0f + baseAngle * 0.3f;
@@ -665,12 +750,12 @@ void Grid::renderCinnabarWallCell(SpriteRenderer* renderer,
 			glm::vec2 facetSz(cScale * 0.075f, cScale * 0.075f);
 
 			renderer->drawSprite(whiteTexture, crystalCenter - rimSz * 0.5f, rimSz, dAngle, glm::vec3(0.030f, 0.022f, 0.032f) * color);
-			renderer->drawSprite(whiteTexture, crystalCenter - bodySz * 0.5f, bodySz, dAngle, glm::vec3(0.66f, 0.12f, 0.15f) * color);
-			renderer->drawSprite(whiteTexture, crystalCenter - facetSz * 0.5f, facetSz, dAngle, glm::vec3(0.88f, 0.24f, 0.25f) * color);
+			renderer->drawSprite(whiteTexture, crystalCenter - bodySz * 0.5f, bodySz, dAngle, glm::vec3(0.66f, 0.12f, 0.15f) * veinTint);
+			renderer->drawSprite(whiteTexture, crystalCenter - facetSz * 0.5f, facetSz, dAngle, glm::vec3(0.88f, 0.24f, 0.25f) * veinTint);
 
 			float fleckSz = std::max(2.0f, cScale * 0.065f);
 			glm::vec2 fleckCenter = crystalCenter + glm::vec2(cScale * 0.14f, -cScale * 0.10f);
-			renderer->drawSprite(whiteTexture, fleckCenter - glm::vec2(fleckSz * 0.5f), glm::vec2(fleckSz, fleckSz), dAngle + 20.0f, glm::vec3(0.60f, 0.11f, 0.14f) * color);
+			renderer->drawSprite(whiteTexture, fleckCenter - glm::vec2(fleckSz * 0.5f), glm::vec2(fleckSz, fleckSz), dAngle + 20.0f, glm::vec3(0.60f, 0.11f, 0.14f) * veinTint);
 
 			if (((seed >> 21) % 3u) == 0u) {
 				float hgSz = std::max(2.0f, std::round(m_cellSize * 0.055f));
@@ -1457,7 +1542,8 @@ void Grid::drawEditorGridLines(SpriteRenderer* renderer,
 void Grid::drawObstacleCells(SpriteRenderer* renderer,
 	const Texture2D* whiteTexture,
 	glm::vec3 color,
-	const std::string& backgroundPreset) const
+	const std::string& backgroundPreset,
+	bool includeAnimatedGlow) const
 {
 	if (!renderer || !whiteTexture) return;
 
@@ -1473,7 +1559,7 @@ void Grid::drawObstacleCells(SpriteRenderer* renderer,
 				type = m_originalGrid[y][x];
 			}
 			if (type == CellType::Scenery) {
-				renderCellVisual(renderer, whiteTexture, x, y, type, gridToPixel(x, y), color, isMineTheme, isCanalTheme, isCinnabarTheme);
+				renderCellVisual(renderer, whiteTexture, x, y, type, gridToPixel(x, y), color, isMineTheme, isCanalTheme, isCinnabarTheme, includeAnimatedGlow);
 			}
 		}
 	}
@@ -1481,9 +1567,101 @@ void Grid::drawObstacleCells(SpriteRenderer* renderer,
 	// 2. Отрисовка препятствий Scenery во внешних клетках
 	for (const auto& [pos, type] : m_outerCells) {
 		if (type == CellType::Scenery) {
-			renderCellVisual(renderer, whiteTexture, pos.first, pos.second, type, gridToPixel(pos.first, pos.second), color, isMineTheme, isCanalTheme, isCinnabarTheme);
+			renderCellVisual(renderer, whiteTexture, pos.first, pos.second, type, gridToPixel(pos.first, pos.second), color, isMineTheme, isCanalTheme, isCinnabarTheme, includeAnimatedGlow);
 		}
 	}
+}
+
+void Grid::drawCinnabarObstacleAnimated(SpriteRenderer* renderer,
+	const Texture2D* whiteTexture,
+	glm::vec3 color,
+	glm::vec2 cullMin,
+	glm::vec2 cullMax,
+	bool useCulling) const
+{
+	if (!renderer || !whiteTexture) return;
+
+	const float time = static_cast<float>(glfwGetTime());
+	const Texture2D* radialTex = ResourceManager::getSoftRadialTexture();
+	const Texture2D* glowTex = (radialTex != nullptr) ? radialTex : whiteTexture;
+
+	const float bevel = std::max(3.0f, std::round(m_cellSize * 0.11f));
+	const float botBevel = std::max(4.0f, std::round(m_cellSize * 0.13f));
+
+	const glm::vec2 minBound = glm::min(cullMin, cullMax);
+	const glm::vec2 maxBound = glm::max(cullMin, cullMax);
+
+	int minX = 0;
+	int maxX = m_width - 1;
+	int minY = 0;
+	int maxY = m_height - 1;
+	if (useCulling && m_cellSize > 0.001f) {
+		minX = std::max(0, static_cast<int>(std::floor((minBound.x - m_offset.x) / m_cellSize)) - 1);
+		maxX = std::min(m_width - 1, static_cast<int>(std::floor((maxBound.x - m_offset.x) / m_cellSize)) + 1);
+		minY = std::max(0, static_cast<int>(std::floor((minBound.y - m_offset.y) / m_cellSize)) - 1);
+		maxY = std::min(m_height - 1, static_cast<int>(std::floor((maxBound.y - m_offset.y) / m_cellSize)) + 1);
+	}
+
+	auto emitWallGlow = [&](int x, int y) {
+		const CinnabarCellParams params = computeCinnabarCellParams(x, y);
+		const bool wallUp    = (getCellType(x, y - 1) == CellType::Scenery);
+		const bool wallDown  = (getCellType(x, y + 1) == CellType::Scenery);
+		const bool wallLeft  = (getCellType(x - 1, y) == CellType::Scenery);
+		const bool wallRight = (getCellType(x + 1, y) == CellType::Scenery);
+
+		const CinnabarWallCrystalGeom crystal = computeCinnabarWallCrystalGeom(
+			gridToPixel(x, y), m_cellSize, params.hash, wallUp, wallDown, wallLeft, wallRight, bevel, botBevel);
+		if (!crystal.hasCrystal) {
+			return;
+		}
+
+		const CinnabarPulse pulse = computeCinnabarPulse(params.hash, time);
+		const glm::vec2 outerSz(crystal.cScale * 0.85f * pulse.radiusMult);
+		const glm::vec2 innerSz(crystal.cScale * 0.48f * pulse.radiusMult);
+
+		renderer->drawSpriteRGBA(
+			glowTex,
+			crystal.center - outerSz * 0.5f,
+			outerSz,
+			0.0f,
+			glm::vec4(0.70f * color.r, 0.10f * color.g, 0.12f * color.b, 0.16f * pulse.alphaMult)
+		);
+		renderer->drawSpriteRGBA(
+			glowTex,
+			crystal.center - innerSz * 0.5f,
+			innerSz,
+			0.0f,
+			glm::vec4(0.92f * color.r, 0.18f * color.g, 0.18f * color.b, 0.22f * pulse.alphaMult)
+		);
+	};
+
+	renderer->setAdditiveBlending(true);
+
+	for (int y = minY; y <= maxY; ++y) {
+		for (int x = minX; x <= maxX; ++x) {
+			CellType type = m_grid[y][x];
+			if (type == CellType::Tower) {
+				type = m_originalGrid[y][x];
+			}
+			if (type == CellType::Scenery) {
+				emitWallGlow(x, y);
+			}
+		}
+	}
+
+	for (const auto& [pos, type] : m_outerCells) {
+		if (type != CellType::Scenery) continue;
+		if (useCulling) {
+			glm::vec2 pPos = gridToPixel(pos.first, pos.second);
+			if (pPos.x + m_cellSize < minBound.x - m_cellSize || pPos.x > maxBound.x + m_cellSize ||
+				pPos.y + m_cellSize < minBound.y - m_cellSize || pPos.y > maxBound.y + m_cellSize) {
+				continue;
+			}
+		}
+		emitWallGlow(pos.first, pos.second);
+	}
+
+	renderer->setAdditiveBlending(false);
 }
 
 void Grid::drawOuterNoBuildOverlay(SpriteRenderer* renderer,
@@ -1525,6 +1703,8 @@ void Grid::draw(SpriteRenderer* renderer,
 
 // Динамический пересчет размера клеток при изменении размера окна с учетом нижней панели и верхнего отступа
 void Grid::updateCellSize(int windowWidth, int windowHeight, float bottomMargin, float topMargin) {
+	const float oldCellSize = m_cellSize;
+	const glm::vec2 oldOffset = m_offset;
 	float usableHeight = std::max(1.0f, static_cast<float>(windowHeight) - bottomMargin - topMargin);
 	float sizeX = static_cast<float>(windowWidth) / static_cast<float>(m_width);
 	float sizeY = usableHeight / static_cast<float>(m_height);
@@ -1533,6 +1713,9 @@ void Grid::updateCellSize(int windowWidth, int windowHeight, float bottomMargin,
 	float actualGridHeight = m_cellSize * m_height;
 	m_offset.x = (static_cast<float>(windowWidth) - actualGridWidth) / 2.0f;
 	m_offset.y = topMargin + (usableHeight - actualGridHeight) / 2.0f;
+	if (std::abs(m_cellSize - oldCellSize) > 1e-4f || glm::length(m_offset - oldOffset) > 1e-4f) {
+		m_visualVersion++;
+	}
 }
 
 CellType Grid::getCellType(int gridX, int gridY) const {

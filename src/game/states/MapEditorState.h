@@ -22,6 +22,7 @@
 #include "../editor/EditorEntityInspector.h"
 #include "../../particles/EnvironmentParticleManager.h"
 #include "../../renderer/DecorationRenderer.h"
+#include "../../renderer/CinnabarStaticCache.h"
 #include "../editor/EditorCamera.h"
 #include "../editor/EditorHudPreviewRenderer.h"
 #include "../editor/EditorTileInfoOverlay.h"
@@ -262,6 +263,7 @@ private:
     EditorEntityInspector m_entityInspector;
     int m_selectedEntityIndex = -1;
     EditorEntityType m_selectedEntityType = EditorEntityType::Spawner;
+    CinnabarStaticCache m_cinnabarCache;
 
     struct KeyRepeatState {
         bool isDown = false;

@@ -104,39 +104,58 @@ void GameplayRenderer::renderFrame(
         baseCells.emplace_back(b.x, b.y);
     }
 
-    // СЛОЙ 1: Подложка под фон (базовая земля / трава) и базовые клетки матрицы / outerCells
-    if (m_whiteTexture) {
-        BackgroundRenderer::renderSubstrate(
+    // СЛОЙ 1..3: Статический FBO-кэш для темы cinnabar_mine (+ динамические свечения и лампы)
+    bool renderedViaCinnabarCache = false;
+    if (world.grid && m_whiteTexture && BackgroundRenderer::isCinnabarMine(world.currentBackground)) {
+        renderedViaCinnabarCache = m_cinnabarCache.renderOrBake(
             m_renderer.get(),
             m_whiteTexture,
             world.currentBackground,
             world.grid.get(),
+            worldProj,
             static_cast<float>(windowWidth),
             static_cast<float>(windowHeight),
             bgView
         );
-    }
-    if (world.grid && m_whiteTexture) {
-        world.grid->drawBaseCells(m_renderer.get(), m_whiteTexture, { 1.0f, 1.0f, 1.0f }, world.currentBackground);
-    }
-
-    // СЛОЙ 2: Фоновое окружение (настил, рельсы, здание копра, забор, трубы)
-    if (m_whiteTexture) {
-        BackgroundRenderer::renderEnvironment(
-            m_renderer.get(),
-            m_whiteTexture,
-            world.currentBackground,
-            world.grid.get(),
-            static_cast<float>(windowWidth),
-            static_cast<float>(windowHeight),
-            bgView,
-            &baseCells
-        );
+    } else if (m_cinnabarCache.isValid()) {
+        m_cinnabarCache.release();
     }
 
-    // СЛОЙ 3: Геймплейные препятствия (CellType::Scenery - ящики, стены)
-    if (world.grid && m_whiteTexture) {
-        world.grid->drawObstacleCells(m_renderer.get(), m_whiteTexture, { 1.0f, 1.0f, 1.0f }, world.currentBackground);
+    if (!renderedViaCinnabarCache) {
+        // СЛОЙ 1: Подложка под фон (базовая земля / трава) и базовые клетки матрицы / outerCells
+        if (m_whiteTexture) {
+            BackgroundRenderer::renderSubstrate(
+                m_renderer.get(),
+                m_whiteTexture,
+                world.currentBackground,
+                world.grid.get(),
+                static_cast<float>(windowWidth),
+                static_cast<float>(windowHeight),
+                bgView
+            );
+        }
+        if (world.grid && m_whiteTexture) {
+            world.grid->drawBaseCells(m_renderer.get(), m_whiteTexture, { 1.0f, 1.0f, 1.0f }, world.currentBackground);
+        }
+
+        // СЛОЙ 2: Фоновое окружение (настил, рельсы, здание копра, забор, трубы)
+        if (m_whiteTexture) {
+            BackgroundRenderer::renderEnvironment(
+                m_renderer.get(),
+                m_whiteTexture,
+                world.currentBackground,
+                world.grid.get(),
+                static_cast<float>(windowWidth),
+                static_cast<float>(windowHeight),
+                bgView,
+                &baseCells
+            );
+        }
+
+        // СЛОЙ 3: Геймплейные препятствия (CellType::Scenery - ящики, стены)
+        if (world.grid && m_whiteTexture) {
+            world.grid->drawObstacleCells(m_renderer.get(), m_whiteTexture, { 1.0f, 1.0f, 1.0f }, world.currentBackground);
+        }
     }
 
     // 2.1. Цветные тайлы/маркеры спавнеров и баз (только если visibleInGame == true)

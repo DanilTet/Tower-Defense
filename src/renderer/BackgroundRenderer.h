@@ -63,6 +63,34 @@ public:
         const std::vector<glm::ivec2>* baseCells = nullptr
     );
 
+    // Статические и динамические проходы темы cinnabar_mine для FBO-кэширования
+    static void renderCinnabarMineSubstrateStatic(
+        SpriteRenderer* renderer,
+        const Texture2D* whiteTexture,
+        const Grid* grid,
+        float screenWidth,
+        float screenHeight,
+        const BackgroundViewRect& viewRect
+    );
+
+    static void renderCinnabarMineEnvironmentStatic(
+        SpriteRenderer* renderer,
+        const Texture2D* whiteTexture,
+        const Grid* grid,
+        float screenWidth,
+        float screenHeight,
+        const BackgroundViewRect& viewRect
+    );
+
+    static void renderCinnabarMineAnimatedOverlay(
+        SpriteRenderer* renderer,
+        const Texture2D* whiteTexture,
+        const Grid* grid,
+        float screenWidth,
+        float screenHeight,
+        const BackgroundViewRect& viewRect
+    );
+
     // Метаданные пресетов фона (единый источник правды для мира и редактора)
     static bool isCinnabarMine(const std::string& backgroundType);
     static bool usesSidePocketsByDefault(const std::string& backgroundType);
@@ -168,6 +196,16 @@ private:
         const BackgroundViewRect& viewRect
     );
 
+    static void renderCinnabarMineSubstrateImpl(
+        SpriteRenderer* renderer,
+        const Texture2D* whiteTexture,
+        const Grid* grid,
+        float screenWidth,
+        float screenHeight,
+        const BackgroundViewRect& viewRect,
+        bool includeAnimatedGlow
+    );
+
     static void renderCinnabarMineEnvironment(
         SpriteRenderer* renderer,
         const Texture2D* whiteTexture,
@@ -176,6 +214,16 @@ private:
         float screenHeight,
         const BackgroundViewRect& viewRect,
         const std::vector<glm::ivec2>* baseCells
+    );
+
+    static void renderCinnabarMineEnvironmentImpl(
+        SpriteRenderer* renderer,
+        const Texture2D* whiteTexture,
+        const Grid* grid,
+        float screenWidth,
+        float screenHeight,
+        const BackgroundViewRect& viewRect,
+        bool includeAnimated
     );
 
     static void renderCinnabarMineForeground(

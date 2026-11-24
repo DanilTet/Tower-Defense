@@ -2,6 +2,7 @@
 #include <memory>
 #include <glm/glm.hpp>
 #include <string>
+#include "CinnabarStaticCache.h"
 
 class SpriteRenderer;
 class TextRenderer;
@@ -27,6 +28,7 @@ private:
     const Texture2D* m_arrowTexture;
     const Texture2D* m_uiBaseTexture;
     const Texture2D* m_whiteTexture;
+    CinnabarStaticCache m_cinnabarCache;
 
 public:
     GameplayRenderer(std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer);
