@@ -19,6 +19,10 @@ public:
     static Texture2D* getTexture(const std::string& name);
     static bool hasTexture(const std::string& name);
     static Texture2D* getWhiteTexture();
+    static Texture2D* getSoftRadialTexture();
+    static Texture2D* getLightConeTexture();
+    static Texture2D* getLinearGradYTexture();
+    static Texture2D* getVignetteTexture();
 
     static void clear();
 

@@ -88,7 +88,7 @@ bool Texture2D::load(const std::string& path, GLint filter) {
     return true;
 }
 
-bool Texture2D::loadFromMemory(int width, int height, const unsigned char* data, int channels) {
+bool Texture2D::loadFromMemory(int width, int height, const unsigned char* data, int channels, GLint filter) {
     if (m_id != 0) {
         glDeleteTextures(1, &m_id);
         m_id = 0;
@@ -103,8 +103,8 @@ bool Texture2D::loadFromMemory(int width, int height, const unsigned char* data,
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
 
     glTexImage2D(GL_TEXTURE_2D, 0, format, m_width, m_height, 0, format, GL_UNSIGNED_BYTE, data);
     glBindTexture(GL_TEXTURE_2D, 0);

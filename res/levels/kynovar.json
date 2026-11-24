@@ -4,6 +4,16 @@
     "Mercury"
   ],
   "background": "cinnabar_mine",
+  "camera": {
+    "isCustom": true,
+    "tileX": 10.478002548217773,
+    "tileY": 3.4803006649017334,
+    "viewTilesH": 12.57768726348877,
+    "viewTilesW": 23.520000457763672,
+    "x": 10.478002548217773,
+    "y": 3.4803006649017334,
+    "zoom": 0.8928571343421936
+  },
   "enemyBountyRules": {
     "Coal": [
       {
@@ -25,7 +35,7 @@
       {
         "fromWave": 1,
         "reward": 1,
-        "rewardStep": 1,
+        "rewardStep": 6,
         "toWave": 99
       }
     ]
@@ -51,8 +61,42 @@
       {
         "fromWave": 1,
         "reward": 1,
-        "rewardStep": 1,
+        "rewardStep": 6,
         "toWave": 99
+      }
+    ]
+  },
+  "enemyHpRules": {
+    "Spark": [
+      {
+        "fromWave": 1,
+        "hp": 6,
+        "toWave": 3
+      },
+      {
+        "fromWave": 4,
+        "hp": 8,
+        "toWave": 5
+      },
+      {
+        "fromWave": 6,
+        "hp": 10,
+        "toWave": 7
+      },
+      {
+        "fromWave": 8,
+        "hp": 12,
+        "toWave": 9
+      },
+      {
+        "fromWave": 10,
+        "hp": 14,
+        "toWave": 11
+      },
+      {
+        "fromWave": 12,
+        "hp": 16,
+        "toWave": 14
       }
     ]
   },
@@ -68,11 +112,11 @@
         "enableFadeOut": true,
         "id": 0,
         "visibleInGame": false,
-        "x": 19,
-        "y": 5
+        "x": 22,
+        "y": 2
       }
     ],
-    "cellSize": 99.41666412353516,
+    "cellSize": 121.9047622680664,
     "enemyBountyRules": {
       "Coal": [
         {
@@ -94,7 +138,7 @@
         {
           "fromWave": 1,
           "reward": 1,
-          "rewardStep": 1,
+          "rewardStep": 6,
           "toWave": 99
         }
       ]
@@ -120,45 +164,98 @@
         {
           "fromWave": 1,
           "reward": 1,
-          "rewardStep": 1,
+          "rewardStep": 6,
           "toWave": 99
         }
       ]
     },
-    "height": 12,
+    "enemyHpRules": {
+      "Spark": [
+        {
+          "fromWave": 1,
+          "hp": 6,
+          "toWave": 3
+        },
+        {
+          "fromWave": 4,
+          "hp": 8,
+          "toWave": 5
+        },
+        {
+          "fromWave": 6,
+          "hp": 10,
+          "toWave": 7
+        },
+        {
+          "fromWave": 8,
+          "hp": 12,
+          "toWave": 9
+        },
+        {
+          "fromWave": 10,
+          "hp": 14,
+          "toWave": 11
+        },
+        {
+          "fromWave": 12,
+          "hp": 16,
+          "toWave": 14
+        }
+      ]
+    },
+    "height": 7,
     "layout": [
       [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
       ],
       [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
+        3,
+        3,
+        3,
+        3,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        2,
+        2,
+        3
+      ],
+      [
+        3,
+        3,
+        3,
+        2,
         0,
         0,
         0,
@@ -167,33 +264,51 @@
         0,
         0,
         3,
-        0,
-        0,
-        0
+        2,
+        2,
+        2,
+        2,
+        2,
+        1,
+        1,
+        1,
+        1
       ],
       [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
+        3,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        2
       ],
       [
+        1,
+        1,
+        1,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
         0,
         0,
         0,
@@ -201,195 +316,55 @@
         0,
         0,
         0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
+        2,
+        2,
+        3
       ],
       [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
+        3,
+        3,
+        3,
+        2,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        2,
+        2,
+        2,
+        2,
+        3,
+        3,
+        3,
+        3,
+        3
       ],
       [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
       ]
     ],
     "maxUpgradeTier": 3,
@@ -414,53 +389,11 @@
         0,
         0,
         0,
-        0
-      ],
-      [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
         0,
         0
       ],
       [
         0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      [
         0,
         0,
         0,
@@ -502,53 +435,11 @@
         0,
         0,
         0,
-        0
-      ],
-      [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
         0,
         0
       ],
       [
         0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      [
         0,
         0,
         0,
@@ -590,27 +481,6 @@
         0,
         0,
         0,
-        0
-      ],
-      [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
         0,
         0
       ],
@@ -634,9 +504,11 @@
         0,
         0,
         0,
+        0,
         0
       ],
       [
+        0,
         0,
         0,
         0,
@@ -659,45 +531,255 @@
         0
       ]
     ],
-    "offsetX": 285.8333740234375,
-    "offsetY": 62.0,
+    "offsetX": 0.0,
+    "offsetY": 231.83334350585938,
     "outerCells": [
       {
         "noBuild": false,
         "type": 3,
-        "x": 19,
-        "y": -1
+        "x": -3,
+        "y": 0
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": -3,
+        "y": 1
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": -3,
+        "y": 2
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": -3,
+        "y": 3
+      },
+      {
+        "noBuild": false,
+        "type": 6,
+        "x": -3,
+        "y": 4
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": -3,
+        "y": 5
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": -3,
+        "y": 6
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": -2,
+        "y": 0
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": -2,
+        "y": 1
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": -2,
+        "y": 2
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": -2,
+        "y": 3
+      },
+      {
+        "noBuild": false,
+        "type": 1,
+        "x": -2,
+        "y": 4
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": -2,
+        "y": 5
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": -2,
+        "y": 6
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": -1,
+        "y": 0
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": -1,
+        "y": 1
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": -1,
+        "y": 2
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": -1,
+        "y": 3
+      },
+      {
+        "noBuild": false,
+        "type": 1,
+        "x": -1,
+        "y": 4
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": -1,
+        "y": 5
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": -1,
+        "y": 6
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": 10,
+        "y": -3
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": 21,
+        "y": 0
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": 21,
+        "y": 1
+      },
+      {
+        "noBuild": false,
+        "type": 1,
+        "x": 21,
+        "y": 2
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": 21,
+        "y": 3
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": 21,
+        "y": 4
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": 21,
+        "y": 5
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": 21,
+        "y": 6
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": 22,
+        "y": 0
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": 22,
+        "y": 1
+      },
+      {
+        "noBuild": false,
+        "type": 7,
+        "x": 22,
+        "y": 2
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": 22,
+        "y": 3
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": 22,
+        "y": 4
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": 22,
+        "y": 5
+      },
+      {
+        "noBuild": false,
+        "type": 3,
+        "x": 22,
+        "y": 6
       }
     ],
     "spawners": [
       {
         "enableFadeIn": true,
-        "groupId": -1,
-        "targetBaseIndex": -1,
+        "groupId": 0,
+        "targetBaseIndex": 0,
         "visibleInGame": false,
-        "x": 0,
-        "y": 5
+        "x": -3,
+        "y": 4
       }
     ],
     "startingHealth": 20,
-    "startingMoney": 50,
+    "startingMoney": 25,
     "towerMaxTiers": {
       "Basic": 3,
-      "Mercury": 3,
+      "Mercury": 1,
       "Piston": 1
     },
-    "width": 20
+    "width": 21
   },
   "maxUpgradeTier": 3,
   "name": "Киноварь",
   "startingHealth": 20,
-  "startingMoney": 50,
+  "startingMoney": 25,
   "tags": [
     "Тест"
   ],
   "towerMaxTiers": {
     "Basic": 3,
-    "Mercury": 3,
+    "Mercury": 1,
     "Piston": 1
   },
   "waves": [
@@ -705,9 +787,434 @@
       "nextWaveDelay": 12.0,
       "parts": [
         {
-          "count": 10,
+          "count": 6,
+          "delayAfter": 2.5,
+          "interval": 1.149999976158142,
+          "reward": -1,
+          "reward_step": -1,
+          "spawner_id": -1,
+          "type": "Spark"
+        },
+        {
+          "count": 6,
+          "delayAfter": 0.0,
+          "interval": 1.0,
+          "reward": -1,
+          "reward_step": -1,
+          "spawner_id": -1,
+          "type": "Spark"
+        }
+      ]
+    },
+    {
+      "nextWaveDelay": 12.0,
+      "parts": [
+        {
+          "count": 8,
           "delayAfter": 2.0,
+          "interval": 0.8999999761581421,
+          "reward": -1,
+          "reward_step": -1,
+          "spawner_id": -1,
+          "type": "Spark"
+        },
+        {
+          "count": 10,
+          "delayAfter": 0.0,
           "interval": 0.800000011920929,
+          "reward": -1,
+          "reward_step": -1,
+          "spawner_id": -1,
+          "type": "Spark"
+        }
+      ]
+    },
+    {
+      "nextWaveDelay": 12.0,
+      "parts": [
+        {
+          "count": 10,
+          "delayAfter": 1.7999999523162842,
+          "interval": 0.699999988079071,
+          "reward": -1,
+          "reward_step": -1,
+          "spawner_id": -1,
+          "type": "Spark"
+        },
+        {
+          "count": 12,
+          "delayAfter": 0.0,
+          "interval": 0.6000000238418579,
+          "reward": -1,
+          "reward_step": -1,
+          "spawner_id": -1,
+          "type": "Spark"
+        }
+      ]
+    },
+    {
+      "nextWaveDelay": 12.0,
+      "parts": [
+        {
+          "count": 12,
+          "delayAfter": 1.7999999523162842,
+          "interval": 0.30000001192092896,
+          "reward": -1,
+          "reward_step": -1,
+          "spawner_id": -1,
+          "type": "Spark"
+        },
+        {
+          "count": 14,
+          "delayAfter": 0.0,
+          "interval": 0.23999999463558197,
+          "reward": -1,
+          "reward_step": -1,
+          "spawner_id": -1,
+          "type": "Spark"
+        }
+      ]
+    },
+    {
+      "nextWaveDelay": 12.0,
+      "parts": [
+        {
+          "count": 16,
+          "delayAfter": 1.399999976158142,
+          "interval": 0.20000000298023224,
+          "reward": -1,
+          "reward_step": -1,
+          "spawner_id": -1,
+          "type": "Spark"
+        },
+        {
+          "count": 18,
+          "delayAfter": 1.399999976158142,
+          "interval": 0.1599999964237213,
+          "reward": -1,
+          "reward_step": -1,
+          "spawner_id": -1,
+          "type": "Spark"
+        },
+        {
+          "count": 14,
+          "delayAfter": 0.0,
+          "interval": 0.20000000298023224,
+          "reward": -1,
+          "reward_step": -1,
+          "spawner_id": -1,
+          "type": "Spark"
+        }
+      ]
+    },
+    {
+      "nextWaveDelay": 12.0,
+      "parts": [
+        {
+          "count": 20,
+          "delayAfter": 1.2999999523162842,
+          "interval": 0.10999999940395355,
+          "reward": -1,
+          "reward_step": -1,
+          "spawner_id": -1,
+          "type": "Spark"
+        },
+        {
+          "count": 24,
+          "delayAfter": 1.2999999523162842,
+          "interval": 0.10000000149011612,
+          "reward": -1,
+          "reward_step": -1,
+          "spawner_id": -1,
+          "type": "Spark"
+        },
+        {
+          "count": 18,
+          "delayAfter": 0.0,
+          "interval": 0.11999999731779099,
+          "reward": -1,
+          "reward_step": -1,
+          "spawner_id": -1,
+          "type": "Spark"
+        }
+      ]
+    },
+    {
+      "nextWaveDelay": 12.0,
+      "parts": [
+        {
+          "count": 26,
+          "delayAfter": 1.100000023841858,
+          "interval": 0.07999999821186066,
+          "reward": -1,
+          "reward_step": -1,
+          "spawner_id": -1,
+          "type": "Spark"
+        },
+        {
+          "count": 28,
+          "delayAfter": 1.100000023841858,
+          "interval": 0.07000000029802322,
+          "reward": -1,
+          "reward_step": -1,
+          "spawner_id": -1,
+          "type": "Spark"
+        },
+        {
+          "count": 22,
+          "delayAfter": 0.0,
+          "interval": 0.09000000357627869,
+          "reward": -1,
+          "reward_step": -1,
+          "spawner_id": -1,
+          "type": "Spark"
+        }
+      ]
+    },
+    {
+      "nextWaveDelay": 12.0,
+      "parts": [
+        {
+          "count": 30,
+          "delayAfter": 1.0,
+          "interval": 0.05999999865889549,
+          "reward": -1,
+          "reward_step": -1,
+          "spawner_id": -1,
+          "type": "Spark"
+        },
+        {
+          "count": 34,
+          "delayAfter": 1.0,
+          "interval": 0.05999999865889549,
+          "reward": -1,
+          "reward_step": -1,
+          "spawner_id": -1,
+          "type": "Spark"
+        },
+        {
+          "count": 28,
+          "delayAfter": 0.0,
+          "interval": 0.07000000029802322,
+          "reward": -1,
+          "reward_step": -1,
+          "spawner_id": -1,
+          "type": "Spark"
+        }
+      ]
+    },
+    {
+      "nextWaveDelay": 12.0,
+      "parts": [
+        {
+          "count": 36,
+          "delayAfter": 0.8999999761581421,
+          "interval": 0.054999999701976776,
+          "reward": -1,
+          "reward_step": -1,
+          "spawner_id": -1,
+          "type": "Spark"
+        },
+        {
+          "count": 40,
+          "delayAfter": 0.8999999761581421,
+          "interval": 0.054999999701976776,
+          "reward": -1,
+          "reward_step": -1,
+          "spawner_id": -1,
+          "type": "Spark"
+        },
+        {
+          "count": 34,
+          "delayAfter": 0.0,
+          "interval": 0.05999999865889549,
+          "reward": -1,
+          "reward_step": -1,
+          "spawner_id": -1,
+          "type": "Spark"
+        }
+      ]
+    },
+    {
+      "nextWaveDelay": 12.0,
+      "parts": [
+        {
+          "count": 35,
+          "delayAfter": 0.800000011920929,
+          "interval": 0.05000000074505806,
+          "reward": -1,
+          "reward_step": -1,
+          "spawner_id": -1,
+          "type": "Spark"
+        },
+        {
+          "count": 40,
+          "delayAfter": 0.800000011920929,
+          "interval": 0.05000000074505806,
+          "reward": -1,
+          "reward_step": -1,
+          "spawner_id": -1,
+          "type": "Spark"
+        },
+        {
+          "count": 40,
+          "delayAfter": 0.800000011920929,
+          "interval": 0.05000000074505806,
+          "reward": -1,
+          "reward_step": -1,
+          "spawner_id": -1,
+          "type": "Spark"
+        },
+        {
+          "count": 25,
+          "delayAfter": 0.0,
+          "interval": 0.05999999865889549,
+          "reward": -1,
+          "reward_step": -1,
+          "spawner_id": -1,
+          "type": "Spark"
+        }
+      ]
+    },
+    {
+      "nextWaveDelay": 12.0,
+      "parts": [
+        {
+          "count": 40,
+          "delayAfter": 0.699999988079071,
+          "interval": 0.05000000074505806,
+          "reward": -1,
+          "reward_step": -1,
+          "spawner_id": -1,
+          "type": "Spark"
+        },
+        {
+          "count": 45,
+          "delayAfter": 0.699999988079071,
+          "interval": 0.05000000074505806,
+          "reward": -1,
+          "reward_step": -1,
+          "spawner_id": -1,
+          "type": "Spark"
+        },
+        {
+          "count": 45,
+          "delayAfter": 0.699999988079071,
+          "interval": 0.05000000074505806,
+          "reward": -1,
+          "reward_step": -1,
+          "spawner_id": -1,
+          "type": "Spark"
+        },
+        {
+          "count": 35,
+          "delayAfter": 0.0,
+          "interval": 0.05000000074505806,
+          "reward": -1,
+          "reward_step": -1,
+          "spawner_id": -1,
+          "type": "Spark"
+        }
+      ]
+    },
+    {
+      "nextWaveDelay": 12.0,
+      "parts": [
+        {
+          "count": 30,
+          "delayAfter": 0.800000011920929,
+          "interval": 0.05999999865889549,
+          "reward": -1,
+          "reward_step": -1,
+          "spawner_id": -1,
+          "type": "Spark"
+        },
+        {
+          "count": 1,
+          "delayAfter": 0.4000000059604645,
+          "interval": 1.0,
+          "reward": -1,
+          "reward_step": -1,
+          "spawner_id": -1,
+          "type": "Mercury_Large"
+        },
+        {
+          "count": 35,
+          "delayAfter": 0.8999999761581421,
+          "interval": 0.054999999701976776,
+          "reward": -1,
+          "reward_step": -1,
+          "spawner_id": -1,
+          "type": "Spark"
+        },
+        {
+          "count": 30,
+          "delayAfter": 0.0,
+          "interval": 0.05999999865889549,
+          "reward": -1,
+          "reward_step": -1,
+          "spawner_id": -1,
+          "type": "Spark"
+        }
+      ]
+    },
+    {
+      "nextWaveDelay": 12.0,
+      "parts": [
+        {
+          "count": 35,
+          "delayAfter": 0.6000000238418579,
+          "interval": 0.054999999701976776,
+          "reward": -1,
+          "reward_step": -1,
+          "spawner_id": -1,
+          "type": "Spark"
+        },
+        {
+          "count": 3,
+          "delayAfter": 0.5,
+          "interval": 0.8999999761581421,
+          "reward": -1,
+          "reward_step": -1,
+          "spawner_id": -1,
+          "type": "Mercury_Large"
+        },
+        {
+          "count": 40,
+          "delayAfter": 0.6000000238418579,
+          "interval": 0.05000000074505806,
+          "reward": -1,
+          "reward_step": -1,
+          "spawner_id": -1,
+          "type": "Spark"
+        },
+        {
+          "count": 3,
+          "delayAfter": 0.5,
+          "interval": 0.8500000238418579,
+          "reward": -1,
+          "reward_step": -1,
+          "spawner_id": -1,
+          "type": "Mercury_Large"
+        },
+        {
+          "count": 35,
+          "delayAfter": 0.0,
+          "interval": 0.054999999701976776,
+          "reward": -1,
+          "reward_step": -1,
+          "spawner_id": -1,
+          "type": "Spark"
+        }
+      ]
+    },
+    {
+      "nextWaveDelay": 12.0,
+      "parts": [
+        {
+          "count": 40,
+          "delayAfter": 0.5,
+          "interval": 0.05000000074505806,
           "reward": -1,
           "reward_step": -1,
           "spawner_id": -1,
@@ -715,68 +1222,66 @@
         },
         {
           "count": 5,
+          "delayAfter": 0.5,
+          "interval": 0.75,
+          "reward": -1,
+          "reward_step": -1,
+          "spawner_id": -1,
+          "type": "Mercury_Large"
+        },
+        {
+          "count": 45,
+          "delayAfter": 0.5,
+          "interval": 0.05000000074505806,
+          "reward": -1,
+          "reward_step": -1,
+          "spawner_id": -1,
+          "type": "Spark"
+        },
+        {
+          "count": 5,
+          "delayAfter": 0.5,
+          "interval": 0.699999988079071,
+          "reward": -1,
+          "reward_step": -1,
+          "spawner_id": -1,
+          "type": "Mercury_Large"
+        },
+        {
+          "count": 45,
+          "delayAfter": 0.5,
+          "interval": 0.05000000074505806,
+          "reward": -1,
+          "reward_step": -1,
+          "spawner_id": -1,
+          "type": "Spark"
+        },
+        {
+          "count": 5,
+          "delayAfter": 0.4000000059604645,
+          "interval": 0.6499999761581421,
+          "reward": -1,
+          "reward_step": -1,
+          "spawner_id": -1,
+          "type": "Mercury_Large"
+        },
+        {
+          "count": 40,
+          "delayAfter": 0.0,
+          "interval": 0.05000000074505806,
+          "reward": -1,
+          "reward_step": -1,
+          "spawner_id": -1,
+          "type": "Spark"
+        },
+        {
+          "count": 7,
           "delayAfter": 2.0,
           "interval": 0.800000011920929,
           "reward": -1,
           "reward_step": -1,
           "spawner_id": -1,
           "type": "Mercury_Large"
-        }
-      ]
-    },
-    {
-      "nextWaveDelay": 12.0,
-      "parts": [
-        {
-          "count": 10,
-          "delayAfter": 2.0,
-          "interval": 0.800000011920929,
-          "reward": -1,
-          "reward_step": -1,
-          "spawner_id": -1,
-          "type": "Spark"
-        }
-      ]
-    },
-    {
-      "nextWaveDelay": 12.0,
-      "parts": [
-        {
-          "count": 10,
-          "delayAfter": 2.0,
-          "interval": 0.800000011920929,
-          "reward": -1,
-          "reward_step": -1,
-          "spawner_id": -1,
-          "type": "Spark"
-        }
-      ]
-    },
-    {
-      "nextWaveDelay": 12.0,
-      "parts": [
-        {
-          "count": 10,
-          "delayAfter": 2.0,
-          "interval": 0.800000011920929,
-          "reward": -1,
-          "reward_step": -1,
-          "spawner_id": -1,
-          "type": "Spark"
-        }
-      ]
-    },
-    {
-      "nextWaveDelay": 12.0,
-      "parts": [
-        {
-          "count": 10,
-          "delayAfter": 2.0,
-          "interval": 0.800000011920929,
-          "reward": -1,
-          "reward_step": -1,
-          "spawner_id": -1,
-          "type": "Spark"
         }
       ]
     }

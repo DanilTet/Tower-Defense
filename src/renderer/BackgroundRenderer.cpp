@@ -1,5 +1,6 @@
 #include "BackgroundRenderer.h"
 #include "SpriteRenderer.h"
+#include "../resources/ResourceManager.h"
 #include "../textures/Texture2D.h"
 #include "../game/world/Grid.h"
 #include <algorithm>
@@ -1667,6 +1668,223 @@ std::string BackgroundRenderer::getEditorPlatformName(const std::string& backgro
 // Формат трассы-коридора (сверху и снизу массив породы с крепью, киноварью,
 // ретортой и водоотливом; слева и справа открытая выработка под трассу)
 // =============================================================================
+static uint32_t cinnabarHash(int x, int y) {
+    uint32_t h = static_cast<uint32_t>(x) * 374761393u + static_cast<uint32_t>(y) * 668265263u;
+    h = (h ^ (h >> 13)) * 1274126177u;
+    return h ^ (h >> 16);
+}
+
+static void drawCinnabarDepositCluster(
+    SpriteRenderer* renderer,
+    const Texture2D* whiteTexture,
+    glm::vec2 center,
+    float scale,
+    uint32_t seed
+) {
+    float mainLen = scale * (1.25f + static_cast<float>(seed % 35) * 0.01f);
+    float mainThick = std::max(4.0f, scale * 0.14f);
+    float mainAngle = ((seed / 7u) % 2u == 0u) ? -22.0f : 26.0f;
+    if (((seed / 19u) % 3u) == 0u) {
+        mainAngle *= 0.55f;
+    }
+
+    // 1. Темная тектоническая каверна и треснувшая кайма вмещающей породы
+    renderer->drawSprite(
+        whiteTexture,
+        center - glm::vec2(mainLen * 0.62f, mainThick * 1.45f),
+        glm::vec2(mainLen * 1.24f, mainThick * 2.90f),
+        mainAngle * 0.7f,
+        glm::vec3(0.125f, 0.128f, 0.158f)
+    );
+    renderer->drawSprite(
+        whiteTexture,
+        center - glm::vec2(mainLen * 0.56f, mainThick * 1.05f),
+        glm::vec2(mainLen * 1.12f, mainThick * 2.10f),
+        mainAngle,
+        glm::vec3(0.026f, 0.022f, 0.034f)
+    );
+
+    // 2. Главная изломанная жила карминно-алой киновари
+    renderer->drawSprite(
+        whiteTexture,
+        center - glm::vec2(mainLen * 0.50f, mainThick * 0.55f),
+        glm::vec2(mainLen * 0.62f, mainThick),
+        mainAngle - 6.0f,
+        glm::vec3(0.46f, 0.07f, 0.10f)
+    );
+    renderer->drawSprite(
+        whiteTexture,
+        center + glm::vec2(-mainLen * 0.06f, -mainThick * 0.35f),
+        glm::vec2(mainLen * 0.58f, mainThick * 0.92f),
+        mainAngle + 9.0f,
+        glm::vec3(0.74f, 0.12f, 0.15f)
+    );
+
+    // 3. Боковые ответвления жилы, уходящие в сланец
+    float branchLen = mainLen * 0.54f;
+    float branchAngle = (mainAngle > 0.0f) ? -24.0f : 28.0f;
+    renderer->drawSprite(
+        whiteTexture,
+        center + glm::vec2(-branchLen * 0.25f, mainThick * 0.35f),
+        glm::vec2(branchLen, std::max(2.5f, mainThick * 0.60f)),
+        branchAngle,
+        glm::vec3(0.54f, 0.09f, 0.12f)
+    );
+    if (((seed / 31u) % 2u) == 0u) {
+        renderer->drawSprite(
+            whiteTexture,
+            center + glm::vec2(mainLen * 0.08f, -mainThick * 0.95f),
+            glm::vec2(branchLen * 0.72f, std::max(2.0f, mainThick * 0.45f)),
+            -branchAngle * 0.85f,
+            glm::vec3(0.62f, 0.11f, 0.14f)
+        );
+    }
+
+    // 4. Крупные кристаллические грани алой киновари в ядре кластера
+    float shardW = std::max(5.0f, scale * 0.34f);
+    float shardH = std::max(3.5f, scale * 0.16f);
+    renderer->drawSprite(
+        whiteTexture,
+        center - glm::vec2(shardW * 0.55f, shardH * 0.65f),
+        glm::vec2(shardW, shardH),
+        mainAngle + 14.0f,
+        glm::vec3(0.90f, 0.20f, 0.22f)
+    );
+    renderer->drawSprite(
+        whiteTexture,
+        center + glm::vec2(-shardW * 0.10f, -shardH * 0.20f),
+        glm::vec2(shardW * 0.82f, shardH * 0.78f),
+        mainAngle - 16.0f,
+        glm::vec3(0.96f, 0.28f, 0.26f)
+    );
+    renderer->drawSprite(
+        whiteTexture,
+        center + glm::vec2(-shardW * 0.20f, -shardH * 0.35f),
+        glm::vec2(shardW * 0.46f, std::max(2.0f, shardH * 0.44f)),
+        mainAngle + 6.0f,
+        glm::vec3(1.00f, 0.44f, 0.38f)
+    );
+
+    // 5. Капли самородной ртути на свежем сколе
+    float dropSz = std::max(2.5f, scale * 0.068f);
+    renderer->drawSprite(
+        whiteTexture,
+        center + glm::vec2(-mainLen * 0.18f, -mainThick * 0.55f),
+        glm::vec2(dropSz, dropSz),
+        0.0f,
+        glm::vec3(0.84f, 0.89f, 0.95f)
+    );
+    if (((seed / 53u) % 2u) == 0u) {
+        renderer->drawSprite(
+            whiteTexture,
+            center + glm::vec2(mainLen * 0.20f, mainThick * 0.25f),
+            glm::vec2(dropSz * 0.82f, dropSz * 0.82f),
+            0.0f,
+            glm::vec3(0.76f, 0.82f, 0.90f)
+        );
+    }
+}
+
+static void drawLayeredRockZone(
+    SpriteRenderer* renderer,
+    const Texture2D* whiteTexture,
+    float cullMinX,
+    float cullMaxX,
+    float zoneMinY,
+    float zoneMaxY,
+    float gridOffsetX,
+    float gridOffsetY,
+    float cellSize,
+    bool isUpperZone
+) {
+    if (zoneMaxY <= zoneMinY) return;
+
+    float strataH = std::max(30.0f, cellSize * 0.68f);
+    float segStep = std::max(140.0f, cellSize * 2.65f);
+    int bandStart = static_cast<int>(std::floor((zoneMinY - gridOffsetY) / strataH)) - 1;
+    int bandEnd = static_cast<int>(std::ceil((zoneMaxY - gridOffsetY) / strataH)) + 1;
+    int segStart = static_cast<int>(std::floor((cullMinX - gridOffsetX) / segStep)) - 1;
+    int segEnd = static_cast<int>(std::ceil((cullMaxX - gridOffsetX) / segStep)) + 1;
+
+    for (int by = bandStart; by <= bandEnd; ++by) {
+        float rowBaseY = gridOffsetY + static_cast<float>(by) * strataH;
+        if (rowBaseY + strataH * 1.4f < zoneMinY || rowBaseY - strataH * 0.4f > zoneMaxY) {
+            continue;
+        }
+        float staggerX = ((by & 1) != 0) ? (segStep * 0.48f) : 0.0f;
+
+        for (int bx = segStart; bx <= segEnd; ++bx) {
+            uint32_t h = cinnabarHash(bx, by + (isUpperZone ? 101 : 409));
+            float xJitter = static_cast<float>(h & 0x1Fu) * 0.008f * segStep;
+            float yJitter = (static_cast<float>((h >> 5) & 0x1Fu) / 31.0f - 0.5f) * strataH * 0.36f;
+            float blockX = gridOffsetX + static_cast<float>(bx) * segStep + staggerX + xJitter;
+            float blockY = rowBaseY + yJitter;
+            float blockW = segStep * (1.08f + static_cast<float>((h >> 10) & 0xFu) * 0.018f);
+            float blockH = strataH * (0.92f + static_cast<float>((h >> 14) & 0xFu) * 0.022f);
+
+            // Обрезка по вертикальной границе зоны, чтобы скальные пласты не залезали в штрек
+            if (blockY < zoneMinY) {
+                float cut = zoneMinY - blockY;
+                blockY = zoneMinY;
+                blockH -= cut;
+            }
+            if (blockY + blockH > zoneMaxY) {
+                blockH = zoneMaxY - blockY;
+            }
+            if (blockH <= 2.0f) continue;
+
+            float shade = static_cast<float>((h >> 18) & 0x3Fu) / 63.0f;
+            float ironTint = (((h >> 24) & 7u) == 2u) ? 0.015f : 0.0f;
+            glm::vec3 slabCol(
+                0.068f + 0.030f * shade + ironTint,
+                0.072f + 0.026f * shade,
+                0.092f + 0.032f * shade
+            );
+            float tilt = (static_cast<float>((h >> 27) & 0x7u) - 3.5f) * 0.45f;
+            if (blockY <= zoneMinY + 2.0f || blockY + blockH >= zoneMaxY - 2.0f) {
+                tilt = 0.0f;
+            }
+
+            renderer->drawSprite(whiteTexture, glm::vec2(blockX, blockY), glm::vec2(blockW, blockH), tilt, slabCol);
+
+            // Темный тектонический шов напластования
+            float seamH = std::max(2.0f, strataH * 0.08f);
+            renderer->drawSprite(
+                whiteTexture,
+                glm::vec2(blockX, blockY),
+                glm::vec2(blockW, seamH),
+                tilt,
+                glm::vec3(0.032f, 0.035f, 0.048f)
+            );
+
+            // Светлая кромка слома сланца
+            if (((h >> 25) & 3u) == 1u && blockH > strataH * 0.45f) {
+                renderer->drawSprite(
+                    whiteTexture,
+                    glm::vec2(blockX + blockW * 0.08f, blockY + seamH),
+                    glm::vec2(blockW * 0.65f, std::max(1.5f, strataH * 0.05f)),
+                    tilt,
+                    glm::vec3(0.118f, 0.124f, 0.155f)
+                );
+            }
+
+            // Редкая косая трещина, пересекающая пласт
+            if (((h >> 20) & 7u) == 0u && blockH > strataH * 0.55f) {
+                float crackLen = std::min(blockH * 1.15f, cellSize * 0.90f);
+                float crackThick = std::max(2.0f, cellSize * 0.035f);
+                float crackAngle = ((h & 1u) == 0u) ? 58.0f : -62.0f;
+                renderer->drawSprite(
+                    whiteTexture,
+                    glm::vec2(blockX + blockW * 0.42f, blockY + blockH * 0.38f),
+                    glm::vec2(crackLen, crackThick),
+                    crackAngle,
+                    glm::vec3(0.025f, 0.027f, 0.038f)
+                );
+            }
+        }
+    }
+}
+
 void BackgroundRenderer::renderCinnabarMineSubstrate(
     SpriteRenderer* renderer,
     const Texture2D* whiteTexture,
@@ -1692,127 +1910,124 @@ void BackgroundRenderer::renderCinnabarMineSubstrate(
 
     float totalW = cullMaxX - cullMinX;
     float totalH = cullMaxY - cullMinY;
+    if (totalW <= 0.0f || totalH <= 0.0f) return;
 
-    // 1. Глубокий массив мокрого донецкого углистого сланца и кварцито-песчаника
+    // 1. Глубокая базовая подложка подземного углистого сланца
     renderer->drawSprite(
         whiteTexture,
         glm::vec2(cullMinX, cullMinY),
         glm::vec2(totalW, totalH),
         0.0f,
-        glm::vec3(0.072f, 0.078f, 0.098f)
+        glm::vec3(0.055f, 0.060f, 0.078f)
     );
 
-    // 2. Слоистые пласты породы с тонкими тектоническими швами (привязаны к gridOffset.y)
-    float strataH = std::max(38.0f, cellSize * 0.85f);
-    int bandStart = static_cast<int>(std::floor((cullMinY - gridOffset.y) / strataH));
-    int bandEnd = static_cast<int>(std::ceil((cullMaxY - gridOffset.y) / strataH));
-    for (int i = bandStart; i <= bandEnd; ++i) {
-        float bY = gridOffset.y + static_cast<float>(i) * strataH;
-        int modIdx = ((i % 10) + 10) % 10;
-        float factor = static_cast<float>(modIdx) / 10.0f;
-        float wave = std::sin(factor * 6.28318f) * 0.012f;
-        // Легкий красновато-железистый подтон в отдельных прослоях песчаника
-        float ironTint = (modIdx == 3 || modIdx == 7) ? 0.018f : 0.0f;
-        glm::vec3 strataCol(
-            0.078f + 0.022f * factor + wave + ironTint,
-            0.082f + 0.020f * factor + wave * 0.8f,
-            0.102f + 0.026f * factor + wave * 1.1f
-        );
-        renderer->drawSprite(
-            whiteTexture,
-            glm::vec2(cullMinX, bY),
-            glm::vec2(totalW, strataH + 1.0f),
-            0.0f,
-            strataCol
-        );
-        // Тонкий темный шов напластования
-        renderer->drawSprite(
-            whiteTexture,
-            glm::vec2(cullMinX, bY),
-            glm::vec2(totalW, std::max(1.5f, cellSize * 0.025f)),
-            0.0f,
-            glm::vec3(0.045f, 0.048f, 0.062f)
-        );
+    float corridorTop = 0.0f;
+    float corridorBot = screenHeight;
+    if (grid != nullptr) {
+        corridorTop = gridOffset.y;
+        corridorBot = gridOffset.y + static_cast<float>(grid->getHeight()) * cellSize;
     }
 
-    // 3. Природные багрово-алые прожилки киновари (HgS) и капли самородной ртути в массиве породы
-    float clusterW = std::max(160.0f, cellSize * 3.5f);
-    float clusterH = std::max(130.0f, cellSize * 2.8f);
-    int cxStart = static_cast<int>(std::floor((cullMinX - gridOffset.x) / clusterW)) - 1;
-    int cxEnd = static_cast<int>(std::ceil((cullMaxX - gridOffset.x) / clusterW)) + 1;
-    int cyStart = static_cast<int>(std::floor((cullMinY - gridOffset.y) / clusterH)) - 1;
-    int cyEnd = static_cast<int>(std::ceil((cullMaxY - gridOffset.y) / clusterH)) + 1;
+    // 2. Слоистая неровная скальная порода сверху и снизу от коридора выработки
+    if (cullMinY < corridorTop) {
+        drawLayeredRockZone(renderer, whiteTexture, cullMinX, cullMaxX, cullMinY, corridorTop, gridOffset.x, gridOffset.y, cellSize, true);
+    }
+    if (cullMaxY > corridorBot) {
+        drawLayeredRockZone(renderer, whiteTexture, cullMinX, cullMaxX, corridorBot, cullMaxY, gridOffset.x, gridOffset.y, cellSize, false);
+    }
+
+    // 3. Продолжение горизонта штрека за левым и правым краем сетки (чистый темный пол выработки без красных точек)
+    if (corridorBot > corridorTop) {
+        float corridorH = corridorBot - corridorTop;
+        renderer->drawSprite(
+            whiteTexture,
+            glm::vec2(cullMinX, corridorTop),
+            glm::vec2(totalW, corridorH),
+            0.0f,
+            glm::vec3(0.118f, 0.126f, 0.154f)
+        );
+        float slabStepX = cellSize * 2.0f;
+        int sxStart = static_cast<int>(std::floor((cullMinX - gridOffset.x) / slabStepX)) - 1;
+        int sxEnd = static_cast<int>(std::ceil((cullMaxX - gridOffset.x) / slabStepX)) + 1;
+        for (int sx = sxStart; sx <= sxEnd; ++sx) {
+            float lineX = gridOffset.x + static_cast<float>(sx) * slabStepX;
+            renderer->drawSprite(
+                whiteTexture,
+                glm::vec2(lineX, corridorTop),
+                glm::vec2(std::max(1.5f, cellSize * 0.03f), corridorH),
+                0.0f,
+                glm::vec3(0.088f, 0.094f, 0.118f)
+            );
+        }
+    }
+
+    // 4. Редкие выразительные жилы-кластеры красной киновари в глубокой скальной породе (вне полосы штрека)
+    struct GlowSpot {
+        float x;
+        float y;
+        float scale;
+    };
+    std::vector<GlowSpot> veinGlows;
+
+    float sectorW = std::max(280.0f, cellSize * 8.5f);
+    float sectorH = std::max(170.0f, cellSize * 4.5f);
+    int cxStart = static_cast<int>(std::floor((cullMinX - gridOffset.x) / sectorW)) - 1;
+    int cxEnd = static_cast<int>(std::ceil((cullMaxX - gridOffset.x) / sectorW)) + 1;
+    int cyStart = static_cast<int>(std::floor((cullMinY - gridOffset.y) / sectorH)) - 1;
+    int cyEnd = static_cast<int>(std::ceil((cullMaxY - gridOffset.y) / sectorH)) + 1;
+
+    float safeUpperMaxY = corridorTop - cellSize * 1.65f;
+    float safeLowerMinY = corridorBot + cellSize * 1.45f;
 
     for (int cy = cyStart; cy <= cyEnd; ++cy) {
         for (int cx = cxStart; cx <= cxEnd; ++cx) {
-            uint32_t hash = static_cast<uint32_t>(cx * 73856093) ^ static_cast<uint32_t>(cy * 19349663);
-            if ((hash % 10) >= 7) {
-                continue; // Не в каждом секторе, чтобы порода выглядела естественно
+            uint32_t h = cinnabarHash(cx + 17, cy - 31);
+            if ((h % 10u) >= 3u) {
+                continue; // Редкие залежи (~30% крупных секторов)
             }
 
-            float baseX = gridOffset.x + static_cast<float>(cx) * clusterW + static_cast<float>((hash % 45) + 15) * 0.01f * clusterW;
-            float baseY = gridOffset.y + static_cast<float>(cy) * clusterH + static_cast<float>(((hash / 64) % 45) + 15) * 0.01f * clusterH;
+            float centerX = gridOffset.x + (static_cast<float>(cx) + 0.24f + static_cast<float>(h & 0x3Fu) / 128.0f) * sectorW;
+            float centerY = gridOffset.y + (static_cast<float>(cy) + 0.25f + static_cast<float>((h >> 6) & 0x3Fu) / 128.0f) * sectorH;
 
-            if (!isRectVisible(baseX - cellSize, baseY - cellSize, cellSize * 2.5f, cellSize * 2.0f, cullMinX, cullMinY, cullMaxX, cullMaxY)) {
+            bool inUpperRock = (centerY <= safeUpperMaxY);
+            bool inLowerRock = (centerY >= safeLowerMinY);
+            if (!inUpperRock && !inLowerRock) {
                 continue;
             }
 
-            float angle = ((hash / 512) % 2 == 0) ? -26.0f : 31.0f;
-            float veinLen = cellSize * (0.95f + static_cast<float>((hash / 1024) % 45) * 0.01f);
-            float veinThick = std::max(3.0f, cellSize * 0.09f);
+            float clusterScale = cellSize * (0.95f + static_cast<float>((h >> 12) & 0x1Fu) * 0.022f);
+            if (!isRectVisible(centerX - clusterScale * 2.5f, centerY - clusterScale * 2.5f, clusterScale * 5.0f, clusterScale * 5.0f, cullMinX, cullMinY, cullMaxX, cullMaxY)) {
+                continue;
+            }
 
-            // Темная расселина в сланце
-            renderer->drawSprite(
-                whiteTexture,
-                glm::vec2(baseX - 2.0f, baseY - 2.0f),
-                glm::vec2(veinLen + 4.0f, veinThick + 4.0f),
-                angle,
-                glm::vec3(0.035f, 0.025f, 0.038f)
-            );
-            // Основное тело жилы киновари (густой карминно-красный)
-            renderer->drawSprite(
-                whiteTexture,
-                glm::vec2(baseX, baseY),
-                glm::vec2(veinLen, veinThick),
-                angle,
-                glm::vec3(0.56f, 0.10f, 0.13f)
-            );
-            // Яркие кристаллические грани алой киновари
-            renderer->drawSprite(
-                whiteTexture,
-                glm::vec2(baseX + veinLen * 0.18f, baseY + 1.0f),
-                glm::vec2(veinLen * 0.48f, std::max(2.0f, veinThick * 0.52f)),
-                angle,
-                glm::vec3(0.88f, 0.20f, 0.22f)
-            );
+            drawCinnabarDepositCluster(renderer, whiteTexture, glm::vec2(centerX, centerY), clusterScale, h);
+            veinGlows.push_back({ centerX, centerY, clusterScale });
+        }
+    }
 
-            // Боковой отросток жилы
-            float branchLen = veinLen * 0.45f;
-            float branchAngle = (angle > 0.0f) ? -18.0f : 22.0f;
-            renderer->drawSprite(
-                whiteTexture,
-                glm::vec2(baseX + veinLen * 0.35f, baseY + veinThick * 0.6f),
-                glm::vec2(branchLen, std::max(2.0f, veinThick * 0.65f)),
-                branchAngle,
-                glm::vec3(0.66f, 0.13f, 0.16f)
-            );
-
-            // Серебристые капельки выступившей жидкой ртути на сколе жилы
-            float dropSz = std::max(2.5f, cellSize * 0.055f);
-            renderer->drawSprite(
-                whiteTexture,
-                glm::vec2(baseX + veinLen * 0.28f, baseY - dropSz * 0.4f),
-                glm::vec2(dropSz, dropSz),
-                0.0f,
-                glm::vec3(0.84f, 0.89f, 0.95f)
-            );
-            renderer->drawSprite(
-                whiteTexture,
-                glm::vec2(baseX + veinLen * 0.68f, baseY + veinThick * 0.5f),
-                glm::vec2(dropSz * 0.8f, dropSz * 0.8f),
-                0.0f,
-                glm::vec3(0.75f, 0.81f, 0.88f)
-            );
+    if (!veinGlows.empty()) {
+        const Texture2D* radialTex = ResourceManager::getSoftRadialTexture();
+        if (radialTex != nullptr) {
+            renderer->setAdditiveBlending(true);
+            for (const auto& g : veinGlows) {
+                float outerR = g.scale * 2.85f;
+                float innerR = g.scale * 1.45f;
+                renderer->drawSpriteRGBA(
+                    radialTex,
+                    glm::vec2(g.x - outerR, g.y - outerR),
+                    glm::vec2(outerR * 2.0f, outerR * 2.0f),
+                    0.0f,
+                    glm::vec4(0.75f, 0.11f, 0.13f, 0.15f)
+                );
+                renderer->drawSpriteRGBA(
+                    radialTex,
+                    glm::vec2(g.x - innerR, g.y - innerR),
+                    glm::vec2(innerR * 2.0f, innerR * 2.0f),
+                    0.0f,
+                    glm::vec4(0.92f, 0.18f, 0.16f, 0.10f)
+                );
+            }
+            renderer->setAdditiveBlending(false);
         }
     }
 }
@@ -1830,7 +2045,6 @@ void BackgroundRenderer::renderCinnabarMineEnvironment(
 
     glm::vec2 gridOffset = grid->getOffset();
     float cellSize = grid->getCellSize();
-    float gridW = static_cast<float>(grid->getWidth()) * cellSize;
     float gridH = static_cast<float>(grid->getHeight()) * cellSize;
 
     float cullMinX = 0.0f;
@@ -1842,7 +2056,6 @@ void BackgroundRenderer::renderCinnabarMineEnvironment(
     float spanW = cullMaxX - cullMinX;
     if (spanW <= 0.0f) return;
 
-    // Параметры бортов штрека сверху и снизу игровой трассы (как трубы на 1-й карте, но подземная выработка)
     float topWallH = cellSize * 1.45f;
     float topWallY = gridOffset.y - topWallH;
     float botWallY = gridOffset.y + gridH;
@@ -1851,245 +2064,260 @@ void BackgroundRenderer::renderCinnabarMineEnvironment(
     float postSpacing = 3.0f * cellSize;
     float firstPostX = gridOffset.x - std::floor((gridOffset.x - cullMinX) / postSpacing) * postSpacing;
 
-    // =========================================================================
-    // 1. ВЕРХНИЙ БОРТ ШТРЕКА: порода с жилой киновари, реторта, труба СВМ, ртутный трубопровод и крепь
-    // =========================================================================
-    if (isRectVisible(cullMinX, topWallY - cellSize * 1.8f, spanW, topWallH + cellSize * 2.2f, cullMinX, cullMinY, cullMaxX, cullMaxY)) {
-        // Падающая тень от верхнего свода штрека на полотно трассы
-        renderer->drawSpriteRGBA(
-            whiteTexture,
-            glm::vec2(cullMinX, gridOffset.y),
-            glm::vec2(spanW, std::max(10.0f, cellSize * 0.22f)),
-            0.0f,
-            glm::vec4(0.02f, 0.02f, 0.04f, 0.42f)
-        );
-        renderer->drawSpriteRGBA(
-            whiteTexture,
-            glm::vec2(cullMinX, gridOffset.y + cellSize * 0.14f),
-            glm::vec2(spanW, std::max(8.0f, cellSize * 0.18f)),
-            0.0f,
-            glm::vec4(0.02f, 0.02f, 0.04f, 0.18f)
-        );
+    struct WallGlowSpot {
+        float x;
+        float y;
+        float radius;
+        glm::vec4 color;
+    };
+    std::vector<WallGlowSpot> wallGlows;
 
-        // Тесаный уступ каменной стены верхнего борта
-        renderer->drawSprite(
-            whiteTexture,
-            glm::vec2(cullMinX, topWallY),
-            glm::vec2(spanW, topWallH),
-            0.0f,
-            glm::vec3(0.118f, 0.126f, 0.155f)
-        );
-        // Нижняя каменная бровка у границы сетки
+    // =========================================================================
+    // 1. ВЕРХНИЙ БОРТ ШТРЕКА: слоистая порода, редкие жилы киновари, темная крепь и светильники
+    // =========================================================================
+    if (isRectVisible(cullMinX, topWallY - cellSize * 0.4f, spanW, topWallH + cellSize * 0.6f, cullMinX, cullMinY, cullMaxX, cullMaxY)) {
+        // Неровный скальный массив борта штрека за крепью
+        drawLayeredRockZone(renderer, whiteTexture, cullMinX, cullMaxX, topWallY, gridOffset.y, gridOffset.x, gridOffset.y, cellSize, true);
+
+        // Тесаная каменная бровка у границы штрека и верхняя кромка свода
         float ledgeH = std::max(6.0f, cellSize * 0.12f);
         renderer->drawSprite(
             whiteTexture,
             glm::vec2(cullMinX, gridOffset.y - ledgeH),
             glm::vec2(spanW, ledgeH),
             0.0f,
-            glm::vec3(0.175f, 0.182f, 0.218f)
+            glm::vec3(0.160f, 0.168f, 0.204f)
         );
         renderer->drawSprite(
             whiteTexture,
             glm::vec2(cullMinX, topWallY),
             glm::vec2(spanW, std::max(3.0f, cellSize * 0.05f)),
             0.0f,
-            glm::vec3(0.065f, 0.070f, 0.088f)
+            glm::vec3(0.045f, 0.048f, 0.062f)
         );
 
-        // Богатый вскрытый пласт алой киновари вдоль верхнего борта выработки
-        float seamStep = cellSize * 1.5f;
-        float firstSeamX = gridOffset.x - std::floor((gridOffset.x - cullMinX) / seamStep) * seamStep;
-        for (float sx = firstSeamX - seamStep; sx <= cullMaxX; sx += seamStep) {
-            int sIdx = static_cast<int>(std::round((sx - gridOffset.x) / seamStep));
-            uint32_t sHash = static_cast<uint32_t>(sIdx) * 2654435761u;
-            float offY = static_cast<float>((sHash % 24) - 12) * 0.01f * cellSize;
-            float seamY = topWallY + topWallH * 0.30f + offY;
-            float segW = seamStep * 0.82f;
-            float segH = std::max(5.0f, cellSize * 0.13f);
-            float segAngle = ((sHash % 2) == 0) ? 7.0f : -8.0f;
-
-            renderer->drawSprite(whiteTexture, glm::vec2(sx - 2.0f, seamY - 2.0f), glm::vec2(segW + 4.0f, segH + 4.0f), segAngle, glm::vec3(0.05f, 0.03f, 0.04f));
-            renderer->drawSprite(whiteTexture, glm::vec2(sx, seamY), glm::vec2(segW, segH), segAngle, glm::vec3(0.64f, 0.11f, 0.14f));
-            renderer->drawSprite(whiteTexture, glm::vec2(sx + segW * 0.15f, seamY + 1.0f), glm::vec2(segW * 0.52f, segH * 0.52f), segAngle, glm::vec3(0.92f, 0.22f, 0.24f));
-        }
-
-        // Желтая гофрированная вентиляционная труба местного проветривания (СВМ) вдоль верхнего борта
-        float ventH = std::max(14.0f, cellSize * 0.34f);
-        float ventY = topWallY + cellSize * 0.16f;
-        renderer->drawSpriteRGBA(whiteTexture, glm::vec2(cullMinX, ventY + ventH), glm::vec2(spanW, std::max(5.0f, cellSize * 0.10f)), 0.0f, glm::vec4(0.02f, 0.02f, 0.03f, 0.48f));
-        renderer->drawSprite(whiteTexture, glm::vec2(cullMinX, ventY), glm::vec2(spanW, ventH), 0.0f, glm::vec3(0.58f, 0.44f, 0.12f));
-        renderer->drawSprite(whiteTexture, glm::vec2(cullMinX, ventY + ventH * 0.12f), glm::vec2(spanW, ventH * 0.38f), 0.0f, glm::vec3(0.76f, 0.60f, 0.17f));
-        renderer->drawSprite(whiteTexture, glm::vec2(cullMinX, ventY + ventH * 0.72f), glm::vec2(spanW, ventH * 0.28f), 0.0f, glm::vec3(0.38f, 0.28f, 0.08f));
-
-        // Стальная магистраль перегонки жидкой ртути ниже вентиляционного рукава
-        float hgPipeH = std::max(8.0f, cellSize * 0.18f);
-        float hgPipeY = ventY + ventH + cellSize * 0.18f;
-        renderer->drawSpriteRGBA(whiteTexture, glm::vec2(cullMinX, hgPipeY + hgPipeH), glm::vec2(spanW, std::max(4.0f, cellSize * 0.07f)), 0.0f, glm::vec4(0.02f, 0.03f, 0.04f, 0.45f));
-        renderer->drawSprite(whiteTexture, glm::vec2(cullMinX, hgPipeY), glm::vec2(spanW, hgPipeH), 0.0f, glm::vec3(0.30f, 0.35f, 0.42f));
-        renderer->drawSprite(whiteTexture, glm::vec2(cullMinX, hgPipeY + hgPipeH * 0.18f), glm::vec2(spanW, hgPipeH * 0.30f), 0.0f, glm::vec3(0.62f, 0.69f, 0.78f));
-
-        // СЮЖЕТНЫЙ УЗЕЛ УРОВНЯ: Ртутная реторта-конденсатор у материнского кармана киновари
-        // Расположена над левой частью поля (вне строительной сетки), объясняя открытие Ртутной башни
-        float retortW = cellSize * 3.2f;
-        float retortH = cellSize * 1.50f;
-        float retortX = gridOffset.x + std::min(cellSize * 1.5f, std::max(0.0f, gridW - retortW) * 0.25f);
-        float retortY = topWallY - retortH * 0.62f;
-        if (isRectVisible(retortX - cellSize * 0.5f, retortY - cellSize * 0.4f, retortW + cellSize, retortH + cellSize, cullMinX, cullMinY, cullMaxX, cullMaxY)) {
-            // Вырубленная ниша в скале с крупной друзой кристаллов киновари
-            renderer->drawSprite(whiteTexture, glm::vec2(retortX - cellSize * 0.25f, retortY - cellSize * 0.18f), glm::vec2(retortW + cellSize * 0.5f, retortH + cellSize * 0.28f), 0.0f, glm::vec3(0.055f, 0.058f, 0.075f));
-            renderer->drawSprite(whiteTexture, glm::vec2(retortX - cellSize * 0.18f, retortY - cellSize * 0.10f), glm::vec2(cellSize * 1.25f, cellSize * 0.85f), -12.0f, glm::vec3(0.62f, 0.10f, 0.14f));
-            renderer->drawSprite(whiteTexture, glm::vec2(retortX - cellSize * 0.05f, retortY), glm::vec2(cellSize * 0.85f, cellSize * 0.48f), -8.0f, glm::vec3(0.92f, 0.22f, 0.24f));
-            renderer->drawSprite(whiteTexture, glm::vec2(retortX + cellSize * 0.22f, retortY - cellSize * 0.08f), glm::vec2(cellSize * 0.45f, cellSize * 0.30f), 18.0f, glm::vec3(0.98f, 0.34f, 0.32f));
-
-            // Бетонный фундамент реторты
-            float padY = retortY + retortH - cellSize * 0.26f;
-            renderer->drawSprite(whiteTexture, glm::vec2(retortX - cellSize * 0.10f, padY), glm::vec2(retortW + cellSize * 0.20f, cellSize * 0.32f), 0.0f, glm::vec3(0.22f, 0.23f, 0.26f));
-            renderer->drawSprite(whiteTexture, glm::vec2(retortX - cellSize * 0.10f, padY), glm::vec2(retortW + cellSize * 0.20f, 3.0f), 0.0f, glm::vec3(0.36f, 0.38f, 0.42f));
-
-            // Чугунный барабан обжиговой печи-реторты слева
-            float drumX = retortX + cellSize * 0.12f;
-            float drumY = retortY + cellSize * 0.18f;
-            float drumW = cellSize * 1.15f;
-            float drumH = cellSize * 1.02f;
-            renderer->drawSprite(whiteTexture, glm::vec2(drumX, drumY), glm::vec2(drumW, drumH), 0.0f, glm::vec3(0.18f, 0.20f, 0.24f));
-            renderer->drawSprite(whiteTexture, glm::vec2(drumX + 4.0f, drumY + 4.0f), glm::vec2(drumW - 8.0f, drumH - 8.0f), 0.0f, glm::vec3(0.27f, 0.30f, 0.35f));
-            // Узкое топочное окошко с тлеющим жаром обжига руды
-            renderer->drawSprite(whiteTexture, glm::vec2(drumX + drumW * 0.22f, drumY + drumH * 0.65f), glm::vec2(drumW * 0.56f, drumH * 0.18f), 0.0f, glm::vec3(0.10f, 0.06f, 0.05f));
-            renderer->drawSprite(whiteTexture, glm::vec2(drumX + drumW * 0.26f, drumY + drumH * 0.68f), glm::vec2(drumW * 0.48f, drumH * 0.12f), 0.0f, glm::vec3(0.95f, 0.38f, 0.12f));
-            // Круглый манометр давления паров ртути
-            float gaugeSz = std::max(8.0f, cellSize * 0.20f);
-            glm::vec2 gaugePos(drumX + drumW * 0.5f - gaugeSz * 0.5f, drumY + drumH * 0.20f);
-            renderer->drawSprite(whiteTexture, gaugePos - glm::vec2(2.0f), glm::vec2(gaugeSz + 4.0f), 0.0f, glm::vec3(0.45f, 0.36f, 0.16f));
-            renderer->drawSprite(whiteTexture, gaugePos, glm::vec2(gaugeSz), 0.0f, glm::vec3(0.88f, 0.90f, 0.86f));
-            renderer->drawSprite(whiteTexture, gaugePos + glm::vec2(gaugeSz * 0.5f, gaugeSz * 0.2f), glm::vec2(gaugeSz * 0.35f, 2.0f), -35.0f, glm::vec3(0.85f, 0.15f, 0.15f));
-
-            // Три вертикальные трубки воздушного конденсатора паров ртути
-            float condStartX = drumX + drumW + cellSize * 0.14f;
-            float condColW = std::max(6.0f, cellSize * 0.16f);
-            float condGap = cellSize * 0.24f;
-            for (int c = 0; c < 3; ++c) {
-                float cxPos = condStartX + static_cast<float>(c) * condGap;
-                renderer->drawSprite(whiteTexture, glm::vec2(cxPos, retortY + cellSize * 0.12f), glm::vec2(condColW, drumH + cellSize * 0.06f), 0.0f, glm::vec3(0.32f, 0.37f, 0.44f));
-                renderer->drawSprite(whiteTexture, glm::vec2(cxPos + 2.0f, retortY + cellSize * 0.12f), glm::vec2(condColW * 0.35f, drumH + cellSize * 0.06f), 0.0f, glm::vec3(0.64f, 0.71f, 0.80f));
+        // Редкие выразительные жилы киновари в породе за верхней крепью
+        float wallSectorW = std::max(260.0f, cellSize * 7.5f);
+        int wsStart = static_cast<int>(std::floor((cullMinX - gridOffset.x) / wallSectorW)) - 1;
+        int wsEnd = static_cast<int>(std::ceil((cullMaxX - gridOffset.x) / wallSectorW)) + 1;
+        for (int ws = wsStart; ws <= wsEnd; ++ws) {
+            uint32_t wh = cinnabarHash(ws, 701);
+            if ((wh % 10u) >= 5u) {
+                continue;
             }
-            // Верхний перекидной коллектор конденсатора
-            renderer->drawSprite(whiteTexture, glm::vec2(drumX + drumW * 0.75f, retortY + cellSize * 0.10f), glm::vec2(cellSize * 0.95f, std::max(6.0f, cellSize * 0.13f)), 0.0f, glm::vec3(0.38f, 0.43f, 0.50f));
-
-            // Приемная ванна-отстойник с блестящей жидкой серебристой ртутью справа
-            float vatX = condStartX + 3.0f * condGap + cellSize * 0.04f;
-            float vatW = cellSize * 0.92f;
-            float vatH = cellSize * 0.58f;
-            float vatY = padY - vatH + cellSize * 0.04f;
-            renderer->drawSprite(whiteTexture, glm::vec2(vatX, vatY), glm::vec2(vatW, vatH), 0.0f, glm::vec3(0.20f, 0.23f, 0.28f));
-            // Зеркало жидкой ртути с ярким металлическим бликом
-            renderer->drawSprite(whiteTexture, glm::vec2(vatX + 4.0f, vatY + 5.0f), glm::vec2(vatW - 8.0f, vatH * 0.55f), 0.0f, glm::vec3(0.76f, 0.83f, 0.91f));
-            renderer->drawSprite(whiteTexture, glm::vec2(vatX + 8.0f, vatY + 8.0f), glm::vec2((vatW - 16.0f) * 0.65f, std::max(3.0f, vatH * 0.18f)), 0.0f, glm::vec3(0.94f, 0.98f, 1.0f));
-            // Стояк от ванны к магистральному ртутному трубопроводу
-            float riserX = vatX + vatW * 0.5f - hgPipeH * 0.45f;
-            float riserH = std::max(4.0f, hgPipeY - (vatY + vatH));
-            renderer->drawSprite(whiteTexture, glm::vec2(riserX, vatY + vatH), glm::vec2(hgPipeH * 0.9f, riserH + hgPipeH * 0.5f), 0.0f, glm::vec3(0.45f, 0.52f, 0.60f));
+            float vx = gridOffset.x + (static_cast<float>(ws) + 0.25f + static_cast<float>(wh & 0x3Fu) / 128.0f) * wallSectorW;
+            float vy = topWallY + topWallH * (0.28f + static_cast<float>((wh >> 6) & 0x1Fu) * 0.008f);
+            float vScale = cellSize * (0.82f + static_cast<float>((wh >> 11) & 0xFu) * 0.02f);
+            if (isRectVisible(vx - vScale * 2.0f, vy - vScale * 2.0f, vScale * 4.0f, vScale * 4.0f, cullMinX, cullMinY, cullMaxX, cullMaxY)) {
+                drawCinnabarDepositCluster(renderer, whiteTexture, glm::vec2(vx, vy), vScale, wh);
+                wallGlows.push_back({ vx, vy, vScale * 2.3f, glm::vec4(0.82f, 0.13f, 0.14f, 0.17f) });
+                wallGlows.push_back({ vx, vy, vScale * 1.15f, glm::vec4(0.96f, 0.22f, 0.18f, 0.11f) });
+            }
         }
 
-        // Деревянные стойки шахтной крепи, хомуты труб и взрывозащищенные лампы ("коногонки" / РВП)
+        // Темная горизонтальная балка-верхняк и нижняя обвязка верхней крепи
+        float topBeamH = std::max(10.0f, cellSize * 0.22f);
+        renderer->drawSpriteRGBA(
+            whiteTexture,
+            glm::vec2(cullMinX, topWallY + topBeamH),
+            glm::vec2(spanW, std::max(4.0f, cellSize * 0.09f)),
+            0.0f,
+            glm::vec4(0.02f, 0.02f, 0.03f, 0.48f)
+        );
+        renderer->drawSprite(whiteTexture, glm::vec2(cullMinX, topWallY), glm::vec2(spanW, topBeamH), 0.0f, glm::vec3(0.22f, 0.14f, 0.08f));
+        renderer->drawSprite(whiteTexture, glm::vec2(cullMinX, topWallY + 2.0f), glm::vec2(spanW, std::max(2.0f, topBeamH * 0.30f)), 0.0f, glm::vec3(0.31f, 0.20f, 0.11f));
+
+        float curbH = std::max(7.0f, cellSize * 0.14f);
+        float curbY = gridOffset.y - curbH;
+        renderer->drawSprite(whiteTexture, glm::vec2(cullMinX, curbY), glm::vec2(spanW, curbH), 0.0f, glm::vec3(0.20f, 0.13f, 0.08f));
+        renderer->drawSprite(whiteTexture, glm::vec2(cullMinX, curbY), glm::vec2(spanW, std::max(2.0f, curbH * 0.30f)), 0.0f, glm::vec3(0.30f, 0.19f, 0.11f));
+
+        // Деревянные стойки шахтной крепи и взрывозащищенные лампы ("коногонки" / РВП)
         float postW = std::max(10.0f, cellSize * 0.24f);
         for (float px = firstPostX; px <= cullMaxX; px += postSpacing) {
             int pIdx = static_cast<int>(std::round((px - gridOffset.x) / postSpacing));
 
-            // Хомут вентиляционной трубы и фланец ртутной магистрали
-            renderer->drawSprite(whiteTexture, glm::vec2(px + postW * 0.2f, ventY - 2.0f), glm::vec2(std::max(4.0f, postW * 0.45f), ventH + 4.0f), 0.0f, glm::vec3(0.26f, 0.28f, 0.32f));
-            renderer->drawSprite(whiteTexture, glm::vec2(px + postW * 0.15f, hgPipeY - 2.0f), glm::vec2(std::max(5.0f, postW * 0.55f), hgPipeH + 4.0f), 0.0f, glm::vec3(0.46f, 0.52f, 0.60f));
-
-            // Тень от массивной деревянной стойки крепи
             renderer->drawSpriteRGBA(whiteTexture, glm::vec2(px + postW, topWallY + cellSize * 0.08f), glm::vec2(std::max(5.0f, postW * 0.4f), topWallH - cellSize * 0.08f), 0.0f, glm::vec4(0.02f, 0.02f, 0.03f, 0.50f));
-            // Ствол деревянной стойки крепи
             renderer->drawSprite(whiteTexture, glm::vec2(px, topWallY), glm::vec2(postW, topWallH), 0.0f, glm::vec3(0.28f, 0.18f, 0.10f));
             renderer->drawSprite(whiteTexture, glm::vec2(px + 2.0f, topWallY), glm::vec2(postW * 0.45f, topWallH), 0.0f, glm::vec3(0.39f, 0.25f, 0.14f));
-            // Стальной башмак у основания стойки
             float shoeH = std::max(5.0f, cellSize * 0.10f);
             renderer->drawSprite(whiteTexture, glm::vec2(px - 2.0f, gridOffset.y - shoeH), glm::vec2(postW + 4.0f, shoeH), 0.0f, glm::vec3(0.24f, 0.26f, 0.30f));
 
-            // На каждой четной стойке — шахтный светильник в защитной решетке с теплым янтарным светом
+            // Шахтный светильник в защитной решетке на каждой четной стойке
             if ((pIdx % 2) == 0) {
-                float lampW = std::max(8.0f, cellSize * 0.16f);
-                float lampH = std::max(10.0f, cellSize * 0.22f);
+                float lampW = std::max(9.0f, cellSize * 0.18f);
+                float lampH = std::max(11.0f, cellSize * 0.23f);
                 float lampX = px + (postW - lampW) * 0.5f;
-                float lampY = gridOffset.y - cellSize * 0.42f;
+                float lampY = gridOffset.y - cellSize * 0.44f;
 
-                renderer->drawSpriteRGBA(whiteTexture, glm::vec2(lampX - cellSize * 0.45f, lampY - cellSize * 0.25f), glm::vec2(lampW + cellSize * 0.90f, lampH + cellSize * 0.75f), 0.0f, glm::vec4(1.0f, 0.72f, 0.24f, 0.14f));
-                renderer->drawSprite(whiteTexture, glm::vec2(lampX - 1.0f, lampY - 3.0f), glm::vec2(lampW + 2.0f, 4.0f), 0.0f, glm::vec3(0.20f, 0.22f, 0.25f));
-                renderer->drawSprite(whiteTexture, glm::vec2(lampX, lampY), glm::vec2(lampW, lampH), 0.0f, glm::vec3(0.30f, 0.26f, 0.18f));
-                renderer->drawSprite(whiteTexture, glm::vec2(lampX + 2.0f, lampY + 2.0f), glm::vec2(lampW - 4.0f, lampH - 4.0f), 0.0f, glm::vec3(1.0f, 0.82f, 0.36f));
-            }
+                renderer->drawSprite(whiteTexture, glm::vec2(lampX - 2.0f, lampY - 4.0f), glm::vec2(lampW + 4.0f, 5.0f), 0.0f, glm::vec3(0.18f, 0.20f, 0.24f));
+                renderer->drawSprite(whiteTexture, glm::vec2(lampX, lampY), glm::vec2(lampW, lampH), 0.0f, glm::vec3(0.24f, 0.22f, 0.18f));
+                renderer->drawSprite(whiteTexture, glm::vec2(lampX + 2.0f, lampY + 2.0f), glm::vec2(lampW - 4.0f, lampH - 4.0f), 0.0f, glm::vec3(1.0f, 0.85f, 0.42f));
+                renderer->drawSprite(whiteTexture, glm::vec2(lampX + lampW * 0.32f, lampY + lampH * 0.28f), glm::vec2(lampW * 0.36f, lampH * 0.42f), 0.0f, glm::vec3(1.0f, 0.96f, 0.78f));
+                renderer->drawSprite(whiteTexture, glm::vec2(lampX, lampY + lampH * 0.52f), glm::vec2(lampW, 1.5f), 0.0f, glm::vec3(0.20f, 0.20f, 0.24f));
 
-            // На каждой нечетной кратной 3 стойке — красный запорный вентиль ртутной трубы
-            if (((pIdx % 2) != 0) && ((pIdx % 3) == 0)) {
-                float wheelSz = std::max(8.0f, cellSize * 0.20f);
-                renderer->drawSprite(whiteTexture, glm::vec2(px + postW + cellSize * 0.25f, hgPipeY - wheelSz * 0.35f), glm::vec2(wheelSz, wheelSz), 0.0f, glm::vec3(0.78f, 0.16f, 0.18f));
-                renderer->drawSprite(whiteTexture, glm::vec2(px + postW + cellSize * 0.25f + wheelSz * 0.3f, hgPipeY - wheelSz * 0.35f + wheelSz * 0.3f), glm::vec2(wheelSz * 0.4f, wheelSz * 0.4f), 0.0f, glm::vec3(0.22f, 0.24f, 0.28f));
+                wallGlows.push_back({ lampX + lampW * 0.5f, lampY + lampH * 0.5f, cellSize * 1.15f, glm::vec4(1.0f, 0.68f, 0.22f, 0.18f) });
             }
         }
     }
 
     // =========================================================================
-    // 2. НИЖНИЙ БОРТ ШТРЕКА: водоотливная канавка с осевшей ртутью, кабель и нижние стойки крепи
+    // 2. НИЖНИЙ БОРТ ШТРЕКА: порода с жилами, темная крепь и нижние светильники
     // =========================================================================
     if (isRectVisible(cullMinX, botWallY - cellSize * 0.2f, spanW, botWallH + cellSize * 0.5f, cullMinX, cullMinY, cullMaxX, cullMaxY)) {
-        // Каменная полка нижнего борта
-        renderer->drawSprite(
-            whiteTexture,
-            glm::vec2(cullMinX, botWallY),
-            glm::vec2(spanW, botWallH),
-            0.0f,
-            glm::vec3(0.112f, 0.118f, 0.145f)
-        );
+        drawLayeredRockZone(renderer, whiteTexture, cullMinX, cullMaxX, botWallY, botWallY + botWallH, gridOffset.x, gridOffset.y, cellSize, false);
+
         renderer->drawSprite(
             whiteTexture,
             glm::vec2(cullMinX, botWallY),
             glm::vec2(spanW, std::max(5.0f, cellSize * 0.09f)),
             0.0f,
-            glm::vec3(0.170f, 0.178f, 0.212f)
+            glm::vec3(0.165f, 0.172f, 0.206f)
         );
 
-        // Шахтная водоотливная канавка вдоль нижней бровки с блестящими линзами осевшей жидкой ртути
-        float gutterY = botWallY + cellSize * 0.14f;
-        float gutterH = std::max(10.0f, cellSize * 0.28f);
-        renderer->drawSprite(whiteTexture, glm::vec2(cullMinX, gutterY - 2.0f), glm::vec2(spanW, gutterH + 4.0f), 0.0f, glm::vec3(0.19f, 0.20f, 0.24f));
-        renderer->drawSprite(whiteTexture, glm::vec2(cullMinX, gutterY), glm::vec2(spanW, gutterH), 0.0f, glm::vec3(0.055f, 0.062f, 0.082f));
-
-        float poolStep = cellSize * 2.2f;
-        float firstPoolX = gridOffset.x - std::floor((gridOffset.x - cullMinX) / poolStep) * poolStep;
-        for (float mx = firstPoolX - poolStep; mx <= cullMaxX; mx += poolStep) {
-            int mIdx = static_cast<int>(std::round((mx - gridOffset.x) / poolStep));
-            uint32_t mHash = static_cast<uint32_t>(mIdx) * 1103515245u + 12345u;
-            float poolW = cellSize * (0.65f + static_cast<float>(mHash % 55) * 0.01f);
-            float poolH = std::max(4.0f, gutterH * 0.52f);
-            float poolX = mx + static_cast<float>((mHash / 64) % 35) * 0.01f * cellSize;
-            float poolY = gutterY + (gutterH - poolH) * 0.5f;
-
-            renderer->drawSprite(whiteTexture, glm::vec2(poolX, poolY), glm::vec2(poolW, poolH), 0.0f, glm::vec3(0.66f, 0.74f, 0.84f));
-            renderer->drawSprite(whiteTexture, glm::vec2(poolX + poolW * 0.15f, poolY + 1.0f), glm::vec2(poolW * 0.50f, std::max(2.0f, poolH * 0.42f)), 0.0f, glm::vec3(0.90f, 0.95f, 1.0f));
+        // Редкие жилы киновари в породе за нижней крепью
+        float botSectorW = std::max(280.0f, cellSize * 8.0f);
+        int bsStart = static_cast<int>(std::floor((cullMinX - gridOffset.x) / botSectorW)) - 1;
+        int bsEnd = static_cast<int>(std::ceil((cullMaxX - gridOffset.x) / botSectorW)) + 1;
+        for (int bs = bsStart; bs <= bsEnd; ++bs) {
+            uint32_t bh = cinnabarHash(bs, 919);
+            if ((bh % 10u) >= 4u) {
+                continue;
+            }
+            float vx = gridOffset.x + (static_cast<float>(bs) + 0.28f + static_cast<float>(bh & 0x3Fu) / 128.0f) * botSectorW;
+            float vy = botWallY + cellSize * (0.72f + static_cast<float>((bh >> 6) & 0x1Fu) * 0.010f);
+            float vScale = cellSize * (0.78f + static_cast<float>((bh >> 11) & 0xFu) * 0.018f);
+            if (isRectVisible(vx - vScale * 2.0f, vy - vScale * 2.0f, vScale * 4.0f, vScale * 4.0f, cullMinX, cullMinY, cullMaxX, cullMaxY)) {
+                drawCinnabarDepositCluster(renderer, whiteTexture, glm::vec2(vx, vy), vScale, bh);
+                wallGlows.push_back({ vx, vy, vScale * 2.2f, glm::vec4(0.80f, 0.12f, 0.14f, 0.16f) });
+                wallGlows.push_back({ vx, vy, vScale * 1.1f, glm::vec4(0.95f, 0.20f, 0.18f, 0.10f) });
+            }
         }
 
-        // Ржавая труба сжатого воздуха и бронированный силовой кабель ниже канавки
-        float airPipeY = gutterY + gutterH + cellSize * 0.16f;
-        float airPipeH = std::max(7.0f, cellSize * 0.15f);
-        renderer->drawSprite(whiteTexture, glm::vec2(cullMinX, airPipeY), glm::vec2(spanW, airPipeH), 0.0f, glm::vec3(0.34f, 0.22f, 0.16f));
-        renderer->drawSprite(whiteTexture, glm::vec2(cullMinX, airPipeY + 1.5f), glm::vec2(spanW, airPipeH * 0.35f), 0.0f, glm::vec3(0.48f, 0.31f, 0.22f));
+        // Аккуратная темная балка-лежень у кромки поля и нижняя обвязка крепи
+        float botCurbH = std::max(7.0f, cellSize * 0.14f);
+        renderer->drawSpriteRGBA(
+            whiteTexture,
+            glm::vec2(cullMinX, botWallY + botCurbH),
+            glm::vec2(spanW, std::max(4.0f, cellSize * 0.08f)),
+            0.0f,
+            glm::vec4(0.02f, 0.02f, 0.03f, 0.45f)
+        );
+        renderer->drawSprite(whiteTexture, glm::vec2(cullMinX, botWallY), glm::vec2(spanW, botCurbH), 0.0f, glm::vec3(0.20f, 0.13f, 0.07f));
+        renderer->drawSprite(whiteTexture, glm::vec2(cullMinX, botWallY), glm::vec2(spanW, std::max(2.0f, botCurbH * 0.30f)), 0.0f, glm::vec3(0.31f, 0.20f, 0.11f));
 
-        // Переходные деревянные мостки через канавку и нижние стойки крепи
+        float botBeamH = std::max(9.0f, cellSize * 0.18f);
+        renderer->drawSprite(whiteTexture, glm::vec2(cullMinX, botWallY + botWallH - botBeamH), glm::vec2(spanW, botBeamH), 0.0f, glm::vec3(0.18f, 0.11f, 0.06f));
+
+        // Нижние деревянные стойки крепи и шахматные нижние светильники
         float postW = std::max(10.0f, cellSize * 0.24f);
+        float shoeH = std::max(5.0f, cellSize * 0.10f);
         for (float px = firstPostX; px <= cullMaxX; px += postSpacing) {
-            float bridgeW = postW * 1.8f;
-            float bridgeX = px - (bridgeW - postW) * 0.5f;
-            renderer->drawSprite(whiteTexture, glm::vec2(bridgeX, gutterY - 3.0f), glm::vec2(bridgeW, gutterH + 6.0f), 0.0f, glm::vec3(0.32f, 0.21f, 0.12f));
-            renderer->drawSprite(whiteTexture, glm::vec2(bridgeX + 2.0f, gutterY - 1.0f), glm::vec2(bridgeW - 4.0f, gutterH + 2.0f), 0.0f, glm::vec3(0.43f, 0.28f, 0.16f));
+            int pIdx = static_cast<int>(std::round((px - gridOffset.x) / postSpacing));
 
-            float lowPostY = gutterY + gutterH + cellSize * 0.05f;
-            float lowPostH = botWallH - (lowPostY - botWallY);
-            if (lowPostH > 2.0f) {
-                renderer->drawSprite(whiteTexture, glm::vec2(px, lowPostY), glm::vec2(postW, lowPostH), 0.0f, glm::vec3(0.26f, 0.16f, 0.09f));
-                renderer->drawSprite(whiteTexture, glm::vec2(px + 2.0f, lowPostY), glm::vec2(postW * 0.42f, lowPostH), 0.0f, glm::vec3(0.36f, 0.23f, 0.13f));
+            renderer->drawSpriteRGBA(whiteTexture, glm::vec2(px + postW, botWallY + cellSize * 0.04f), glm::vec2(std::max(5.0f, postW * 0.4f), botWallH - cellSize * 0.04f), 0.0f, glm::vec4(0.02f, 0.02f, 0.03f, 0.48f));
+            renderer->drawSprite(whiteTexture, glm::vec2(px, botWallY), glm::vec2(postW, botWallH), 0.0f, glm::vec3(0.26f, 0.16f, 0.09f));
+            renderer->drawSprite(whiteTexture, glm::vec2(px + 2.0f, botWallY), glm::vec2(postW * 0.42f, botWallH), 0.0f, glm::vec3(0.36f, 0.23f, 0.13f));
+            renderer->drawSprite(whiteTexture, glm::vec2(px - 2.0f, botWallY), glm::vec2(postW + 4.0f, shoeH), 0.0f, glm::vec3(0.22f, 0.24f, 0.28f));
+
+            if ((((pIdx % 4) + 4) % 4) == 1) {
+                float lampW = std::max(8.0f, cellSize * 0.16f);
+                float lampH = std::max(10.0f, cellSize * 0.20f);
+                float lampX = px + (postW - lampW) * 0.5f;
+                float lampY = botWallY + cellSize * 0.36f;
+
+                renderer->drawSprite(whiteTexture, glm::vec2(lampX - 1.5f, lampY + lampH - 1.0f), glm::vec2(lampW + 3.0f, 4.0f), 0.0f, glm::vec3(0.18f, 0.20f, 0.24f));
+                renderer->drawSprite(whiteTexture, glm::vec2(lampX, lampY), glm::vec2(lampW, lampH), 0.0f, glm::vec3(0.24f, 0.22f, 0.18f));
+                renderer->drawSprite(whiteTexture, glm::vec2(lampX + 2.0f, lampY + 2.0f), glm::vec2(lampW - 4.0f, lampH - 4.0f), 0.0f, glm::vec3(1.0f, 0.84f, 0.40f));
+                renderer->drawSprite(whiteTexture, glm::vec2(lampX + lampW * 0.32f, lampY + lampH * 0.28f), glm::vec2(lampW * 0.36f, lampH * 0.40f), 0.0f, glm::vec3(1.0f, 0.96f, 0.78f));
+
+                wallGlows.push_back({ lampX + lampW * 0.5f, lampY + lampH * 0.5f, cellSize * 1.05f, glm::vec4(1.0f, 0.66f, 0.20f, 0.16f) });
             }
+        }
+    }
+
+    // =========================================================================
+    // 3. ВНУТРЕННЯЯ ТЕНЬ СВОДА НА ПОЛУ ШТРЕКА И ГЛУБИННОЕ ЗАТЕМНЕНИЕ СКАЛ
+    // =========================================================================
+    const Texture2D* gradY = ResourceManager::getLinearGradYTexture();
+    if (gradY != nullptr) {
+        SpriteUV flippedY{ glm::vec2(0.0f, 1.0f), glm::vec2(1.0f, 0.0f) };
+
+        // Мягкая верхняя внутренняя тень от свода на полотно штрека
+        renderer->drawSpriteRGBA(
+            gradY,
+            glm::vec2(cullMinX, gridOffset.y),
+            glm::vec2(spanW, cellSize * 0.38f),
+            0.0f,
+            glm::vec4(0.012f, 0.015f, 0.028f, 0.56f)
+        );
+        renderer->drawSpriteRGBA(
+            gradY,
+            glm::vec2(cullMinX, gridOffset.y),
+            glm::vec2(spanW, cellSize * 1.10f),
+            0.0f,
+            glm::vec4(0.015f, 0.018f, 0.032f, 0.26f)
+        );
+
+        // Мягкая нижняя внутренняя тень вдоль нижней стены штрека
+        float botContactH = cellSize * 0.34f;
+        float botPenumbraH = cellSize * 0.95f;
+        renderer->drawSpriteRGBA(
+            gradY,
+            glm::vec2(cullMinX, botWallY - botContactH),
+            glm::vec2(spanW, botContactH),
+            0.0f,
+            glm::vec4(0.012f, 0.015f, 0.028f, 0.50f),
+            flippedY
+        );
+        renderer->drawSpriteRGBA(
+            gradY,
+            glm::vec2(cullMinX, botWallY - botPenumbraH),
+            glm::vec2(spanW, botPenumbraH),
+            0.0f,
+            glm::vec4(0.015f, 0.018f, 0.032f, 0.23f),
+            flippedY
+        );
+
+        // Уход глубоких верхних и нижних скальных стен в темноту породы
+        if (topWallY > cullMinY) {
+            float upperFadeH = (topWallY - cullMinY) + cellSize * 0.25f;
+            renderer->drawSpriteRGBA(
+                gradY,
+                glm::vec2(cullMinX, cullMinY),
+                glm::vec2(spanW, upperFadeH),
+                0.0f,
+                glm::vec4(0.010f, 0.012f, 0.020f, 0.68f)
+            );
+        }
+        float lowerFadeStartY = botWallY + botWallH * 0.40f;
+        if (cullMaxY > lowerFadeStartY) {
+            renderer->drawSpriteRGBA(
+                gradY,
+                glm::vec2(cullMinX, lowerFadeStartY),
+                glm::vec2(spanW, cullMaxY - lowerFadeStartY),
+                0.0f,
+                glm::vec4(0.010f, 0.012f, 0.020f, 0.68f),
+                flippedY
+            );
+        }
+    }
+
+    // 4. Мягкое аддитивное свечение жил киновари, топки реторты и отраженный свет на крепях
+    if (!wallGlows.empty()) {
+        const Texture2D* radialTex = ResourceManager::getSoftRadialTexture();
+        if (radialTex != nullptr) {
+            renderer->setAdditiveBlending(true);
+            for (const auto& wg : wallGlows) {
+                renderer->drawSpriteRGBA(
+                    radialTex,
+                    glm::vec2(wg.x - wg.radius, wg.y - wg.radius),
+                    glm::vec2(wg.radius * 2.0f, wg.radius * 2.0f),
+                    0.0f,
+                    wg.color
+                );
+            }
+            renderer->setAdditiveBlending(false);
         }
     }
 }
@@ -2124,39 +2352,163 @@ void BackgroundRenderer::renderCinnabarMineForeground(
     float capH = std::max(6.0f, cellSize * 0.13f);
     float postW = std::max(10.0f, cellSize * 0.24f);
 
-    // Аккуратные выступающие оголовки верхняков крепи и мягкие конусы теплого света шахтных ламп
+    struct LampMarker {
+        float cx;
+        float cy;
+        bool isUpper;
+    };
+    std::vector<LampMarker> lamps;
+
+    // 1. Выступающие оголовки верхняков крепи и сбор активных светильников
     for (float px = firstPostX; px <= cullMaxX; px += postSpacing) {
         int pIdx = static_cast<int>(std::round((px - gridOffset.x) / postSpacing));
         float capX = px - (capW - postW) * 0.5f;
 
-        // Верхний оголовок балки-верхняка на границе свода
         if (isRectVisible(capX, gridOffset.y - capH, capW, capH * 2.0f, cullMinX, cullMinY, cullMaxX, cullMaxY)) {
             renderer->drawSprite(whiteTexture, glm::vec2(capX, gridOffset.y - capH * 0.65f), glm::vec2(capW, capH), 0.0f, glm::vec3(0.22f, 0.14f, 0.08f));
             renderer->drawSprite(whiteTexture, glm::vec2(capX + 2.0f, gridOffset.y - capH * 0.65f), glm::vec2(capW - 4.0f, capH * 0.45f), 0.0f, glm::vec3(0.36f, 0.23f, 0.13f));
         }
 
-        // Мягкое теплое пятно света от четных светильников на край полотна штрека
         if ((pIdx % 2) == 0) {
-            float glowW = cellSize * 1.9f;
-            float glowH = cellSize * 0.85f;
-            float glowX = px + postW * 0.5f - glowW * 0.5f;
-            float glowY = gridOffset.y - cellSize * 0.12f;
-            if (isRectVisible(glowX, glowY, glowW, glowH, cullMinX, cullMinY, cullMaxX, cullMaxY)) {
-                renderer->drawSpriteRGBA(
-                    whiteTexture,
-                    glm::vec2(glowX, glowY),
-                    glm::vec2(glowW, glowH),
-                    0.0f,
-                    glm::vec4(1.0f, 0.76f, 0.28f, 0.055f)
-                );
+            float lampCx = px + postW * 0.5f;
+            float lampCy = gridOffset.y - cellSize * 0.34f;
+            if (isRectVisible(lampCx - cellSize * 1.6f, lampCy - cellSize * 0.5f, cellSize * 3.2f, cellSize * 2.3f, cullMinX, cullMinY, cullMaxX, cullMaxY)) {
+                lamps.push_back({ lampCx, lampCy, true });
             }
         }
 
-        // Нижний торец балки крепи у нижней границы штрека
         float botCapY = gridOffset.y + gridH - capH * 0.35f;
         if (isRectVisible(capX, botCapY, capW, capH * 1.5f, cullMinX, cullMinY, cullMaxX, cullMaxY)) {
             renderer->drawSprite(whiteTexture, glm::vec2(capX, botCapY), glm::vec2(capW, capH), 0.0f, glm::vec3(0.20f, 0.13f, 0.07f));
             renderer->drawSprite(whiteTexture, glm::vec2(capX + 2.0f, botCapY), glm::vec2(capW - 4.0f, capH * 0.40f), 0.0f, glm::vec3(0.33f, 0.21f, 0.12f));
+        }
+
+        if ((((pIdx % 4) + 4) % 4) == 1) {
+            float lampCx = px + postW * 0.5f;
+            float lampCy = gridOffset.y + gridH + cellSize * 0.42f;
+            if (isRectVisible(lampCx - cellSize * 1.4f, lampCy - cellSize * 1.6f, cellSize * 2.8f, cellSize * 2.0f, cullMinX, cullMinY, cullMaxX, cullMaxY)) {
+                lamps.push_back({ lampCx, lampCy, false });
+            }
+        }
+    }
+
+    // 2. Мягкие конусы и световые пятна шахтных светильников (additive blending)
+    if (!lamps.empty()) {
+        const Texture2D* coneTex = ResourceManager::getLightConeTexture();
+        const Texture2D* radialTex = ResourceManager::getSoftRadialTexture();
+        SpriteUV flippedConeUV{ glm::vec2(0.0f, 1.0f), glm::vec2(1.0f, 0.0f) };
+
+        renderer->setAdditiveBlending(true);
+
+        if (coneTex != nullptr) {
+            for (const auto& lamp : lamps) {
+                if (lamp.isUpper) {
+                    float coneW = cellSize * 2.75f;
+                    float coneH = cellSize * 1.65f;
+                    renderer->drawSpriteRGBA(
+                        coneTex,
+                        glm::vec2(lamp.cx - coneW * 0.5f, lamp.cy),
+                        glm::vec2(coneW, coneH),
+                        0.0f,
+                        glm::vec4(1.0f, 0.65f, 0.20f, 0.19f)
+                    );
+                    float coreW = cellSize * 1.45f;
+                    float coreH = cellSize * 1.15f;
+                    renderer->drawSpriteRGBA(
+                        coneTex,
+                        glm::vec2(lamp.cx - coreW * 0.5f, lamp.cy),
+                        glm::vec2(coreW, coreH),
+                        0.0f,
+                        glm::vec4(1.0f, 0.82f, 0.38f, 0.12f)
+                    );
+                } else {
+                    float coneW = cellSize * 2.35f;
+                    float coneH = cellSize * 1.30f;
+                    renderer->drawSpriteRGBA(
+                        coneTex,
+                        glm::vec2(lamp.cx - coneW * 0.5f, lamp.cy - coneH),
+                        glm::vec2(coneW, coneH),
+                        0.0f,
+                        glm::vec4(1.0f, 0.64f, 0.20f, 0.15f),
+                        flippedConeUV
+                    );
+                    float coreW = cellSize * 1.25f;
+                    float coreH = cellSize * 0.90f;
+                    renderer->drawSpriteRGBA(
+                        coneTex,
+                        glm::vec2(lamp.cx - coreW * 0.5f, lamp.cy - coreH),
+                        glm::vec2(coreW, coreH),
+                        0.0f,
+                        glm::vec4(1.0f, 0.80f, 0.36f, 0.10f),
+                        flippedConeUV
+                    );
+                }
+            }
+        }
+
+        if (radialTex != nullptr) {
+            for (const auto& lamp : lamps) {
+                if (lamp.isUpper) {
+                    float bloomSz = cellSize * 0.85f;
+                    renderer->drawSpriteRGBA(
+                        radialTex,
+                        glm::vec2(lamp.cx - bloomSz * 0.5f, lamp.cy - bloomSz * 0.5f),
+                        glm::vec2(bloomSz, bloomSz),
+                        0.0f,
+                        glm::vec4(1.0f, 0.78f, 0.34f, 0.24f)
+                    );
+                    float poolW = cellSize * 2.50f;
+                    float poolH = cellSize * 1.15f;
+                    renderer->drawSpriteRGBA(
+                        radialTex,
+                        glm::vec2(lamp.cx - poolW * 0.5f, gridOffset.y + cellSize * 0.18f - poolH * 0.5f),
+                        glm::vec2(poolW, poolH),
+                        0.0f,
+                        glm::vec4(1.0f, 0.68f, 0.22f, 0.085f)
+                    );
+                } else {
+                    float bloomSz = cellSize * 0.75f;
+                    renderer->drawSpriteRGBA(
+                        radialTex,
+                        glm::vec2(lamp.cx - bloomSz * 0.5f, lamp.cy - bloomSz * 0.5f),
+                        glm::vec2(bloomSz, bloomSz),
+                        0.0f,
+                        glm::vec4(1.0f, 0.76f, 0.32f, 0.20f)
+                    );
+                    float poolW = cellSize * 2.15f;
+                    float poolH = cellSize * 0.95f;
+                    renderer->drawSpriteRGBA(
+                        radialTex,
+                        glm::vec2(lamp.cx - poolW * 0.5f, gridOffset.y + gridH - cellSize * 0.14f - poolH * 0.5f),
+                        glm::vec2(poolW, poolH),
+                        0.0f,
+                        glm::vec4(1.0f, 0.66f, 0.20f, 0.070f)
+                    );
+                }
+            }
+        }
+
+        renderer->setAdditiveBlending(false);
+    }
+
+    // 3. Легкая темная виньетка по периметру видимого экрана (не мешает читаемости сетки)
+    const Texture2D* vignetteTex = ResourceManager::getVignetteTexture();
+    if (vignetteTex != nullptr) {
+        glm::vec2 vigMin(0.0f, 0.0f);
+        glm::vec2 vigMax(screenWidth, screenHeight);
+        if (viewRect.valid) {
+            vigMin = glm::min(viewRect.min, viewRect.max);
+            vigMax = glm::max(viewRect.min, viewRect.max);
+        }
+        glm::vec2 vigSize = vigMax - vigMin;
+        if (vigSize.x > 1.0f && vigSize.y > 1.0f) {
+            renderer->drawSpriteRGBA(
+                vignetteTex,
+                vigMin,
+                vigSize,
+                0.0f,
+                glm::vec4(0.012f, 0.015f, 0.026f, 0.56f)
+            );
         }
     }
 }

@@ -49,6 +49,28 @@ private:
 		glm::vec2 pixelPos, glm::vec3 color,
 		bool isMineTheme, bool isCanalTheme, bool isCinnabarTheme) const;
 
+	void renderCinnabarWallCell(SpriteRenderer* renderer,
+		const Texture2D* whiteTexture,
+		int x, int y, glm::vec2 pixelPos, glm::vec3 color,
+		uint32_t seed, float deltaL, float warmShift) const;
+
+	void renderCinnabarPlatformCell(SpriteRenderer* renderer,
+		const Texture2D* whiteTexture,
+		glm::vec2 pixelPos, glm::vec3 color,
+		uint32_t seed, float deltaL) const;
+
+	CellType getVisualFloorType(int gridX, int gridY) const;
+
+	void renderCinnabarFloorCell(SpriteRenderer* renderer,
+		const Texture2D* whiteTexture,
+		int x, int y, CellType type,
+		glm::vec2 pixelPos, glm::vec3 color,
+		uint32_t seed, float deltaL, float warmShift) const;
+
+	void renderCinnabarFloorTransitions(SpriteRenderer* renderer,
+		const Texture2D* whiteTexture,
+		glm::vec3 color) const;
+
 public:
 	Grid(int width, int height, float cellSize, glm::vec2 offset = glm::vec2(0.0f, 0.0f));
 
