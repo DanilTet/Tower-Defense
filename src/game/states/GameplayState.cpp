@@ -222,8 +222,9 @@ void GameplayState::update(float dt) {
     }
 
     // Масштабируем deltaTime с защитой от скачков кадров (макс 50мс)
+    float effectiveTimeScale = m_timeScale * BASE_GAME_SPEED;
     float clampedDt = std::min(dt, 0.05f);
-    float scaledDt = clampedDt * m_timeScale;
+    float scaledDt = clampedDt * effectiveTimeScale;
 
     // Субстеппинг с фиксированным шагом не более 16.6мс для предотвращения туннелирования коллизий
     const float maxSubstep = 0.0166667f;
@@ -235,7 +236,7 @@ void GameplayState::update(float dt) {
             m_pathVisualizer->update(step, m_world->grid->getCellSize());
         }
 
-        m_world->update(step, m_timeScale);
+        m_world->update(step, effectiveTimeScale);
         remainingDt -= step;
     }
 
@@ -335,10 +336,10 @@ void GameplayState::startNextWave() {
 }
 
 void GameplayState::cycleTimeScale() {
-    if (m_timeScale < 1.5f) {
+    if (m_timeScale < 1.25f) {
+        m_timeScale = 1.5f;
+    } else if (m_timeScale < 1.75f) {
         m_timeScale = 2.0f;
-    } else if (m_timeScale < 3.0f) {
-        m_timeScale = 4.0f;
     } else {
         m_timeScale = 1.0f;
     }
@@ -346,7 +347,11 @@ void GameplayState::cycleTimeScale() {
 }
 
 void GameplayState::setTimeScale(float scale) {
-    m_timeScale = scale;
+    if (scale <= 0.0f) {
+        m_timeScale = 1.0f;
+    } else {
+        m_timeScale = scale;
+    }
     m_isPaused = false;
 }
 

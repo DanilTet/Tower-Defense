@@ -80,13 +80,13 @@ struct UIRect {
 };
 
 struct TimeControlUI {
-    // Единый верхний правый HUD: Статистика (HP базы, Деньги, Волна) + Управление временем (||, 1x, 2x, 4x) + Авто-волна + Кнопка волны
+    // Единый верхний правый HUD: Статистика (HP базы, Деньги, Волна) + Управление временем (||, 1x, 1.5x, 2x) + Авто-волна + Кнопка волны
     static constexpr float PANEL_W        = 400.0f;
     static constexpr float STATS_ROW_H    = 24.0f;
     static constexpr float ROW_GAP        = 5.0f;
     static constexpr float BTN_H          = 28.0f;
     static constexpr float BTN_GAP        = 4.0f;
-    static constexpr float TIME_BTN_W     = 38.0f;
+    static constexpr float TIME_BTN_W     = 40.0f;
     static constexpr float AUTO_BTN_W     = 54.0f;
     static constexpr float PANEL_PAD_X    = 8.0f;
     static constexpr float PANEL_PAD_Y    = 6.0f;
@@ -141,26 +141,26 @@ struct TimeControlUI {
         return { p0.x + p0.width + BTN_GAP * scale, p0.y, p0.width, p0.height };
     }
 
-    static UIRect getSpeed2xButtonRect(int screenWidth, int screenHeight) {
+    static UIRect getSpeed1_5xButtonRect(int screenWidth, int screenHeight) {
         float scale = GetUIScale(screenWidth, screenHeight);
         UIRect p0 = getPauseButtonRect(screenWidth, screenHeight);
         return { p0.x + (p0.width + BTN_GAP * scale) * 2.0f, p0.y, p0.width, p0.height };
     }
 
-    static UIRect getSpeed4xButtonRect(int screenWidth, int screenHeight) {
+    static UIRect getSpeed2xButtonRect(int screenWidth, int screenHeight) {
         float scale = GetUIScale(screenWidth, screenHeight);
         UIRect p0 = getPauseButtonRect(screenWidth, screenHeight);
         return { p0.x + (p0.width + BTN_GAP * scale) * 3.0f, p0.y, p0.width, p0.height };
     }
 
-    // Кнопка-переключатель автопродолжения волн (Авто / AUTO) справа от 4x
+    // Кнопка-переключатель автопродолжения волн (Авто / AUTO) справа от 2x
     static UIRect getAutoWaveButtonRect(int screenWidth, int screenHeight) {
         float scale = GetUIScale(screenWidth, screenHeight);
-        UIRect s4 = getSpeed4xButtonRect(screenWidth, screenHeight);
-        float bx = s4.x + s4.width + BTN_GAP * scale;
-        float by = s4.y;
+        UIRect s2 = getSpeed2xButtonRect(screenWidth, screenHeight);
+        float bx = s2.x + s2.width + BTN_GAP * scale;
+        float by = s2.y;
         float bw = AUTO_BTN_W * scale;
-        float bh = s4.height;
+        float bh = s2.height;
         return { bx, by, bw, bh };
     }
 

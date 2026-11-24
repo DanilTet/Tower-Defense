@@ -52,12 +52,12 @@ void PlacementUI::renderHologram(
     bool hasMoney = (stats.money >= towerstats.cost);
     bool canBuildHere = gameGrid.canBuildAt(gridPos.x, gridPos.y);
 
-    // проверяем, не стоит ли на этой клетке живой враг
+    // проверяем, не стоит ли на этой клетке живой враг (по центру врага, без захвата соседних клеток)
     bool hasEnemyHere = false;
     if (activeEnemies) {
         for (const auto& enemy : *activeEnemies) {
-            if (!enemy || enemy->isDead() || enemy->isReachedEnd()) continue;
-            if (gameGrid.pixelToGrid(enemy->getPixelPos()) == gridPos) {
+            if (!enemy || enemy->isDead() || enemy->isReachedEnd() || enemy->isFalling()) continue;
+            if (enemy->getGridCell(gameGrid) == gridPos) {
                 hasEnemyHere = true;
                 break;
             }

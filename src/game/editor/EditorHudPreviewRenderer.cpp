@@ -113,7 +113,7 @@ void EditorHudPreviewRenderer::renderWorldOverlay(
     renderer->drawSpriteRGBA(whiteTexture, glm::vec2(hudPanelX + padX + b0w + badgeGap + b1w + badgeGap, hudPanelY + padY), glm::vec2(b2w, statsH), 0.0f, glm::vec4(0.14f, 0.17f, 0.24f, 0.85f));
     renderer->drawSpriteRGBA(whiteTexture, glm::vec2(hudPanelX + padX + b0w + badgeGap + b1w + badgeGap, hudPanelY + padY), glm::vec2(3.0f * s, statsH), 0.0f, glm::vec4(0.35f, 0.75f, 1.0f, 1.0f));
 
-    // Кнопки управления временем (||, 1x, 2x, 4x)
+    // Кнопки управления временем (||, 1x, 1.5x, 2x)
     float btnY = hudPanelY + padY + statsH + TimeControlUI::ROW_GAP * s;
     float timeBtnW = TimeControlUI::TIME_BTN_W * s;
     float btnH = TimeControlUI::BTN_H * s;

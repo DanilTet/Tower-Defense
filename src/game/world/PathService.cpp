@@ -111,8 +111,8 @@ bool PathService::isPlacementValid(
 
     if (activeEnemies) {
         for (const auto& enemy : *activeEnemies) {
-            if (!enemy || enemy->isDead() || enemy->isReachedEnd()) continue;
-            glm::ivec2 ePos = grid.pixelToGrid(enemy->getPixelPos());
+            if (!enemy || enemy->isDead() || enemy->isReachedEnd() || enemy->isFalling()) continue;
+            glm::ivec2 ePos = enemy->getGridCell(grid);
             if (ePos.x == gridX && ePos.y == gridY) {
                 return false; // Запрещено строить прямо поверх моба
             }
@@ -131,7 +131,7 @@ bool PathService::isPlacementValid(
 
         if (!intersectsAny && activeEnemies) {
             for (const auto& enemy : *activeEnemies) {
-                if (!enemy || enemy->isDead() || enemy->isReachedEnd()) continue;
+                if (!enemy || enemy->isDead() || enemy->isReachedEnd() || enemy->isFalling()) continue;
                 if (enemy->isPathIntersecting(glm::ivec2(gridX, gridY))) {
                     intersectsAny = true;
                     break;
@@ -198,9 +198,9 @@ bool PathService::isPlacementValid(
     // --- 3. ПРОВЕРКА ЖИВЫХ ВРАГОВ: Не заперт ли хотя бы один моб в тупике? ---
     if (!isPathBlocked && activeEnemies) {
         for (const auto& enemy : *activeEnemies) {
-            if (!enemy || enemy->isDead() || enemy->isReachedEnd()) continue;
+            if (!enemy || enemy->isDead() || enemy->isReachedEnd() || enemy->isFalling()) continue;
 
-            glm::ivec2 ePos = grid.pixelToGrid(enemy->getPixelPos());
+            glm::ivec2 ePos = enemy->getGridCell(grid);
 
             int targetId = enemy->getTargetBaseIndex();
             bool hasExactBase = false;
@@ -217,7 +217,24 @@ bool PathService::isPlacementValid(
             }
 
             const auto& dmap = dmapCache[cacheKey];
-            if (!dmap.isReachable(ePos.x, ePos.y)) {
+            bool enemyReachable = dmap.isReachable(ePos.x, ePos.y);
+            if (!enemyReachable && !Pathfinder::isCellWalkable(grid, ePos.x, ePos.y)) {
+                const auto& ePath = enemy->getPath();
+                size_t wp = enemy->getCurrentWaypoint();
+                if (wp > 0 && wp <= ePath.size()) {
+                    glm::ivec2 prevCell = ePath[wp - 1];
+                    if (dmap.isReachable(prevCell.x, prevCell.y)) {
+                        enemyReachable = true;
+                    }
+                }
+                if (!enemyReachable && wp < ePath.size()) {
+                    glm::ivec2 nextCell = ePath[wp];
+                    if (dmap.isReachable(nextCell.x, nextCell.y)) {
+                        enemyReachable = true;
+                    }
+                }
+            }
+            if (!enemyReachable) {
                 // Враг заперт в тупике без выхода к базе!
                 isPathBlocked = true;
                 break;

@@ -137,16 +137,16 @@ void GameplayInputHandler::processInput(
                 return;
             }
 
-            UIRect s2Rect = TimeControlUI::getSpeed2xButtonRect(windowWidth, windowHeight);
-            if (s2Rect.contains(static_cast<float>(mouseX), static_cast<float>(mouseY))) {
-                if (onSetSpeedRequested) onSetSpeedRequested(2.0f);
+            UIRect s1_5Rect = TimeControlUI::getSpeed1_5xButtonRect(windowWidth, windowHeight);
+            if (s1_5Rect.contains(static_cast<float>(mouseX), static_cast<float>(mouseY))) {
+                if (onSetSpeedRequested) onSetSpeedRequested(1.5f);
                 else if (onCycleSpeedRequested) onCycleSpeedRequested();
                 return;
             }
 
-            UIRect s4Rect = TimeControlUI::getSpeed4xButtonRect(windowWidth, windowHeight);
-            if (s4Rect.contains(static_cast<float>(mouseX), static_cast<float>(mouseY))) {
-                if (onSetSpeedRequested) onSetSpeedRequested(4.0f);
+            UIRect s2Rect = TimeControlUI::getSpeed2xButtonRect(windowWidth, windowHeight);
+            if (s2Rect.contains(static_cast<float>(mouseX), static_cast<float>(mouseY))) {
+                if (onSetSpeedRequested) onSetSpeedRequested(2.0f);
                 else if (onCycleSpeedRequested) onCycleSpeedRequested();
                 return;
             }

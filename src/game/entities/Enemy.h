@@ -167,6 +167,8 @@ public:
 	void renderHealthBar(SpriteRenderer* renderer, const Texture2D* barTex, const Grid& grid) const;
 	void renderDebugHitbox(SpriteRenderer* renderer, const Texture2D* radiusTex, const Grid& grid) const;
 	glm::vec2 getPixelPos() const { return m_pixelPos; }
+	glm::vec2 getCenterPos(const Grid& grid) const;
+	glm::ivec2 getGridCell(const Grid& grid) const;
 	bool isReachedEnd() const { return m_reachedEnd; }
 	void takeDamage(int damage) {
 		if (m_isFalling) return;

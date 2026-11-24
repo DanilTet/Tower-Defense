@@ -64,6 +64,8 @@ private:
     void setupEventListeners();
 
 public:
+    static constexpr float BASE_GAME_SPEED = 1.8f;
+
     GameplayState(GameStateManager& stateManager, int windowWidth, int windowHeight, std::shared_ptr<SpriteRenderer> renderer, TextRenderer* textRenderer, std::string levelPath, bool isEditorTest = false, GameplayOrigin origin = GameplayOrigin::Campaign);
 
     bool isEditorTest() const { return m_isEditorTest; }
@@ -82,6 +84,12 @@ public:
     void togglePause();
     void toggleAutoStartWaves();
     float getTimeScale() const { return m_timeScale; }
+    float getEffectiveTimeScale() const {
+        if (m_isPaused) {
+            return 0.0f;
+        }
+        return m_timeScale * BASE_GAME_SPEED;
+    }
     bool isPaused() const { return m_isPaused; }
     bool isAutoStartWaves() const { return m_autoStartWaves; }
 

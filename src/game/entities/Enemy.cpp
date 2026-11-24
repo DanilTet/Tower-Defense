@@ -712,10 +712,18 @@ void Enemy::recalculatePosition(const Grid& oldGrid, const Grid& newGrid) {
     }
 }
 
+glm::vec2 Enemy::getCenterPos(const Grid& grid) const {
+    float halfCell = grid.getCellSize() * 0.5f;
+    return m_pixelPos + glm::vec2(halfCell, halfCell);
+}
+
+glm::ivec2 Enemy::getGridCell(const Grid& grid) const {
+    return grid.pixelToGrid(getCenterPos(grid));
+}
+
 // функция которая дает хитбокс зависимо от размера окна
 CircleCollider Enemy::getCollider(const Grid& grid) const {
-    float halfCell = grid.getCellSize() / 2.0f;
-    glm::vec2 center = m_pixelPos + glm::vec2(halfCell, halfCell);
+    glm::vec2 center = getCenterPos(grid);
 
     // При падении в бездну хитбокс схлопывается
     if (m_isFalling) {

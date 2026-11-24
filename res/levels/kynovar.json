@@ -116,7 +116,7 @@
         "y": 2
       }
     ],
-    "cellSize": 121.9047622680664,
+    "cellSize": 60.9523811340332,
     "enemyBountyRules": {
       "Coal": [
         {
@@ -532,7 +532,7 @@
       ]
     ],
     "offsetX": 0.0,
-    "offsetY": 231.83334350585938,
+    "offsetY": 120.66667175292969,
     "outerCells": [
       {
         "noBuild": false,
@@ -1275,7 +1275,7 @@
           "type": "Spark"
         },
         {
-          "count": 7,
+          "count": 3,
           "delayAfter": 2.0,
           "interval": 0.800000011920929,
           "reward": -1,

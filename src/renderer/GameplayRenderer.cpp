@@ -335,15 +335,15 @@ void GameplayRenderer::renderFrame(
         }
     }
 
-    // 7. Единый угловой HUD: Статистика (HP, Деньги, Волна) + Управление временем (Пауза, 1x, 2x, 4x)
+    // 7. Единый угловой HUD: Статистика (HP, Деньги, Волна) + Управление временем (Пауза, 1x, 1.5x, 2x)
     if (m_whiteTexture && m_textRenderer) {
         float scale = GetUIScale(windowWidth, windowHeight);
 
         UIRect panelRect = TimeControlUI::getPanelRect(windowWidth, windowHeight);
         UIRect pauseRect = TimeControlUI::getPauseButtonRect(windowWidth, windowHeight);
         UIRect s1Rect    = TimeControlUI::getSpeed1xButtonRect(windowWidth, windowHeight);
+        UIRect s1_5Rect  = TimeControlUI::getSpeed1_5xButtonRect(windowWidth, windowHeight);
         UIRect s2Rect    = TimeControlUI::getSpeed2xButtonRect(windowWidth, windowHeight);
-        UIRect s4Rect    = TimeControlUI::getSpeed4xButtonRect(windowWidth, windowHeight);
         UIRect autoRect  = TimeControlUI::getAutoWaveButtonRect(windowWidth, windowHeight);
         UIRect waveRect  = TimeControlUI::getWaveButtonRect(windowWidth, windowHeight);
 
@@ -353,14 +353,14 @@ void GameplayRenderer::renderFrame(
 
         bool pauseHov = pauseRect.contains(mousePos.x, mousePos.y);
         bool s1Hov    = s1Rect.contains(mousePos.x, mousePos.y);
+        bool s1_5Hov  = s1_5Rect.contains(mousePos.x, mousePos.y);
         bool s2Hov    = s2Rect.contains(mousePos.x, mousePos.y);
-        bool s4Hov    = s4Rect.contains(mousePos.x, mousePos.y);
         bool autoHov  = autoRect.contains(mousePos.x, mousePos.y);
         bool waveHov  = waveRect.contains(mousePos.x, mousePos.y);
 
-        bool is1x = (!isPaused && timeScale < 1.5f);
-        bool is2x = (!isPaused && timeScale >= 1.5f && timeScale < 3.0f);
-        bool is4x = (!isPaused && timeScale >= 3.0f);
+        bool is1x   = (!isPaused && timeScale < 1.25f);
+        bool is1_5x = (!isPaused && timeScale >= 1.25f && timeScale < 1.75f);
+        bool is2x   = (!isPaused && timeScale >= 1.75f);
 
         bool isAutoWave = false;
         if (world.waveManager) {
@@ -450,14 +450,14 @@ void GameplayRenderer::renderFrame(
             glm::vec3(0.30f, 0.95f, 0.50f),
             glm::vec3(0.16f, 0.17f, 0.22f));
 
-        // 2x — неоново-голубая
-        drawBtn(s2Rect, is2x, s2Hov,
+        // 1.5x — неоново-голубая
+        drawBtn(s1_5Rect, is1_5x, s1_5Hov,
             glm::vec3(0.08f, 0.24f, 0.40f),
             glm::vec3(0.25f, 0.78f, 1.00f),
             glm::vec3(0.16f, 0.17f, 0.22f));
 
-        // 4x — пылающая оранжевая
-        drawBtn(s4Rect, is4x, s4Hov,
+        // 2x — пылающая оранжевая
+        drawBtn(s2Rect, is2x, s2Hov,
             glm::vec3(0.38f, 0.17f, 0.06f),
             glm::vec3(1.00f, 0.52f, 0.14f),
             glm::vec3(0.16f, 0.17f, 0.22f));
@@ -530,16 +530,24 @@ void GameplayRenderer::renderFrame(
         auto renderBtnLabel = [&](const std::string& label, const UIRect& rect, bool active, glm::vec3 activeCol) {
             float fs = std::clamp(0.46f * scale, 0.35f, 0.62f);
             float tw = m_textRenderer->CalculateTextWidth(label, fs);
+            float maxTextW = rect.width - 6.0f * scale;
+            if (tw > maxTextW && tw > 0.001f) {
+                fs = fs * (maxTextW / tw);
+                tw = m_textRenderer->CalculateTextWidth(label, fs);
+            }
             float tx = rect.x + (rect.width - tw) * 0.5f;
             float ty = rect.y + (rect.height - fs * 28.0f) * 0.5f + 2.0f;
-            glm::vec3 col = active ? activeCol : (glm::vec3(0.62f, 0.66f, 0.78f));
+            glm::vec3 col = glm::vec3(0.62f, 0.66f, 0.78f);
+            if (active) {
+                col = activeCol;
+            }
             m_textRenderer->RenderText(label, tx, ty, fs, col);
         };
 
         renderBtnLabel(isPaused ? ">" : "||", pauseRect, isPaused,  glm::vec3(1.00f, 0.88f, 0.30f));
         renderBtnLabel("1x",                  s1Rect,   is1x,       glm::vec3(0.45f, 1.00f, 0.60f));
-        renderBtnLabel("2x",                  s2Rect,   is2x,       glm::vec3(0.40f, 0.88f, 1.00f));
-        renderBtnLabel("4x",                  s4Rect,   is4x,       glm::vec3(1.00f, 0.68f, 0.28f));
+        renderBtnLabel("1.5x",                s1_5Rect, is1_5x,     glm::vec3(0.40f, 0.88f, 1.00f));
+        renderBtnLabel("2x",                  s2Rect,   is2x,       glm::vec3(1.00f, 0.68f, 0.28f));
 
         // --- Текст кнопки автопродолжения волн ---
         std::string autoBtnText = LOC("HUD_AUTO_WAVE");
